@@ -30,6 +30,7 @@ public:
     bool ProcessSample(float& outClose, float& outFar, float& outPiezo);
 
     inline bool IsActive() const { return mActive; }
+    inline bool IsReleased() const { return mReleased; }
     inline bool IsSustained() const { return mSustained; }
     inline int GetNoteNumber() const { return mNoteNumber; }
     inline float GetAgeSamples() const { return mAgeSamples; }

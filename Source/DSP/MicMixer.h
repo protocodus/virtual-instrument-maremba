@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AcousticRoom.h"
 #include <algorithm>
 #include <cmath>
 
@@ -11,8 +12,12 @@ public:
         Reset();
     }
 
+    void SetSampleRate(float sampleRate) {
+        mRoom.SetSampleRate(sampleRate);
+    }
+
     void Reset() {
-        // No state needed without reverb
+        mRoom.Reset();
     }
 
     // Process a sample from a voice at a specific MIDI note (for keyboard panning)
@@ -33,7 +38,7 @@ public:
         accCloseL += closeIn * gainL;
         accCloseR += closeIn * gainR;
 
-        // Far mic has diffuse spatialization (wider stereo image, softer panning)
+        // Far/Room mic has diffuse spatialization (wider stereo image, softer panning)
         float farAngle = (panBipolar * 0.25f + 0.5f) * 1.57079632679f;
         accFarL += farIn * std::cos(farAngle);
         accFarR += farIn * std::sin(farAngle);
@@ -42,7 +47,7 @@ public:
         accPiezo += piezoIn;
     }
 
-    // Finalize one audio frame through mic levels (no reverb)
+    // Finalize one audio frame through mic levels and acoustic room space
     void ProcessFrame(float inCloseL, float inCloseR,
                       float inFarL, float inFarR,
                       float inPiezo,
@@ -59,18 +64,21 @@ public:
         outDirectCloseL = closeMid - closeSide;
         outDirectCloseR = closeMid + closeSide;
 
-        // 2. Far Mic — direct feed, no reverb
-        outDirectFarL = inFarL;
-        outDirectFarR = inFarR;
+        // 2. Far/Room Mic — through authentic wooden concert hall reverberation
+        mRoom.Process(inFarL, inFarR, farLevel, outDirectFarL, outDirectFarR);
 
         // 3. Piezo Contact Pickup — direct
         outDirectPiezo = inPiezo;
 
         // 4. Combined Master Stereo Outputs (scaled with clean headroom)
+        // Strictly zero if all mic levels are turned down
         constexpr float kMasterMixScale = 0.65f;
         outMainL = ((outDirectCloseL * closeLevel) + (outDirectFarL * farLevel) + (outDirectPiezo * piezoLevel * 0.707f)) * kMasterMixScale;
         outMainR = ((outDirectCloseR * closeLevel) + (outDirectFarR * farLevel) + (outDirectPiezo * piezoLevel * 0.707f)) * kMasterMixScale;
     }
+
+private:
+    AcousticRoom mRoom;
 };
 
 } // namespace maremba

@@ -48,12 +48,6 @@ void MarembaEngine::Reset() {
     for (auto& voice : mVoices) {
         voice.FastKill();
     }
-    for (auto& roll : mRollNotes) {
-        roll.noteNumber = -1;
-        roll.velocity = 0.0f;
-        roll.timerSamples = 0.0f;
-        roll.leftHand = true;
-    }
     mMicMixer.Reset();
     mPreamp.Reset();
     mCompressor.Reset();
@@ -63,6 +57,7 @@ void MarembaEngine::Reset() {
 
     int factor = (mParams.oversampling == 1) ? 4 : (mParams.oversampling == 2) ? 8 : 2;
     float internalRate = static_cast<float>(mBaseSampleRate * factor);
+    mMicMixer.SetSampleRate(internalRate);
     mCompressor.SetSampleRate(internalRate);
     mPreamp.SetSampleRate(internalRate);
 
@@ -79,13 +74,14 @@ void MarembaEngine::SetParameters(const EngineParameters& params) {
     int factor = (mParams.oversampling == 1) ? 4 : (mParams.oversampling == 2) ? 8 : 2;
     float internalRate = static_cast<float>(mBaseSampleRate * factor);
 
+    mMicMixer.SetSampleRate(internalRate);
     mCompressor.SetSampleRate(internalRate);
     mPreamp.SetSampleRate(internalRate);
     ModelParams mp = GetModelParams(static_cast<EMarimbaModel>(std::clamp(mParams.model, 0, 3)));
     mFrameBody.Configure(internalRate, mp.frameBodyFreq, mp.frameBodyQ);
     mSympathetic.Configure(internalRate, (mParams.masterTune - 0.50f) * 200.0f);
 
-    // When sustain pedal lifts, begin hand-damping all sustained voices
+    // When sustain pedal lifts, notify sustained voices
     if (pedalLifted) {
         int maxVoices = (mParams.polyphony == 0) ? 8 : (mParams.polyphony == 1) ? 16 : 24;
         for (int i = 0; i < maxVoices; ++i) {
@@ -128,11 +124,11 @@ int MarembaEngine::FindVoiceToAllocate(int noteNumber) {
         }
     }
 
-    // 3. Voice stealing: steal voice with lowest amplitude
+    // 3. Voice stealing: prefer stealing released voices with lowest energy
     int bestCandidate = 0;
     float lowestAmp = 1e9f;
     for (int i = 0; i < maxVoices; ++i) {
-        float amp = mVoices[i].GetCurrentAmplitude();
+        float amp = mVoices[i].GetCurrentAmplitude() * (mVoices[i].IsReleased() ? 0.35f : 1.0f);
         if (amp < lowestAmp) {
             lowestAmp = amp;
             bestCandidate = i;
@@ -149,19 +145,6 @@ void MarembaEngine::NoteOn(int noteNumber, float velocity) {
     }
 
     float mappedVel = MapVelocity(velocity);
-
-    // Track for Mallet Roll if roll speed active
-    if (mParams.rollSpeed >= 4.0f) {
-        for (auto& roll : mRollNotes) {
-            if (roll.noteNumber == noteNumber || roll.noteNumber == -1) {
-                roll.noteNumber = noteNumber;
-                roll.velocity = mappedVel;
-                roll.timerSamples = 0.0f;
-                roll.leftHand = true;
-                break;
-            }
-        }
-    }
 
     int voiceIdx = FindVoiceToAllocate(noteNumber);
     int factor = (mParams.oversampling == 1) ? 4 : (mParams.oversampling == 2) ? 8 : 2;
@@ -190,11 +173,6 @@ void MarembaEngine::NoteOff(int noteNumber) {
             mVoices[i].Release(mParams.sustainPedalDown);
         }
     }
-    for (auto& roll : mRollNotes) {
-        if (roll.noteNumber == noteNumber) {
-            roll.noteNumber = -1;
-        }
-    }
 }
 
 void MarembaEngine::AllNotesOff() {
@@ -202,9 +180,6 @@ void MarembaEngine::AllNotesOff() {
         if (voice.IsActive()) {
             voice.Release();
         }
-    }
-    for (auto& roll : mRollNotes) {
-        roll.noteNumber = -1;
     }
 }
 
@@ -219,44 +194,6 @@ int MarembaEngine::GetActiveVoiceCount() const {
     return count;
 }
 
-void MarembaEngine::ProcessMalletRolls(int frames) {
-    if (mParams.rollSpeed < 4.0f) return;
-
-    int factor = (mParams.oversampling == 1) ? 4 : (mParams.oversampling == 2) ? 8 : 2;
-    float internalSampleRate = static_cast<float>(mBaseSampleRate * factor);
-    float rollIntervalSamples = static_cast<float>(mBaseSampleRate) / mParams.rollSpeed;
-
-    for (auto& roll : mRollNotes) {
-        if (roll.noteNumber < 0) continue;
-
-        roll.timerSamples += static_cast<float>(frames);
-        if (roll.timerSamples >= rollIntervalSamples) {
-            roll.timerSamples -= rollIntervalSamples;
-
-            // Alternate hand: Left vs Right hand micro-variations
-            roll.leftHand = !roll.leftHand;
-            float handVel = roll.velocity * (roll.leftHand ? 0.94f : 1.04f); // Dominant right hand firmness
-            float handPos = mParams.strikePosition + (roll.leftHand ? -0.04f : 0.04f); // Spatial strike wobble
-
-            int voiceIdx = FindVoiceToAllocate(roll.noteNumber);
-            EMarimbaModel model = static_cast<EMarimbaModel>(std::clamp(mParams.model, 0, 3));
-            float masterTuneCents = (mParams.masterTune - 0.50f) * 200.0f;
-            float keyDetuneCents = GetKeyDetuneOffset(roll.noteNumber, mParams.detune);
-            float totalPitchOffset = masterTuneCents + keyDetuneCents;
-
-            mVoices[voiceIdx].Trigger(roll.noteNumber, handVel, model,
-                                     mParams.malletHardness, handPos,
-                                     mParams.resonatorTune, mParams.resonatorCoupling,
-                                     mParams.decay, mParams.buzzAmount, mParams.artifacts,
-                                     mParams.pitchGlide * 0.5f, // rolls have smoother re-strikes
-                                     internalSampleRate, mPrng,
-                                     totalPitchOffset,
-                                     mParams.malletType,
-                                     mParams.strikeJitter);
-        }
-    }
-}
-
 void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
                                 float* outCloseL, float* outCloseR,
                                 float* outFarL, float* outFarR,
@@ -265,8 +202,6 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
 {
     int factor = (mParams.oversampling == 1) ? 4 : (mParams.oversampling == 2) ? 8 : 2;
     int maxVoices = (mParams.polyphony == 0) ? 8 : (mParams.polyphony == 1) ? 16 : 24;
-
-    ProcessMalletRolls(frameCount);
 
     float volGain = mParams.volume * mParams.volume;
 
@@ -320,6 +255,13 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
                 mSympathetic.Process(mParams.sympathetic, haloL, haloR);
             }
 
+            // Route acoustic emissions (frame body bloom & sympathetic halo) into acoustic mic accumulators
+            // so they are properly controlled by the mixer and completely silent when mixer volumes are at 0
+            accCloseL += (bodySound * 0.5f + haloL * 0.7f);
+            accCloseR += (bodySound * 0.5f + haloR * 0.7f);
+            accFarL += (bodySound * 0.8f + haloL * 1.0f);
+            accFarR += (bodySound * 0.8f + haloR * 1.0f);
+
             float frameMainL = 0.0f;
             float frameMainR = 0.0f;
             float frameCloseL = 0.0f;
@@ -337,10 +279,6 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
                                    frameCloseL, frameCloseR,
                                    frameFarL, frameFarR,
                                    framePiezo);
-
-            // Inject Frame Body and Sympathetic Halo into Main Stereo field
-            frameMainL += bodySound + haloL;
-            frameMainR += bodySound + haloR;
 
             // 1. Percussion Compressor (tames dynamic peaks before saturation stage)
             float compL = 0.0f;

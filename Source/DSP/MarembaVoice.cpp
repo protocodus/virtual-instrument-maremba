@@ -57,25 +57,13 @@ void MarembaVoice::FastKill() {
 
 void MarembaVoice::Release(bool sustainPedalDown) {
     mReleased = true;
-    if (sustainPedalDown) {
-        // Sustain pedal holds the note — bar keeps ringing freely
-        mSustained = true;
-        mDamping = false;
-        mDampRate = 1.0f;
-    } else {
-        // No sustain — player's hand touches bar for damping
-        mSustained = false;
-        mDamping = true;
-        // mDampRate was set during Trigger based on model's handDampRate
-    }
+    mSustained = sustainPedalDown;
+    mDamping = false;
 }
 
 void MarembaVoice::ReleaseSustainPedal() {
-    if (mSustained) {
-        mSustained = false;
-        mDamping = true;
-        // Begin hand-damping now that pedal has lifted
-    }
+    mSustained = false;
+    mDamping = false;
 }
 
 void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
@@ -592,11 +580,6 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
             ym *= (1.0f - mContactDampFactor * 0.003f);
         }
 
-        // Hand-damping on note-off (when damping is active)
-        if (mDamping) {
-            ym *= mDampRate;
-        }
-
         mModes[m].y2 = mModes[m].y1;
         mModes[m].y1 = ym;
 
@@ -611,7 +594,6 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
     // Update Anisotropic Twin Mode 0b (wood grain beating)
     if (mMode0b.b0 != 0.0f) {
         float y0b = mMode0b.c * mMode0b.y1 - mMode0b.s * mMode0b.y2 + mMode0b.b0 * excitation;
-        if (mDamping) y0b *= mDampRate;
         mMode0b.y2 = mMode0b.y1;
         mMode0b.y1 = y0b;
         barAcousticSum += y0b;
@@ -637,7 +619,6 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
     float driveRes = barVel0 * (0.35f + 0.65f * mResCoupling);
 
     float yRes = mResC * mResY1 - mResS * mResY2 + (1.0f - mResS) * driveRes;
-    if (mDamping) yRes *= (mDampRate * 0.98f + 0.02f); // Resonator damps slightly slower than bar
     mResY2 = mResY1;
     mResY1 = yRes;
 

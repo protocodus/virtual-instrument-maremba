@@ -30,7 +30,7 @@ struct EngineParameters {
     float sympathetic = 0.40f;      // Inter-bar sympathetic resonance halo
     float pitchGlide = 0.30f;       // Dynamic tension-modulation pitch attack
     float bodyBloom = 0.50f;        // Frame & soundboard wooden body mass
-    float rollSpeed = 0.0f;         // Mallet roll / tremolo rate (0 = off, 6-20 Hz)
+    float rollSpeed = 0.0f;         // Kept for patch compatibility (unused)
 
     float closeLevel = 0.85f;
     float farLevel = 0.45f;
@@ -81,7 +81,6 @@ public:
 private:
     float MapVelocity(float vel) const;
     int FindVoiceToAllocate(int noteNumber);
-    void ProcessMalletRolls(int frames);
 
     double mBaseSampleRate = 44100.0;
     EngineParameters mParams;
@@ -94,15 +93,6 @@ private:
     SympatheticMesh mSympathetic;
     FrameBody mFrameBody;
     FastPRNG mPrng;
-
-    // Mallet Roll State
-    struct RollTracker {
-        int noteNumber = -1;
-        float velocity = 0.0f;
-        float timerSamples = 0.0f;
-        bool leftHand = true;
-    };
-    std::array<RollTracker, 4> mRollNotes;
 
     // Direct sub-sample buffers for oversampling decimation
     static constexpr int kMaxOversample = 8;
