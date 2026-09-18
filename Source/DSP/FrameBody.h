@@ -22,26 +22,28 @@ public:
         mSampleRate = sampleRate > 8000.0f ? sampleRate : 44100.0f;
         
         // Mode 1: Primary frame / rail mass resonance (e.g. ~86-145 Hz)
+        // High internal friction in wood rails gives heavily damped mechanical Q (1.0 - 2.5)
         float f1 = std::clamp(frameFreq, 40.0f, 300.0f);
-        float q1 = std::clamp(frameQ, 2.0f, 10.0f);
+        float q1 = std::clamp(frameQ, 1.0f, 2.5f);
         float r1 = std::exp(-3.1415926535f * f1 / (q1 * mSampleRate));
         float w1 = 6.283185307f * f1 / mSampleRate;
         mC1 = 2.0f * r1 * std::cos(w1);
         mS1 = r1 * r1;
-        mB1 = (1.0f - r1) * 0.45f;
+        mB1 = (1.0f - r1) * 0.15f;
 
-        // Mode 2: Secondary wooden end-cheek / rail resonance (~280 Hz)
+        // Mode 2: Secondary wooden end-cheek / rail impulse thump
+        // Damped identically to prevent pitched sine-wave ringing
         float f2 = f1 * 2.85f;
         if (f2 > 600.0f) f2 = 600.0f;
-        float q2 = 5.0f;
+        float q2 = q1;
         float r2 = std::exp(-3.1415926535f * f2 / (q2 * mSampleRate));
         float w2 = 6.283185307f * f2 / mSampleRate;
         mC2 = 2.0f * r2 * std::cos(w2);
         mS2 = r2 * r2;
-        mB2 = (1.0f - r2) * 0.25f;
+        mB2 = (1.0f - r2) * 0.10f;
 
-        // High-pass filter coefficient (~55 Hz cutoff)
-        float hpCutoff = 55.0f;
+        // High-pass filter coefficient (~70 Hz cutoff to prevent sub rumble)
+        float hpCutoff = 70.0f;
         float hpR = std::exp(-6.283185307f * hpCutoff / mSampleRate);
         mHpAlpha = hpR;
     }

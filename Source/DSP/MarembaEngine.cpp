@@ -279,7 +279,10 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
             float accPiezo = 0.0f;
 
             float totalMechanical = 0.0f;
-            float totalAcoustic = 0.0f;
+
+            if (mParams.sympathetic > 0.001f) {
+                mSympathetic.BeginSample();
+            }
 
             for (int v = 0; v < maxVoices; ++v) {
                 if (mVoices[v].IsActive()) {
@@ -288,14 +291,19 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
                     float voicePiezo = 0.0f;
 
                     if (mVoices[v].ProcessSample(voiceClose, voiceFar, voicePiezo)) {
-                        mMicMixer.MixVoiceSample(mVoices[v].GetNoteNumber(),
+                        int noteNum = mVoices[v].GetNoteNumber();
+                        mMicMixer.MixVoiceSample(noteNum,
                                                  voiceClose, voiceFar, voicePiezo,
                                                  accCloseL, accCloseR,
                                                  accFarL, accFarR,
                                                  accPiezo);
 
                         totalMechanical += voicePiezo;
-                        totalAcoustic += voiceClose + voiceFar;
+                        float voiceAcoustic = voiceClose + voiceFar;
+
+                        if (mParams.sympathetic > 0.001f) {
+                            mSympathetic.AccumulateVoice(noteNum, voiceAcoustic);
+                        }
                     }
                 }
             }
@@ -303,13 +311,13 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
             // Frame Body Bloom (low-frequency frame & rail mass resonance)
             float bodySound = 0.0f;
             if (mParams.bodyBloom > 0.001f) {
-                bodySound = mFrameBody.Process(totalMechanical) * mParams.bodyBloom * 0.02f;
+                bodySound = mFrameBody.Process(totalMechanical) * mParams.bodyBloom * 0.005f;
             }
 
             // Inter-Bar Sympathetic Resonance Halo ("Singing Rack")
             float haloL = 0.0f, haloR = 0.0f;
             if (mParams.sympathetic > 0.001f) {
-                mSympathetic.Process(totalAcoustic, mParams.sympathetic, haloL, haloR);
+                mSympathetic.Process(mParams.sympathetic, haloL, haloR);
             }
 
             float frameMainL = 0.0f;

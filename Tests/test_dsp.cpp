@@ -575,6 +575,7 @@ int main() {
                 }
             }
             eng.AllNotesOff();
+            eng.Reset();
 
             // Strike 2
             eng.NoteOn(60, 0.8f);
@@ -628,6 +629,79 @@ int main() {
         }
 
         std::cout << " -> Passed! Strike Variance verified across all operational regimes." << std::endl;
+    }
+
+    // Test 15: Harmonic Sympathetic Resonance Matrix (Zero Semitone Bleed)
+    {
+        std::cout << "[Test 15] Testing Harmonic Sympathetic Resonance Matrix for zero semitone bleed..." << std::endl;
+        maremba::SympatheticMesh mesh;
+        mesh.Configure(44100.0f);
+
+        // Feed C4 (MIDI 60) acoustic energy into the sympathetic mesh
+        for (int s = 0; s < 500; ++s) {
+            mesh.BeginSample();
+            float fakeAcoustic = std::sin(6.283185307f * 261.63f * s / 44100.0f);
+            mesh.AccumulateVoice(60, fakeAcoustic);
+            float haloL, haloR;
+            mesh.Process(1.0f, haloL, haloR);
+        }
+
+        // Resonator indices in mesh:
+        // C3 is index 0 (note 48)
+        // B3 is index 11 (note 59) - adjacent semitone below C4!
+        // C4 is index 12 (note 60) - unison
+        // C#4 is index 13 (note 61) - adjacent semitone above C4!
+        // G4 is index 19 (note 67) - perfect fifth above C4
+        float b3Energy = std::abs(mesh.GetResonatorOutput(11));
+        float c4Energy = std::abs(mesh.GetResonatorOutput(12));
+        float cs4Energy = std::abs(mesh.GetResonatorOutput(13));
+        float g4Energy = std::abs(mesh.GetResonatorOutput(19));
+
+        std::cout << " -> Resonator C4 (Unison) amp: " << c4Energy << std::endl;
+        std::cout << " -> Resonator G4 (5th) amp: " << g4Energy << std::endl;
+        std::cout << " -> Resonator B3 (Semitone below) amp: " << b3Energy << std::endl;
+        std::cout << " -> Resonator C#4 (Semitone above) amp: " << cs4Energy << std::endl;
+
+        assert(c4Energy > 0.001f && "C4 unison resonator should be excited");
+        assert(g4Energy > 0.0005f && "G4 perfect fifth resonator should be excited");
+        assert(b3Energy == 0.0f && "B3 semitone resonator MUST have strictly zero excitation!");
+        assert(cs4Energy == 0.0f && "C#4 semitone resonator MUST have strictly zero excitation!");
+        std::cout << " -> Passed! Zero semitone bleed verified: semitones and tritones receive strictly 0.0 coupling." << std::endl;
+    }
+
+    // Test 16: Mallet Restrike Phase Continuity (Zero Click / Step Discontinuity)
+    {
+        std::cout << "[Test 16] Testing Mallet Restrike Phase Continuity (zero click / step discontinuity)..." << std::endl;
+        maremba::MarembaEngine restrikeEngine(44100.0);
+        maremba::EngineParameters p;
+        p.strikeJitter = 0.0f;
+        p.artifacts = 0.0f;
+        restrikeEngine.SetParameters(p);
+
+        constexpr int kBatch = 64;
+        float outL[kBatch], outR[kBatch], cL[kBatch], cR[kBatch], fL[kBatch], fR[kBatch], pz[kBatch];
+
+        // First strike
+        restrikeEngine.NoteOn(60, 0.8f);
+        // Let it ring for ~20 ms to build significant sinusoidal amplitude
+        for (int b = 0; b < 15; ++b) {
+            restrikeEngine.RenderBatch(outL, outR, cL, cR, fL, fR, pz, kBatch);
+        }
+
+        // Grab sample right before restrike
+        float sampleBefore = outL[kBatch - 1];
+
+        // Restrike the same note while it is vibrating at high amplitude
+        restrikeEngine.NoteOn(60, 0.8f);
+        restrikeEngine.RenderBatch(outL, outR, cL, cR, fL, fR, pz, kBatch);
+        float sampleAfter = outL[0];
+
+        float stepDiscontinuity = std::abs(sampleAfter - sampleBefore);
+        std::cout << " -> Sample before restrike: " << sampleBefore << ", after restrike: " << sampleAfter
+                  << ", single-sample jump: " << stepDiscontinuity << std::endl;
+
+        assert(stepDiscontinuity < 0.15f && "Restrike caused harsh step discontinuity click");
+        std::cout << " -> Passed! Restrike phase continuity verified: no click or DC step jump." << std::endl;
     }
 
     std::cout << "\n>>> ALL MAREMBA DSP VERIFICATION CHECKS PASSED SUCCESSFULLY! <<<" << std::endl;

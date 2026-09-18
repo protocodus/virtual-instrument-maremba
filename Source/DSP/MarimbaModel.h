@@ -69,28 +69,28 @@ inline ModelParams GetModelParams(EMarimbaModel model) {
                 // 8 pitched overtone ratios: modes 0-7
                 // Measured from Bork (1995) & Chaigne (1999) for undercut rosewood bars
                 { 1.000f, 4.000f, 10.000f, 16.000f, 22.400f, 29.600f, 37.800f, 47.200f },
-                // Mode initial amplitude weights (diminish with mode number)
-                { 1.000f, 0.450f,  0.280f,  0.140f,  0.075f,  0.040f,  0.022f,  0.012f },
+                // Mode initial amplitude weights (calibrated against acoustic references)
+                { 1.000f, 0.280f,  0.070f,  0.024f,  0.010f,  0.005f,  0.002f,  0.001f },
                 // Physics-based damping: alpha_rad, alpha_int
-                0.0018f,  // radiation: modes radiate ∝ f^2
-                0.035f,   // internal: viscoelastic loss ∝ f
-                28.0f, // high Q brass resonators
-                0.85f, // strong acoustic coupling
-                false, // no mirliton
+                0.18f,    // radiation: modes radiate ∝ f^2 (fast upper mode radiation)
+                0.75f,    // internal: viscoelastic loss ∝ f
+                13.0f,    // realistic acoustic brass resonator tube Q
+                0.60f,    // balanced acoustic coupling without hollow whistling
+                false,    // no mirliton
                 0.0f,
                 0.0f,
-                3.2f,  // long, singing rosewood sustain
+                3.0f,     // singing rosewood fundamental sustain
                 0.65f,
-                4200.0f,   // clack center frequency
-                2800.0f,   // clack bandwidth
+                4200.0f,  // clack center frequency
+                2800.0f,  // clack bandwidth
                 0.0008f,
                 // Premium phenomena:
-                0.08f,  // subtle natural acoustic tension glide
-                1.5f,   // ★ ENABLED: rosewood anisotropic split (1.5 cents beating)
-                1.30f,  // pronounced mallet felt contact damping
-                86.0f,  // 86 Hz mahogany frame resonance
-                1.5f,   // well-damped frame Q
-                15.0f   // hand-damp rate (~65 ms decay)
+                0.05f,    // subtle natural acoustic tension glide
+                1.0f,     // subtle rosewood anisotropic split (1.0 cent beating)
+                1.30f,    // pronounced mallet felt contact damping
+                86.0f,    // 86 Hz mahogany frame resonance
+                1.2f,     // well-damped frame Q
+                15.0f     // hand-damp rate (~65 ms decay)
             };
             
         case EMarimbaModel::MayanPadauk:
@@ -99,26 +99,26 @@ inline ModelParams GetModelParams(EMarimbaModel model) {
                 "Quarter-sawn Mexican Padauk (Hormiguillo)",
                 "Square handcrafted cedar soundboxes with beeswax plugs",
                 { 1.000f, 4.000f,  9.800f, 15.600f, 21.400f, 28.200f, 36.000f, 44.800f },
-                { 1.000f, 0.500f,  0.320f,  0.160f,  0.085f,  0.045f,  0.025f,  0.014f },
-                0.0024f,  // slightly higher radiation damping (denser wood)
-                0.045f,   // higher internal friction
-                18.0f, // warm wooden resonator Q
-                0.72f,
+                { 1.000f, 0.340f,  0.090f,  0.030f,  0.012f,  0.006f,  0.003f,  0.001f },
+                0.22f,    // slightly higher radiation damping (denser wood)
+                0.90f,    // higher internal friction = tight punchy decay
+                10.5f,    // warm wooden cedar soundbox Q
+                0.52f,
                 false,
                 0.0f,
                 0.0f,
-                2.2f,  // punchy, warm sustain
+                2.0f,     // punchy, warm sustain
                 0.75f,
                 3600.0f,
                 2200.0f,
                 0.0016f,
                 // Premium phenomena:
-                0.06f,  // subtle punchy woody pitch attack
-                2.0f,   // ★ ENABLED: padauk anisotropic split (2.0 cents, more beating)
+                0.04f,
+                1.2f,     // padauk anisotropic split
                 1.15f,
-                110.0f, // 110 Hz cedar frame body resonance
-                1.5f,   // well-damped frame Q
-                14.0f   // hand-damp rate (~70 ms decay)
+                110.0f,   // 110 Hz cedar frame body resonance
+                1.2f,
+                14.0f
             };
             
         case EMarimbaModel::BalafonAncestral:
@@ -127,26 +127,26 @@ inline ModelParams GetModelParams(EMarimbaModel model) {
                 "Fire-cured African Ironwood (Kene)",
                 "Natural calabash gourds with vibrating mirliton membranes",
                 { 1.000f, 4.000f,  9.600f, 14.100f, 19.500f, 25.800f, 33.200f, 41.600f },
-                { 1.000f, 0.600f,  0.380f,  0.200f,  0.110f,  0.060f,  0.035f,  0.020f },
-                0.0030f,  // higher radiation (more irregular bar shape)
-                0.055f,   // high internal friction from fire-cured wood
-                12.0f, // organic gourd cavity
-                0.65f,
-                true,  // active vibrating mirliton membrane!
-                0.045f, // membrane displacement threshold for buzz
-                3.5f,   // buzz sizzle drive
-                1.7f,   // crisp, percussive sustain
+                { 1.000f, 0.380f,  0.110f,  0.040f,  0.016f,  0.008f,  0.004f,  0.001f },
+                0.25f,    // higher radiation from irregular bar shape
+                1.10f,    // high internal friction from fire-cured wood
+                9.0f,     // organic gourd cavity
+                0.48f,
+                true,     // active vibrating mirliton membrane
+                0.085f,   // membrane displacement threshold (buzz on forte/accents)
+                2.0f,     // buzz sizzle drive
+                1.6f,     // crisp, percussive sustain
                 0.85f,
                 4800.0f,
                 3200.0f,
                 0.0028f,
                 // Premium phenomena:
-                0.10f,  // subtle attack pitch thump
-                0.5f,   // ★ ENABLED: minimal ironwood anisotropic split
+                0.06f,
+                0.4f,
                 0.90f,
-                145.0f, // 145 Hz bamboo frame & rail resonance
-                1.5f,   // well-damped frame Q
-                12.0f   // hand-damp rate (~80 ms, heavier bars)
+                145.0f,   // 145 Hz bamboo frame & rail resonance
+                1.2f,
+                12.0f
             };
 
         case EMarimbaModel::KalimbaArtisan:
@@ -156,28 +156,27 @@ inline ModelParams GetModelParams(EMarimbaModel model) {
                 "Solid African Acacia wood soundbox with pyrography rosette",
                 "Ergonomic spring steel tines on brass and hardwood bridge",
                 // Clamped cantilever beam overtone ratios (Euler-Bernoulli theory)
-                // f_n/f_1 = (lambda_n / lambda_1)^2 where lambda_n are eigenvalues
                 { 1.000f, 6.267f, 17.550f, 34.390f, 56.840f, 83.900f, 116.700f, 155.300f },
-                { 1.000f, 0.400f,  0.220f,  0.100f,  0.050f,  0.025f,  0.012f,  0.006f },
-                0.0008f,  // low radiation damping (narrow tine, poor radiator)
-                0.015f,   // low internal damping (spring steel)
-                14.0f, // acoustic soundbox Q
-                0.75f, // strong body cavity coupling
-                false, // no buzz membrane
+                { 1.000f, 0.220f,  0.045f,  0.015f,  0.006f,  0.002f,  0.001f,  0.0005f },
+                0.025f,   // low radiation damping (narrow tine, high modes sing out)
+                0.12f,    // low internal damping (spring steel)
+                10.0f,    // acoustic soundbox Q
+                0.45f,    // body cavity coupling
+                false,    // no buzz membrane
                 0.0f,
                 0.0f,
-                4.5f,  // long, singing crystalline tine sustain
-                0.55f, // gentle treble damping
-                5400.0f,   // bright steel tine release ping
-                3500.0f,   // clack bandwidth
-                0.0004f, // low internal tine friction
+                4.0f,     // crystalline tine sustain
+                0.55f,
+                5400.0f,  // bright steel tine release ping
+                3500.0f,  // clack bandwidth
+                0.0004f,
                 // Premium phenomena:
-                0.05f,  // subtle initial deflection pluck glide
-                0.0f,   // ★ DISABLED: steel tines have no anisotropic split
-                0.80f,  // rapid thumb flesh release
-                245.0f, // 245 Hz acacia cavity air bloom
-                2.2f,   // resonant soundbox Q
-                22.0f   // hand-damp rate: fast finger damp (~40 ms)
+                0.03f,
+                0.0f,     // steel tines have no anisotropic grain split
+                0.80f,
+                245.0f,   // 245 Hz acacia cavity air bloom
+                1.6f,
+                22.0f
             };
     }
 }

@@ -15,72 +15,71 @@ public:
         mDcBlockInL = mDcBlockOutL = 0.0f;
         mDcBlockInR = mDcBlockOutR = 0.0f;
         mTiltLowL = mTiltLowR = 0.0f;
-        mPresLowL = mPresLowR = 0.0f;
     }
 
     void SetSampleRate(float sampleRate) {
         mSampleRate = sampleRate > 8000.0f ? sampleRate : 88200.0f;
-        mTiltAlpha = 1.0f - std::exp(-6.283185307f * 900.0f / mSampleRate);
-        mPresAlpha = 1.0f - std::exp(-6.283185307f * 3200.0f / mSampleRate);
+        mTiltAlpha = 1.0f - std::exp(-6.283185307f * 450.0f / mSampleRate);
     }
 
     // Process stereo frame through analog saturation and warmth tilt EQ
     void Process(float inL, float inR, float drive, float warmth, float& outL, float& outR) {
-        // 1. Input Gain & Saturation Drive with clean headroom
-        float driveGain = 1.0f + drive * 1.8f;
-        float driveComp = 1.0f / std::sqrt(1.0f + drive * 1.5f);
+        float satL = inL;
+        float satR = inR;
 
-        float xL = inL * driveGain;
-        float xR = inR * driveGain;
+        // 1. High-Headroom Soft-Knee Saturation (clean bypass when drive <= 0.001)
+        if (drive > 0.001f) {
+            float driveGain = 1.0f + drive * 0.8f;
+            float driveComp = 1.0f / std::sqrt(1.0f + drive * 0.7f);
 
-        // Smooth transformer/tube saturation with subtle harmonic warmth
-        auto Saturate = [](float x) -> float {
-            float bias = 0.03f * x * x;
-            float saturated = std::tanh(x + bias) - std::tanh(bias);
-            return saturated;
-        };
+            auto SoftSaturate = [drive](float x) -> float {
+                float ax = std::abs(x);
+                if (ax <= 0.60f) {
+                    return x; // 100% linear, zero distortion below 0.60 (-4.4 dBFS)
+                }
+                float sign = (x > 0.0f) ? 1.0f : -1.0f;
+                float excess = ax - 0.60f;
+                float sat = 0.60f + 0.40f * std::tanh(excess * (1.0f + drive * 1.5f) / 0.40f);
+                return sign * sat;
+            };
 
-        float satL = Saturate(xL) * driveComp;
-        float satR = Saturate(xR) * driveComp;
+            satL = SoftSaturate(inL * driveGain) * driveComp;
+            satR = SoftSaturate(inR * driveGain) * driveComp;
 
-        // 2. DC Blocker
-        float dcL = satL - mDcBlockInL + 0.995f * mDcBlockOutL;
-        mDcBlockInL = satL;
-        mDcBlockOutL = dcL;
+            // DC Blocker (active only during saturation)
+            float dcL = satL - mDcBlockInL + 0.995f * mDcBlockOutL;
+            mDcBlockInL = satL;
+            mDcBlockOutL = dcL;
+            satL = dcL;
 
-        float dcR = satR - mDcBlockInR + 0.995f * mDcBlockOutR;
-        mDcBlockInR = satR;
-        mDcBlockOutR = dcR;
+            float dcR = satR - mDcBlockInR + 0.995f * mDcBlockOutR;
+            mDcBlockInR = satR;
+            mDcBlockOutR = dcR;
+            satR = dcR;
+        }
 
-        // 3. Baxandall / Tilt Tone Filter
-        // Center freq ~ 900 Hz. warmth in [-1, +1].
-        mTiltLowL += mTiltAlpha * (dcL - mTiltLowL);
-        mTiltLowR += mTiltAlpha * (dcR - mTiltLowR);
+        // 2. Transparent Baxandall / Tilt Tone Filter (flat at warmth = 0.0)
+        if (std::abs(warmth) > 0.001f) {
+            mTiltLowL += mTiltAlpha * (satL - mTiltLowL);
+            mTiltLowR += mTiltAlpha * (satR - mTiltLowR);
 
-        float highL = dcL - mTiltLowL;
-        float highR = dcR - mTiltLowR;
+            float highL = satL - mTiltLowL;
+            float highR = satR - mTiltLowR;
 
-        float lowGain = 1.0f - warmth * 0.35f;
-        float highGain = 1.0f + warmth * 0.35f;
+            float lowGain = 1.0f + warmth * 0.20f;
+            float highGain = 1.0f - warmth * 0.20f;
 
-        float toneL = (mTiltLowL * lowGain) + (highL * highGain);
-        float toneR = (mTiltLowR * lowGain) + (highR * highGain);
-
-        // 4. Acoustic Presence Shelf (+1.2 dB above 3.2 kHz)
-        mPresLowL += mPresAlpha * (toneL - mPresLowL);
-        mPresLowR += mPresAlpha * (toneR - mPresLowR);
-
-        float presHighL = toneL - mPresLowL;
-        float presHighR = toneR - mPresLowR;
-
-        outL = toneL + 0.15f * presHighL;
-        outR = toneR + 0.15f * presHighR;
+            outL = (mTiltLowL * lowGain) + (highL * highGain);
+            outR = (mTiltLowR * lowGain) + (highR * highGain);
+        } else {
+            outL = satL;
+            outR = satR;
+        }
     }
 
 private:
     float mSampleRate = 88200.0f;
-    float mTiltAlpha = 0.062f;
-    float mPresAlpha = 0.205f;
+    float mTiltAlpha = 0.031f;
 
     float mDcBlockInL = 0.0f;
     float mDcBlockOutL = 0.0f;
@@ -88,8 +87,6 @@ private:
     float mDcBlockOutR = 0.0f;
     float mTiltLowL = 0.0f;
     float mTiltLowR = 0.0f;
-    float mPresLowL = 0.0f;
-    float mPresLowR = 0.0f;
 };
 
 } // namespace maremba

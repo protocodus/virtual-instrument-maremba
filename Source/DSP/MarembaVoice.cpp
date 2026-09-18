@@ -88,6 +88,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
                            int malletType,
                            float strikeJitter)
 {
+    bool isRestrike = mActive && (mNoteNumber == noteNumber);
     mActive = true;
     mReleased = false;
     mSustained = false;
@@ -102,6 +103,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
 
     ModelParams params = GetModelParams(model);
     StrikeArtifacts art = GenerateStrikeArtifacts(prng, mVelocity, malletHardness, artifactsAmount);
+    static constexpr float kPhysicalImpulseScale = 0.018f;
 
     // Compute hand-damp rate from model parameters
     // exp(-rate / sampleRate) gives per-sample multiplier
@@ -174,14 +176,14 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
                 mMalletShockImpulse = 1.10f;
                 mMalletReboundGain = 0.025f;
                 frictionMult = 0.15f;
-                modeWeightMult[0] = 0.90f;
-                modeWeightMult[1] = 1.20f;
-                modeWeightMult[2] = 1.50f;
-                modeWeightMult[3] = 1.60f;
-                modeWeightMult[4] = 1.45f;
-                modeWeightMult[5] = 1.30f;
-                modeWeightMult[6] = 1.10f;
-                modeWeightMult[7] = 0.90f;
+                modeWeightMult[0] = 0.95f;
+                modeWeightMult[1] = 1.15f;
+                modeWeightMult[2] = 1.25f;
+                modeWeightMult[3] = 1.30f;
+                modeWeightMult[4] = 1.25f;
+                modeWeightMult[5] = 1.15f;
+                modeWeightMult[6] = 1.05f;
+                modeWeightMult[7] = 0.95f;
                 break;
             case 3: // Wood Baton
                 contactTimeSec = (0.00014f + (1.0f - effectiveHardness) * 0.00008f) * std::pow(mVelocity, -0.35f);
@@ -190,14 +192,14 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
                 mMalletShockImpulse = 1.80f;
                 mMalletReboundGain = 0.04f;      // Wood bounces noticeably
                 frictionMult = 0.05f;
-                modeWeightMult[0] = 0.85f;
-                modeWeightMult[1] = 1.35f;
-                modeWeightMult[2] = 1.80f;
-                modeWeightMult[3] = 2.00f;
-                modeWeightMult[4] = 2.10f;
-                modeWeightMult[5] = 1.90f;
-                modeWeightMult[6] = 1.60f;
-                modeWeightMult[7] = 1.30f;
+                modeWeightMult[0] = 0.90f;
+                modeWeightMult[1] = 1.25f;
+                modeWeightMult[2] = 1.40f;
+                modeWeightMult[3] = 1.50f;
+                modeWeightMult[4] = 1.45f;
+                modeWeightMult[5] = 1.35f;
+                modeWeightMult[6] = 1.20f;
+                modeWeightMult[7] = 1.05f;
                 break;
         }
     } else {
@@ -211,11 +213,11 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
                 mMalletReboundGain = 0.005f;
                 frictionMult = 0.20f;
                 modeWeightMult[0] = 1.05f;
-                modeWeightMult[1] = 0.65f;
-                modeWeightMult[2] = 0.15f;
-                modeWeightMult[3] = 0.10f;
-                modeWeightMult[4] = 0.05f;
-                modeWeightMult[5] = 0.03f;
+                modeWeightMult[1] = 0.60f;
+                modeWeightMult[2] = 0.30f;
+                modeWeightMult[3] = 0.15f;
+                modeWeightMult[4] = 0.08f;
+                modeWeightMult[5] = 0.04f;
                 modeWeightMult[6] = 0.02f;
                 modeWeightMult[7] = 0.01f;
                 break;
@@ -244,13 +246,13 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
                 mMalletReboundGain = 0.03f;
                 frictionMult = 0.30f;
                 modeWeightMult[0] = 0.95f;
-                modeWeightMult[1] = 1.30f;
-                modeWeightMult[2] = 1.60f;
-                modeWeightMult[3] = 1.80f;
-                modeWeightMult[4] = 1.70f;
-                modeWeightMult[5] = 1.50f;
-                modeWeightMult[6] = 1.20f;
-                modeWeightMult[7] = 0.90f;
+                modeWeightMult[1] = 1.20f;
+                modeWeightMult[2] = 1.35f;
+                modeWeightMult[3] = 1.45f;
+                modeWeightMult[4] = 1.40f;
+                modeWeightMult[5] = 1.30f;
+                modeWeightMult[6] = 1.15f;
+                modeWeightMult[7] = 0.95f;
                 break;
             case 3: // Thumb Pick
                 contactTimeSec = (0.00012f + (1.0f - effectiveHardness) * 0.00006f) * std::pow(mVelocity, -0.22f);
@@ -260,13 +262,13 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
                 mMalletReboundGain = 0.05f;
                 frictionMult = 0.15f;
                 modeWeightMult[0] = 0.90f;
-                modeWeightMult[1] = 1.45f;
-                modeWeightMult[2] = 1.90f;
-                modeWeightMult[3] = 2.10f;
-                modeWeightMult[4] = 2.00f;
-                modeWeightMult[5] = 1.80f;
-                modeWeightMult[6] = 1.50f;
-                modeWeightMult[7] = 1.10f;
+                modeWeightMult[1] = 1.30f;
+                modeWeightMult[2] = 1.45f;
+                modeWeightMult[3] = 1.55f;
+                modeWeightMult[4] = 1.50f;
+                modeWeightMult[5] = 1.40f;
+                modeWeightMult[6] = 1.25f;
+                modeWeightMult[7] = 1.05f;
                 break;
         }
     }
@@ -301,8 +303,28 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     // ────────────────────────────────────────────────────────
     // Configure 8 Pitched Bar Modes with physics-based damping
     // ────────────────────────────────────────────────────────
+    // Register-dependent overtone morphing:
+    // Undercut arch in bass/mid (4:10 tuning) -> Euler-Bernoulli beam in treble (2.76:5.40:8.93).
+    // Treble bars (> C5, MIDI 72) are small un-arched rectangular blocks.
+    float trebleMorph = 0.0f;
+    if (model != EMarimbaModel::KalimbaArtisan) {
+        trebleMorph = std::clamp((static_cast<float>(noteNumber) - 60.0f) / 24.0f, 0.0f, 1.0f);
+    }
+
+    float restrikeDamp = 0.25f; // Mallet contact damping factor on restrike
+
     for (int m = 0; m < kNumPitchedModes; ++m) {
-        float fm = f0 * params.overtoneRatio[m];
+        float ratio = params.overtoneRatio[m];
+        if (trebleMorph > 0.0f) {
+            float eulerRatio = ratio;
+            if (m == 1) eulerRatio = 2.756f;
+            else if (m == 2) eulerRatio = 5.404f;
+            else if (m == 3) eulerRatio = 8.932f;
+            else if (m == 4) eulerRatio = 13.35f;
+            ratio = (1.0f - trebleMorph) * ratio + trebleMorph * eulerRatio;
+        }
+
+        float fm = f0 * ratio;
 
         // Register-dependent overtone stretching: subtle (+/- 1.5% across range)
         // Higher register bars are shorter/stiffer, slightly stretching upper partials
@@ -317,18 +339,24 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         }
 
         // Physics-based frequency-dependent damping
-        // T60_m = T60_f0 / (1 + alpha_rad * (fm/f0)^2 + alpha_int * (fm/f0))
+        // Higher register bars have greater air radiation and mounting cord losses
+        float regDampMult = 1.0f + 1.2f * trebleMorph;
         float freqRatio = fm / f0;
-        float dampingFactor = 1.0f + params.alphaRadiation * freqRatio * freqRatio
-                                   + params.alphaInternal * freqRatio;
+        float dampingFactor = 1.0f + (params.alphaRadiation * regDampMult) * freqRatio * freqRatio
+                                   + (params.alphaInternal * regDampMult) * freqRatio;
         float t60_m = t60_f0 / dampingFactor;
 
         float tau_m = t60_m / 6.907755f;
         float r_m = std::clamp(std::exp(-1.0f / (tau_m * mSampleRate)), 0.0f, 0.999995f);
         float omega_m = std::clamp(kTwoPi * fm / mSampleRate, 0.001f, kPi - 0.001f);
 
-        mModes[m].y1 = 0.0f;
-        mModes[m].y2 = 0.0f;
+        if (isRestrike) {
+            mModes[m].y1 *= restrikeDamp;
+            mModes[m].y2 *= restrikeDamp;
+        } else {
+            mModes[m].y1 = 0.0f;
+            mModes[m].y2 = 0.0f;
+        }
         mModes[m].nominalOmega = omega_m;
         mModes[m].r = r_m;
         mModes[m].c = 2.0f * r_m * std::cos(omega_m);
@@ -355,47 +383,46 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
 
         mModes[m].weight = params.modeWeights[m] * posWeight * overtoneScaling * modeWeightMult[m] * velModeBoost;
 
-        // Modal impulse scaling with diminishing gain compensation for upper modes
-        float modeGainComp;
-        if (m == 0)      modeGainComp = 0.085f;
-        else if (m == 1) modeGainComp = 0.220f;
-        else if (m == 2) modeGainComp = 1.100f;
-        else if (m == 3) modeGainComp = 1.400f;
-        else if (m == 4) modeGainComp = 1.800f;
-        else if (m == 5) modeGainComp = 2.200f;
-        else if (m == 6) modeGainComp = 2.600f;
-        else             modeGainComp = 3.000f;
-        modeGainComp *= 0.28f;
-
-        mModes[m].b0 = mModes[m].weight * std::sin(omega_m) * modeGainComp;
+        // Physical impulse scaling: uniform base scale calibrated for pristine acoustic headroom
+        mModes[m].b0 = mModes[m].weight * std::sin(omega_m) * kPhysicalImpulseScale;
     }
 
     // ────────────────────────────────────────────────────────
     // Anisotropic Twin Mode 0b (wood grain beating)
     // ────────────────────────────────────────────────────────
-    if (params.anisotropicSplitCents > 0.01f) {
-        // Create a twin of mode 0 detuned by anisotropicSplitCents
-        float f0b = f0 * std::pow(2.0f, params.anisotropicSplitCents / 1200.0f);
+    // Fade split down to 0.0 in high register to prevent flutter/beating on octaves and high notes
+    float effectiveSplitCents = params.anisotropicSplitCents * (1.0f - trebleMorph);
+    if (effectiveSplitCents > 0.01f) {
+        // Create a twin of mode 0 detuned by effectiveSplitCents
+        float f0b = f0 * std::pow(2.0f, effectiveSplitCents / 1200.0f);
         if (f0b > mSampleRate * 0.48f) f0b = mSampleRate * 0.48f;
 
         // Same damping as mode 0
-        float dampingFactor0 = 1.0f + params.alphaRadiation + params.alphaInternal;
+        float regDampMult = 1.0f + 1.2f * trebleMorph;
+        float dampingFactor0 = 1.0f + (params.alphaRadiation * regDampMult) + (params.alphaInternal * regDampMult);
         float t60_0b = t60_f0 / dampingFactor0;
         float tau_0b = t60_0b / 6.907755f;
         float r_0b = std::clamp(std::exp(-1.0f / (tau_0b * mSampleRate)), 0.0f, 0.999995f);
         float omega_0b = std::clamp(kTwoPi * f0b / mSampleRate, 0.001f, kPi - 0.001f);
 
-        mMode0b.y1 = mMode0b.y2 = 0.0f;
+        if (isRestrike) {
+            mMode0b.y1 *= restrikeDamp;
+            mMode0b.y2 *= restrikeDamp;
+        } else {
+            mMode0b.y1 = 0.0f;
+            mMode0b.y2 = 0.0f;
+        }
         mMode0b.nominalOmega = omega_0b;
         mMode0b.r = r_0b;
         mMode0b.c = 2.0f * r_0b * std::cos(omega_0b);
         mMode0b.s = r_0b * r_0b;
-        // Twin mode is weaker than primary — typically 30-40% amplitude
-        mMode0b.weight = 0.35f * mModes[0].weight;
-        mMode0b.b0 = mMode0b.weight * std::sin(omega_0b) * (0.085f * 0.28f);
+        // Twin mode provides subtle natural wood grain beating (15% amplitude)
+        mMode0b.weight = 0.15f * mModes[0].weight;
+        mMode0b.b0 = mMode0b.weight * std::sin(omega_0b) * kPhysicalImpulseScale;
     } else {
-        // No anisotropic split (Kalimba steel tines)
-        mMode0b.y1 = mMode0b.y2 = 0.0f;
+        // No anisotropic split (Kalimba steel tines or high treble bars)
+        mMode0b.y1 = 0.0f;
+        mMode0b.y2 = 0.0f;
         mMode0b.nominalOmega = 0.0f;
         mMode0b.r = 0.0f;
         mMode0b.c = 0.0f;
@@ -412,7 +439,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     mMalletContactOmega = kPi / static_cast<float>(mMalletContactSamplesTotal);
 
     float refContact = (model == EMarimbaModel::KalimbaArtisan) ? 0.00045f : 0.00065f;
-    float forceDurationComp = std::pow(refContact / contactTimeSec, 0.45f);
+    float forceDurationComp = refContact / contactTimeSec;
     mMalletPeakForce = std::pow(mVelocity, 1.25f) * (0.9f + 0.8f * effectiveHardness) * forceDurationComp;
     mMalletFrictionGain = art.frictionNoiseBurst * (1.0f - effectiveHardness * 0.6f) * frictionMult;
 
@@ -437,7 +464,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
 
         // Clack gain: scales with hardness, velocity, and wood friction
         float clackIntensity = mMalletShockImpulse * effectiveHardness * std::pow(mVelocity, 0.8f);
-        mClackGain = clackIntensity * 0.15f * (1.0f + params.woodInternalFriction * 100.0f);
+        mClackGain = clackIntensity * 0.05f * (1.0f + params.woodInternalFriction * 100.0f);
         mClackEnvelope = mClackGain;
     }
 
@@ -455,8 +482,13 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     mResC = 2.0f * rRes * std::cos(wRes);
     mResS = rRes * rRes;
     mResCoupling = params.couplingStrength * std::clamp(resonatorCoupling, 0.05f, 1.0f);
-    mResY1 = 0.0f;
-    mResY2 = 0.0f;
+    if (isRestrike) {
+        mResY1 *= restrikeDamp;
+        mResY2 *= restrikeDamp;
+    } else {
+        mResY1 = 0.0f;
+        mResY2 = 0.0f;
+    }
 
     // Radiation damping applied to fundamental bar mode
     float radDamping = 1.0f + 0.65f * mResCoupling;
@@ -465,12 +497,12 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     mModes[0].r = r_0;
     mModes[0].s = r_0 * r_0;
     mModes[0].c = 2.0f * r_0 * std::cos(mModes[0].nominalOmega);
-    mModes[0].b0 = mModes[0].weight * std::sin(mModes[0].nominalOmega) * (0.085f * 0.28f);
+    mModes[0].b0 = mModes[0].weight * std::sin(mModes[0].nominalOmega) * kPhysicalImpulseScale;
 
     // Mirliton Buzz Setup
     mHasMirliton = params.hasMirliton || (buzzAmount > 0.05f);
-    mMirlitonThreshold = params.mirlitonThreshold * 0.28f * std::max(0.1f, 1.3f - 0.9f * buzzAmount);
-    mMirlitonDrive = params.mirlitonDrive * (0.4f + 2.0f * buzzAmount);
+    mMirlitonThreshold = params.mirlitonThreshold * std::max(0.1f, 1.3f - 0.9f * buzzAmount);
+    mMirlitonDrive = params.mirlitonDrive * (0.3f + 1.2f * buzzAmount);
     mMirlitonFilterState = 0.0f;
 
     // Cord rattle
@@ -618,6 +650,9 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
             float rawBuzz = (yRes > 0.0f ? 1.0f : -1.0f) * std::tanh(mMirlitonDrive * excess * excess);
             mMirlitonFilterState += 0.35f * (rawBuzz - mMirlitonFilterState);
             buzzComponent = mMirlitonFilterState * 0.75f;
+        } else {
+            mMirlitonFilterState *= 0.92f;
+            buzzComponent = mMirlitonFilterState * 0.75f;
         }
     }
 
@@ -629,11 +664,11 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
     }
 
     // 8. Synthesize Microphone Outputs (with clack noise burst in close and piezo)
-    outClose = (barAcousticSum * 0.90f) + (yRes * 0.30f * mResCoupling) + (buzzComponent * 0.35f)
-             + rattleSound + (clackSound * 0.70f);
-    outFar = (yRes * 0.70f * mResCoupling) + (barAcousticSum * 0.55f) + (buzzComponent * 0.65f)
-           + (clackSound * 0.30f); // Clack is less prominent in far mic
-    outPiezo = (barMechanicalSum * 0.90f) + (rattleSound * 1.5f) + (clackSound * 0.90f);
+    outClose = (barAcousticSum * 0.90f) + (yRes * 0.25f * mResCoupling) + (buzzComponent * 0.35f)
+             + rattleSound + (clackSound * 0.50f);
+    outFar = (yRes * 0.50f * mResCoupling) + (barAcousticSum * 0.55f) + (buzzComponent * 0.50f)
+           + (clackSound * 0.20f); // Clack is less prominent in far mic
+    outPiezo = (barMechanicalSum * 0.90f) + (rattleSound * 1.0f) + (clackSound * 0.60f);
 
     // 9. Voice Inactivity Detection
     mEnvelopeEstimate = totalEnergy + std::abs(yRes) + mClackEnvelope;
