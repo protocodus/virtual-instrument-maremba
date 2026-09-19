@@ -1,5 +1,6 @@
 #pragma once
 
+#include "DspMath.h"
 #include <cmath>
 #include <array>
 #include <algorithm>
@@ -13,8 +14,11 @@ struct ResonatorCouplingEntry {
 };
 
 struct VoiceCouplingList {
+    // With 24 resonators a note has at most 9 consonant partners (unison,
+    // octaves, 5ths, 4ths, major 3rds), so 12 never truncates the list.
+    static constexpr int kCapacity = 12;
     uint8_t count;
-    ResonatorCouplingEntry entries[8];
+    ResonatorCouplingEntry entries[kCapacity];
 };
 
 class SympatheticMesh {
@@ -22,73 +26,53 @@ public:
     static constexpr int kNumResonators = 24; // C3 (MIDI 48) to B5 (MIDI 71)
 
     SympatheticMesh() {
+        for (int i = 0; i < kNumResonators; ++i) {
+            double pan = 0.12 + 0.76 * (static_cast<double>(i) / static_cast<double>(kNumResonators - 1));
+            mPanL[i] = 1.0 - pan;
+            mPanR[i] = pan;
+        }
+        BuildCouplingTable();
         Reset();
     }
 
     void Reset() {
         for (int i = 0; i < kNumResonators; ++i) {
-            mY1[i] = 0.0f;
-            mY2[i] = 0.0f;
+            mY1[i] = 0.0;
+            mY2[i] = 0.0;
             mDrive[i] = 0.0f;
-            mDriveLpState[i] = 0.0f;
+            mDriveLpState[i] = 0.0;
         }
-        mInputLpState = 0.0f;
     }
 
-    void Configure(float sampleRate, float baseTuneOffsetCents = 0.0f) {
-        mSampleRate = sampleRate > 8000.0f ? sampleRate : 44100.0f;
-        mLpAlpha = 1.0f - std::exp(-6.283185307f * 600.0f / mSampleRate);
+    // Coefficients only (cheap, realtime safe): call when the rate or the
+    // engine-wide tuning (tune + pitch bend, in cents) changes. The coupling
+    // table is built once in the constructor.
+    void Configure(double sampleRate, double tuneOffsetCents = 0.0) {
+        mSampleRate = sampleRate > 8000.0 ? sampleRate : 44100.0;
+        mLpAlpha = 1.0 - std::exp(-kTwoPiD * 600.0 / mSampleRate);
 
         // 24 chromatic sympathetic resonators spanning C3 (MIDI 48) to B5 (MIDI 71)
         for (int i = 0; i < kNumResonators; ++i) {
-            float note = 48.0f + static_cast<float>(i); // C3 to B5
-            float f = 440.0f * std::pow(2.0f, (note - 69.0f + baseTuneOffsetCents / 100.0f) / 12.0f);
+            double note = 48.0 + static_cast<double>(i); // C3 to B5
+            double f = 440.0 * std::exp2((note - 69.0 + tuneOffsetCents / 100.0) / 12.0);
 
             // Realistic wooden bar & air column sympathetic Q (20 to 28)
-            float q = 20.0f + 8.0f * (static_cast<float>(i) / static_cast<float>(kNumResonators - 1));
-            float r = std::clamp(std::exp(-3.1415926535f * f / (q * mSampleRate)), 0.0f, 0.9999f);
-            float w = std::clamp(6.283185307f * f / mSampleRate, 0.001f, 3.14f);
-            mC[i] = 2.0f * r * std::cos(w);
+            double q = 20.0 + 8.0 * (static_cast<double>(i) / static_cast<double>(kNumResonators - 1));
+            double r = std::exp(-kPiD * f / (q * mSampleRate));
+            double w = std::min(kTwoPiD * f / mSampleRate, 0.98 * kPiD);
+            mC[i] = 2.0 * r * std::cos(w);
             mS[i] = r * r;
 
             // Coupling strength diminishes slightly toward outer edges
-            float octavePos = static_cast<float>(i) / 12.0f;
-            float distFromCenter = std::abs(octavePos - 1.0f);
-            float couplingFalloff = 1.0f - 0.25f * distFromCenter;
-            mB[i] = (1.0f - r) * 0.05f * couplingFalloff;
-        }
+            double octavePos = static_cast<double>(i) / 12.0;
+            double distFromCenter = std::abs(octavePos - 1.0);
+            double couplingFalloff = 1.0 - 0.25 * distFromCenter;
 
-        // Build Harmonic Coupling Matrix: each MIDI note (0-127) couples ONLY
-        // to consonant harmonic intervals (unison, octave, 5th, 4th, major 3rd).
-        // Semitones, whole-tones, and tritones have STRICTLY 0.0 coupling.
-        for (int n = 0; n < 128; ++n) {
-            auto& list = mNoteCoupling[n];
-            list.count = 0;
-
-            for (int i = 0; i < kNumResonators; ++i) {
-                int resNote = 48 + i;
-                int delta = std::abs(n - resNote);
-                int intervalClass = delta % 12;
-                int octDist = delta / 12;
-                float octFalloff = 1.0f / (1.0f + 0.5f * static_cast<float>(octDist));
-
-                float w = 0.0f;
-                if (delta == 0) {
-                    w = 1.0f; // Unison
-                } else if (intervalClass == 0) {
-                    w = 0.70f * octFalloff; // Octaves
-                } else if (intervalClass == 7) {
-                    w = 0.45f * octFalloff; // Perfect Fifth
-                } else if (intervalClass == 5) {
-                    w = 0.25f * octFalloff; // Perfect Fourth
-                } else if (intervalClass == 4) {
-                    w = 0.15f * octFalloff; // Major Third
-                }
-
-                if (w > 0.001f && list.count < 8) {
-                    list.entries[list.count++] = { static_cast<uint8_t>(i), w };
-                }
-            }
+            // Input gain (1 - r) * 0.05 as voiced at the reference rate, kept at the
+            // same centre gain at every rate (the plain (1 - r) form grows with fs).
+            double rRef = std::exp(-kPiD * f / (q * kReferenceRate));
+            double wRef = std::min(kTwoPiD * f / kReferenceRate, 0.98 * kPiD);
+            mB[i] = RateInvariantResonatorGain((1.0 - rRef) * 0.05 * couplingFalloff, rRef, wRef, r, w);
         }
     }
 
@@ -116,74 +100,109 @@ public:
             return;
         }
 
-        float sumL = 0.0f;
-        float sumR = 0.0f;
+        double sumL = 0.0;
+        double sumR = 0.0;
 
         for (int i = 0; i < kNumResonators; ++i) {
             // Lowpass input to smooth out abrupt transients
             mDriveLpState[i] += mLpAlpha * (mDrive[i] - mDriveLpState[i]);
 
-            float y = mC[i] * mY1[i] - mS[i] * mY2[i] + mB[i] * mDriveLpState[i];
+            double y = mC[i] * mY1[i] - mS[i] * mY2[i] + mB[i] * mDriveLpState[i];
             mY2[i] = mY1[i];
             mY1[i] = y;
 
             // Spatial distribution across stereo field: C3 left (0.12) to B5 right (0.88)
-            float pan = 0.12f + 0.76f * (static_cast<float>(i) / static_cast<float>(kNumResonators - 1));
-            sumL += y * (1.0f - pan);
-            sumR += y * pan;
+            sumL += y * mPanL[i];
+            sumR += y * mPanR[i];
         }
 
-        outHaloL = sumL * sympatheticAmount * 0.035f;
-        outHaloR = sumR * sympatheticAmount * 0.035f;
+        outHaloL = static_cast<float>(sumL * sympatheticAmount * 0.035);
+        outHaloR = static_cast<float>(sumR * sympatheticAmount * 0.035);
     }
 
-    // Legacy/fallback mono injection overload
-    inline void Process(float inEnergy, float sympatheticAmount, float& outHaloL, float& outHaloR) {
-        if (sympatheticAmount <= 0.001f) {
-            outHaloL = 0.0f;
-            outHaloR = 0.0f;
-            return;
-        }
-
-        mInputLpState += mLpAlpha * (inEnergy - mInputLpState);
-        float filtered = mInputLpState;
-
-        float sumL = 0.0f;
-        float sumR = 0.0f;
-
+    // Control rate: zero states that have decayed to nothing (below 1e-15,
+    // about -300 dB), so they never cycle on subnormal values. The input
+    // low-pass decays much faster than its resonator, so it is flushed alone.
+    void FlushTiny() {
         for (int i = 0; i < kNumResonators; ++i) {
-            float y = mC[i] * mY1[i] - mS[i] * mY2[i] + mB[i] * filtered;
-            mY2[i] = mY1[i];
-            mY1[i] = y;
-
-            float pan = 0.12f + 0.76f * (static_cast<float>(i) / static_cast<float>(kNumResonators - 1));
-            sumL += y * (1.0f - pan);
-            sumR += y * pan;
+            if (std::abs(mDriveLpState[i]) < 1.0e-15) {
+                mDriveLpState[i] = 0.0;
+            }
+            if (std::abs(mY1[i]) + std::abs(mY2[i]) < 1.0e-15) {
+                mY1[i] = 0.0;
+                mY2[i] = 0.0;
+            }
         }
+    }
 
-        outHaloL = sumL * sympatheticAmount * 0.035f;
-        outHaloR = sumR * sympatheticAmount * 0.035f;
+    // True when no resonator state is subnormal (unit testing)
+    bool HasNoSubnormalState() const {
+        for (int i = 0; i < kNumResonators; ++i) {
+            if (std::fpclassify(mY1[i]) == FP_SUBNORMAL || std::fpclassify(mY2[i]) == FP_SUBNORMAL
+                || std::fpclassify(mDriveLpState[i]) == FP_SUBNORMAL) return false;
+        }
+        return true;
     }
 
     // Direct access to resonator state for unit testing
     float GetResonatorOutput(int index) const {
         if (index >= 0 && index < kNumResonators) {
-            return mY1[index];
+            return static_cast<float>(mY1[index]);
         }
         return 0.0f;
     }
 
+    const VoiceCouplingList& GetCouplingList(int noteNumber) const {
+        return mNoteCoupling[std::clamp(noteNumber, 0, 127)];
+    }
+
 private:
-    float mSampleRate = 44100.0f;
-    float mInputLpState = 0.0f;
-    float mLpAlpha = 0.08f;
-    std::array<float, kNumResonators> mY1{};
-    std::array<float, kNumResonators> mY2{};
-    std::array<float, kNumResonators> mC{};
-    std::array<float, kNumResonators> mS{};
-    std::array<float, kNumResonators> mB{};
+    // Build Harmonic Coupling Matrix: each MIDI note (0-127) couples ONLY
+    // to consonant harmonic intervals (unison, octave, 5th, 4th, major 3rd).
+    // Semitones, whole-tones, and tritones have STRICTLY 0.0 coupling.
+    void BuildCouplingTable() {
+        for (int n = 0; n < 128; ++n) {
+            auto& list = mNoteCoupling[n];
+            list.count = 0;
+
+            for (int i = 0; i < kNumResonators; ++i) {
+                int resNote = 48 + i;
+                int delta = std::abs(n - resNote);
+                int intervalClass = delta % 12;
+                int octDist = delta / 12;
+                float octFalloff = 1.0f / (1.0f + 0.5f * static_cast<float>(octDist));
+
+                float w = 0.0f;
+                if (delta == 0) {
+                    w = 1.0f; // Unison
+                } else if (intervalClass == 0) {
+                    w = 0.70f * octFalloff; // Octaves
+                } else if (intervalClass == 7) {
+                    w = 0.45f * octFalloff; // Perfect Fifth
+                } else if (intervalClass == 5) {
+                    w = 0.25f * octFalloff; // Perfect Fourth
+                } else if (intervalClass == 4) {
+                    w = 0.15f * octFalloff; // Major Third
+                }
+
+                if (w > 0.001f && list.count < VoiceCouplingList::kCapacity) {
+                    list.entries[list.count++] = { static_cast<uint8_t>(i), w };
+                }
+            }
+        }
+    }
+
+    double mSampleRate = 44100.0;
+    double mLpAlpha = 0.08;
+    std::array<double, kNumResonators> mY1{};
+    std::array<double, kNumResonators> mY2{};
+    std::array<double, kNumResonators> mC{};
+    std::array<double, kNumResonators> mS{};
+    std::array<double, kNumResonators> mB{};
     std::array<float, kNumResonators> mDrive{};
-    std::array<float, kNumResonators> mDriveLpState{};
+    std::array<double, kNumResonators> mDriveLpState{};
+    std::array<double, kNumResonators> mPanL{};
+    std::array<double, kNumResonators> mPanR{};
     std::array<VoiceCouplingList, 128> mNoteCoupling{};
 };
 

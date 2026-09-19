@@ -1,5 +1,6 @@
 #pragma once
 
+#include "DspMath.h"
 #include <algorithm>
 #include <cmath>
 
@@ -8,6 +9,7 @@ namespace maremba {
 class AnalogPreamp {
 public:
     AnalogPreamp() {
+        SetSampleRate(kReferenceRate);
         Reset();
     }
 
@@ -17,9 +19,11 @@ public:
         mTiltLowL = mTiltLowR = 0.0f;
     }
 
-    void SetSampleRate(float sampleRate) {
-        mSampleRate = sampleRate > 8000.0f ? sampleRate : 88200.0f;
-        mTiltAlpha = 1.0f - std::exp(-6.283185307f * 450.0f / mSampleRate);
+    void SetSampleRate(double sampleRate) {
+        mSampleRate = sampleRate > 8000.0 ? sampleRate : kReferenceRate;
+        mTiltAlpha = static_cast<float>(1.0 - std::exp(-kTwoPiD * 450.0 / mSampleRate));
+        // DC blocker corner in Hz (was a fixed per-sample pole, i.e. a corner that moved with the rate)
+        mDcPole = static_cast<float>(std::exp(-kTwoPiD * kDcBlockHz / mSampleRate));
     }
 
     // Process stereo frame through analog saturation and warmth tilt EQ
@@ -45,24 +49,25 @@ public:
 
             satL = SoftSaturate(inL * driveGain) * driveComp;
             satR = SoftSaturate(inR * driveGain) * driveComp;
-
-            // DC Blocker (active only during saturation)
-            float dcL = satL - mDcBlockInL + 0.995f * mDcBlockOutL;
-            mDcBlockInL = satL;
-            mDcBlockOutL = dcL;
-            satL = dcL;
-
-            float dcR = satR - mDcBlockInR + 0.995f * mDcBlockOutR;
-            mDcBlockInR = satR;
-            mDcBlockOutR = dcR;
-            satR = dcR;
         }
 
-        // 2. Transparent Baxandall / Tilt Tone Filter (flat at warmth = 0.0)
-        if (std::abs(warmth) > 0.001f) {
-            mTiltLowL += mTiltAlpha * (satL - mTiltLowL);
-            mTiltLowR += mTiltAlpha * (satR - mTiltLowR);
+        // DC Blocker (20 Hz). Runs continuously, so toggling the drive never
+        // resumes from a stale state.
+        float dcL = satL - mDcBlockInL + mDcPole * mDcBlockOutL;
+        mDcBlockInL = satL;
+        mDcBlockOutL = dcL;
+        satL = dcL;
 
+        float dcR = satR - mDcBlockInR + mDcPole * mDcBlockOutR;
+        mDcBlockInR = satR;
+        mDcBlockOutR = dcR;
+        satR = dcR;
+
+        // 2. Transparent Baxandall / Tilt Tone Filter (flat at warmth = 0.0).
+        // The low band tracks continuously so re-enabling the tilt is click-free.
+        mTiltLowL += mTiltAlpha * (satL - mTiltLowL);
+        mTiltLowR += mTiltAlpha * (satR - mTiltLowR);
+        if (std::abs(warmth) > 0.001f) {
             float highL = satL - mTiltLowL;
             float highR = satR - mTiltLowR;
 
@@ -78,8 +83,11 @@ public:
     }
 
 private:
-    float mSampleRate = 88200.0f;
+    static constexpr double kDcBlockHz = 20.0;
+
+    double mSampleRate = kReferenceRate;
     float mTiltAlpha = 0.031f;
+    float mDcPole = 0.9986f;
 
     float mDcBlockInL = 0.0f;
     float mDcBlockOutL = 0.0f;

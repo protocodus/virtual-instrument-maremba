@@ -1,6 +1,7 @@
 #include "MarembaEngine.h"
 #include <algorithm>
 #include <cmath>
+#include "DspMath.h"
 
 namespace maremba {
 
@@ -30,75 +31,237 @@ inline float GetKeyDetuneOffset(int noteNumber, float detuneAmount) {
     int idx = std::clamp(noteNumber, 0, 127);
     return detuneAmount * kNoteDetuneTable[idx];
 }
+
+constexpr uint32_t kEngineSeed = 0x87654321u;
+constexpr uint32_t kVoiceSeedBase = 0x56789ABCu;
+
+constexpr double kStealFadeSeconds = 0.003;      // stolen voice fades in its own slot
+constexpr double kPolyphonyFadeSeconds = 0.005;  // excess voices when Polyphony is lowered
+constexpr double kSwitchFadeSeconds = 0.005;     // all outputs, before an oversampling change
+constexpr double kVolumeSmoothingSeconds = 0.005;
+constexpr double kTailHoldSeconds = 0.1;         // > longest room echo gap
+constexpr float kSilenceLevel = 1.0e-9f;
+constexpr float kMaxPitchBendCents = 1200.0f;
+
+// Frame body contribution at bodyBloom = 1 (about -26 dB below the bar peak)
+constexpr float kBodyBloomGain = 0.040f;
+
+// Fixed -6 dB headroom on the pre-fader direct taps (close/far/piezo are summed
+// before the compressor and saturator, so they run hotter than main).
+constexpr float kDirectOutTrim = 0.5f;
+
+// Steal score of a voice: its energy now (not the control-rate cache, which is
+// stale or 0 right after a strike); a non-finite voice is the first victim.
+inline double StealEnergy(const MarembaVoice& voice) {
+    const double e = voice.ComputeEnergy();
+    return std::isfinite(e) ? e : 0.0;
+}
+
+inline float FiniteClamp(float value, float lo, float hi, float fallback) {
+    if (!std::isfinite(value)) return fallback;
+    return std::clamp(value, lo, hi);
+}
 } // namespace
 
+uint32_t MarembaEngine::VoiceSeed(int slot) {
+    return kVoiceSeedBase ^ (static_cast<uint32_t>(slot + 1) * 0x9E3779B9u);
+}
+
 MarembaEngine::MarembaEngine(double sampleRate)
-    : mBaseSampleRate(sampleRate > 8000.0 ? sampleRate : 44100.0)
-    , mPrng(0x87654321)
+    : mBaseSampleRate((std::isfinite(sampleRate) && sampleRate > 8000.0) ? sampleRate : 44100.0)
+    , mPrng(kEngineSeed)
 {
+    // The only allocation: room delay lines for the highest internal rate this
+    // instance can run at (8x the host rate; a host-rate change re-creates the engine).
+    mMicMixer.Allocate(mBaseSampleRate * kMaxOversample);
+    mVolumeAlpha = static_cast<float>(1.0 - std::exp(-1.0 / (kVolumeSmoothingSeconds * mBaseSampleRate)));
+    mQuietFramesNeeded = static_cast<int>(kTailHoldSeconds * mBaseSampleRate);
     Reset();
 }
 
-void MarembaEngine::SetSampleRate(double sampleRate) {
-    mBaseSampleRate = sampleRate > 8000.0 ? sampleRate : 44100.0;
-    Reset();
+EngineParameters MarembaEngine::Sanitize(const EngineParameters& in) {
+    const EngineParameters d; // defaults for non-finite values
+    EngineParameters p;
+    p.model = std::clamp(in.model, 0, 3);
+    p.malletType = std::clamp(in.malletType, 0, 3);
+    p.malletHardness = FiniteClamp(in.malletHardness, 0.0f, 1.0f, d.malletHardness);
+    p.strikePosition = FiniteClamp(in.strikePosition, 0.0f, 1.0f, d.strikePosition);
+    p.resonatorTune = FiniteClamp(in.resonatorTune, -50.0f, 50.0f, d.resonatorTune);
+    p.resonatorCoupling = FiniteClamp(in.resonatorCoupling, 0.0f, 1.0f, d.resonatorCoupling);
+    p.decay = FiniteClamp(in.decay, 0.10f, 8.0f, d.decay);
+    p.buzzAmount = FiniteClamp(in.buzzAmount, 0.0f, 1.0f, d.buzzAmount);
+    p.artifacts = FiniteClamp(in.artifacts, 0.0f, 1.0f, d.artifacts);
+    p.sympathetic = FiniteClamp(in.sympathetic, 0.0f, 1.0f, d.sympathetic);
+    p.pitchGlide = FiniteClamp(in.pitchGlide, 0.0f, 1.0f, d.pitchGlide);
+    p.bodyBloom = FiniteClamp(in.bodyBloom, 0.0f, 1.0f, d.bodyBloom);
+    p.closeLevel = FiniteClamp(in.closeLevel, 0.0f, 1.0f, d.closeLevel);
+    p.farLevel = FiniteClamp(in.farLevel, 0.0f, 1.0f, d.farLevel);
+    p.piezoLevel = FiniteClamp(in.piezoLevel, 0.0f, 1.0f, d.piezoLevel);
+    p.stereoWidth = FiniteClamp(in.stereoWidth, 0.0f, 2.0f, d.stereoWidth);
+    p.preampDrive = FiniteClamp(in.preampDrive, 0.0f, 1.0f, d.preampDrive);
+    p.warmth = FiniteClamp(in.warmth, -1.0f, 1.0f, d.warmth);
+    p.compAmount = FiniteClamp(in.compAmount, 0.0f, 1.0f, d.compAmount);
+    p.compAttack = FiniteClamp(in.compAttack, 1.0f, 50.0f, d.compAttack);
+    p.compRelease = FiniteClamp(in.compRelease, 20.0f, 500.0f, d.compRelease);
+    p.volume = FiniteClamp(in.volume, 0.0f, 1.0f, d.volume);
+    p.oversampling = std::clamp(in.oversampling, 0, 2);
+    p.velocityCurve = std::clamp(in.velocityCurve, 0, 3);
+    p.polyphony = std::clamp(in.polyphony, 0, 2);
+    p.tuneCents = FiniteClamp(in.tuneCents, -200.0f, 200.0f, d.tuneCents);
+    p.detune = FiniteClamp(in.detune, 0.0f, 100.0f, d.detune);
+    p.strikeJitter = FiniteClamp(in.strikeJitter, 0.0f, 100.0f, d.strikeJitter);
+    return p;
 }
 
 void MarembaEngine::Reset() {
-    for (auto& voice : mVoices) {
-        voice.FastKill();
+    for (int i = 0; i < kVoicePoolSize; ++i) {
+        mVoices[i].FastKill();
+        mVoices[i].SetSeed(VoiceSeed(i));
     }
+    mPrng = FastPRNG(kEngineSeed);
+
+    mActiveFactor = FactorFor(mParams.oversampling);
+    mSwitchPending = false;
+    mSwitchGain = 1.0f;
+    mSwitchStep = 0.0f;
+    mPendingCount = 0;
+    mDampedPendingCount = 0;
+
+    ConfigureForRate();
+    FlushTails();
+
+    mVolumeGain = mParams.volume * mParams.volume;
+    mControlCounter = 0;
+    mTailsSilent = true;
+    mMeshRunning = mParams.sympathetic > 0.001f;
+    mBodyRunning = mParams.bodyBloom > 0.001f;
+    mRoomRunning = mParams.farLevel > 0.001f;
+}
+
+void MarembaEngine::ConfigureForRate() {
+    const double rate = InternalRate();
+    mMicMixer.SetSampleRate(rate);   // changes the room's active lengths, no allocation
+    mCompressor.SetSampleRate(rate);
+    mCompressor.SetTimes(mParams.compAttack, mParams.compRelease);
+    mPreamp.SetSampleRate(rate);
+    mAppliedGlobalCents = GlobalCents();
+    mSympathetic.Configure(rate, mAppliedGlobalCents);
+    ConfigureModel();
+}
+
+void MarembaEngine::ConfigureModel() {
+    mConfiguredModel = mParams.model;
+    ModelParams mp = GetModelParams(static_cast<EMarimbaModel>(mParams.model));
+    mFrameBody.Configure(InternalRate(), mp.frameBodyFreq, mp.frameBodyQ);
+}
+
+void MarembaEngine::FlushTails() {
     mMicMixer.Reset();
     mPreamp.Reset();
     mCompressor.Reset();
     mOversampler.Reset();
+    for (int k = 0; k < kNumDirectOuts; ++k) {
+        mDirectDecimators[k].Reset();
+        mDirectRunning[k] = false;
+    }
     mSympathetic.Reset();
     mFrameBody.Reset();
-
-    int factor = (mParams.oversampling == 1) ? 4 : (mParams.oversampling == 2) ? 8 : 2;
-    float internalRate = static_cast<float>(mBaseSampleRate * factor);
-    mMicMixer.SetSampleRate(internalRate);
-    mCompressor.SetSampleRate(internalRate);
-    mPreamp.SetSampleRate(internalRate);
-
-    ModelParams mp = GetModelParams(static_cast<EMarimbaModel>(std::clamp(mParams.model, 0, 3)));
-    mFrameBody.Configure(internalRate, mp.frameBodyFreq, mp.frameBodyQ);
-    mSympathetic.Configure(internalRate, (mParams.masterTune - 0.50f) * 200.0f);
+    mQuietFrames = 0;
 }
 
 void MarembaEngine::SetParameters(const EngineParameters& params) {
-    // Detect sustain pedal release: was down, now up
-    bool pedalLifted = mParams.sustainPedalDown && !params.sustainPedalDown;
+    const EngineParameters p = Sanitize(params);
+    const int previousPolyphony = mParams.polyphony;
+    mParams = p;
 
-    mParams = params;
-    int factor = (mParams.oversampling == 1) ? 4 : (mParams.oversampling == 2) ? 8 : 2;
-    float internalRate = static_cast<float>(mBaseSampleRate * factor);
+    mCompressor.SetTimes(p.compAttack, p.compRelease);
 
-    mMicMixer.SetSampleRate(internalRate);
-    mCompressor.SetSampleRate(internalRate);
-    mPreamp.SetSampleRate(internalRate);
-    ModelParams mp = GetModelParams(static_cast<EMarimbaModel>(std::clamp(mParams.model, 0, 3)));
-    mFrameBody.Configure(internalRate, mp.frameBodyFreq, mp.frameBodyQ);
-    mSympathetic.Configure(internalRate, (mParams.masterTune - 0.50f) * 200.0f);
-
-    // When sustain pedal lifts, notify sustained voices
-    if (pedalLifted) {
-        int maxVoices = (mParams.polyphony == 0) ? 8 : (mParams.polyphony == 1) ? 16 : 24;
-        for (int i = 0; i < maxVoices; ++i) {
-            if (mVoices[i].IsActive() && mVoices[i].IsSustained()) {
-                mVoices[i].ReleaseSustainPedal();
-            }
+    // Oversampling change: switch at once when nothing sounds, otherwise fade
+    // everything out at the old rate first (see RenderBatch / ApplyFactorSwitch).
+    if (!mSwitchPending && FactorFor(p.oversampling) != mActiveFactor) {
+        if (IsSilent()) {
+            ApplyFactorSwitch();
+        } else {
+            mSwitchPending = true;
+            mSwitchStep = static_cast<float>(1.0 / (kSwitchFadeSeconds * mBaseSampleRate));
         }
+    }
+
+    if (p.model != mConfiguredModel) {
+        ConfigureModel();
+    }
+    ApplyGlobalTuning();
+
+    if (p.polyphony != previousPolyphony) {
+        EnforcePolyphony();
+    }
+
+    // A bypassed mesh, body or room is cleared once, so it restarts cleanly later
+    // (no stale tail bursts back when the knob comes up again).
+    const bool meshOn = p.sympathetic > 0.001f;
+    if (!meshOn && mMeshRunning) mSympathetic.Reset();
+    mMeshRunning = meshOn;
+    const bool bodyOn = p.bodyBloom > 0.001f;
+    if (!bodyOn && mBodyRunning) mFrameBody.Reset();
+    mBodyRunning = bodyOn;
+    const bool roomOn = p.farLevel > 0.001f;   // AcousticRoom's bypass threshold (roomLevel = farLevel)
+    if (!roomOn && mRoomRunning) mMicMixer.Reset();
+    mRoomRunning = roomOn;
+
+    if (IsSilent()) {
+        mVolumeGain = p.volume * p.volume; // no ramp from a stale gain when sound resumes
+    }
+}
+
+void MarembaEngine::SetPitchBendCents(float cents) {
+    mBendCents = FiniteClamp(cents, -kMaxPitchBendCents, kMaxPitchBendCents, 0.0f);
+    ApplyGlobalTuning();
+}
+
+void MarembaEngine::ApplyGlobalTuning() {
+    const float total = GlobalCents();
+    if (total == mAppliedGlobalCents) return;
+    mAppliedGlobalCents = total;
+    for (auto& voice : mVoices) {
+        if (voice.IsActive()) voice.Retune(total);
+    }
+    mSympathetic.Configure(InternalRate(), total);
+}
+
+void MarembaEngine::ApplyFactorSwitch() {
+    for (auto& voice : mVoices) {
+        voice.FastKill();
+    }
+    mActiveFactor = FactorFor(mParams.oversampling);
+    ConfigureForRate();
+    FlushTails();
+    mSwitchPending = false;
+    mSwitchGain = 1.0f;
+    mSwitchStep = 0.0f;
+    mTailsSilent = true;
+    mControlCounter = 0;
+    mVolumeGain = mParams.volume * mParams.volume;
+
+    // Notes that arrived during the fade start now, at the new rate. Those that
+    // were already queued when DampAll (transport stop) came are damped as well,
+    // exactly like the voices that were sounding then; later notes ring normally.
+    const int count = mPendingCount;
+    const int damped = mDampedPendingCount;
+    mPendingCount = 0;
+    mDampedPendingCount = 0;
+    for (int i = 0; i < count; ++i) {
+        const int slot = TriggerNote(mPendingNotes[i].note, mPendingNotes[i].velocity);
+        if (i < damped) mVoices[slot].StartDamping();
     }
 }
 
 float MarembaEngine::MapVelocity(float vel) const {
     vel = std::clamp(vel, 0.001f, 1.0f);
     switch (mParams.velocityCurve) {
-        case 0: // Soft
-            return std::pow(vel, 1.55f);
-        case 2: // Hard
+        case 0: // Soft: light touch plays loud
             return std::sqrt(vel);
+        case 2: // Hard: needs force to play loud
+            return std::pow(vel, 1.55f);
         case 3: // Expressive
             return vel * vel * (3.0f - 2.0f * vel);
         case 1: // Linear
@@ -107,91 +270,164 @@ float MarembaEngine::MapVelocity(float vel) const {
     }
 }
 
-int MarembaEngine::FindVoiceToAllocate(int noteNumber) {
-    int maxVoices = (mParams.polyphony == 0) ? 8 : (mParams.polyphony == 1) ? 16 : 24;
+int MarembaEngine::CountLiveVoices() const {
+    int count = 0;
+    for (const auto& voice : mVoices) {
+        if (voice.IsLive()) count++;
+    }
+    return count;
+}
 
-    // 1. If the exact same note is currently ringing, re-strike it!
-    for (int i = 0; i < maxVoices; ++i) {
-        if (mVoices[i].IsActive() && mVoices[i].GetNoteNumber() == noteNumber) {
-            return i;
+// Quietest live voice by its phase-independent energy; released keys are
+// preferred (4x weight on held keys) and a voice still being struck is only
+// taken when nothing else is left.
+int MarembaEngine::FindStealVictim() const {
+    int best = -1;
+    double bestScore = 0.0;
+    for (int i = 0; i < kVoicePoolSize; ++i) {
+        const auto& voice = mVoices[i];
+        if (!voice.IsLive()) continue;
+        double score = StealEnergy(voice) * (voice.IsReleased() ? 1.0 : 4.0);
+        if (voice.IsStriking()) score += 1.0e30;
+        if (best < 0 || score < bestScore) {
+            best = i;
+            bestScore = score;
         }
     }
+    return best;
+}
 
-    // 2. Find an inactive voice
-    for (int i = 0; i < maxVoices; ++i) {
-        if (!mVoices[i].IsActive()) {
-            return i;
-        }
+void MarembaEngine::EnforcePolyphony() {
+    const int limit = VoiceLimitFor(mParams.polyphony);
+    int live = CountLiveVoices();
+    while (live > limit) {
+        const int victim = FindStealVictim();
+        if (victim < 0) break;
+        mVoices[victim].StartFade(kPolyphonyFadeSeconds);
+        --live;
     }
-
-    // 3. Voice stealing: prefer stealing released voices with lowest energy
-    int bestCandidate = 0;
-    float lowestAmp = 1e9f;
-    for (int i = 0; i < maxVoices; ++i) {
-        float amp = mVoices[i].GetCurrentAmplitude() * (mVoices[i].IsReleased() ? 0.35f : 1.0f);
-        if (amp < lowestAmp) {
-            lowestAmp = amp;
-            bestCandidate = i;
-        }
-    }
-
-    return bestCandidate;
 }
 
 void MarembaEngine::NoteOn(int noteNumber, float velocity) {
-    if (velocity <= 0.0f) {
+    if (!(velocity > 0.0f)) {
         NoteOff(noteNumber);
         return;
     }
+    if (noteNumber < 0 || noteNumber > 127) return;
 
-    float mappedVel = MapVelocity(velocity);
+    if (mSwitchPending) {
+        // Rate change in progress: start the note right after the switch
+        if (mPendingCount < kMaxPendingNotes) {
+            mPendingNotes[mPendingCount++] = { noteNumber, velocity };
+        }
+        return;
+    }
+    TriggerNote(noteNumber, velocity);
+}
 
-    int voiceIdx = FindVoiceToAllocate(noteNumber);
-    int factor = (mParams.oversampling == 1) ? 4 : (mParams.oversampling == 2) ? 8 : 2;
-    float internalSampleRate = static_cast<float>(mBaseSampleRate * factor);
+int MarembaEngine::TriggerNote(int noteNumber, float velocity) {
+    mTailsSilent = false;
+    mQuietFrames = 0;
 
-    EMarimbaModel model = static_cast<EMarimbaModel>(std::clamp(mParams.model, 0, 3));
-    float masterTuneCents = (mParams.masterTune - 0.50f) * 200.0f;
-    float keyDetuneCents = GetKeyDetuneOffset(noteNumber, mParams.detune);
-    float totalPitchOffset = masterTuneCents + keyDetuneCents;
+    const float mappedVel = MapVelocity(velocity);
 
-    mVoices[voiceIdx].Trigger(noteNumber, mappedVel, model,
-                             mParams.malletHardness, mParams.strikePosition,
-                             mParams.resonatorTune, mParams.resonatorCoupling,
-                             mParams.decay, mParams.buzzAmount, mParams.artifacts,
-                             mParams.pitchGlide,
-                             internalSampleRate, mPrng,
-                             totalPitchOffset,
-                             mParams.malletType,
-                             mParams.strikeJitter);
+    // 1. The same bar still ringing: re-strike it
+    int slot = -1;
+    for (int i = 0; i < kVoicePoolSize; ++i) {
+        if (mVoices[i].IsLive() && mVoices[i].GetNoteNumber() == noteNumber) {
+            slot = i;
+            break;
+        }
+    }
+
+    if (slot < 0) {
+        // 2. At the polyphony limit: fade the quietest voice out in its own slot
+        const int limit = VoiceLimitFor(mParams.polyphony);
+        int live = CountLiveVoices();
+        while (live >= limit) {
+            const int victim = FindStealVictim();
+            if (victim < 0) break;
+            mVoices[victim].StartFade(kStealFadeSeconds);
+            --live;
+        }
+
+        // 3. A free slot for the new note
+        for (int i = 0; i < kVoicePoolSize; ++i) {
+            if (!mVoices[i].IsActive()) {
+                slot = i;
+                break;
+            }
+        }
+
+        // 4. All slots busy (live + fading): hard-reuse the quietest fading voice
+        if (slot < 0) {
+            double bestEnergy = 0.0;
+            for (int i = 0; i < kVoicePoolSize; ++i) {
+                if (!mVoices[i].IsFading()) continue;
+                const double energy = StealEnergy(mVoices[i]);
+                if (slot < 0 || energy < bestEnergy) {
+                    slot = i;
+                    bestEnergy = energy;
+                }
+            }
+            if (slot < 0) slot = 0;
+            mVoices[slot].FastKill();
+        }
+    }
+
+    const EMarimbaModel model = static_cast<EMarimbaModel>(mParams.model);
+    const float keyDetuneCents = GetKeyDetuneOffset(noteNumber, mParams.detune);
+
+    mVoices[slot].Trigger(noteNumber, mappedVel, model,
+                          mParams.malletHardness, mParams.strikePosition,
+                          mParams.resonatorTune, mParams.resonatorCoupling,
+                          mParams.decay, mParams.buzzAmount, mParams.artifacts,
+                          mParams.pitchGlide,
+                          InternalRate(), mPrng,
+                          mAppliedGlobalCents, keyDetuneCents,
+                          mParams.malletType,
+                          mParams.strikeJitter);
+    return slot;
 }
 
 void MarembaEngine::NoteOff(int noteNumber) {
-    int maxVoices = (mParams.polyphony == 0) ? 8 : (mParams.polyphony == 1) ? 16 : 24;
-    for (int i = 0; i < maxVoices; ++i) {
-        if (mVoices[i].IsActive() && mVoices[i].GetNoteNumber() == noteNumber) {
-            mVoices[i].Release(mParams.sustainPedalDown);
-        }
-    }
-}
-
-void MarembaEngine::AllNotesOff() {
+    // Sound-neutral by design (bars ring freely): only marks released keys,
+    // which are preferred when a voice has to be stolen.
     for (auto& voice : mVoices) {
-        if (voice.IsActive()) {
+        if (voice.IsLive() && voice.GetNoteNumber() == noteNumber) {
             voice.Release();
         }
     }
 }
 
+void MarembaEngine::DampAll() {
+    for (auto& voice : mVoices) {
+        if (voice.IsActive()) voice.StartDamping();
+    }
+    // Notes queued during an oversampling fade are damped when they start
+    mDampedPendingCount = mPendingCount;
+}
+
 int MarembaEngine::GetActiveVoiceCount() const {
     int count = 0;
-    int maxVoices = (mParams.polyphony == 0) ? 8 : (mParams.polyphony == 1) ? 16 : 24;
-    for (int i = 0; i < maxVoices; ++i) {
-        if (mVoices[i].IsActive()) {
-            count++;
-        }
+    for (const auto& voice : mVoices) {
+        if (voice.IsActive()) count++;
     }
     return count;
+}
+
+bool MarembaEngine::IsSilent() const {
+    // mTailsSilent is only set while no voice is active and is cleared by every note.
+    return mTailsSilent && !mSwitchPending && mPendingCount == 0;
+}
+
+void MarembaEngine::ControlTick() {
+    for (auto& voice : mVoices) {
+        if (voice.IsActive()) voice.UpdateEnvelope();
+    }
+    // Zero decayed shared resonators before they reach subnormal values
+    mSympathetic.FlushTiny();
+    mFrameBody.FlushTiny();
 }
 
 void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
@@ -200,12 +436,34 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
                                 float* outPiezo,
                                 int frameCount)
 {
-    int factor = (mParams.oversampling == 1) ? 4 : (mParams.oversampling == 2) ? 8 : 2;
-    int maxVoices = (mParams.polyphony == 0) ? 8 : (mParams.polyphony == 1) ? 16 : 24;
+    if (frameCount <= 0 || !outMainL || !outMainR) return;
+    frameCount = std::min(frameCount, kMaxFrames);
+    float* const direct[kNumDirectOuts] = { outCloseL, outCloseR, outFarL, outFarR, outPiezo };
 
-    float volGain = mParams.volume * mParams.volume;
+    auto zeroFrames = [&](int from) {
+        for (int f = from; f < frameCount; ++f) {
+            outMainL[f] = 0.0f;
+            outMainR[f] = 0.0f;
+            for (int k = 0; k < kNumDirectOuts; ++k) {
+                if (direct[k]) direct[k][f] = 0.0f;
+            }
+        }
+    };
+
+    // Idle: nothing sounding and every tail flushed
+    if (IsSilent()) {
+        zeroFrames(0);
+        return;
+    }
+
+    const float volumeTarget = mParams.volume * mParams.volume;
+    const bool meshOn = mParams.sympathetic > 0.001f;
+    const bool bodyOn = mParams.bodyBloom > 0.001f;
 
     for (int f = 0; f < frameCount; ++f) {
+        const int factor = mActiveFactor;
+        bool anyVoice = false;
+
         for (int s = 0; s < factor; ++s) {
             float accCloseL = 0.0f;
             float accCloseR = 0.0f;
@@ -215,17 +473,18 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
 
             float totalMechanical = 0.0f;
 
-            if (mParams.sympathetic > 0.001f) {
+            if (meshOn) {
                 mSympathetic.BeginSample();
             }
 
-            for (int v = 0; v < maxVoices; ++v) {
+            for (int v = 0; v < kVoicePoolSize; ++v) {
                 if (mVoices[v].IsActive()) {
                     float voiceClose = 0.0f;
                     float voiceFar = 0.0f;
                     float voicePiezo = 0.0f;
 
                     if (mVoices[v].ProcessSample(voiceClose, voiceFar, voicePiezo)) {
+                        anyVoice = true;
                         int noteNum = mVoices[v].GetNoteNumber();
                         mMicMixer.MixVoiceSample(noteNum,
                                                  voiceClose, voiceFar, voicePiezo,
@@ -234,10 +493,9 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
                                                  accPiezo);
 
                         totalMechanical += voicePiezo;
-                        float voiceAcoustic = voiceClose + voiceFar;
 
-                        if (mParams.sympathetic > 0.001f) {
-                            mSympathetic.AccumulateVoice(noteNum, voiceAcoustic);
+                        if (meshOn) {
+                            mSympathetic.AccumulateVoice(noteNum, voiceClose + voiceFar);
                         }
                     }
                 }
@@ -245,13 +503,13 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
 
             // Frame Body Bloom (low-frequency frame & rail mass resonance)
             float bodySound = 0.0f;
-            if (mParams.bodyBloom > 0.001f) {
-                bodySound = mFrameBody.Process(totalMechanical) * mParams.bodyBloom * 0.005f;
+            if (bodyOn) {
+                bodySound = mFrameBody.Process(totalMechanical) * mParams.bodyBloom * kBodyBloomGain;
             }
 
             // Inter-Bar Sympathetic Resonance Halo ("Singing Rack")
             float haloL = 0.0f, haloR = 0.0f;
-            if (mParams.sympathetic > 0.001f) {
+            if (meshOn) {
                 mSympathetic.Process(mParams.sympathetic, haloL, haloR);
             }
 
@@ -264,11 +522,6 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
 
             float frameMainL = 0.0f;
             float frameMainR = 0.0f;
-            float frameCloseL = 0.0f;
-            float frameCloseR = 0.0f;
-            float frameFarL = 0.0f;
-            float frameFarR = 0.0f;
-            float framePiezo = 0.0f;
 
             mMicMixer.ProcessFrame(accCloseL, accCloseR,
                                    accFarL, accFarR,
@@ -276,16 +529,14 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
                                    mParams.closeLevel, mParams.farLevel, mParams.piezoLevel,
                                    mParams.stereoWidth,
                                    frameMainL, frameMainR,
-                                   frameCloseL, frameCloseR,
-                                   frameFarL, frameFarR,
-                                   framePiezo);
+                                   mSubBufDirect[0][s], mSubBufDirect[1][s],
+                                   mSubBufDirect[2][s], mSubBufDirect[3][s],
+                                   mSubBufDirect[4][s]);
 
-            // 1. Percussion Compressor (tames dynamic peaks before saturation stage)
+            // 1. Percussion Compressor (gentle glue on the main bus before saturation)
             float compL = 0.0f;
             float compR = 0.0f;
-            mCompressor.Process(frameMainL, frameMainR,
-                                mParams.compAmount, mParams.compAttack, mParams.compRelease,
-                                compL, compR);
+            mCompressor.Process(frameMainL, frameMainR, mParams.compAmount, compL, compR);
 
             // 2. Analog Preamp (operates smoothly and cleanly on controlled dynamics)
             float preL = 0.0f;
@@ -294,39 +545,87 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
 
             mSubBufMainL[s] = preL;
             mSubBufMainR[s] = preR;
-            mSubBufCloseL[s] = frameCloseL;
-            mSubBufCloseR[s] = frameCloseR;
-            mSubBufFarL[s] = frameFarL;
-            mSubBufFarR[s] = frameFarR;
-            mSubBufPiezo[s] = framePiezo;
         }
 
         // Decimate through polyphase half-band filters
         float mainL = 0.0f, mainR = 0.0f;
         mOversampler.DownsampleFrame(mSubBufMainL, mSubBufMainR, factor, mainL, mainR);
 
-        outMainL[f] = mainL * volGain;
-        outMainR[f] = mainR * volGain;
+        // Master volume (smoothed per frame) and the oversampling-change fade
+        mVolumeGain += mVolumeAlpha * (volumeTarget - mVolumeGain);
+        const float gain = mVolumeGain * mSwitchGain;
+        outMainL[f] = mainL * gain;
+        outMainR[f] = mainR * gain;
 
-        if (outCloseL && outCloseR) {
-            float clL = 0.0f, clR = 0.0f;
-            for (int s = 0; s < factor; ++s) { clL += mSubBufCloseL[s]; clR += mSubBufCloseR[s]; }
-            outCloseL[f] = clL / static_cast<float>(factor);
-            outCloseR[f] = clR / static_cast<float>(factor);
+        // Direct outs: same half-band chain as main, pre-fader mic taps scaled
+        // by the main mix scale, a fixed -6 dB trim and the master volume
+        // (unconnected outs are skipped)
+        const float directGain = MicMixer::kMasterMixScale * kDirectOutTrim * gain;
+        for (int k = 0; k < kNumDirectOuts; ++k) {
+            if (direct[k]) {
+                if (!mDirectRunning[k]) {
+                    mDirectDecimators[k].Reset();
+                    mDirectRunning[k] = true;
+                }
+                direct[k][f] = mDirectDecimators[k].DownsampleFrame(mSubBufDirect[k], factor) * directGain;
+            } else {
+                mDirectRunning[k] = false;
+            }
         }
 
-        if (outFarL && outFarR) {
-            float fL = 0.0f, fR = 0.0f;
-            for (int s = 0; s < factor; ++s) { fL += mSubBufFarL[s]; fR += mSubBufFarR[s]; }
-            outFarL[f] = fL / static_cast<float>(factor);
-            outFarR[f] = fR / static_cast<float>(factor);
+        // Silence detection: no voice and every tail below -180 dBFS for longer
+        // than the longest room echo gap -> flush all tails and go idle.
+        if (!anyVoice && !mSwitchPending) {
+            float peak = std::max(std::abs(mainL), std::abs(mainR));
+            for (int s = 0; s < factor; ++s) {
+                peak = std::max(peak, std::max(std::abs(mSubBufMainL[s]), std::abs(mSubBufMainR[s])));
+                for (int k = 0; k < kNumDirectOuts; ++k) {
+                    peak = std::max(peak, std::abs(mSubBufDirect[k][s]));
+                }
+            }
+            mQuietFrames = (peak < kSilenceLevel) ? mQuietFrames + 1 : 0;
+            if (mQuietFrames >= mQuietFramesNeeded) {
+                FlushTails();
+                mTailsSilent = true;
+                mControlCounter = 0;
+                mVolumeGain = volumeTarget;
+                zeroFrames(f + 1);
+                break;
+            }
+        } else {
+            mQuietFrames = 0;
         }
 
-        if (outPiezo) {
-            float pz = 0.0f;
-            for (int s = 0; s < factor; ++s) { pz += mSubBufPiezo[s]; }
-            outPiezo[f] = pz / static_cast<float>(factor);
+        // Oversampling change: after the fade, reset everything and switch
+        if (mSwitchPending) {
+            mSwitchGain -= mSwitchStep;
+            if (mSwitchGain <= 0.0f) {
+                ApplyFactorSwitch();
+                if (IsSilent()) {
+                    zeroFrames(f + 1);
+                    break;
+                }
+            }
         }
+
+        // Control rate (fixed grid of output frames, independent of batch splits)
+        if (++mControlCounter >= kControlInterval) {
+            mControlCounter = 0;
+            ControlTick();
+        }
+    }
+
+    // Output guard: never hand non-finite samples to the host
+    bool finite = true;
+    for (int f = 0; f < frameCount && finite; ++f) {
+        finite = std::isfinite(outMainL[f]) && std::isfinite(outMainR[f]);
+        for (int k = 0; k < kNumDirectOuts && finite; ++k) {
+            if (direct[k]) finite = std::isfinite(direct[k][f]);
+        }
+    }
+    if (!finite) {
+        Reset();
+        zeroFrames(0);
     }
 }
 

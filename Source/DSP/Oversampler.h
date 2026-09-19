@@ -54,6 +54,42 @@ private:
     float mZ1 = 0.0f;
 };
 
+// Mono Decimator for 2x, 4x, and 8x oversampling (same half-band cascade as
+// the stereo main-bus decimator, so direct outs match it in response and phase)
+class MonoOversampler {
+public:
+    MonoOversampler() {
+        Reset();
+    }
+
+    void Reset() {
+        for (int i = 0; i < 3; ++i) {
+            mDec[i].Reset();
+        }
+    }
+
+    inline float DownsampleFrame(const float* inBuf, int factor) {
+        if (factor == 2) {
+            return mDec[0].Decimate(inBuf[0], inBuf[1]);
+        } else if (factor == 4) {
+            float s0 = mDec[0].Decimate(inBuf[0], inBuf[1]);
+            float s1 = mDec[0].Decimate(inBuf[2], inBuf[3]);
+            return mDec[1].Decimate(s0, s1);
+        } else { // 8x
+            float s0 = mDec[0].Decimate(inBuf[0], inBuf[1]);
+            float s1 = mDec[0].Decimate(inBuf[2], inBuf[3]);
+            float s2 = mDec[0].Decimate(inBuf[4], inBuf[5]);
+            float s3 = mDec[0].Decimate(inBuf[6], inBuf[7]);
+            float mid0 = mDec[1].Decimate(s0, s1);
+            float mid1 = mDec[1].Decimate(s2, s3);
+            return mDec[2].Decimate(mid0, mid1);
+        }
+    }
+
+private:
+    HalfbandDecimator2x mDec[3];
+};
+
 // Stereo Decimator for 2x, 4x, and 8x oversampling
 class StereoOversampler {
 public:

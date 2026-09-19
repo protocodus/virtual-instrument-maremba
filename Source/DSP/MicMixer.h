@@ -8,11 +8,18 @@ namespace maremba {
 
 class MicMixer {
 public:
-    MicMixer() {
-        Reset();
+    // Master mix scale of the three mic buses (also applied to the direct outs).
+    static constexpr float kMasterMixScale = 0.65f;
+
+    MicMixer() = default;
+
+    // Not realtime safe: reserve the room's delay memory (see AcousticRoom::Allocate).
+    void Allocate(double maxSampleRate) {
+        mRoom.Allocate(maxSampleRate);
     }
 
-    void SetSampleRate(float sampleRate) {
+    // Realtime safe: changes the room's active delay lengths (clears the tail).
+    void SetSampleRate(double sampleRate) {
         mRoom.SetSampleRate(sampleRate);
     }
 
@@ -47,7 +54,8 @@ public:
         accPiezo += piezoIn;
     }
 
-    // Finalize one audio frame through mic levels and acoustic room space
+    // Finalize one audio frame through mic levels and acoustic room space.
+    // The direct taps are raw (pre-fader, no width); the far tap includes the room.
     void ProcessFrame(float inCloseL, float inCloseR,
                       float inFarL, float inFarR,
                       float inPiezo,
@@ -58,23 +66,34 @@ public:
                       float& outDirectFarL, float& outDirectFarR,
                       float& outDirectPiezo)
     {
-        // 1. Close Mic with Stereo Width (Mid-Side)
-        float closeMid = (inCloseL + inCloseR) * 0.5f;
-        float closeSide = (inCloseR - inCloseL) * 0.5f * std::clamp(stereoWidth, 0.0f, 2.0f);
-        outDirectCloseL = closeMid - closeSide;
-        outDirectCloseR = closeMid + closeSide;
+        // 1. Close Mic — direct
+        outDirectCloseL = inCloseL;
+        outDirectCloseR = inCloseR;
 
         // 2. Far/Room Mic — through authentic wooden concert hall reverberation
-        mRoom.Process(inFarL, inFarR, farLevel, outDirectFarL, outDirectFarR);
+        float farDryL = 0.0f, farDryR = 0.0f, roomWetL = 0.0f, roomWetR = 0.0f;
+        mRoom.Process(inFarL, inFarR, farLevel, farDryL, farDryR, roomWetL, roomWetR);
+        outDirectFarL = farDryL + roomWetL;
+        outDirectFarR = farDryR + roomWetR;
 
         // 3. Piezo Contact Pickup — direct
         outDirectPiezo = inPiezo;
 
         // 4. Combined Master Stereo Outputs (scaled with clean headroom)
         // Strictly zero if all mic levels are turned down
-        constexpr float kMasterMixScale = 0.65f;
-        outMainL = ((outDirectCloseL * closeLevel) + (outDirectFarL * farLevel) + (outDirectPiezo * piezoLevel * 0.707f)) * kMasterMixScale;
-        outMainR = ((outDirectCloseR * closeLevel) + (outDirectFarR * farLevel) + (outDirectPiezo * piezoLevel * 0.707f)) * kMasterMixScale;
+        float dryL = ((outDirectCloseL * closeLevel) + (farDryL * farLevel) + (outDirectPiezo * piezoLevel * 0.707f)) * kMasterMixScale;
+        float dryR = ((outDirectCloseR * closeLevel) + (farDryR * farLevel) + (outDirectPiezo * piezoLevel * 0.707f)) * kMasterMixScale;
+        float wetL = roomWetL * farLevel * kMasterMixScale;
+        float wetR = roomWetR * farLevel * kMasterMixScale;
+
+        // 5. Stereo Width (Mid-Side) on the main bus: 0 = mono, 1 = natural, 2 = wide.
+        // The decorrelated room return is never widened past natural (side gain
+        // min(width, 1)), so wide settings do not turn it side-heavy.
+        const float width = std::clamp(stereoWidth, 0.0f, 2.0f);
+        const float mid = (dryL + dryR + wetL + wetR) * 0.5f;
+        const float side = (dryR - dryL) * 0.5f * width + (wetR - wetL) * 0.5f * std::min(width, 1.0f);
+        outMainL = mid - side;
+        outMainR = mid + side;
     }
 
 private:
