@@ -1,6 +1,7 @@
 #include "MarembaVoice.h"
 #include "DspMath.h"
 #include "ModalExcitation.h"
+#include "ContactExcitation.h"
 #include <algorithm>
 #include <cmath>
 #include <initializer_list>
@@ -27,8 +28,8 @@ constexpr double kMaxOmega = 0.98 * kPiD;
 constexpr float kFallbackBuzzOnset = 0.20f;
 constexpr double kFallbackThresholdScale = 1.25;
 constexpr double kFallbackDriveScale = 0.5;
-// Longest mallet contact in cycles of the fundamental: keeps f0 inside the main
-// lobe of the contact pulse, so treble bars are not reduced to mallet clack.
+// Reference treble contact limit, in cycles of the fundamental. The effective
+// limit also follows touch, keeping f0 in the pulse main lobe across dynamics.
 constexpr float kMaxContactCycles = 0.8f;
 // A voice whose summed squared resonator amplitude exceeds this (+40 dB, far
 // above any strike) is unstable and is freed (defence in depth).
@@ -36,7 +37,7 @@ constexpr double kMaxVoiceEnergy = 1.0e4;
 
 constexpr double kPiezoWeight[kNumPitchedModes] = { 0.5, 1.0, 1.2, 1.2, 1.2, 1.2, 1.5, 1.5 };
 
-// Shock spike: 1.0, 0.5, 0.2 x (shock * peak force) over the first three
+// Fast contact component: 1.0, 0.5, 0.2 over the first three
 // reference-rate samples (34 us). Integrated over each internal sample so the
 // total impulse is identical at every rate.
 inline double ShockCumulative(double t) {
@@ -46,18 +47,6 @@ inline double ShockCumulative(double t) {
          + 0.2 * std::clamp(t - 2.0, 0.0, 1.0);
 }
 constexpr double kShockDurationRef = 3.0;
-
-// Mallet rebound undershoot after contact: 1.0, 0.342, 0.088 per reference sample
-// (exp(-2t/3) * (1 - t/3) sampled at t = 0, 1, 2), integrated like the shock.
-constexpr double kRebound1 = 0.34227808;
-constexpr double kRebound2 = 0.08786580;
-inline double ReboundCumulative(double t) {
-    if (t <= 0.0) return 0.0;
-    return std::min(t, 1.0)
-         + kRebound1 * std::clamp(t - 1.0, 0.0, 1.0)
-         + kRebound2 * std::clamp(t - 2.0, 0.0, 1.0);
-}
-constexpr double kReboundDurationRef = 3.0;
 
 } // namespace
 
@@ -80,8 +69,6 @@ void MarembaVoice::FastKill() {
     mContactSample = 0;
     mShockSamplesTotal = 0;
     mShockSample = 0;
-    mReboundSamplesTotal = 0;
-    mReboundSample = 0;
     mRestrikeSamplesLeft = 0;
     mFadeGain = 1.0f;
     mFadeStep = 0.0f;
@@ -261,8 +248,15 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     // Strike position modulation
     float effectivePos = std::clamp(strikePosition + art.strikePositionOffset, 0.05f, 0.95f);
 
-    // Mallet / Thumb hardness & firmness modulation
-    float effectiveHardness = std::clamp(malletHardness + art.malletHardnessJitter, 0.05f, 0.95f);
+    // Compression exposes a firmer core at higher speed. This is a material
+    // voicing law, not a calibrated measurement of a particular mallet.
+    const bool tine = model == EMarimbaModel::KalimbaArtisan;
+    const float baseHardness = std::clamp(malletHardness + art.malletHardnessJitter, 0.05f, 0.95f);
+    const float effectiveHardness = std::clamp(baseHardness
+        + (tine ? 0.10f : 0.22f) * (mVelocity - 0.70f) * (1.0f - baseHardness), 0.02f, 0.98f);
+    // The public velocity curve maps controller touch, then this common drive
+    // feeds the tone AND release/impact noises. Quiet touches have no noise floor.
+    const double impactStrength = std::pow(static_cast<double>(mVelocity), 1.25);
 
     // ────────────────────────────────────────────────────────
     // Striker Physics: Marimba Mallets vs Kalimba Thumbs
@@ -275,14 +269,12 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
 
     if (model != EMarimbaModel::KalimbaArtisan) {
         // Marimba Mallets: Soft Yarn, Medium Cord, Hard Rubber, Wood Baton
-        // Contact time follows Hertzian law: t_contact ∝ v^(-0.28) for felt/rubber
+        // Nonlinear contact shortens with speed. Exponents and times are voiced
+        // per material; this is not a solved Hertzian collision.
         switch (mt) {
             case 0: // Soft Wool Yarn
                 contactTimeSec = (0.0016f + (1.0f - effectiveHardness) * 0.0008f) * std::pow(mVelocity, -0.28f);
-                mMalletPulseExponent = 2.2f;     // Rise exponent
-                mMalletPulseExponentFall = 2.8f;  // Fall exponent (narrower, faster fall)
                 mMalletShockImpulse = 0.05f;
-                mMalletReboundGain = 0.008f;      // Tiny soft bounce
                 frictionMult = 0.90f;
                 modeWeightMult[0] = 1.10f;
                 modeWeightMult[1] = 0.80f;
@@ -296,19 +288,13 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
             case 1: // Medium Concert Cord
             default:
                 contactTimeSec = (0.00065f + (1.0f - effectiveHardness) * 0.00045f) * std::pow(mVelocity, -0.25f);
-                mMalletPulseExponent = 1.4f;
-                mMalletPulseExponentFall = 1.7f;
                 mMalletShockImpulse = 0.50f;
-                mMalletReboundGain = 0.015f;
                 frictionMult = 0.50f;
                 // Balanced: all modes at 1.0
                 break;
             case 2: // Hard Rubber
                 contactTimeSec = (0.00030f + (1.0f - effectiveHardness) * 0.00018f) * std::pow(mVelocity, -0.30f);
-                mMalletPulseExponent = 1.2f;
-                mMalletPulseExponentFall = 1.4f;
                 mMalletShockImpulse = 1.10f;
-                mMalletReboundGain = 0.025f;
                 frictionMult = 0.15f;
                 modeWeightMult[0] = 0.95f;
                 modeWeightMult[1] = 1.15f;
@@ -321,10 +307,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
                 break;
             case 3: // Wood Baton
                 contactTimeSec = (0.00014f + (1.0f - effectiveHardness) * 0.00008f) * std::pow(mVelocity, -0.35f);
-                mMalletPulseExponent = 1.05f;
-                mMalletPulseExponentFall = 1.15f;
                 mMalletShockImpulse = 1.80f;
-                mMalletReboundGain = 0.04f;      // Wood bounces noticeably
                 frictionMult = 0.05f;
                 modeWeightMult[0] = 0.90f;
                 modeWeightMult[1] = 1.25f;
@@ -341,10 +324,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         switch (mt) {
             case 0: // Thumb Flesh Pad
                 contactTimeSec = (0.00095f + (1.0f - effectiveHardness) * 0.00045f) * std::pow(mVelocity, -0.18f);
-                mMalletPulseExponent = 1.8f;
-                mMalletPulseExponentFall = 2.2f;
                 mMalletShockImpulse = 0.15f;
-                mMalletReboundGain = 0.005f;
                 frictionMult = 0.20f;
                 modeWeightMult[0] = 1.05f;
                 modeWeightMult[1] = 0.60f;
@@ -358,10 +338,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
             case 1: // Natural Thumb
             default:
                 contactTimeSec = (0.00045f + (1.0f - effectiveHardness) * 0.00025f) * std::pow(mVelocity, -0.18f);
-                mMalletPulseExponent = 1.3f;
-                mMalletPulseExponentFall = 1.6f;
                 mMalletShockImpulse = 0.50f;
-                mMalletReboundGain = 0.012f;
                 frictionMult = 0.50f;
                 modeWeightMult[0] = 1.00f;
                 modeWeightMult[1] = 1.00f;
@@ -374,10 +351,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
                 break;
             case 2: // Thumbnail Snap
                 contactTimeSec = (0.00020f + (1.0f - effectiveHardness) * 0.00010f) * std::pow(mVelocity, -0.20f);
-                mMalletPulseExponent = 1.15f;
-                mMalletPulseExponentFall = 1.3f;
                 mMalletShockImpulse = 1.30f;
-                mMalletReboundGain = 0.03f;
                 frictionMult = 0.30f;
                 modeWeightMult[0] = 0.95f;
                 modeWeightMult[1] = 1.20f;
@@ -390,10 +364,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
                 break;
             case 3: // Thumb Pick
                 contactTimeSec = (0.00012f + (1.0f - effectiveHardness) * 0.00006f) * std::pow(mVelocity, -0.22f);
-                mMalletPulseExponent = 1.05f;
-                mMalletPulseExponentFall = 1.15f;
                 mMalletShockImpulse = 1.90f;
-                mMalletReboundGain = 0.05f;
                 frictionMult = 0.15f;
                 modeWeightMult[0] = 0.90f;
                 modeWeightMult[1] = 1.30f;
@@ -407,13 +378,13 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         }
     }
 
-    // Register cap: a treble bar is small and stiff, so its contact is short.
-    // The shock spike and rebound keep the level of the uncapped contact force
-    // (capRatio), so the cap brings the fundamental back without making the
-    // click louder in the top octave.
-    const float uncappedContactSec = contactTimeSec;
-    contactTimeSec = std::min(contactTimeSec, static_cast<float>(kMaxContactCycles / f0));
-    const double capRatio = contactTimeSec / uncappedContactSec;
+    // A small treble bar has a shorter contact, but the limiting duration
+    // still shortens with touch. A smooth fourth-order minimum avoids the old
+    // plateau where soft/medium mallets lost ALL velocity-dependent filtering.
+    const double registerLimit = kMaxContactCycles / f0 * (1.10 - 0.25 * mVelocity);
+    const double relativeDuration = contactTimeSec / registerLimit;
+    contactTimeSec /= std::sqrt(std::sqrt(1.0 + std::pow(relativeDuration, 4.0)));
+    mContactSkew = tine ? 0.0 : 0.12 + 0.18 * (1.0 - effectiveHardness);
 
     // Organic Strike Stochastic Micro-Jitter (0 to 100%)
     if (strikeJitter > 0.001f) {
@@ -423,10 +394,8 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         float contactJitter = std::clamp(prng.NextGaussian() * 0.04f * normJitter, -0.10f, 0.10f);
         contactTimeSec *= (1.0f + contactJitter);
 
-        // 2. Mallet Force Pulse Exponent noise: +/- 5% max at 100%
-        float pulseJitter = std::clamp(prng.NextGaussian() * 0.05f * normJitter, -0.12f, 0.12f);
-        mMalletPulseExponent = std::clamp(mMalletPulseExponent * (1.0f + pulseJitter), 0.8f, 3.0f);
-        mMalletPulseExponentFall = std::clamp(mMalletPulseExponentFall * (1.0f + pulseJitter * 0.8f), 0.8f, 3.5f);
+        // 2. Slight asymmetry variation without changing integrated force.
+        mContactSkew = std::clamp(mContactSkew + prng.NextGaussian() * 0.025 * normJitter, -0.3, 0.6);
 
         // 3. Initial Impact Shock Impulse noise: +/- 6% max at 100%
         float shockJitter = std::clamp(prng.NextGaussian() * 0.06f * normJitter, -0.15f, 0.15f);
@@ -441,7 +410,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
 
     // Viscoelastic contact damping of the upper modes: the per-sample factor
     // voiced at the reference rate, converted to a per-second constant.
-    mContactDampPole = PoleAtRate(1.0 - params.contactDampingFactor * 0.003, fs);
+    const double contactDampLog = std::log(1.0 - params.contactDampingFactor * 0.003) * mRefStep;
 
     // ────────────────────────────────────────────────────────
     // Resonator Tube / Gourd Setup (needed first: its coupling damps mode 0)
@@ -473,13 +442,18 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         trebleMorph = std::clamp((static_cast<float>(noteNumber) - 72.0f) / 24.0f, 0.0f, 1.0f);
         trebleMorph = trebleMorph * trebleMorph * (3.0f - 2.0f * trebleMorph);
     }
-    const bool tine = model == EMarimbaModel::KalimbaArtisan;
     // A thumb releases the playable end of a clamped tine, whereas a mallet
     // traverses the whole free bar. Soft/wide contact spatially averages modes
     // instead of applying a generic treble boost at every off-centre position.
     const double spatialPosition = tine ? 0.65 + 0.35 * effectivePos : effectivePos;
     const double footprint = tine ? 0.025 + 0.04 * (1.0 - effectiveHardness)
-        : 0.025 + 0.06 * (1.0 - effectiveHardness) + (mt == 0 ? 0.045 : 0.0);
+        : (0.025 + 0.06 * (1.0 - baseHardness) + (mt == 0 ? 0.045 : 0.0))
+          * (0.72 + 0.36 * std::pow(mVelocity, 0.4f));
+    // Diagonal approximation to local contact damping. Soft fingers/yarn
+    // absorb more of the old ring; hard, brief strokes let more sustain through.
+    const double contactLoss = (tine ? 2.0 - 0.85 * effectiveHardness - 0.12 * mt
+        : 0.35 + 1.9 * (1.0 - effectiveHardness) * (1.20 - 0.15 * mt))
+                             * (0.55 + 0.45 * std::sqrt(mVelocity));
     static constexpr float kUniformBarRatios[kNumPitchedModes] = {
         1.0f, 2.75654f, 5.40392f, 8.93295f, 13.3443f, 18.6382f, 24.8146f, 31.8735f
     };
@@ -537,12 +511,22 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         // Mallet hardness scaling: hard mallets excite more high overtones
         float overtoneScaling = (m == 0) ? 1.0f : (0.40f + 0.60f * effectiveHardness);
 
-        // Velocity-to-spectrum coupling: pianissimo → pure fundamental, forte → rich overtones
-        float velModeBoost = (m == 0) ? 1.0f : std::pow(mVelocity, 0.3f + 0.12f * static_cast<float>(m));
+        // The bar spectrum follows contact duration, core compression and
+        // spatial averaging, rather than an unrelated per-mode velocity EQ.
+        // A tine starts from static deflection (1/omega²); its velocity-like
+        // readout contributes omega, hence 1/ratio. These separately voiced
+        // readout weights include the bridge/radiation response, not modal mass.
+        static constexpr double kTineReadout[kNumPitchedModes] = {
+            1.0, 1.38, 0.79, 0.52, 0.34, 0.168, 0.117, 0.078
+        };
+        const double modalWeight = tine ? kTineReadout[m] / ratio : params.modeWeights[m];
+        const double weight = modalWeight * posWeight * overtoneScaling * modeWeightMult[m];
+        const double participation = ModalContactParticipation(m, spatialPosition, footprint, tine);
+        mode.contactPole = (m >= 2) ? std::exp(contactDampLog * participation) : 1.0;
+        mode.restrikePole = std::exp(-contactLoss * participation / contactSamples);
 
-        const double weight = params.modeWeights[m] * posWeight * overtoneScaling * modeWeightMult[m] * velModeBoost;
-
-        // b0 = weight * sin(w) makes a unit impulse ring at amplitude 'weight' at any rate
+        // sin(w) gives a unit excitation an approximately rate-independent
+        // sine amplitude (up to the pole radius over one sample).
         mode.b0 = weight * std::sin(omega_m) * kPhysicalImpulseScale;
     }
     for (int m = mNumModes; m < kNumPitchedModes; ++m) {
@@ -569,6 +553,8 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         mMode0b.omega = omega_0b;
         ReconfigureMode(mMode0b, r_0, omega_0b);
         // Twin mode provides subtle natural wood grain beating (15% amplitude)
+        mMode0b.contactPole = mModes[0].contactPole;
+        mMode0b.restrikePole = mModes[0].restrikePole;
         mMode0b.b0 = 0.15 * mModes[0].b0 / std::sin(mModes[0].omega) * std::sin(omega_0b);
     } else {
         // No anisotropic split (Kalimba steel tines or high treble bars)
@@ -576,42 +562,39 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     }
 
     // ────────────────────────────────────────────────────────
-    // Mallet / Thumb Impact Non-linear Contact Time (Hertzian)
+    // Integrated mallet force / finite thumb release
     // ────────────────────────────────────────────────────────
-    // The force is integrated (force x dt in reference samples), so the struck
-    // level does not depend on the internal rate.
+    // For a tine, the same sine bank represents velocity after release from
+    // static deflection. A slower flesh release progressively frees the modes;
+    // a nail/pick releases faster. No impact shock is fed into the tine itself.
     const double contactSamplesExact = std::max(3.0, contactTimeSec * fs);
     mContactSamplesTotal = contactSamples;
     mContactSample = 0;
-    mContactOmega = kPiD / contactSamplesExact;
-
-    float refContact = (model == EMarimbaModel::KalimbaArtisan) ? 0.00045f : 0.00065f;
-    float forceDurationComp = refContact / contactTimeSec;
-    const double peakForce = std::pow(mVelocity, 1.25f) * (0.9f + 0.8f * effectiveHardness) * forceDurationComp;
-    mContactForceStep = peakForce * mRefStep;
-
-    const double clickForce = peakForce * capRatio; // force of the uncapped contact
-    mShockGain = mMalletShockImpulse * clickForce;
-    mShockSamplesTotal = static_cast<int>(std::ceil(kShockDurationRef / mRefStep));
+    mContactStep = 1.0 / contactSamplesExact;
+    static constexpr double kMalletIntegral[4] = {0.47, 0.57, 0.64, 0.75};
+    static constexpr double kThumbIntegral[4] = {0.51, 0.58, 0.69, 0.82};
+    const double referenceContact = tine ? 0.00045 : 0.00065;
+    const double impulse = impactStrength * (0.9 + 0.8 * effectiveHardness)
+        * referenceContact * kReferenceRate * (tine ? kThumbIntegral[mt] : kMalletIntegral[mt]);
+    // A hard core contributes a small, positive fast force at high velocity.
+    // It shares the impulse budget instead of adding velocity-dependent energy.
+    const double shockFraction = tine ? 0.0
+        : 0.08 * mMalletShockImpulse * std::pow(mVelocity, 0.45f);
+    mContactImpulse = impulse * (1.0 - shockFraction);
+    mShockGain = impulse * shockFraction / 1.7;
+    mShockSamplesTotal = mShockGain > 0.0 ? static_cast<int>(std::ceil(kShockDurationRef / mRefStep)) : 0;
     mShockSample = 0;
 
-    mReboundImpulse = (mMalletReboundGain > 0.001f) ? mMalletReboundGain * clickForce : 0.0;
-    mReboundSamplesTotal = (mReboundImpulse > 0.0) ? static_cast<int>(std::ceil(kReboundDurationRef / mRefStep)) : 0;
-    mReboundSample = 0;
-
-    // Yarn friction: white force noise (density rate-normalised) through a ~720 Hz low-pass
+    // Friction modulates the contact force; it cannot overpower a quiet stroke
+    // or pull the mallet toward the bar after separation.
     mFrictionGain = art.frictionNoiseBurst * (1.0f - effectiveHardness * 0.6f) * frictionMult;
     mFrictionAlpha = SmootherAtRate(0.05, fs);
-    mFrictionNoiseScale = std::sqrt(mRefStep);
+    // The integrated pulse already contains dt. White noise feeding this
+    // bandlimited multiplier therefore needs sqrt(fs / reference), not dt.
+    mFrictionNoiseScale = mNoiseScale;
 
-    // Restrike: damp the previous ring to 25% over the contact time
-    if (isRestrike) {
-        mRestrikeSamplesLeft = contactSamples;
-        mRestrikePole = std::pow(0.25, 1.0 / static_cast<double>(contactSamples));
-    } else {
-        mRestrikeSamplesLeft = 0;
-        mRestrikePole = 1.0;
-    }
+    mRestrikeSamplesLeft = isRestrike ? contactSamples : 0;
+    mRestrikePole = mNumModes > 0 ? mModes[0].restrikePole : 1.0;
 
     // ────────────────────────────────────────────────────────
     // Strike Clack Noise Burst (replaces artificial tonal clack mode)
@@ -637,7 +620,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         mClackDecayRate = std::exp(-1000.0 / (clackDecayMs * fs));
 
         // Clack gain: scales with hardness, velocity, and wood friction
-        double clackIntensity = mMalletShockImpulse * effectiveHardness * std::pow(mVelocity, 0.8f);
+        double clackIntensity = mMalletShockImpulse * effectiveHardness * impactStrength * std::pow(mVelocity, 0.55f);
         mClackEnvelope = clackIntensity * 0.05 * (1.0 + params.woodInternalFriction * 100.0);
         mClackActive = mClackEnvelope > 0.0;
     }
@@ -689,32 +672,22 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
         return false;
     }
 
-    // 1. Mallet Contact Excitation with asymmetric Hertzian pulse + shock spike + rebound
+    // 1. Integrate positive contact force / progressive tine release over
+    // this sample. The sum telescopes to the same impulse at every rate.
     double excitation = 0.0;
     const bool inContact = (mContactSample < mContactSamplesTotal);
-
     if (inContact) {
-        const double phase = mContactOmega * static_cast<double>(mContactSample);
-        const double pulse = std::max(0.0, std::sin(phase));
-
-        // Shaped contact pulse: the fall exponent is >= the rise exponent, so the
-        // fall is slightly narrower and faster than the rise
-        const float shapedPulse = std::pow(static_cast<float>(pulse),
-                                           phase < 0.5 * kPiD ? mMalletPulseExponent : mMalletPulseExponentFall);
-        excitation = shapedPulse * mContactForceStep;
-
+        const double t0 = mContactSample * mContactStep;
+        // Roundoff at the last interval can subtract almost equal values.
+        const double pulse = std::max(0.0, ContactCumulative(t0 + mContactStep, mContactSkew)
+                           - ContactCumulative(t0, mContactSkew));
+        excitation = mContactImpulse * pulse;
         if (mFrictionGain > 0.0001) {
-            double noise = mLocalPrng.NextBipolar() * mFrictionNoiseScale;
+            const double noise = mLocalPrng.NextBipolar() * mFrictionNoiseScale;
             mFrictionFilterState += mFrictionAlpha * (noise - mFrictionFilterState);
-            excitation += mFrictionFilterState * mFrictionGain * pulse;
+            excitation *= std::clamp(1.0 + mFrictionFilterState * mFrictionGain, 0.0, 2.0);
         }
-
-        mContactSample++;
-    } else if (mReboundSample < mReboundSamplesTotal) {
-        // Mallet rebound: tiny negative undershoot right after contact ends
-        const double t0 = static_cast<double>(mReboundSample) * mRefStep;
-        excitation = -mReboundImpulse * (ReboundCumulative(t0 + mRefStep) - ReboundCumulative(t0));
-        mReboundSample++;
+        ++mContactSample;
     }
 
     // Initial contact shock impulse spike (first 34 us)
@@ -763,7 +736,6 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
     } else {
         // Damping here always scales BOTH states (a smaller pole radius), which
         // removes energy; scaling only y[n] would inject energy into low modes.
-        const double contactPole = inContact ? mContactDampPole : 1.0;
         auto step = [&](ModeState& mode, double pole) -> double {
             const double ym = mode.c * mode.y1 - mode.s * mode.y2 + mode.b0 * excitation;
             mode.y2 = mode.y1;
@@ -774,8 +746,8 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
                 mode.o2 = mode.o1;
                 mode.o1 = yo;
                 out += yo;
-                mode.o1 *= mRestrikePole;
-                mode.o2 *= mRestrikePole;
+                mode.o1 *= mode.restrikePole;
+                mode.o2 *= mode.restrikePole;
             }
             if (pole != 1.0) {
                 mode.y1 *= pole;
@@ -787,7 +759,7 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
         };
         for (int m = 0; m < mNumModes; ++m) {
             // Viscoelastic contact damping: the mallet damps the upper modes during contact
-            const double out = step(mModes[m], (m >= 2) ? handPole * contactPole : handPole);
+            const double out = step(mModes[m], handPole * (inContact ? mModes[m].contactPole : 1.0));
             barAcousticSum += out;
             barMechanicalSum += out * kPiezoWeight[m];
         }
@@ -919,7 +891,7 @@ void MarembaVoice::UpdateEnvelope() {
     // A membrane state keeps the voice alive while the membrane buzzes, or while
     // a left-over buzz releases out after the membrane went away (both reach 0).
     const bool buzzing = mMirlitonFilterState != 0.0;
-    const bool exciting = IsStriking() || mReboundSample < mReboundSamplesTotal;
+    const bool exciting = IsStriking();
     if (exciting || mClackActive || mRattleLevel > 0.0 || buzzing) return;
 
     // -120 dB and nothing left to excite the bar: free the voice (state flushed)

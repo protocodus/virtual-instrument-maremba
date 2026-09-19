@@ -9,6 +9,7 @@
 
 #include "../DSP/MarembaEngine.h"
 #include "../DSP/ModalExcitation.h"
+#include "../DSP/ContactExcitation.h"
 
 #include <algorithm>
 #include <array>
@@ -2258,6 +2259,30 @@ void TestPhysicalStrikePositions()
     const double narrow = maremba::ModalContactWeight(6, 0.5, 0.0, false);
     const double wide = maremba::ModalContactWeight(6, 0.5, 0.20, false);
     CHECK(std::abs(wide) < 0.4 * std::abs(narrow), "a wide mallet does not cancel short spatial wavelengths");
+    CHECK(maremba::ModalContactParticipation(1, 0.5, 0.12, false) > 0.01,
+          "wide contact over an antisymmetric node must still dissipate energy");
+}
+
+void TestContactImpulseConservation()
+{
+    std::cout << "[Contact] Finite contact is nonadhesive and conserves impulse across rates ..." << std::endl;
+    for (double fs : {44100.0, 88200.0, 192000.0, 768000.0, 1536000.0}) {
+        for (double duration : {0.00012, 0.0006537, 0.004}) {
+            for (double skew : {-0.3, 0.0, 0.6}) {
+                const double samples = std::max(3.0, fs * duration);
+                double total = 0.0;
+                for (int i = 0; i < static_cast<int>(std::ceil(samples)); ++i) {
+                    const double impulse = maremba::ContactCumulative((i + 1) / samples, skew)
+                                         - maremba::ContactCumulative(i / samples, skew);
+                    CHECK(impulse >= -1e-14, "nonadhesive contact exerts a pulling force");
+                    total += impulse;
+                }
+                CHECK(std::abs(total - 1.0) < 1e-12, "contact impulse depends on rate or duration");
+                CHECK(maremba::ContactCumulative(1.1, skew) == maremba::ContactCumulative(1.0, skew),
+                      "contact exerts force after separation");
+            }
+        }
+    }
 }
 
 void TestTunedMiddleRegister()
@@ -2426,6 +2451,7 @@ int main(int argc, char** argv)
     TestSameFrameChordAtLimit();
     TestVolumeChangeWhileIdle();
     TestPhysicalStrikePositions();
+    TestContactImpulseConservation();
     TestTunedMiddleRegister();
     TestRestrikePreservesStoredEnergy();
 

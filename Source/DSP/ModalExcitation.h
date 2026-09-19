@@ -58,4 +58,19 @@ inline double ModalContactWeight(int mode, double position, double width, bool t
     return sign * orientation * shape * (mode == 0 ? 0.82260894024917 : 0.70710678118655);
 }
 
+// Contact loss depends on the mean of squared displacement, not the square
+// of its mean: a wide mallet spanning a node still touches moving material.
+// Two-point Gaussian quadrature is a bounded spatial approximation. The force
+// projection above remains signed, so opposite lobes still cancel excitation.
+inline double ModalContactParticipation(int mode, double position, double width, bool tine) {
+    const double halfWidth = 0.5 * std::clamp(width, 0.0, 0.25);
+    const double lo = std::max(0.0, position - halfWidth);
+    const double hi = std::min(1.0, position + halfWidth);
+    const double centre = 0.5 * (lo + hi);
+    const double offset = (hi - lo) * 0.288675134594813;
+    const double left = ModalContactWeight(mode, centre - offset, 0.0, tine);
+    const double right = ModalContactWeight(mode, centre + offset, 0.0, tine);
+    return 0.5 * (left * left + right * right);
+}
+
 } // namespace maremba

@@ -86,6 +86,8 @@ private:
         double w = 0.0;       // pole angle currently in c (tuning, bend and glide applied)
         double r = 0.0;
         double invSin2 = 0.0; // 1 / sin^2(w): converts the quadratic invariant to squared amplitude
+        double contactPole = 1.0; // loss at this mode's contact footprint
+        double restrikePole = 1.0;
     };
 
     void SetModeCoefficients(ModeState& mode, double omega) const;
@@ -116,19 +118,13 @@ private:
     // Mallet contact state & viscoelastic damping
     int mContactSamplesTotal = 0;
     int mContactSample = 0;
-    double mContactOmega = 0.0;
-    double mContactForceStep = 0.0;   // peak force x dt (rate-normalised)
-    float mMalletPulseExponent = 1.2f;
-    float mMalletPulseExponentFall = 1.4f; // shaped contact pulse: fall exponent (>= rise: narrower, faster fall)
+    double mContactStep = 0.0;       // one sample as a fraction of the contact duration
+    double mContactImpulse = 0.0;    // integral of the main contact pulse
+    double mContactSkew = 0.0;
     float mMalletShockImpulse = 0.8f;
-    float mMalletReboundGain = 0.0f;  // Tiny rebound undershoot after contact
-    double mShockGain = 0.0;           // shock impulse x peak force, spread over 3 reference samples
+    double mShockGain = 0.0;         // integral of the initial hard-contact component / 1.7
     int mShockSamplesTotal = 0;
     int mShockSample = 0;
-    double mReboundImpulse = 0.0;
-    int mReboundSamplesTotal = 0;
-    int mReboundSample = 0;
-    double mContactDampPole = 1.0;     // per-sample symmetric damping of modes >= 2 during contact
     double mFrictionGain = 0.0;
     double mFrictionAlpha = 0.05;
     double mFrictionNoiseScale = 1.0;
