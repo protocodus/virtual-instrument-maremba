@@ -55,7 +55,9 @@ public:
     }
 
     // Finalize one audio frame through mic levels and acoustic room space.
-    // The direct taps are raw (pre-fader, no width); the far tap includes the room.
+    // The close and piezo taps are raw (before their level knobs, no width). The
+    // far tap is the far mic before its knob plus the room return, whose level
+    // follows the Far (ROOM) knob (roomLevel = farLevel; the room is off at 0).
     void ProcessFrame(float inCloseL, float inCloseR,
                       float inFarL, float inFarR,
                       float inPiezo,

@@ -46,7 +46,9 @@ public:
 
     // Coefficients only (cheap, realtime safe): call when the rate or the
     // engine-wide tuning (tune + pitch bend, in cents) changes. The coupling
-    // table is built once in the constructor.
+    // table is built once in the constructor. A ringing resonator keeps its
+    // amplitude and phase across the change (its delayed state is re-expressed
+    // for the new pole), so bend or tune modulation cannot pump it.
     void Configure(double sampleRate, double tuneOffsetCents = 0.0) {
         mSampleRate = sampleRate > 8000.0 ? sampleRate : 44100.0;
         mLpAlpha = 1.0 - std::exp(-kTwoPiD * 600.0 / mSampleRate);
@@ -60,6 +62,15 @@ public:
             double q = 20.0 + 8.0 * (static_cast<double>(i) / static_cast<double>(kNumResonators - 1));
             double r = std::exp(-kPiD * f / (q * mSampleRate));
             double w = std::min(kTwoPiD * f / mSampleRate, 0.98 * kPiD);
+            // With y1 = A cos(phi) and rOld*y2 = A cos(phi - wOld):
+            // y2' = (y1 cos(w) + A sin(phi) sin(w)) / r. Skipped on the first call.
+            const double sinOld = std::sin(mW[i]);
+            if (mS[i] > 0.0 && sinOld > 1.0e-12) {
+                const double rOld = std::sqrt(mS[i]);
+                const double aSinPhi = (rOld * mY2[i] - mY1[i] * std::cos(mW[i])) / sinOld;
+                mY2[i] = (mY1[i] * std::cos(w) + aSinPhi * std::sin(w)) / r;
+            }
+            mW[i] = w;
             mC[i] = 2.0 * r * std::cos(w);
             mS[i] = r * r;
 
@@ -123,12 +134,15 @@ public:
     // Control rate: zero states that have decayed to nothing (below 1e-15,
     // about -300 dB), so they never cycle on subnormal values. The input
     // low-pass decays much faster than its resonator, so it is flushed alone.
+    // A resonator far above any real drive (|y| > kMaxState) is unstable and
+    // is cleared as well (defence in depth).
     void FlushTiny() {
         for (int i = 0; i < kNumResonators; ++i) {
             if (std::abs(mDriveLpState[i]) < 1.0e-15) {
                 mDriveLpState[i] = 0.0;
             }
-            if (std::abs(mY1[i]) + std::abs(mY2[i]) < 1.0e-15) {
+            const double mag = std::abs(mY1[i]) + std::abs(mY2[i]);
+            if (mag < 1.0e-15 || !(mag <= kMaxState)) {
                 mY1[i] = 0.0;
                 mY2[i] = 0.0;
             }
@@ -157,6 +171,8 @@ public:
     }
 
 private:
+    static constexpr double kMaxState = 1.0e3;
+
     // Build Harmonic Coupling Matrix: each MIDI note (0-127) couples ONLY
     // to consonant harmonic intervals (unison, octave, 5th, 4th, major 3rd).
     // Semitones, whole-tones, and tritones have STRICTLY 0.0 coupling.
@@ -198,6 +214,7 @@ private:
     std::array<double, kNumResonators> mY2{};
     std::array<double, kNumResonators> mC{};
     std::array<double, kNumResonators> mS{};
+    std::array<double, kNumResonators> mW{};   // pole angle currently in mC
     std::array<double, kNumResonators> mB{};
     std::array<float, kNumResonators> mDrive{};
     std::array<double, kNumResonators> mDriveLpState{};

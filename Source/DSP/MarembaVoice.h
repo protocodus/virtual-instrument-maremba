@@ -55,6 +55,8 @@ public:
     inline bool IsFading() const { return mFading; }
     inline bool IsLive() const { return mActive && !mFading; }
     inline int GetNoteNumber() const { return mNoteNumber; }
+    inline EMarimbaModel GetModel() const { return mModel; }   // model of the last strike
+    inline float GetFadeGain() const { return mFadeGain; }     // 1 unless fading out
 
     // Sum over the resonators of their squared amplitude (phase independent),
     // as of the last control-rate update.
@@ -81,11 +83,14 @@ private:
         double s = 0.0;       // r^2
         double b0 = 0.0;      // input gain
         double omega = 0.0;   // pole angle at the trigger-time tuning
+        double w = 0.0;       // pole angle currently in c (tuning, bend and glide applied)
         double r = 0.0;
         double invSin2 = 0.0; // 1 / sin^2(w): converts the quadratic invariant to squared amplitude
     };
 
     void SetModeCoefficients(ModeState& mode, double omega) const;
+    // New pole angle for a ringing resonator, keeping its amplitude and phase.
+    void RetuneMode(ModeState& mode, double omega) const;
     static double ModeEnergy(const ModeState& mode);
     // ModeEnergy, and a mode that has decayed below -300 dB is zeroed so it
     // never cycles on subnormal values while the rest of the voice rings on.
@@ -96,6 +101,7 @@ private:
     bool mDamping = false;     // hand damping (DampAll)
     bool mFading = false;
     int mNoteNumber = -1;
+    EMarimbaModel mModel = EMarimbaModel::ImperialRosewood;
     float mVelocity = 0.0f;
     double mSampleRate = 88200.0;
     double mRefStep = 1.0;     // kReferenceRate / mSampleRate: one internal sample in reference samples
@@ -111,7 +117,7 @@ private:
     double mContactOmega = 0.0;
     double mContactForceStep = 0.0;   // peak force x dt (rate-normalised)
     float mMalletPulseExponent = 1.2f;
-    float mMalletPulseExponentFall = 1.4f; // Asymmetric Hertzian: fall exponent
+    float mMalletPulseExponentFall = 1.4f; // shaped contact pulse: fall exponent (>= rise: narrower, faster fall)
     float mMalletShockImpulse = 0.8f;
     float mMalletReboundGain = 0.0f;  // Tiny rebound undershoot after contact
     double mShockGain = 0.0;           // shock impulse x peak force, spread over 3 reference samples

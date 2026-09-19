@@ -42,6 +42,12 @@ constexpr double kVolumeSmoothingSeconds = 0.005;
 constexpr double kTailHoldSeconds = 0.1;         // > longest room echo gap
 constexpr float kSilenceLevel = 1.0e-9f;
 constexpr float kMaxPitchBendCents = 1200.0f;
+// Last-resort output guard: a sample above this (+60 dBFS) or a non-finite one
+// means something went unstable; the engine resets (a dropout, never garbage).
+constexpr float kMaxOutputLevel = 1.0e3f;
+// Mapped velocity floor: every curve maps 1/127 to just above it, so the
+// response stays strictly monotonic down to the softest key.
+constexpr float kVelocityFloor = 0.01f;
 
 // Frame body contribution at bodyBloom = 1 (about -26 dB below the bar peak)
 constexpr float kBodyBloomGain = 0.040f;
@@ -178,7 +184,11 @@ void MarembaEngine::SetParameters(const EngineParameters& params) {
 
     // Oversampling change: switch at once when nothing sounds, otherwise fade
     // everything out at the old rate first (see RenderBatch / ApplyFactorSwitch).
-    if (!mSwitchPending && FactorFor(p.oversampling) != mActiveFactor) {
+    // Set back to the active factor during the fade, the switch is cancelled.
+    const int wantedFactor = FactorFor(p.oversampling);
+    if (mSwitchPending) {
+        if (wantedFactor == mActiveFactor) CancelFactorSwitch();
+    } else if (wantedFactor != mActiveFactor) {
         if (IsSilent()) {
             ApplyFactorSwitch();
         } else {
@@ -242,32 +252,53 @@ void MarembaEngine::ApplyFactorSwitch() {
     mControlCounter = 0;
     mVolumeGain = mParams.volume * mParams.volume;
 
-    // Notes that arrived during the fade start now, at the new rate. Those that
-    // were already queued when DampAll (transport stop) came are damped as well,
-    // exactly like the voices that were sounding then; later notes ring normally.
+    // Notes that arrived during the fade start now, at the new rate.
+    StartPendingNotes();
+}
+
+// The factor went back to the active one before the fade ended: nothing has to
+// switch. The output gain ramps back up in RenderBatch (the voices themselves
+// were never faded, so they ring on without a click) and the queued notes start.
+void MarembaEngine::CancelFactorSwitch() {
+    mSwitchPending = false;   // mSwitchStep is kept for the ramp back up
+    StartPendingNotes();
+}
+
+// Those that were already queued when DampAll (transport stop) came are damped
+// as well, exactly like the voices that were sounding then; later notes ring
+// normally. Keys released while queued start released.
+void MarembaEngine::StartPendingNotes() {
     const int count = mPendingCount;
     const int damped = mDampedPendingCount;
     mPendingCount = 0;
     mDampedPendingCount = 0;
     for (int i = 0; i < count; ++i) {
-        const int slot = TriggerNote(mPendingNotes[i].note, mPendingNotes[i].velocity);
+        const PendingNote& pending = mPendingNotes[i];
+        const int slot = TriggerNote(pending.note, pending.velocity);
         if (i < damped) mVoices[slot].StartDamping();
+        if (pending.released) mVoices[slot].Release();
     }
 }
 
 float MarembaEngine::MapVelocity(float vel) const {
     vel = std::clamp(vel, 0.001f, 1.0f);
+    float curve = vel;
     switch (mParams.velocityCurve) {
         case 0: // Soft: light touch plays loud
-            return std::sqrt(vel);
+            curve = std::sqrt(vel);
+            break;
         case 2: // Hard: needs force to play loud
-            return std::pow(vel, 1.55f);
+            curve = std::pow(vel, 1.55f);
+            break;
         case 3: // Expressive
-            return vel * vel * (3.0f - 2.0f * vel);
+            curve = vel * vel * (3.0f - 2.0f * vel);
+            break;
         case 1: // Linear
         default:
-            return vel;
+            break;
     }
+    // Soft floor (not a clamp): no two key velocities give the same strike
+    return kVelocityFloor + (1.0f - kVelocityFloor) * curve;
 }
 
 int MarembaEngine::CountLiveVoices() const {
@@ -318,7 +349,7 @@ void MarembaEngine::NoteOn(int noteNumber, float velocity) {
     if (mSwitchPending) {
         // Rate change in progress: start the note right after the switch
         if (mPendingCount < kMaxPendingNotes) {
-            mPendingNotes[mPendingCount++] = { noteNumber, velocity };
+            mPendingNotes[mPendingCount++] = { noteNumber, velocity, false };
         }
         return;
     }
@@ -330,12 +361,20 @@ int MarembaEngine::TriggerNote(int noteNumber, float velocity) {
     mQuietFrames = 0;
 
     const float mappedVel = MapVelocity(velocity);
+    const EMarimbaModel model = static_cast<EMarimbaModel>(mParams.model);
 
-    // 1. The same bar still ringing: re-strike it
+    // 1. The same bar still ringing: re-strike it. A bar struck with another
+    // model cannot be carried into the new strike (its twin mode, upper modes
+    // and membrane may not exist in the new model): it fades out in its own slot
+    // and the new strike takes a fresh one.
     int slot = -1;
     for (int i = 0; i < kVoicePoolSize; ++i) {
         if (mVoices[i].IsLive() && mVoices[i].GetNoteNumber() == noteNumber) {
-            slot = i;
+            if (mVoices[i].GetModel() == model) {
+                slot = i;
+            } else {
+                mVoices[i].StartFade(kStealFadeSeconds);
+            }
             break;
         }
     }
@@ -359,12 +398,15 @@ int MarembaEngine::TriggerNote(int noteNumber, float velocity) {
             }
         }
 
-        // 4. All slots busy (live + fading): hard-reuse the quietest fading voice
+        // 4. All slots busy (live + fading, only possible with a chord of more
+        // than kMaxPolyphony notes): hard-reuse the fading voice that is
+        // quietest now, i.e. the one nearest the end of its fade.
         if (slot < 0) {
             double bestEnergy = 0.0;
             for (int i = 0; i < kVoicePoolSize; ++i) {
                 if (!mVoices[i].IsFading()) continue;
-                const double energy = StealEnergy(mVoices[i]);
+                const double fade = mVoices[i].GetFadeGain();
+                const double energy = fade * fade * StealEnergy(mVoices[i]);
                 if (slot < 0 || energy < bestEnergy) {
                     slot = i;
                     bestEnergy = energy;
@@ -375,7 +417,6 @@ int MarembaEngine::TriggerNote(int noteNumber, float velocity) {
         }
     }
 
-    const EMarimbaModel model = static_cast<EMarimbaModel>(mParams.model);
     const float keyDetuneCents = GetKeyDetuneOffset(noteNumber, mParams.detune);
 
     mVoices[slot].Trigger(noteNumber, mappedVel, model,
@@ -392,11 +433,15 @@ int MarembaEngine::TriggerNote(int noteNumber, float velocity) {
 
 void MarembaEngine::NoteOff(int noteNumber) {
     // Sound-neutral by design (bars ring freely): only marks released keys,
-    // which are preferred when a voice has to be stolen.
+    // which are preferred when a voice has to be stolen (also a key still
+    // queued during an oversampling fade).
     for (auto& voice : mVoices) {
         if (voice.IsLive() && voice.GetNoteNumber() == noteNumber) {
             voice.Release();
         }
+    }
+    for (int i = 0; i < mPendingCount; ++i) {
+        if (mPendingNotes[i].note == noteNumber) mPendingNotes[i].released = true;
     }
 }
 
@@ -425,9 +470,13 @@ void MarembaEngine::ControlTick() {
     for (auto& voice : mVoices) {
         if (voice.IsActive()) voice.UpdateEnvelope();
     }
-    // Zero decayed shared resonators before they reach subnormal values
+    // Zero decayed shared resonators and float filter states before they reach
+    // subnormal values (the main bus sits at exact 0 when every mic level is 0)
     mSympathetic.FlushTiny();
     mFrameBody.FlushTiny();
+    mPreamp.FlushTiny();
+    mOversampler.FlushTiny();
+    for (auto& decimator : mDirectDecimators) decimator.FlushTiny();
 }
 
 void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
@@ -589,6 +638,7 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
                 mTailsSilent = true;
                 mControlCounter = 0;
                 mVolumeGain = volumeTarget;
+                mSwitchGain = 1.0f;   // a cancelled switch may still be ramping back up
                 zeroFrames(f + 1);
                 break;
             }
@@ -597,6 +647,7 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         }
 
         // Oversampling change: after the fade, reset everything and switch
+        // (or, after a cancelled switch, ramp the output back up)
         if (mSwitchPending) {
             mSwitchGain -= mSwitchStep;
             if (mSwitchGain <= 0.0f) {
@@ -606,6 +657,8 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
                     break;
                 }
             }
+        } else if (mSwitchGain < 1.0f) {
+            mSwitchGain = std::min(1.0f, mSwitchGain + mSwitchStep);
         }
 
         // Control rate (fixed grid of output frames, independent of batch splits)
@@ -615,15 +668,17 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         }
     }
 
-    // Output guard: never hand non-finite samples to the host
-    bool finite = true;
-    for (int f = 0; f < frameCount && finite; ++f) {
-        finite = std::isfinite(outMainL[f]) && std::isfinite(outMainR[f]);
-        for (int k = 0; k < kNumDirectOuts && finite; ++k) {
-            if (direct[k]) finite = std::isfinite(direct[k][f]);
+    // Output guard (last resort; voices and mesh have their own guards): never
+    // hand non-finite or runaway samples to the host. NaN fails the comparison.
+    auto sane = [](float x) { return std::abs(x) <= kMaxOutputLevel; };
+    bool ok = true;
+    for (int f = 0; f < frameCount && ok; ++f) {
+        ok = sane(outMainL[f]) && sane(outMainR[f]);
+        for (int k = 0; k < kNumDirectOuts && ok; ++k) {
+            if (direct[k]) ok = sane(direct[k][f]);
         }
     }
-    if (!finite) {
+    if (!ok) {
         Reset();
         zeroFrames(0);
     }

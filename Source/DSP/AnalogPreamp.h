@@ -3,6 +3,7 @@
 #include "DspMath.h"
 #include <algorithm>
 #include <cmath>
+#include <initializer_list>
 
 namespace maremba {
 
@@ -17,6 +18,23 @@ public:
         mDcBlockInL = mDcBlockOutL = 0.0f;
         mDcBlockInR = mDcBlockOutR = 0.0f;
         mTiltLowL = mTiltLowR = 0.0f;
+    }
+
+    // Control rate: with a silent input (all mic levels at 0) the DC blocker and
+    // the tilt low-pass decay into float subnormals and stay there (a subnormal
+    // times a pole close to 1 rounds back to itself). Zero them first.
+    void FlushTiny() {
+        for (float* x : { &mDcBlockInL, &mDcBlockOutL, &mDcBlockInR, &mDcBlockOutR, &mTiltLowL, &mTiltLowR }) {
+            if (std::abs(*x) < kTinyState) *x = 0.0f;
+        }
+    }
+
+    // True when no filter state is subnormal (unit testing)
+    bool HasNoSubnormalState() const {
+        for (float x : { mDcBlockInL, mDcBlockOutL, mDcBlockInR, mDcBlockOutR, mTiltLowL, mTiltLowR }) {
+            if (std::fpclassify(x) == FP_SUBNORMAL) return false;
+        }
+        return true;
     }
 
     void SetSampleRate(double sampleRate) {
@@ -84,6 +102,7 @@ public:
 
 private:
     static constexpr double kDcBlockHz = 20.0;
+    static constexpr float kTinyState = 1.0e-20f;   // about -400 dB
 
     double mSampleRate = kReferenceRate;
     float mTiltAlpha = 0.031f;

@@ -5,6 +5,11 @@
 
 namespace maremba {
 
+// The decimators run in float. Control-rate FlushTiny() zeroes states below
+// this (about -400 dB) so a silent input never leaves them cycling on
+// subnormal values.
+constexpr float kDecimatorTinyState = 1.0e-20f;
+
 // 2nd-order allpass section for half-band polyphase decomposition
 struct HalfbandAllpass {
     float a = 0.0f;
@@ -22,6 +27,15 @@ struct HalfbandAllpass {
         x1 = 0.0f;
         y1 = 0.0f;
     }
+
+    inline void FlushTiny() {
+        if (std::abs(x1) < kDecimatorTinyState) x1 = 0.0f;
+        if (std::abs(y1) < kDecimatorTinyState) y1 = 0.0f;
+    }
+
+    inline bool HasNoSubnormalState() const {
+        return std::fpclassify(x1) != FP_SUBNORMAL && std::fpclassify(y1) != FP_SUBNORMAL;
+    }
 };
 
 // 2x Decimator using a 2-path polyphase allpass structure
@@ -38,6 +52,16 @@ public:
         mAp0.Reset();
         mAp1.Reset();
         mZ1 = 0.0f;
+    }
+
+    void FlushTiny() {
+        mAp0.FlushTiny();
+        mAp1.FlushTiny();
+        if (std::abs(mZ1) < kDecimatorTinyState) mZ1 = 0.0f;
+    }
+
+    bool HasNoSubnormalState() const {
+        return mAp0.HasNoSubnormalState() && mAp1.HasNoSubnormalState() && std::fpclassify(mZ1) != FP_SUBNORMAL;
     }
 
     // Input: two consecutive samples at 2*Fs (s0, s1). Output: one sample at Fs.
@@ -66,6 +90,19 @@ public:
         for (int i = 0; i < 3; ++i) {
             mDec[i].Reset();
         }
+    }
+
+    void FlushTiny() {
+        for (int i = 0; i < 3; ++i) {
+            mDec[i].FlushTiny();
+        }
+    }
+
+    bool HasNoSubnormalState() const {
+        for (int i = 0; i < 3; ++i) {
+            if (!mDec[i].HasNoSubnormalState()) return false;
+        }
+        return true;
     }
 
     inline float DownsampleFrame(const float* inBuf, int factor) {
@@ -102,6 +139,20 @@ public:
             mDecL[i].Reset();
             mDecR[i].Reset();
         }
+    }
+
+    void FlushTiny() {
+        for (int i = 0; i < 3; ++i) {
+            mDecL[i].FlushTiny();
+            mDecR[i].FlushTiny();
+        }
+    }
+
+    bool HasNoSubnormalState() const {
+        for (int i = 0; i < 3; ++i) {
+            if (!mDecL[i].HasNoSubnormalState() || !mDecR[i].HasNoSubnormalState()) return false;
+        }
+        return true;
     }
 
     // Downsample buffer of samples according to factor (2, 4, or 8)

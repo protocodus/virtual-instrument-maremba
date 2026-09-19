@@ -57,7 +57,10 @@ struct EngineParameters {
 class MarembaEngine {
 public:
     static constexpr int kMaxPolyphony = 24;   // highest Polyphony setting
-    static constexpr int kVoicePoolSize = 32;  // slots; spares let stolen/excess voices fade out instead of being cut
+    // Slots: spares let stolen/excess voices fade out instead of being cut. Twice
+    // the highest polyphony covers the worst burst within one steal fade (24 live
+    // voices each fading for 24 new notes) and a 24 -> 8 polyphony drop.
+    static constexpr int kVoicePoolSize = 2 * kMaxPolyphony;
     static constexpr int kMaxFrames = 64;      // largest frameCount RenderBatch accepts
 
     // Allocates everything the engine will ever need (delay lines are sized for
@@ -102,6 +105,8 @@ public:
                      int frameCount);
 
 private:
+    friend struct MarembaEngineTestAccess;   // unit tests only (Tests/test_dsp.cpp)
+
     static constexpr int kMaxOversample = 8;
     static constexpr int kControlInterval = 16;      // output frames between control-rate updates
     static constexpr int kMaxPendingNotes = 32;
@@ -110,6 +115,7 @@ private:
     struct PendingNote {
         int note;
         float velocity;
+        bool released;   // key released while queued: the voice starts released
     };
 
     static EngineParameters Sanitize(const EngineParameters& params);
@@ -125,6 +131,8 @@ private:
     void ApplyGlobalTuning();          // retune ringing voices + mesh when tune/bend changed
     void FlushTails();                 // clear every shared tail (mesh, body, room, dynamics, decimators)
     void ApplyFactorSwitch();          // end of the oversampling fade: reset and switch the rate
+    void CancelFactorSwitch();         // oversampling set back to the active factor during the fade
+    void StartPendingNotes();          // notes queued during the fade start now
     int TriggerNote(int noteNumber, float velocity);   // returns the slot used
     int CountLiveVoices() const;
     int FindStealVictim() const;
@@ -171,9 +179,9 @@ private:
     FastPRNG mPrng;
 
     // Sub-sample buffers for oversampling decimation
-    float mSubBufMainL[kMaxOversample];
-    float mSubBufMainR[kMaxOversample];
-    float mSubBufDirect[kNumDirectOuts][kMaxOversample];
+    float mSubBufMainL[kMaxOversample] = {};
+    float mSubBufMainR[kMaxOversample] = {};
+    float mSubBufDirect[kNumDirectOuts][kMaxOversample] = {};
 };
 
 } // namespace maremba

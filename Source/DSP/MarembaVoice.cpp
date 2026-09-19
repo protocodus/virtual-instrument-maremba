@@ -21,9 +21,17 @@ constexpr double kModeDropFraction = 0.45;
 constexpr double kMaxOmega = 0.98 * kPiD;
 // Mirliton fallback for models without a native membrane: the knob only starts
 // to buzz above this value, so patches voiced with buzz <= 0.2 keep their sound.
+// Its law is the Balafon's own membrane curve, with a 25% higher threshold and
+// half the drive, so the fallback always buzzes less than the Balafon.
 constexpr float kFallbackBuzzOnset = 0.20f;
-constexpr double kFallbackMirlitonThreshold = 0.050;
-constexpr double kFallbackMirlitonDrive = 6.0;
+constexpr double kFallbackThresholdScale = 1.25;
+constexpr double kFallbackDriveScale = 0.5;
+// Longest mallet contact in cycles of the fundamental: keeps f0 inside the main
+// lobe of the contact pulse, so treble bars are not reduced to mallet clack.
+constexpr float kMaxContactCycles = 0.8f;
+// A voice whose summed squared resonator amplitude exceeds this (+40 dB, far
+// above any strike) is unstable and is freed (defence in depth).
+constexpr double kMaxVoiceEnergy = 1.0e4;
 
 constexpr double kPiezoWeight[kNumPitchedModes] = { 0.5, 1.0, 1.2, 1.2, 1.2, 1.2, 1.5, 1.5 };
 
@@ -96,9 +104,29 @@ void MarembaVoice::FastKill() {
 void MarembaVoice::SetModeCoefficients(ModeState& mode, double omega) const {
     const double w = std::clamp(omega, 1.0e-9, kMaxOmega);
     const double sinW = std::sin(w);
+    mode.w = w;
     mode.c = 2.0 * mode.r * std::cos(w);
     mode.s = mode.r * mode.r;
     mode.invSin2 = 1.0 / (sinW * sinW);
+}
+
+// A direct-form state pair (y1, y2) only means an amplitude and a phase for one
+// pole angle. Swapping c alone scales the ring by a phase-dependent factor, and
+// a periodic bend then pumps it parametrically. So the delayed state is
+// re-expressed for the new angle: with y1 = A cos(phi) and
+// r*y2 = A cos(phi - w), A sin(phi) = (r*y2 - y1*cos(wOld)) / sin(wOld) and
+// y2' = (y1*cos(wNew) + A sin(phi) * sin(wNew)) / r. Same for the residual (o1, o2).
+void MarembaVoice::RetuneMode(ModeState& mode, double omega) const {
+    const double wOld = mode.w;
+    SetModeCoefficients(mode, omega);
+    const double r = mode.r;
+    const double sinOld = std::sin(wOld);
+    if (!(r > 0.0) || sinOld < 1.0e-12) return;
+    const double cosOld = std::cos(wOld);
+    const double cosNew = std::cos(mode.w);
+    const double k = std::sin(mode.w) / sinOld;
+    mode.y2 = (mode.y1 * cosNew + (r * mode.y2 - mode.y1 * cosOld) * k) / r;
+    mode.o2 = (mode.o1 * cosNew + (r * mode.o2 - mode.o1 * cosOld) * k) / r;
 }
 
 // For y[n] = A r^n cos(wn + phi): y1^2 - c*y1*y2 + s*y2^2 = (A r^n sin w)^2, so
@@ -159,10 +187,14 @@ void MarembaVoice::Retune(float globalCents) {
     if (!mActive) return;
     mPitchRatio = std::exp2(static_cast<double>(globalCents - mTriggerGlobalCents) / 1200.0);
     for (int m = 0; m < mNumModes; ++m) {
-        SetModeCoefficients(mModes[m], mModes[m].omega * mPitchRatio);
+        double omega = mModes[m].omega * mPitchRatio;
+        // During the pitch glide ProcessSample sets mode 0 to the glided angle
+        // on the next sample: fit the state to that angle.
+        if (m == 0 && mCurrentGlideCents > 0.02) omega *= std::exp2(mCurrentGlideCents / 1200.0);
+        RetuneMode(mModes[m], omega);
     }
-    if (mHasTwin) SetModeCoefficients(mMode0b, mMode0b.omega * mPitchRatio);
-    SetModeCoefficients(mTube, mTube.omega * mPitchRatio);
+    if (mHasTwin) RetuneMode(mMode0b, mMode0b.omega * mPitchRatio);
+    RetuneMode(mTube, mTube.omega * mPitchRatio);
 }
 
 void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
@@ -185,6 +217,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     mFadeGain = 1.0f;
     mFadeStep = 0.0f;
     mNoteNumber = noteNumber;
+    mModel = model;
     mVelocity = std::clamp(velocity, 0.01f, 1.0f);
     mSampleRate = sampleRate > 8000.0 ? sampleRate : kReferenceRate;
     mRefStep = kReferenceRate / mSampleRate;
@@ -240,8 +273,8 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         switch (mt) {
             case 0: // Soft Wool Yarn
                 contactTimeSec = (0.0016f + (1.0f - effectiveHardness) * 0.0008f) * std::pow(mVelocity, -0.28f);
-                mMalletPulseExponent = 2.2f;     // Rise exponent (Hertzian)
-                mMalletPulseExponentFall = 2.8f;  // Slower fall (felt compression)
+                mMalletPulseExponent = 2.2f;     // Rise exponent
+                mMalletPulseExponentFall = 2.8f;  // Fall exponent (narrower, faster fall)
                 mMalletShockImpulse = 0.05f;
                 mMalletReboundGain = 0.008f;      // Tiny soft bounce
                 frictionMult = 0.90f;
@@ -367,6 +400,14 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
                 break;
         }
     }
+
+    // Register cap: a treble bar is small and stiff, so its contact is short.
+    // The shock spike and rebound keep the level of the uncapped contact force
+    // (capRatio), so the cap brings the fundamental back without making the
+    // click louder in the top octave.
+    const float uncappedContactSec = contactTimeSec;
+    contactTimeSec = std::min(contactTimeSec, static_cast<float>(kMaxContactCycles / f0));
+    const double capRatio = contactTimeSec / uncappedContactSec;
 
     // Organic Strike Stochastic Micro-Jitter (0 to 100%)
     if (strikeJitter > 0.001f) {
@@ -549,11 +590,12 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     const double peakForce = std::pow(mVelocity, 1.25f) * (0.9f + 0.8f * effectiveHardness) * forceDurationComp;
     mContactForceStep = peakForce * mRefStep;
 
-    mShockGain = mMalletShockImpulse * peakForce;
+    const double clickForce = peakForce * capRatio; // force of the uncapped contact
+    mShockGain = mMalletShockImpulse * clickForce;
     mShockSamplesTotal = static_cast<int>(std::ceil(kShockDurationRef / mRefStep));
     mShockSample = 0;
 
-    mReboundImpulse = (mMalletReboundGain > 0.001f) ? mMalletReboundGain * peakForce : 0.0;
+    mReboundImpulse = (mMalletReboundGain > 0.001f) ? mMalletReboundGain * clickForce : 0.0;
     mReboundSamplesTotal = (mReboundImpulse > 0.0) ? static_cast<int>(std::ceil(kReboundDurationRef / mRefStep)) : 0;
     mReboundSample = 0;
 
@@ -620,15 +662,19 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         mMirlitonThreshold = params.mirlitonThreshold * std::max(0.1f, 1.3f - 0.9f * buzzAmount);
         mMirlitonDrive = params.mirlitonDrive * (0.3f + 1.2f * buzzAmount);
     } else if (buzzAmount > kFallbackBuzzOnset) {
+        const ModelParams balafon = GetModelParams(EMarimbaModel::BalafonAncestral);
         const double amount = (buzzAmount - kFallbackBuzzOnset) / (1.0 - kFallbackBuzzOnset);
         mHasMirliton = true;
-        mMirlitonThreshold = kFallbackMirlitonThreshold * (1.3 - 0.9 * amount);
-        mMirlitonDrive = kFallbackMirlitonDrive * amount; // 0 at the onset: no jump when the knob crosses it
+        mMirlitonThreshold = kFallbackThresholdScale * balafon.mirlitonThreshold * std::max(0.1f, 1.3f - 0.9f * buzzAmount);
+        // 0 at the onset: no jump when the knob crosses it
+        mMirlitonDrive = kFallbackDriveScale * balafon.mirlitonDrive * (0.3f + 1.2f * buzzAmount) * amount;
     } else {
         mHasMirliton = false;
     }
     mMirlitonAttack = SmootherAtRate(0.35, fs);
     mMirlitonRelease = PoleAtRate(0.92, fs);
+    // A restrike keeps the ringing buzz; without a membrane now, it releases out
+    // in ProcessSample (no cut, and the voice can still be freed).
     if (!isRestrike) mMirlitonFilterState = 0.0;
 
     // Cord rattle
@@ -652,7 +698,8 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
         const double phase = mContactOmega * static_cast<double>(mContactSample);
         const double pulse = std::max(0.0, std::sin(phase));
 
-        // Asymmetric Hertzian contact: faster rise, slower fall
+        // Shaped contact pulse: the fall exponent is >= the rise exponent, so the
+        // fall is slightly narrower and faster than the rise
         const float shapedPulse = std::pow(static_cast<float>(pulse),
                                            phase < 0.5 * kPiD ? mMalletPulseExponent : mMalletPulseExponentFall);
         excitation = shapedPulse * mContactForceStep;
@@ -683,6 +730,7 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
         if (mNumModes > 0) {
             const double w = std::min(mModes[0].omega * mPitchRatio * std::exp2(mCurrentGlideCents / 1200.0), kMaxOmega);
             mModes[0].c = 2.0 * mModes[0].r * std::cos(w);
+            mModes[0].w = w;
         }
         mCurrentGlideCents *= mGlideDecay;
     } else if (mCurrentGlideCents > 0.0) {
@@ -809,6 +857,12 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
             if (std::abs(mMirlitonFilterState) < 1.0e-12) mMirlitonFilterState = 0.0;
         }
         buzzComponent = mMirlitonFilterState * 0.75;
+    } else if (mMirlitonFilterState != 0.0) {
+        // Membrane gone since the last strike (buzz or model changed): the
+        // left-over buzz releases out in a few ms instead of freezing.
+        mMirlitonFilterState *= mMirlitonRelease;
+        if (std::abs(mMirlitonFilterState) < 1.0e-12) mMirlitonFilterState = 0.0;
+        buzzComponent = mMirlitonFilterState * 0.75;
     }
 
     // 7. Cord / Mechanical Rattle
@@ -857,14 +911,18 @@ void MarembaVoice::UpdateEnvelope() {
     if (mHasTwin) energy += FlushedModeEnergy(mMode0b);
     energy += FlushedModeEnergy(mTube);
 
-    if (!std::isfinite(energy) || !std::isfinite(mClackBpY1) || !std::isfinite(mMirlitonFilterState)) {
+    if (!std::isfinite(energy) || energy > kMaxVoiceEnergy
+        || !std::isfinite(mClackBpY1) || !std::isfinite(mMirlitonFilterState)) {
         FastKill();
         return;
     }
     mEnergy = energy;
 
+    // A membrane state keeps the voice alive while the membrane buzzes, or while
+    // a left-over buzz releases out after the membrane went away (both reach 0).
+    const bool buzzing = mMirlitonFilterState != 0.0;
     const bool exciting = IsStriking() || mReboundSample < mReboundSamplesTotal;
-    if (exciting || mClackActive || mRattleLevel > 0.0 || mMirlitonFilterState != 0.0) return;
+    if (exciting || mClackActive || mRattleLevel > 0.0 || buzzing) return;
 
     // -120 dB and nothing left to excite the bar: free the voice (state flushed)
     if (energy < kSilenceEnergy) {

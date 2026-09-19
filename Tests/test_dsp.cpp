@@ -21,6 +21,27 @@
 #include <string>
 #include <vector>
 
+// ─── Private engine state for the tests (MarembaEngine befriends this) ──────
+namespace maremba {
+struct MarembaEngineTestAccess {
+    static bool MeshNormal(const MarembaEngine& e) { return e.mSympathetic.HasNoSubnormalState(); }
+    static bool BodyNormal(const MarembaEngine& e) { return e.mFrameBody.HasNoSubnormalState(); }
+    // Float main-bus chain after the mixer: preamp and the decimators
+    static bool MainBusNormal(const MarembaEngine& e) {
+        bool ok = e.mPreamp.HasNoSubnormalState() && e.mOversampler.HasNoSubnormalState();
+        for (const auto& d : e.mDirectDecimators) ok = ok && d.HasNoSubnormalState();
+        return ok;
+    }
+    // True when a live voice holds the note and is marked released
+    static bool IsNoteReleased(const MarembaEngine& e, int note) {
+        for (const auto& v : e.mVoices) {
+            if (v.IsLive() && v.GetNoteNumber() == note) return v.IsReleased();
+        }
+        return false;
+    }
+};
+} // namespace maremba
+
 // ─── Heap allocation tracking (realtime-safety test) ────────────────────────
 namespace {
 volatile bool gCountAllocations = false;
@@ -320,12 +341,45 @@ void TestMirlitonBuzz()
     Render off = RenderNote(44100.0, r, 48, 0.8f, 0.4);
     r.buzzAmount = 0.2f;
     Render atOnset = RenderNote(44100.0, r, 48, 0.8f, 0.4);
-    r.buzzAmount = 0.6f;
+    r.buzzAmount = 1.0f;
     Render on = RenderNote(44100.0, r, 48, 0.8f, 0.4);
     CHECK(DiffEnergy(atOnset.ch[kCloseL], off.ch[kCloseL], 0, off.size()) == 0.0, "Rosewood buzz <= 0.2 must be inert");
     const double rosewoodBuzz = DiffEnergy(on.ch[kCloseL], off.ch[kCloseL], 0, off.size()) / Energy(off.ch[kCloseL], 0, off.size());
-    std::cout << "  -> Rosewood buzz 0.6: " << 10.0 * std::log10(rosewoodBuzz) << " dB re bar" << std::endl;
+    std::cout << "  -> Rosewood buzz 1.0: " << 10.0 * std::log10(rosewoodBuzz) << " dB re bar" << std::endl;
     CHECK(rosewoodBuzz > 1e-4, "Rosewood buzz above 0.2 is inaudible");
+
+    // P2-2: the fallback membrane of the other models never buzzes more than the
+    // Balafon's own (buzz relative to the bar; the Balafon's is measured against
+    // its buzz-0 membrane, which understates it, so the check is conservative).
+    auto buzzRe = [](int model, int note, float vel, float buzz) {
+        EngineParameters q = CleanParams();
+        q.model = model;
+        q.compAmount = 0.0f;
+        q.preampDrive = 0.0f;
+        q.sympathetic = 0.0f;
+        q.bodyBloom = 0.0f;
+        q.farLevel = 0.0f;
+        q.buzzAmount = 0.0f;
+        const Render dry = RenderNote(44100.0, q, note, vel, 0.4);
+        q.buzzAmount = buzz;
+        const Render wet = RenderNote(44100.0, q, note, vel, 0.4);
+        return 10.0 * std::log10(DiffEnergy(wet.ch[kCloseL], dry.ch[kCloseL], 0, dry.size()) / Energy(dry.ch[kCloseL], 0, dry.size()) + 1e-30);
+    };
+    double worstExcess = -1e9;
+    for (int note : { 36, 60, 84 }) {
+        for (float vel : { 0.6f, 1.0f }) {
+            for (float buzz : { 0.6f, 1.0f }) {
+                const double balafon = buzzRe(2, note, vel, buzz);
+                for (int model : { 0, 1, 3 }) {
+                    const double excess = buzzRe(model, note, vel, buzz) - balafon;
+                    worstExcess = std::max(worstExcess, excess);
+                    CHECK(excess <= 0.5, "model " << model << " fallback buzz exceeds the Balafon's by " << excess
+                          << " dB (note " << note << ", vel " << vel << ", buzz " << buzz << ")");
+                }
+            }
+        }
+    }
+    std::cout << "  -> fallback membrane vs Balafon: worst " << worstExcess << " dB" << std::endl;
 }
 
 void TestPreampCompressorContainment()
@@ -873,9 +927,23 @@ void TestParameterFuzz()
     uint32_t rng = 12345u;
     auto next = [&]() { rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5; return rng; };
     auto pick = [&]() { return specials[next() % (sizeof(specials) / sizeof(specials[0]))]; };
+    // Sanitised parameters: every field finite and inside its documented range
+    auto inRange = [](const EngineParameters& q) {
+        auto in = [](float v, float lo, float hi) { return std::isfinite(v) && v >= lo && v <= hi; };
+        return q.model >= 0 && q.model <= 3 && q.malletType >= 0 && q.malletType <= 3
+            && in(q.malletHardness, 0, 1) && in(q.strikePosition, 0, 1) && in(q.resonatorTune, -50, 50)
+            && in(q.resonatorCoupling, 0, 1) && in(q.decay, 0.1f, 8) && in(q.buzzAmount, 0, 1) && in(q.artifacts, 0, 1)
+            && in(q.sympathetic, 0, 1) && in(q.pitchGlide, 0, 1) && in(q.bodyBloom, 0, 1) && in(q.closeLevel, 0, 1)
+            && in(q.farLevel, 0, 1) && in(q.piezoLevel, 0, 1) && in(q.stereoWidth, 0, 2) && in(q.preampDrive, 0, 1)
+            && in(q.warmth, -1, 1) && in(q.compAmount, 0, 1) && in(q.compAttack, 1, 50) && in(q.compRelease, 20, 500)
+            && in(q.volume, 0, 1) && q.oversampling >= 0 && q.oversampling <= 2 && q.velocityCurve >= 0 && q.velocityCurve <= 3
+            && q.polyphony >= 0 && q.polyphony <= 2 && in(q.tuneCents, -200, 200) && in(q.detune, 0, 100)
+            && in(q.strikeJitter, 0, 100);
+    };
     for (double sr : { 44100.0, 192000.0 }) {
         MarembaEngine engine(sr);
         bool finite = true;
+        int outOfRange = 0, lostStrikes = 0;
         for (int round = 0; round < 40; ++round) {
             EngineParameters p;
             float* fields[] = { &p.malletHardness, &p.strikePosition, &p.resonatorTune, &p.resonatorCoupling, &p.decay,
@@ -889,14 +957,24 @@ void TestParameterFuzz()
             p.polyphony = static_cast<int>(next() % 7) - 2;
             p.velocityCurve = static_cast<int>(next() % 9) - 2;
             engine.SetParameters(p);
+            if (!inRange(engine.GetParameters())) ++outOfRange;
             engine.SetPitchBendCents(pick());
             engine.NoteOn(static_cast<int>(next() % 140) - 6, pick());
             engine.NoteOn(static_cast<int>(next() % 128), 1.0f);
             Render r;
             RenderFrames(engine, r, 64 * 6, &p);
+            // Let a pending oversampling fade (5 ms) finish, then a valid strike
+            // under the same fuzzed parameters must survive a batch. The output
+            // guard resets the engine on any non-finite sample, which would kill it.
+            RenderFrames(engine, r, static_cast<int>(0.006 * sr) + 64, &p);
+            engine.NoteOn(60, 1.0f);
+            RenderFrames(engine, r, 64, &p);
+            if (engine.GetActiveVoiceCount() == 0 || engine.IsSilent()) ++lostStrikes;
             finite = finite && AllFinite(r);
         }
         CHECK(finite, "non-finite output under parameter fuzz at " << sr);
+        CHECK(outOfRange == 0, outOfRange << " fuzz rounds left a parameter non-finite or out of range at " << sr);
+        CHECK(lostStrikes == 0, lostStrikes << " valid strikes lost under parameter fuzz at " << sr << " (engine guard fired)");
     }
 }
 
@@ -1397,69 +1475,16 @@ void TestDirectOutMatchesMain()
     }
 }
 
-// SND-4/EN-5: every factory patch, at its stored mallet and levels, keeps a
-// vel-127 4-note chord at or below 0 dBFS on every direct out.
-void TestDirectOutHeadroomFactoryPatches()
+// SND-4/EN-5 (synthetic: engine defaults for every model; the factory bank
+// itself is checked by AllPatchRenderTest, which loads the real .repatch files
+// through the wrapper): a vel-127 4-note chord keeps every direct out <= 0 dBFS.
+void TestDirectOutHeadroom()
 {
-    std::cout << "[Gain] Direct outs <= 0 dBFS on a vel-127 chord for every factory patch ..." << std::endl;
-    // Stored 0..1 values of Resources/Public/*.repatch in motherboard order:
-    // model, malletType, malletHardness, strikePosition, strikeJitter, resonatorTune,
-    // resonatorCoupling, decay, buzzAmount, artifacts, sympathetic, pitchGlide,
-    // bodyBloom, closeLevel, farLevel, piezoLevel, stereoWidth, preampDrive, warmth,
-    // compAmount, compAttack, compRelease, volume, oversampling, velocityCurve,
-    // polyphony, masterTune, detune. (A velocity of 1.0 maps to 1.0 on every curve.)
-    struct Patch { const char* name; double v[28]; };
-    static const Patch kPatches[] = {
-        { "Ambient Cathedral Bloom", { 0, 0, 0.3000, 0.5000, 0.1500, 0.5000, 0.9500, 0.2658, 0.0000, 0.2000, 0.8500, 0.2500, 0.9000, 0.3000, 1.0000, 0.0000, 0.9000, 0.1000, 0.4250, 0.2000, 0.5918, 0.4792, 0.8500, 0, 0, 2, 0.5000, 0.0000 } },
-        { "Ancestral Balafon", { 2, 2, 0.6000, 0.5200, 0.2500, 0.5000, 0.7500, 0.1076, 0.5000, 0.6500, 0.5500, 0.3500, 0.7500, 0.8500, 0.5500, 0.3000, 0.6000, 0.3500, 0.4500, 0.3500, 0.1224, 0.1875, 0.8000, 0, 3, 1, 0.5000, 0.0800 } },
-        { "Chiapas Folk Fiesta", { 1, 2, 0.6800, 0.5800, 0.2000, 0.3800, 0.6500, 0.0949, 0.1000, 0.5500, 0.4000, 0.4500, 0.5000, 0.8800, 0.3500, 0.4000, 0.6500, 0.3000, 0.6250, 0.4000, 0.1020, 0.1458, 0.7800, 0, 3, 1, 0.5000, 0.0500 } },
-        { "Concert Grand Rosewood", { 0, 1, 0.4000, 0.5000, 0.1500, 0.5000, 0.7500, 0.1139, 0.0000, 0.3500, 0.4500, 0.3000, 0.5500, 0.8500, 0.5000, 0.2500, 0.5000, 0.1200, 0.5500, 0.2500, 0.2245, 0.2083, 0.8000, 0, 1, 1, 0.5000, 0.0000 } },
-        { "Direct Piezo Mallet", { 0, 3, 0.7000, 0.6500, 0.1000, 0.5000, 0.3000, 0.0633, 0.0000, 0.3000, 0.2000, 0.3500, 0.3000, 0.2000, 0.0000, 1.0000, 0.2500, 0.4500, 0.6500, 0.5000, 0.0204, 0.0833, 0.7500, 0, 2, 1, 0.5000, 0.0000 } },
-        { "Hard Acrylic Virtuoso", { 0, 2, 0.8500, 0.6200, 0.1000, 0.5500, 0.6000, 0.0823, 0.0000, 0.4000, 0.3000, 0.5000, 0.4000, 0.9500, 0.3000, 0.4500, 0.4500, 0.2500, 0.7000, 0.4500, 0.0612, 0.1250, 0.7800, 0, 2, 1, 0.5000, 0.0000 } },
-        { "Kalimba Pick Sparkle", { 3, 3, 0.7500, 0.6000, 0.1500, 0.5000, 0.6000, 0.1139, 0.0000, 0.4000, 0.5000, 0.2500, 0.4500, 0.9000, 0.3500, 0.4000, 0.6500, 0.2000, 0.6000, 0.3500, 0.1020, 0.1458, 0.7800, 0, 2, 1, 0.5000, 0.0000 } },
-        { "Kalimba Thumb Lullaby", { 3, 0, 0.2500, 0.4500, 0.2000, 0.5000, 0.8000, 0.1772, 0.0000, 0.2000, 0.6000, 0.1000, 0.7500, 0.8500, 0.5500, 0.0500, 0.6000, 0.0800, 0.3500, 0.1500, 0.4898, 0.3333, 0.8500, 0, 0, 2, 0.5000, 0.0300 } },
-        { "Mayan Dance Padauk", { 1, 1, 0.5000, 0.5000, 0.2000, 0.4200, 0.7000, 0.1139, 0.0500, 0.4500, 0.5000, 0.4000, 0.6000, 0.8000, 0.4500, 0.3500, 0.5500, 0.2000, 0.5000, 0.3000, 0.1429, 0.1667, 0.8000, 0, 1, 1, 0.5000, 0.0000 } },
-        { "Midnight Village Ritual", { 2, 1, 0.4500, 0.4500, 0.3000, 0.6500, 0.9000, 0.1519, 0.7500, 0.7000, 0.7000, 0.4000, 0.8500, 0.7500, 0.7000, 0.2000, 0.7500, 0.4000, 0.3750, 0.4500, 0.1837, 0.2708, 0.8200, 0, 1, 2, 0.5000, 0.1000 } },
-        { "Soft Yarn Nocturne", { 0, 0, 0.1500, 0.4800, 0.1500, 0.5000, 0.8800, 0.1709, 0.0000, 0.2500, 0.6500, 0.1500, 0.7000, 0.9000, 0.6000, 0.1000, 0.6000, 0.0800, 0.3500, 0.1500, 0.4898, 0.3333, 0.8500, 0, 0, 2, 0.5000, 0.0000 } },
-    };
-    auto map = [](const double* v) {
-        // The wrapper's 0..1 -> physical mapping (CONTRACT.md), without CV / wheels
-        auto f = [&](int i) { return static_cast<float>(v[i]); };
-        EngineParameters p;
-        p.model = static_cast<int>(v[0]);
-        p.malletType = static_cast<int>(v[1]);
-        p.malletHardness = f(2);
-        p.strikePosition = f(3);
-        p.strikeJitter = f(4) * 100.0f;
-        p.resonatorTune = (f(5) - 0.5f) * 100.0f;
-        p.resonatorCoupling = f(6);
-        p.decay = 0.10f + f(7) * 7.90f;
-        p.buzzAmount = f(8);
-        p.artifacts = f(9);
-        p.sympathetic = f(10);
-        p.pitchGlide = f(11);
-        p.bodyBloom = f(12);
-        p.closeLevel = f(13);
-        p.farLevel = f(14);
-        p.piezoLevel = f(15);
-        p.stereoWidth = f(16) * 2.0f;
-        p.preampDrive = f(17);
-        p.warmth = (f(18) - 0.5f) * 2.0f;
-        p.compAmount = f(19);
-        p.compAttack = 1.0f + f(20) * 49.0f;
-        p.compRelease = 20.0f + f(21) * 480.0f;
-        p.volume = f(22);
-        p.oversampling = static_cast<int>(v[23]);
-        p.velocityCurve = static_cast<int>(v[24]);
-        p.polyphony = static_cast<int>(v[25]);
-        p.tuneCents = (f(26) - 0.5f) * 200.0f;
-        p.detune = f(27) * 100.0f;
-        return p;
-    };
+    std::cout << "[Gain] Direct outs <= 0 dBFS on a vel-127 chord (defaults, every model) ..." << std::endl;
     double worst = 0.0;
-    const char* worstName = "";
-    for (const auto& patch : kPatches) {
-        const EngineParameters p = map(patch.v);
+    for (int model = 0; model < 4; ++model) {
+        EngineParameters p;
+        p.model = model;
         for (const auto& chord : { std::array<int, 4>{ 48, 52, 55, 60 }, std::array<int, 4>{ 60, 64, 67, 72 } }) {
             MarembaEngine e(44100.0);
             e.SetParameters(p);
@@ -1468,12 +1493,12 @@ void TestDirectOutHeadroomFactoryPatches()
             RenderFrames(e, r, 44100 / 2, &p);
             for (int c = kCloseL; c <= kPiezo; ++c) {
                 const double peak = Peak(r.ch[c]);
-                if (peak > worst) { worst = peak; worstName = patch.name; }
-                CHECK(peak <= 1.0, patch.name << " " << kChannelNames[c] << " direct out peaks at " << Db(peak) << " dBFS");
+                worst = std::max(worst, peak);
+                CHECK(peak <= 1.0, "model " << model << " chord " << chord[0] << " " << kChannelNames[c] << " direct out peaks at " << Db(peak) << " dBFS");
             }
         }
     }
-    std::cout << "  -> hottest direct out " << Db(worst) << " dBFS (" << worstName << ")" << std::endl;
+    std::cout << "  -> hottest direct out " << Db(worst) << " dBFS" << std::endl;
 }
 
 // A volume change is smoothed (no zipper / step).
@@ -1677,6 +1702,516 @@ void TestRoomBypassNoStaleTail()
     CHECK(back <= ref, "stale room tail bursts back when Far returns");
 }
 
+// ─── Review round 3: regression guards ──────────────────────────────────────
+
+// Render whole batches until the engine idles (at most maxSeconds); returns the seconds rendered.
+double RenderUntilSilent(MarembaEngine& e, double sampleRate, double maxSeconds, const EngineParameters* everyBatch = nullptr)
+{
+    const long maxBatches = static_cast<long>(maxSeconds * sampleRate / 64.0);
+    float buf[kNumChannels][64];
+    long b = 0;
+    for (; b < maxBatches && !e.IsSilent(); ++b) {
+        if (everyBatch) e.SetParameters(*everyBatch);
+        e.RenderBatch(buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], 64);
+    }
+    return static_cast<double>(b) * 64.0 / sampleRate;
+}
+
+// E2-1/S2-1: a restrike after the membrane went away (Buzz down, or another
+// model) releases the left-over buzz: the voice is freed and the engine idles.
+void TestMembraneRestrikeFreesVoice()
+{
+    std::cout << "[Lifetime] A restrike without the membrane frees the voice (no zombie) ..." << std::endl;
+    struct Case { const char* name; int model0; float buzz0; int model1; float buzz1; int gapBatches; float vel1; };
+    const Case cases[] = {
+        { "Balafon 0.5 -> Rosewood 0.0", 2, 0.5f, 0, 0.0f, 20, 0.5f },
+        { "Rosewood 0.8 -> 0.1", 0, 0.8f, 0, 0.1f, 20, 0.5f },
+        { "Balafon 0.75 -> Kalimba", 2, 0.75f, 3, 0.15f, 69, 0.8f },
+    };
+    for (const auto& c : cases) {
+        for (bool damp : { false, true }) {
+            EngineParameters p;
+            p.model = c.model0;
+            p.buzzAmount = c.buzz0;
+            MarembaEngine e(44100.0);
+            e.SetParameters(p);
+            e.NoteOn(48, 1.0f);
+            Render r;
+            RenderFrames(e, r, 64 * c.gapBatches, &p);
+            p.model = c.model1;
+            p.buzzAmount = c.buzz1;
+            e.SetParameters(p);
+            e.NoteOn(48, c.vel1);
+            e.NoteOff(48);
+            if (damp) {
+                RenderFrames(e, r, 64 * 4, &p);
+                e.DampAll();
+                RenderFrames(e, r, 44100 * 2, &p);
+                CHECK(e.GetActiveVoiceCount() == 0, c.name << ": voice still active 2 s after DampAll");
+            } else {
+                const double t = RenderUntilSilent(e, 44100.0, 20.0, &p);
+                std::cout << "  -> " << c.name << ": idle after " << t << " s" << std::endl;
+                CHECK(e.GetActiveVoiceCount() == 0 && e.IsSilent(), c.name << ": engine never idles after the restrike");
+            }
+        }
+    }
+}
+
+// C2-1: restriking a bar that was struck with another model fades the old ring
+// in its own slot (no instant cut of its twin / upper modes) and strikes fresh.
+void TestModelChangeRestrikeNoClick()
+{
+    std::cout << "[Restrike] A restrike after a model change fades the old ring, no click ..." << std::endl;
+    EngineParameters p = CleanParams();
+    p.sympathetic = 0.0f;
+    p.bodyBloom = 0.0f;
+    p.farLevel = 0.0f;
+    const int ring = 44100 * 3 / 10 / 64 * 64;
+    auto run = [&](int oldModel, bool restrike, int* activeAfter) {
+        EngineParameters q = p;
+        q.model = oldModel;
+        MarembaEngine e(44100.0);
+        e.SetParameters(q);
+        e.NoteOn(48, 1.0f);
+        Render r;
+        RenderFrames(e, r, ring, &q);
+        q.model = 3;   // Kalimba: no twin mode, fewer modes
+        e.SetParameters(q);
+        if (restrike) e.NoteOn(48, 0.05f);
+        if (activeAfter) *activeAfter = e.GetActiveVoiceCount();
+        RenderFrames(e, r, 44100 / 20, &q);
+        return r;
+    };
+    auto freshKalimba = [&]() {
+        EngineParameters q = p;
+        q.model = 3;
+        return RenderNote(44100.0, q, 48, 0.05f, 0.05);
+    };
+    // HF energy (second difference) of the close out over 3 ms after the restrike
+    auto hf = [&](const std::vector<float>& x) {
+        double e = 0.0;
+        for (size_t i = ring + 2; i < ring + 132; ++i) {
+            const double d = static_cast<double>(x[i]) - 2.0 * x[i - 1] + x[i - 2];
+            e += d * d;
+        }
+        return e;
+    };
+    const Render kal = freshKalimba();
+    for (int oldModel : { 0, 1, 2 }) {
+        int active = 0;
+        const Render hit = run(oldModel, true, &active);
+        const Render cont = run(oldModel, false, nullptr);
+        std::vector<float> contPlusKal(cont.ch[kCloseL]);
+        for (size_t i = ring; i < contPlusKal.size(); ++i) contPlusKal[i] += kal.ch[kCloseL][i - ring];
+        const double eHit = hf(hit.ch[kCloseL]), eRef = hf(contPlusKal);
+        std::cout << "  -> model " << oldModel << " -> Kalimba: HF after restrike " << 10.0 * std::log10(eHit / eRef)
+                  << " dB re ring + fresh strike, voices " << active << std::endl;
+        CHECK(active == 2, "old ring not faded in its own slot (voices " << active << ")");
+        CHECK(eHit < 4.0 * eRef, "model-change restrike clicks: " << 10.0 * std::log10(eHit / eRef) << " dB");
+    }
+    // A same-model restrike stays in place
+    MarembaEngine same(44100.0);
+    same.SetParameters(p);
+    same.NoteOn(48, 1.0f);
+    Render r;
+    RenderFrames(same, r, 64 * 10, &p);
+    same.NoteOn(48, 0.5f);
+    CHECK(same.GetActiveVoiceCount() == 1, "a same-model restrike took a second slot");
+}
+
+// E2-2: bend and tune changes keep the ringing resonators' amplitude and phase.
+// A per-batch square bend and a 2*f0 sine tune modulation (the parametric-pump
+// cases) on bass notes stay at the unmodulated level (voices and mesh).
+void TestBendModulationStability()
+{
+    std::cout << "[Bend] Square bend / 2*f0 tune modulation cannot pump ringing resonators ..." << std::endl;
+    const EngineParameters p = CleanParams();   // sympathetic mesh on
+    const int batches = 44100 / 2 / 64;
+    double worst = 0.0;
+    int worstNote = 0;
+    for (int note = 21; note <= 45; ++note) {
+        auto run = [&](int mode) {
+            EngineParameters q = p;
+            MarembaEngine e(44100.0);
+            e.SetParameters(q);
+            e.NoteOn(note, 1.0f);
+            float buf[kNumChannels][64];
+            double peak = 0.0;
+            for (int b = 0; b < batches; ++b) {
+                if (mode == 1) e.SetPitchBendCents((b & 1) ? 200.0f : -200.0f);
+                if (mode == 2) {
+                    q.tuneCents = static_cast<float>(200.0 * std::sin(2.0 * M_PI * 2.0 * NoteHz(note) * b * 64.0 / 44100.0));
+                    e.SetParameters(q);
+                }
+                e.RenderBatch(buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], 64);
+                for (int i = 0; i < 64; ++i) {
+                    peak = std::max({ peak, static_cast<double>(std::fabs(buf[kCloseL][i])), static_cast<double>(std::fabs(buf[kCloseR][i])) });
+                }
+            }
+            return peak;
+        };
+        const double ref = run(0);
+        const double ratio = std::max(run(1), run(2)) / ref;
+        if (ratio > worst) { worst = ratio; worstNote = note; }
+        CHECK(ratio < 1.5, "note " << note << " grows " << ratio << "x under bend / tune modulation");
+    }
+    std::cout << "  -> worst peak ratio " << worst << " (note " << worstNote << ")" << std::endl;
+}
+
+// E2-3/S2-2: at Polyphony 24 with 24 bars ringing, a 12-note chord fades 12
+// victims in their own slots (no hard reuse of a voice that is still loud).
+void TestChordBurstFadesVictims()
+{
+    std::cout << "[Steal] A 12-note chord on 24 ringing voices fades every victim ..." << std::endl;
+    EngineParameters p = CleanParams();
+    p.polyphony = 2;
+    p.decay = 4.0f;
+    MarembaEngine e(44100.0);
+    e.SetParameters(p);
+    for (int n = 36; n < 60; ++n) e.NoteOn(n, 0.9f);
+    Render r;
+    RenderFrames(e, r, 44100 / 2, &p);
+    for (int n = 72; n < 84; ++n) e.NoteOn(n, 0.9f);
+    const int afterChord = e.GetActiveVoiceCount();
+    RenderFrames(e, r, 441, &p);
+    std::cout << "  -> voices right after the chord " << afterChord << ", 10 ms later " << e.GetActiveVoiceCount() << std::endl;
+    CHECK(afterChord == 36, "chord voices cut instead of faded: " << afterChord << " active, expected 24 live + 12 fading");
+    CHECK(e.GetActiveVoiceCount() == 24, "voice limit not kept after the fades: " << e.GetActiveVoiceCount());
+}
+
+// E2-4: an oversampling change set back within the fade cancels the switch:
+// the ringing bars survive, the output ramps back without a click, queued notes
+// start (released / damped as they should be).
+void TestOversamplingRevertKeepsNotes()
+{
+    std::cout << "[Switch] An oversampling change undone within the fade keeps every note ..." << std::endl;
+    auto run = [](bool change, int extra) { // extra: 0 none, 1 queued note, 2 queued note + DampAll
+        EngineParameters p = CleanParams();
+        p.decay = 8.0f;
+        p.sympathetic = 0.0f;
+        MarembaEngine e(44100.0);
+        e.SetParameters(p);
+        for (int n : { 48, 55, 60, 64 }) e.NoteOn(n, 0.9f);
+        Render r;
+        RenderFrames(e, r, 64 * 150, &p);
+        if (change) {
+            p.oversampling = 1;
+            e.SetParameters(p);
+        }
+        if (extra >= 1) e.NoteOn(67, 0.9f);
+        if (extra == 2) e.DampAll();
+        RenderFrames(e, r, 64, &p);
+        p.oversampling = 0;
+        RenderFrames(e, r, 44100 / 10, &p);
+        const int active = e.GetActiveVoiceCount();
+        if (extra == 2) RenderFrames(e, r, 44100 * 3 / 2, &p);
+        return std::make_pair(r, extra == 2 ? e.GetActiveVoiceCount() : active);
+    };
+    const auto ref = run(false, 0), reverted = run(true, 0);
+    const size_t at = 64 * 150;
+    double stepBefore = 0.0, stepFade = 0.0;
+    for (size_t i = at - 2400; i < at; ++i) stepBefore = std::max(stepBefore, static_cast<double>(std::fabs(reverted.first.ch[kMainL][i] - reverted.first.ch[kMainL][i - 1])));
+    for (size_t i = at; i < at + 441; ++i) stepFade = std::max(stepFade, static_cast<double>(std::fabs(reverted.first.ch[kMainL][i] - reverted.first.ch[kMainL][i - 1])));
+    std::cout << "  -> voices 100 ms after the revert " << reverted.second << ", step " << stepFade << " (before " << stepBefore << ")" << std::endl;
+    CHECK(reverted.second == 4, "an undone oversampling change killed the ringing notes (" << reverted.second << " left)");
+    CHECK(stepFade <= stepBefore * 1.1, "click while the switch is cancelled");
+    CHECK(DiffEnergy(reverted.first.ch[kMainL], ref.first.ch[kMainL], at + 441, ref.first.size()) == 0.0,
+          "output does not return to the undisturbed render after the cancelled switch");
+    CHECK(run(true, 1).second == 5, "a note queued during the cancelled fade did not start");
+    CHECK(run(true, 2).second == 0, "a note queued before a stop in the cancelled fade was not damped");
+}
+
+// C2-2(a): a key pressed and released during an oversampling fade starts released.
+void TestReleaseWhileQueued()
+{
+    std::cout << "[NoteOff] A key released while queued in the fade starts released ..." << std::endl;
+    EngineParameters p = CleanParams();
+    p.decay = 4.0f;
+    MarembaEngine e(44100.0);
+    e.SetParameters(p);
+    e.NoteOn(48, 0.9f);
+    Render r;
+    RenderFrames(e, r, 64 * 10, &p);
+    p.oversampling = 1;
+    e.SetParameters(p);
+    e.NoteOn(62, 0.9f);
+    e.NoteOff(62);
+    e.NoteOn(64, 0.9f);
+    RenderFrames(e, r, 44100 / 50, &p);
+    CHECK(e.GetActiveVoiceCount() == 2, "queued notes did not start: " << e.GetActiveVoiceCount());
+    CHECK(maremba::MarembaEngineTestAccess::IsNoteReleased(e, 62), "a key released while queued starts as held");
+    CHECK(!maremba::MarembaEngineTestAccess::IsNoteReleased(e, 64), "a held queued key starts released");
+}
+
+// N2-1: the contact time is capped per register: the top of the keyboard stays
+// audible on the default patch (C7 within 15 dB of C4).
+void TestTrebleNotBuried()
+{
+    std::cout << "[Voicing] Default patch: C7 within 15 dB of C4 ..." << std::endl;
+    for (auto cfg : { std::make_pair(44100.0, 0), std::make_pair(96000.0, 2) }) {
+        EngineParameters p;
+        p.oversampling = cfg.second;
+        auto level = [&](int note) {
+            const Render r = RenderNote(cfg.first, p, note, 100.0f / 127.0f, 0.3);
+            return 0.5 * (Db(Rms(r.ch[kMainL], 0, r.size())) + Db(Rms(r.ch[kMainR], 0, r.size())));
+        };
+        const double c4 = level(60), c7 = level(96);
+        std::cout << "  -> " << cfg.first << "/" << (2 << cfg.second) << "x: C4 " << c4 << " dBFS, C7 " << c7 << " dBFS" << std::endl;
+        CHECK(c7 > c4 - 15.0, "C7 is " << c4 - c7 << " dB below C4 at " << cfg.first);
+    }
+}
+
+// N2-2: the level rises strictly with the key velocity on every curve, down to 1.
+void TestVelocityStrictlyMonotonic()
+{
+    std::cout << "[Velocity] Level rises strictly over velocities 1..8 on every curve ..." << std::endl;
+    EngineParameters p = CleanParams();
+    p.sympathetic = 0.0f;
+    int flat = 0;
+    for (int curve = 0; curve < 4; ++curve) {
+        p.velocityCurve = curve;
+        double previous = 0.0;
+        for (int v = 1; v <= 8; ++v) {
+            const Render r = RenderNote(44100.0, p, 60, v / 127.0f, 0.2);
+            const double e = Energy(r.ch[kCloseL], 0, r.size());
+            if (!(e > previous)) {
+                ++flat;
+                std::cerr << "  curve " << curve << " velocity " << v << " is not louder than " << v - 1 << std::endl;
+            }
+            previous = e;
+        }
+    }
+    CHECK(flat == 0, flat << " velocity steps without a level change");
+}
+
+// N2-3: with every mic level at 0 while a bar rings, the float main bus sits at
+// exact 0 and its filter states must not stick at subnormal values.
+void TestMainBusNoSubnormalAtZeroLevels()
+{
+    std::cout << "[Denormals] Main bus with all mic levels at 0 while a bar rings ..." << std::endl;
+    for (auto cfg : { std::make_pair(44100.0, 0), std::make_pair(44100.0, 2), std::make_pair(192000.0, 2) }) {
+        EngineParameters p = CleanParams();
+        p.decay = 8.0f;
+        p.oversampling = cfg.second;
+        MarembaEngine e(cfg.first);
+        e.SetParameters(p);
+        e.NoteOn(48, 1.0f);
+        Render r;
+        RenderFrames(e, r, static_cast<int>(cfg.first), &p);
+        p.closeLevel = p.farLevel = p.piezoLevel = 0.0f;
+        RenderFrames(e, r, static_cast<int>(cfg.first), &p);
+        float buf[kNumChannels][64];
+        int bad = 0;
+        for (int b = 0; b < static_cast<int>(cfg.first * 2.0 / 64); ++b) {
+            e.SetParameters(p);
+            e.RenderBatch(buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], 64);
+            if (!maremba::MarembaEngineTestAccess::MainBusNormal(e)) ++bad;
+        }
+        std::cout << "  -> " << cfg.first << "/" << (2 << cfg.second) << "x: " << bad << " batches with subnormal preamp/decimator state, voices "
+                  << e.GetActiveVoiceCount() << std::endl;
+        CHECK(e.GetActiveVoiceCount() == 1, "the bar stopped ringing (test needs it alive)");
+        CHECK(bad == 0, "main bus cycles on subnormal state at zero mic levels");
+    }
+}
+
+// T2-11: the engine's control tick flushes the mesh and the frame body.
+void TestEngineFlushesSharedTails()
+{
+    std::cout << "[Denormals] The engine's control tick flushes mesh and frame body ..." << std::endl;
+    float b[kNumChannels][64];
+    {   // Mesh: B5 excites a resonator that the long A1... C2 ring does not drive
+        EngineParameters p = CleanParams();
+        p.model = 3;
+        p.decay = 8.0f;
+        p.sympathetic = 1.0f;
+        p.bodyBloom = 1.0f;
+        MarembaEngine e(44100.0);
+        e.SetParameters(p);
+        e.NoteOn(71, 1.0f);
+        e.NoteOn(36, 1.0f);
+        int bad = 0, batches = 0;
+        for (; batches < 44100 * 40 / 64 && e.GetActiveVoiceCount() > 0; ++batches) {
+            e.SetParameters(p);
+            e.RenderBatch(b[0], b[1], b[2], b[3], b[4], b[5], b[6], 64);
+            if (!maremba::MarembaEngineTestAccess::MeshNormal(e) || !maremba::MarembaEngineTestAccess::BodyNormal(e)) ++bad;
+        }
+        std::cout << "  -> mesh: " << batches * 64 / 44100.0 << " s, " << bad << " batches with subnormal state" << std::endl;
+        CHECK(bad == 0, "engine lets the mesh cycle on subnormal state (" << bad << " batches)");
+    }
+    {   // Body: a short note ends, the room tail keeps the engine awake for seconds
+        EngineParameters p = CleanParams();
+        p.decay = 0.1f;
+        p.bodyBloom = 1.0f;
+        p.farLevel = 1.0f;
+        p.sympathetic = 0.0f;
+        MarembaEngine e(44100.0);
+        e.SetParameters(p);
+        e.NoteOn(84, 1.0f);
+        int bad = 0, batches = 0;
+        for (; batches < 44100 * 10 / 64 && !e.IsSilent(); ++batches) {
+            e.SetParameters(p);
+            e.RenderBatch(b[0], b[1], b[2], b[3], b[4], b[5], b[6], 64);
+            if (!maremba::MarembaEngineTestAccess::BodyNormal(e)) ++bad;
+        }
+        std::cout << "  -> body: engine awake " << batches * 64 / 44100.0 << " s, " << bad << " batches with subnormal state" << std::endl;
+        CHECK(batches * 64 > 44100, "test needs the engine awake after the note");
+        CHECK(bad == 0, "engine lets the frame body cycle on subnormal state (" << bad << " batches)");
+    }
+}
+
+// T2-3: notes struck during an oversampling fade are queued; a chord as large
+// as the voice limit starts in full after the switch, and a larger burst
+// neither overflows the queue nor loses the first kMaxPendingNotes notes.
+void TestQueuedChordDuringSwitch()
+{
+    std::cout << "[Switch] A full chord struck during the oversampling fade starts after the switch ..." << std::endl;
+    for (const int count : { 24, 40 }) {
+        EngineParameters p = CleanParams();
+        p.polyphony = 2;
+        p.decay = 4.0f;
+        p.sympathetic = 0.0f;
+        MarembaEngine e(48000.0);
+        e.SetParameters(p);
+        e.NoteOn(90, 0.9f);
+        Render r;
+        RenderFrames(e, r, 64 * 4, &p);
+        p.oversampling = 1;
+        e.SetParameters(p);
+        for (int i = 0; i < count; ++i) e.NoteOn(30 + i, 0.8f);
+        RenderFrames(e, r, 48000 / 10, &p);
+        std::cout << "  -> " << count << " queued: " << e.GetActiveVoiceCount() << " voices 100 ms later" << std::endl;
+        CHECK(AllFinite(r), "non-finite output after a queued burst");
+        CHECK(e.GetActiveVoiceCount() == 24, count << " queued notes: " << e.GetActiveVoiceCount() << " voices, expected 24");
+    }
+}
+
+// T2-9: DampAll reaches the notes queued in the fade it interrupted, and only
+// those: a later fade (after the switch or after a Reset) queues undamped notes.
+void TestDampedQueueIsPerFade()
+{
+    std::cout << "[Stop] A stop during one fade does not damp notes queued in a later fade ..." << std::endl;
+    for (bool viaReset : { false, true }) {
+        EngineParameters p = CleanParams();
+        p.decay = 8.0f;
+        p.sympathetic = 0.0f;
+        MarembaEngine e(44100.0);
+        e.SetParameters(p);
+        e.NoteOn(60, 0.9f);
+        Render r;
+        RenderFrames(e, r, 64 * 10, &p);
+        p.oversampling = 1;
+        e.SetParameters(p);
+        e.NoteOn(45, 0.9f);
+        e.DampAll();
+        if (viaReset) {
+            e.Reset();
+            e.NoteOn(60, 0.9f);   // wakes the engine, so the next change fades
+        }
+        RenderFrames(e, r, 64 * 10, &p);
+        p.oversampling = 0;
+        e.SetParameters(p);       // second fade
+        e.NoteOn(50, 0.9f);       // queued, no stop
+        RenderFrames(e, r, 44100 * 3 / 2, &p);
+        std::cout << "  -> " << (viaReset ? "after Reset and a new fade: " : "after a second fade: ") << e.GetActiveVoiceCount() << " voice(s)" << std::endl;
+        CHECK(e.GetActiveVoiceCount() == 1, (viaReset ? "Reset left a stale damped-queue count" : "a note queued in a later fade was damped by an old stop"));
+    }
+}
+
+// T2-6: Sympathetic (mesh) and Body Bloom to 0 and back while bars ring: the
+// resonators restart from rest, no frozen tail resumes.
+void TestMeshAndBodyBypassNoStaleTail()
+{
+    std::cout << "[Halo/Body] Sympathetic / Body 1 -> 0 -> 1 while ringing brings back no stale tail ..." << std::endl;
+    for (int which = 0; which < 2; ++which) {
+        auto run = [&](int mode) { // 0 steady on, 1 toggled, 2 always off
+            EngineParameters p = CleanParams();
+            p.decay = 4.0f;
+            p.farLevel = 0.0f;
+            p.sympathetic = which == 0 ? 1.0f : 0.0f;
+            p.bodyBloom = which == 1 ? 1.0f : 0.0f;
+            float& knob = which == 0 ? p.sympathetic : p.bodyBloom;
+            if (mode == 2) knob = 0.0f;
+            MarembaEngine e(44100.0);
+            e.SetParameters(p);
+            for (int n : { 48, 55, 60 }) e.NoteOn(n, 0.9f);
+            Render r;
+            RenderFrames(e, r, 44100 / 2, &p);
+            if (mode == 1) knob = 0.0f;
+            RenderFrames(e, r, 44100, &p);
+            if (mode == 1) knob = 1.0f;
+            RenderFrames(e, r, 44100 / 2, &p);
+            return r;
+        };
+        const Render steady = run(0), toggled = run(1), dry = run(2);
+        const size_t at = 44100 / 2 + 44100, win = which == 0 ? 882 : 220;
+        double eToggled = 0.0, eSteady = 0.0;
+        for (size_t i = at; i < at + win; ++i) {
+            const double t = toggled.ch[kCloseL][i] - dry.ch[kCloseL][i];
+            const double s = steady.ch[kCloseL][i] - dry.ch[kCloseL][i];
+            eToggled += t * t;
+            eSteady += s * s;
+        }
+        std::cout << "  -> " << (which == 0 ? "halo" : "body") << " right after re-enable: " << Db(std::sqrt(eToggled / win))
+                  << " dBFS (steady " << Db(std::sqrt(eSteady / win)) << ")" << std::endl;
+        CHECK(eSteady > 0.0, "no " << (which == 0 ? "halo" : "body") << " to compare");
+        CHECK(eToggled <= eSteady, "stale " << (which == 0 ? "halo" : "body") << " resumes when the knob returns");
+    }
+}
+
+// T2-10: a chord struck at the polyphony limit keeps every note of the chord
+// (a voice being struck has no energy yet and must not be the steal victim).
+void TestSameFrameChordAtLimit()
+{
+    std::cout << "[Steal] A chord struck at the voice limit keeps all of its notes ..." << std::endl;
+    const int quietNotes[8] = { 49, 51, 54, 56, 58, 61, 63, 66 };
+    auto run = [&](int poly) {
+        EngineParameters p = CleanParams();
+        p.sympathetic = 0.0f;
+        p.decay = 4.0f;
+        p.polyphony = poly;
+        MarembaEngine e(44100.0);
+        e.SetParameters(p);
+        for (int n : quietNotes) e.NoteOn(n, 0.3f);
+        Render r;
+        RenderFrames(e, r, 8820, &p);
+        e.NoteOn(71, 1.0f);
+        e.NoteOn(75, 1.0f);
+        RenderFrames(e, r, 44100 / 2, &p);
+        return r;
+    };
+    const Render limited = run(0), free = run(1);
+    const size_t from = 8820 + 2205, to = limited.size();
+    for (int n : { 71, 75 }) {
+        const double ratio = NotePower(limited, from, to, n) / NotePower(free, from, to, n);
+        std::cout << "  -> note " << n << " kept " << ratio << std::endl;
+        CHECK(ratio > 0.5, "chord note " << n << " stolen by its own chord");
+    }
+}
+
+// T2-7: a volume change while the engine idles applies at once to the next note
+// (no ramp from the stale gain).
+void TestVolumeChangeWhileIdle()
+{
+    std::cout << "[Gain] A volume change while idle applies fully to the next strike ..." << std::endl;
+    EngineParameters p = CleanParams();
+    MarembaEngine moved(44100.0);
+    moved.SetParameters(p);
+    Render r;
+    RenderFrames(moved, r, 64 * 4, &p);
+    p.volume = 0.2f;
+    moved.SetParameters(p);
+    moved.NoteOn(72, 0.9f);
+    Render a;
+    RenderFrames(moved, a, 4410, &p);
+    MarembaEngine fresh(44100.0);
+    fresh.SetParameters(p);
+    fresh.Reset();
+    fresh.NoteOn(72, 0.9f);
+    Render b;
+    RenderFrames(fresh, b, 4410, &p);
+    CHECK(DiffEnergy(a.ch[kMainL], b.ch[kMainL], 0, a.size()) == 0.0, "strike after an idle volume change ramps from the old gain");
+}
+
 } // namespace
 
 int main()
@@ -1723,12 +2258,27 @@ int main()
     TestMaxDecayRateInvariant();
     TestHaloRateInvariant();
     TestDirectOutMatchesMain();
-    TestDirectOutHeadroomFactoryPatches();
+    TestDirectOutHeadroom();
     TestVolumeSmoothing();
     TestBendLeavesNothingBehind();
     TestNoSubnormalStates();
     TestWidthAndRoomImage();
     TestRoomBypassNoStaleTail();
+    TestMembraneRestrikeFreesVoice();
+    TestModelChangeRestrikeNoClick();
+    TestBendModulationStability();
+    TestChordBurstFadesVictims();
+    TestOversamplingRevertKeepsNotes();
+    TestReleaseWhileQueued();
+    TestTrebleNotBuried();
+    TestVelocityStrictlyMonotonic();
+    TestMainBusNoSubnormalAtZeroLevels();
+    TestEngineFlushesSharedTails();
+    TestQueuedChordDuringSwitch();
+    TestDampedQueueIsPerFade();
+    TestMeshAndBodyBypassNoStaleTail();
+    TestSameFrameChordAtLimit();
+    TestVolumeChangeWhileIdle();
 
     if (gFailures > 0) {
         std::cerr << "\n>>> " << gFailures << " MAREMBA DSP CHECK(S) FAILED <<<" << std::endl;
