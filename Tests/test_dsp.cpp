@@ -8,10 +8,13 @@
 // with the feature switched off.
 
 #include "../DSP/MarembaEngine.h"
+#include "../DSP/ModalExcitation.h"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <chrono>
+#include <ctime>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -2212,10 +2215,153 @@ void TestVolumeChangeWhileIdle()
     CHECK(DiffEnergy(a.ch[kMainL], b.ch[kMainL], 0, a.size()) == 0.0, "strike after an idle volume change ramps from the old gain");
 }
 
+void TestPhysicalStrikePositions()
+{
+    std::cout << "[Acoustics] Bar nodes, centre parity, and distinct cantilever excitation ..." << std::endl;
+    EngineParameters p = CleanParams();
+    p.sympathetic = p.bodyBloom = p.farLevel = p.piezoLevel = p.buzzAmount = 0.0f;
+    p.malletType = 3;
+    p.malletHardness = 0.9f;
+    p.decay = 4.0f;
+    auto partial = [](const Render& r, double frequency) {
+        std::vector<double> x;
+        for (size_t i = 662; i < 4410; ++i) x.push_back(r.ch[kCloseL][i] + r.ch[kCloseR][i]);
+        return GoertzelPower(HannWindowed(x), 44100.0, frequency);
+    };
+    for (int model = 0; model < 3; ++model) {
+        p.model = model;
+        p.strikePosition = 0.5f;
+        const Render centre = RenderNote(44100.0, p, 48, 0.9f, 0.12);
+        p.strikePosition = 0.35f;
+        const Render offCentre = RenderNote(44100.0, p, 48, 0.9f, 0.12);
+        p.strikePosition = 0.2242f;
+        const Render node = RenderNote(44100.0, p, 48, 0.9f, 0.12);
+        const double symmetryRatio = partial(centre, 4.0 * NoteHz(48)) / partial(offCentre, 4.0 * NoteHz(48));
+        const double nodalRatio = partial(node, NoteHz(48)) / partial(centre, NoteHz(48));
+        std::cout << "  -> model " << model << ": centre second-mode " << 10.0 * std::log10(symmetryRatio)
+                  << " dB vs off-centre; fundamental at node " << 10.0 * std::log10(nodalRatio) << " dB" << std::endl;
+        CHECK(symmetryRatio < 0.01, "a centred strike excites the antisymmetric bar mode");
+        CHECK(nodalRatio < 0.01, "striking the fundamental node does not suppress its ring");
+    }
+    p.model = 3;
+    p.strikePosition = 0.05f;
+    const Render inner = RenderNote(44100.0, p, 48, 0.9f, 0.12);
+    p.strikePosition = 0.95f;
+    const Render tip = RenderNote(44100.0, p, 48, 0.9f, 0.12);
+    const double tineRatio = partial(tip, NoteHz(48)) / partial(inner, NoteHz(48));
+    std::cout << "  -> tine tip/inner fundamental " << 10.0 * std::log10(tineRatio) << " dB" << std::endl;
+    CHECK(tineRatio > 2.0, "kalimba incorrectly has a free-bar mirror-symmetric excitation");
+
+    // Independent physical boundary conditions and spatial averaging limit.
+    CHECK(std::abs(maremba::ModalContactWeight(0, 0.0, 0.0, true)) < 1e-12, "a clamped tine moves at its root");
+    CHECK(std::abs(maremba::ModalContactWeight(0, 0.2242, 0.0, false)) < 0.001, "free-bar fundamental node misplaced");
+    const double narrow = maremba::ModalContactWeight(6, 0.5, 0.0, false);
+    const double wide = maremba::ModalContactWeight(6, 0.5, 0.20, false);
+    CHECK(std::abs(wide) < 0.4 * std::abs(narrow), "a wide mallet does not cancel short spatial wavelengths");
+}
+
+void TestTunedMiddleRegister()
+{
+    std::cout << "[Acoustics] The tuned second bar mode survives through C5 ..." << std::endl;
+    EngineParameters p = CleanParams();
+    p.sympathetic = p.bodyBloom = p.farLevel = p.buzzAmount = 0.0f;
+    p.strikePosition = 0.35f;
+    p.malletHardness = 0.9f;
+    p.malletType = 3;
+    p.decay = 4.0f;
+    const Render r = RenderNote(44100.0, p, 72, 1.0f, 0.1);
+    std::vector<double> x;
+    for (size_t i = 441; i < 3528; ++i) x.push_back(r.ch[kCloseL][i] + r.ch[kCloseR][i]);
+    x = HannWindowed(x);
+    const double tuned = GoertzelPower(x, 44100.0, 4.0 * NoteHz(72));
+    const double oldUntuned = GoertzelPower(x, 44100.0, 2.756 * NoteHz(72));
+    std::cout << "  -> tuned/untuned line power " << 10.0 * std::log10(tuned / oldUntuned) << " dB" << std::endl;
+    CHECK(tuned > oldUntuned * 100.0, "middle-register second mode loses its concert tuning");
+}
+
+void TestRestrikePreservesStoredEnergy()
+{
+    std::cout << "[Restrike] Changed decay/tuning preserves the existing ring before contact ..." << std::endl;
+    for (double fs : {88200.0, 384000.0}) {
+        for (int model = 0; model < 4; ++model) {
+            for (int note : {0, 36, 72}) {
+                maremba::MarembaVoice voice;
+                maremba::FastPRNG random(12345);
+                const auto instrument = static_cast<maremba::EMarimbaModel>(model);
+                auto strike = [&](float decay, float tune) {
+                    voice.Trigger(note, 0.8f, instrument, 0.4f, 0.35f, tune * 0.5f,
+                                  0.7f, decay, 0.0f, 0.0f, 0.0f, fs, random, tune, 0.0f, 1, 0.0f);
+                };
+                strike(8.0f, -100.0f);
+                float close, far, piezo;
+                for (int i = 0; i < static_cast<int>(0.023 * fs); ++i) voice.ProcessSample(close, far, piezo);
+                const double before = voice.ComputeEnergy();
+                strike(0.1f, 100.0f);
+                const double after = voice.ComputeEnergy();
+                CHECK(before > 1.0e-8, "restrike test requires an audible stored ring");
+                CHECK(std::abs(after / before - 1.0) < 1.0e-5,
+                      "restrike pumps stored energy: model " << model << ", note " << note << ", rate " << fs << ", ratio " << after / before);
+                for (int i = 0; i < 2048; ++i) voice.ProcessSample(close, far, piezo);
+                CHECK(std::isfinite(close) && std::isfinite(far) && std::isfinite(piezo), "restrike transition produces non-finite audio");
+            }
+        }
+    }
+}
+
+// Opt-in native timing probe, so machine scheduling cannot make correctness
+// tests flaky. Each block includes parameter delivery and periodic note-on.
+void RunPerformanceProbe()
+{
+    constexpr int blocks = 4096;
+    constexpr int frames = 64;
+    volatile float sink = 0.0f;
+    for (int quality = 0; quality < 3; ++quality) {
+        EngineParameters p; // shipped defaults, changing only quality
+        MarembaEngine e(48000.0);
+        p.oversampling = quality;
+        e.SetParameters(p);
+        for (int n = 0; n < 16; ++n) e.NoteOn(42 + n, 0.8f);
+        std::vector<double> wall, cpu;
+        wall.reserve(blocks);
+        cpu.reserve(blocks);
+        float out[kNumChannels][frames];
+        int wallMisses = 0, cpuMisses = 0;
+        const double deadlineUs = 1e6 * frames / 48000.0;
+        for (int b = -256; b < blocks; ++b) {
+            timespec t0{}, t1{};
+            clock_gettime(CLOCK_THREAD_CPUTIME_ID, &t0);
+            const auto start = std::chrono::steady_clock::now();
+            e.SetParameters(p);
+            if (b >= 0 && b % 32 == 0) e.NoteOn(42 + (b / 32) % 16, 0.8f);
+            e.RenderBatch(out[0], out[1], out[2], out[3], out[4], out[5], out[6], frames);
+            const double elapsed = std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count();
+            clock_gettime(CLOCK_THREAD_CPUTIME_ID, &t1);
+            const double charged = 1e6 * (t1.tv_sec - t0.tv_sec) + 1e-3 * (t1.tv_nsec - t0.tv_nsec);
+            sink = sink + out[0][0];
+            if (b < 0) continue;
+            wall.push_back(elapsed);
+            cpu.push_back(charged);
+            wallMisses += elapsed > deadlineUs;
+            cpuMisses += charged > deadlineUs;
+        }
+        std::sort(wall.begin(), wall.end());
+        std::sort(cpu.begin(), cpu.end());
+        std::cout << "48000 Hz, 64 frames, 16 voices, " << (2 << quality) << "x; " << blocks << " blocks; wall us p50="
+                  << wall[blocks / 2] << " p95=" << wall[blocks * 95 / 100] << " p99=" << wall[blocks * 99 / 100]
+                  << " max=" << wall.back() << "; CPU us p50=" << cpu[blocks / 2] << " p99=" << cpu[blocks * 99 / 100]
+                  << " max=" << cpu.back() << "; deadline misses wall=" << wallMisses << " CPU=" << cpuMisses << std::endl;
+    }
+    (void)sink;
+}
+
 } // namespace
 
-int main()
+int main(int argc, char** argv)
 {
+    if (argc == 2 && std::string(argv[1]) == "--benchmark") {
+        RunPerformanceProbe();
+        return 0;
+    }
     std::cout << "=== Running Maremba DSP Verification Suite ===" << std::endl;
 
     TestNoteRangeStability();
@@ -2279,6 +2425,9 @@ int main()
     TestMeshAndBodyBypassNoStaleTail();
     TestSameFrameChordAtLimit();
     TestVolumeChangeWhileIdle();
+    TestPhysicalStrikePositions();
+    TestTunedMiddleRegister();
+    TestRestrikePreservesStoredEnergy();
 
     if (gFailures > 0) {
         std::cerr << "\n>>> " << gFailures << " MAREMBA DSP CHECK(S) FAILED <<<" << std::endl;

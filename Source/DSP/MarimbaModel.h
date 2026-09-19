@@ -67,9 +67,10 @@ inline ModelParams GetModelParams(EMarimbaModel model) {
                 "Aged Honduran Rosewood (Dalbergia stevensonii)",
                 "Gold-finished drawn brass oval resonator tubes",
                 // 8 pitched overtone ratios: modes 0-7
-                // Measured from Bork (1995) & Chaigne (1999) for undercut rosewood bars
+                // Voiced undercut-bar ratios, anchored by conventional 1:4:10
+                // tuning; the upper values are engineering approximations.
                 { 1.000f, 4.000f, 10.000f, 16.000f, 22.400f, 29.600f, 37.800f, 47.200f },
-                // Mode initial amplitude weights (calibrated against acoustic references)
+                // Voiced modal weights; not measurements of a specific instrument.
                 { 1.000f, 0.280f,  0.070f,  0.024f,  0.010f,  0.005f,  0.002f,  0.001f },
                 // Physics-based damping: alpha_rad, alpha_int
                 0.18f,    // radiation: modes radiate ∝ f^2 (fast upper mode radiation)

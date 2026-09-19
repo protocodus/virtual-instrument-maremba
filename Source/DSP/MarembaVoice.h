@@ -91,6 +91,8 @@ private:
     void SetModeCoefficients(ModeState& mode, double omega) const;
     // New pole angle for a ringing resonator, keeping its amplitude and phase.
     void RetuneMode(ModeState& mode, double omega) const;
+    // Also preserve a ringing state when a restrike changes its decay radius.
+    void ReconfigureMode(ModeState& mode, double radius, double omega) const;
     static double ModeEnergy(const ModeState& mode);
     // ModeEnergy, and a mode that has decayed below -300 dB is zeroed so it
     // never cycles on subnormal values while the rest of the voice rings on.

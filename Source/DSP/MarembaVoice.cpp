@@ -1,5 +1,6 @@
 #include "MarembaVoice.h"
 #include "DspMath.h"
+#include "ModalExcitation.h"
 #include <algorithm>
 #include <cmath>
 #include <initializer_list>
@@ -117,7 +118,13 @@ void MarembaVoice::SetModeCoefficients(ModeState& mode, double omega) const {
 // r*y2 = A cos(phi - w), A sin(phi) = (r*y2 - y1*cos(wOld)) / sin(wOld) and
 // y2' = (y1*cos(wNew) + A sin(phi) * sin(wNew)) / r. Same for the residual (o1, o2).
 void MarembaVoice::RetuneMode(ModeState& mode, double omega) const {
+    ReconfigureMode(mode, mode.r, omega);
+}
+
+void MarembaVoice::ReconfigureMode(ModeState& mode, double radius, double omega) const {
     const double wOld = mode.w;
+    const double rOld = mode.r;
+    mode.r = radius;
     SetModeCoefficients(mode, omega);
     const double r = mode.r;
     const double sinOld = std::sin(wOld);
@@ -125,8 +132,8 @@ void MarembaVoice::RetuneMode(ModeState& mode, double omega) const {
     const double cosOld = std::cos(wOld);
     const double cosNew = std::cos(mode.w);
     const double k = std::sin(mode.w) / sinOld;
-    mode.y2 = (mode.y1 * cosNew + (r * mode.y2 - mode.y1 * cosOld) * k) / r;
-    mode.o2 = (mode.o1 * cosNew + (r * mode.o2 - mode.o1 * cosOld) * k) / r;
+    mode.y2 = (mode.y1 * cosNew + (rOld * mode.y2 - mode.y1 * cosOld) * k) / r;
+    mode.o2 = (mode.o1 * cosNew + (rOld * mode.o2 - mode.o1 * cosOld) * k) / r;
 }
 
 // For y[n] = A r^n cos(wn + phi): y1^2 - c*y1*y2 + s*y2^2 = (A r^n sin w)^2, so
@@ -253,7 +260,6 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
 
     // Strike position modulation
     float effectivePos = std::clamp(strikePosition + art.strikePositionOffset, 0.05f, 0.95f);
-    float distFromCenter = std::abs(effectivePos - 0.5f) * 2.0f; // 0.0 at center, 1.0 at edge/node
 
     // Mallet / Thumb hardness & firmness modulation
     float effectiveHardness = std::clamp(malletHardness + art.malletHardnessJitter, 0.05f, 0.95f);
@@ -458,25 +464,32 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     // ────────────────────────────────────────────────────────
     // Configure 8 Pitched Bar Modes with physics-based damping
     // ────────────────────────────────────────────────────────
-    // Register-dependent overtone morphing:
-    // Undercut arch in bass/mid (4:10 tuning) -> Euler-Bernoulli beam in treble (2.76:5.40:8.93).
-    // Treble bars (> C5, MIDI 72) are small un-arched rectangular blocks.
+    // Keep the tuned undercut ratios through C5. Only the high register moves
+    // smoothly toward a uniform beam; the old C4 onset made the entire middle
+    // octave prematurely inharmonic. This transition is an instrument-voicing
+    // choice, not a claim that all real treble bars share one geometry.
     float trebleMorph = 0.0f;
     if (model != EMarimbaModel::KalimbaArtisan) {
-        trebleMorph = std::clamp((static_cast<float>(noteNumber) - 60.0f) / 24.0f, 0.0f, 1.0f);
+        trebleMorph = std::clamp((static_cast<float>(noteNumber) - 72.0f) / 24.0f, 0.0f, 1.0f);
+        trebleMorph = trebleMorph * trebleMorph * (3.0f - 2.0f * trebleMorph);
     }
+    const bool tine = model == EMarimbaModel::KalimbaArtisan;
+    // A thumb releases the playable end of a clamped tine, whereas a mallet
+    // traverses the whole free bar. Soft/wide contact spatially averages modes
+    // instead of applying a generic treble boost at every off-centre position.
+    const double spatialPosition = tine ? 0.65 + 0.35 * effectivePos : effectivePos;
+    const double footprint = tine ? 0.025 + 0.04 * (1.0 - effectiveHardness)
+        : 0.025 + 0.06 * (1.0 - effectiveHardness) + (mt == 0 ? 0.045 : 0.0);
+    static constexpr float kUniformBarRatios[kNumPitchedModes] = {
+        1.0f, 2.75654f, 5.40392f, 8.93295f, 13.3443f, 18.6382f, 24.8146f, 31.8735f
+    };
 
     const int previousModes = isRestrike ? mNumModes : 0;
     mNumModes = kNumPitchedModes;
     for (int m = 0; m < kNumPitchedModes; ++m) {
         float ratio = params.overtoneRatio[m];
         if (trebleMorph > 0.0f) {
-            float eulerRatio = ratio;
-            if (m == 1) eulerRatio = 2.756f;
-            else if (m == 2) eulerRatio = 5.404f;
-            else if (m == 3) eulerRatio = 8.932f;
-            else if (m == 4) eulerRatio = 13.35f;
-            ratio = (1.0f - trebleMorph) * ratio + trebleMorph * eulerRatio;
+            ratio = (1.0f - trebleMorph) * ratio + trebleMorph * kUniformBarRatios[m];
         }
 
         double fm = f0 * ratio;
@@ -517,21 +530,9 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         mode.y1 = 0.0;
         mode.y2 = 0.0;
         mode.omega = omega_m;
-        mode.r = (m == 0) ? r_0 : std::exp(-1.0 / (tau_m * fs));
-        SetModeCoefficients(mode, omega_m);
-
-        // Strike position modulation — physically motivated nodal weighting
-        float posWeight = 1.0f;
-        if (m == 0) {
-            posWeight = 1.0f - 0.50f * distFromCenter * distFromCenter;
-        } else if (m == 1) {
-            posWeight = 0.85f - 0.20f * distFromCenter;
-        } else if (m < 4) {
-            posWeight = 0.70f + 0.55f * distFromCenter;
-        } else {
-            // Upper modes increasingly excited off-center
-            posWeight = 0.55f + 0.80f * distFromCenter;
-        }
+        const double radius = (m == 0) ? r_0 : std::exp(-1.0 / (tau_m * fs));
+        ReconfigureMode(mode, radius, omega_m);
+        const double posWeight = ModalContactWeight(m, spatialPosition, footprint, tine);
 
         // Mallet hardness scaling: hard mallets excite more high overtones
         float overtoneScaling = (m == 0) ? 1.0f : (0.40f + 0.60f * effectiveHardness);
@@ -566,8 +567,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         mMode0b.y1 = mMode0b.y2 = 0.0;
         double omega_0b = kTwoPiD * f0b / fs;
         mMode0b.omega = omega_0b;
-        mMode0b.r = r_0; // same damping as mode 0
-        SetModeCoefficients(mMode0b, omega_0b);
+        ReconfigureMode(mMode0b, r_0, omega_0b);
         // Twin mode provides subtle natural wood grain beating (15% amplitude)
         mMode0b.b0 = 0.15 * mModes[0].b0 / std::sin(mModes[0].omega) * std::sin(omega_0b);
     } else {
@@ -646,8 +646,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     {
         const double wRes = kTwoPiD * fRes / fs;
         mTube.omega = wRes;
-        mTube.r = std::exp(-kPiD * fRes / (qRes * fs));
-        SetModeCoefficients(mTube, wRes);
+        ReconfigureMode(mTube, std::exp(-kPiD * fRes / (qRes * fs)), wRes);
         mTube.b0 = 1.0 - mTube.s;
         if (!isRestrike) {
             mTube.y1 = mTube.y2 = 0.0;
@@ -729,12 +728,11 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
     if (mCurrentGlideCents > 0.02) {
         if (mNumModes > 0) {
             const double w = std::min(mModes[0].omega * mPitchRatio * std::exp2(mCurrentGlideCents / 1200.0), kMaxOmega);
-            mModes[0].c = 2.0 * mModes[0].r * std::cos(w);
-            mModes[0].w = w;
+            RetuneMode(mModes[0], w);
         }
         mCurrentGlideCents *= mGlideDecay;
     } else if (mCurrentGlideCents > 0.0) {
-        if (mNumModes > 0) SetModeCoefficients(mModes[0], mModes[0].omega * mPitchRatio);
+        if (mNumModes > 0) RetuneMode(mModes[0], mModes[0].omega * mPitchRatio);
         mCurrentGlideCents = 0.0;
     }
 
