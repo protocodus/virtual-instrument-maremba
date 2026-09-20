@@ -73,7 +73,6 @@ void MarembaVoice::FastKill() {
     mFadeGain = 1.0f;
     mFadeStep = 0.0f;
     mFrictionFilterState = 0.0;
-    mCurrentGlideCents = 0.0;
     mMirlitonFilterState = 0.0;
     mRattleLevel = 0.0;
     mClackActive = false;
@@ -182,9 +181,6 @@ void MarembaVoice::Retune(float globalCents) {
     mPitchRatio = std::exp2(static_cast<double>(globalCents - mTriggerGlobalCents) / 1200.0);
     for (int m = 0; m < mNumModes; ++m) {
         double omega = mModes[m].omega * mPitchRatio;
-        // During the pitch glide ProcessSample sets mode 0 to the glided angle
-        // on the next sample: fit the state to that angle.
-        if (m == 0 && mCurrentGlideCents > 0.02) omega *= std::exp2(mCurrentGlideCents / 1200.0);
         RetuneMode(mModes[m], omega);
     }
     if (mHasTwin) RetuneMode(mMode0b, mMode0b.omega * mPitchRatio);
@@ -195,7 +191,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
                            float malletHardness, float strikePosition,
                            float resonatorTuneCents, float resonatorCoupling,
                            float decayMultiplier, float buzzAmount, float artifactsAmount,
-                           float pitchGlideAmount,
+                           float /*legacyPitchGlideIgnored*/,
                            double sampleRate, FastPRNG& prng,
                            float globalCents, float keyOffsetCents,
                            int malletType, float strikeJitter)
@@ -232,13 +228,6 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     const double totalPitchCents = static_cast<double>(noteNumber - 69) * 100.0
                                  + globalCents + keyOffsetCents + art.pitchJitterCents;
     const double f0 = 440.0 * std::exp2(totalPitchCents / 1200.0);
-
-    // Dynamic tension-modulation pitch glide: the bar starts sharp and settles
-    // to concert pitch (~8 ms time constant). About 30 cents at full knob,
-    // full velocity and tensionModFactor 0.05 (Rosewood).
-    const double velSq = static_cast<double>(mVelocity) * mVelocity;
-    mCurrentGlideCents = 30.0 * std::clamp(pitchGlideAmount, 0.0f, 1.0f) * velSq * (params.tensionModFactor / 0.05);
-    mGlideDecay = std::exp(-120.0 / fs);
 
     // Register-dependent decay time: lower register sustains longer, treble is shorter
     const double noteFactor = std::clamp(130.81 / f0, 0.25, 3.5); // C3 as reference
@@ -695,18 +684,6 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
         const double t0 = static_cast<double>(mShockSample) * mRefStep;
         excitation += mShockGain * (ShockCumulative(t0 + mRefStep) - ShockCumulative(t0));
         mShockSample++;
-    }
-
-    // 2. Dynamic Tension Modulation Pitch Glide on Mode 0
-    if (mCurrentGlideCents > 0.02) {
-        if (mNumModes > 0) {
-            const double w = std::min(mModes[0].omega * mPitchRatio * std::exp2(mCurrentGlideCents / 1200.0), kMaxOmega);
-            RetuneMode(mModes[0], w);
-        }
-        mCurrentGlideCents *= mGlideDecay;
-    } else if (mCurrentGlideCents > 0.0) {
-        if (mNumModes > 0) RetuneMode(mModes[0], mModes[0].omega * mPitchRatio);
-        mCurrentGlideCents = 0.0;
     }
 
     // 3. Bar Modal Resonator Updates (8 pitched modes + twin mode 0b)

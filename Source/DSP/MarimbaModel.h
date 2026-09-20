@@ -49,7 +49,6 @@ struct ModelParams {
     float woodInternalFriction;
 
     // Premium physical modeling phenomena
-    float tensionModFactor;      // Attack pitch glide / deflection non-linearity depth
     float anisotropicSplitCents; // Dual-mode orthogonal bending split for singing beating
     float contactDampingFactor;  // Viscoelastic mallet damping of overtones during contact
     float frameBodyFreq;         // Low-frequency frame & rail resonance frequency (Hz)
@@ -86,7 +85,6 @@ inline ModelParams GetModelParams(EMarimbaModel model) {
                 2800.0f,  // clack bandwidth
                 0.0008f,
                 // Premium phenomena:
-                0.05f,    // subtle natural acoustic tension glide
                 1.0f,     // subtle rosewood anisotropic split (1.0 cent beating)
                 1.30f,    // pronounced mallet felt contact damping
                 86.0f,    // 86 Hz mahogany frame resonance
@@ -114,7 +112,6 @@ inline ModelParams GetModelParams(EMarimbaModel model) {
                 2200.0f,
                 0.0016f,
                 // Premium phenomena:
-                0.04f,
                 1.2f,     // padauk anisotropic split
                 1.15f,
                 110.0f,   // 110 Hz cedar frame body resonance
@@ -142,7 +139,6 @@ inline ModelParams GetModelParams(EMarimbaModel model) {
                 3200.0f,
                 0.0028f,
                 // Premium phenomena:
-                0.06f,
                 0.4f,
                 0.90f,
                 145.0f,   // 145 Hz bamboo frame & rail resonance
@@ -172,7 +168,6 @@ inline ModelParams GetModelParams(EMarimbaModel model) {
                 3500.0f,  // clack bandwidth
                 0.0004f,
                 // Premium phenomena:
-                0.03f,
                 0.0f,     // steel tines have no anisotropic grain split
                 0.80f,
                 245.0f,   // 245 Hz acacia cavity air bloom

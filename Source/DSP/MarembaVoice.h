@@ -21,7 +21,7 @@ public:
                  float malletHardness, float strikePosition,
                  float resonatorTuneCents, float resonatorCoupling,
                  float decayMultiplier, float buzzAmount, float artifactsAmount,
-                 float pitchGlideAmount,
+                 float legacyPitchGlideIgnored, // retained call contract; no pitch sweep
                  double sampleRate, FastPRNG& prng,
                  float globalCents, float keyOffsetCents,
                  int malletType, float strikeJitter);
@@ -83,7 +83,7 @@ private:
         double s = 0.0;       // r^2
         double b0 = 0.0;      // input gain
         double omega = 0.0;   // pole angle at the trigger-time tuning
-        double w = 0.0;       // pole angle currently in c (tuning, bend and glide applied)
+        double w = 0.0;       // pole angle currently in c (tuning and bend applied)
         double r = 0.0;
         double invSin2 = 0.0; // 1 / sin^2(w): converts the quadratic invariant to squared amplitude
         double contactPole = 1.0; // loss at this mode's contact footprint
@@ -156,10 +156,6 @@ private:
     double mClackEnvelope = 0.0;
     double mClackDecayRate = 0.0;
     double mNoiseScale = 1.0;          // sqrt(fs / reference): keeps output noise density rate-invariant
-
-    // Dynamic tension-modulation pitch glide
-    double mCurrentGlideCents = 0.0;
-    double mGlideDecay = 0.995;
 
     // Resonator Pipe / Gourd Cavity State
     ModeState mTube;

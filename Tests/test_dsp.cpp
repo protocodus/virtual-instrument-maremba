@@ -3,9 +3,8 @@
 // Build & run (from Examples/Maremba):
 //   clang++ -std=c++17 -O3 -Wall -Wextra -Werror Tests/test_dsp.cpp DSP/*.cpp -o Tests/test_dsp && ./Tests/test_dsp
 //
-// Every feature test is differential: it renders with the feature on and off
-// (from identical seeds) and asserts a clear difference, so a test cannot pass
-// with the feature switched off.
+// Active feature tests compare identical seeds with the feature on and off.
+// Compatibility tests separately require removed controls to remain inert.
 
 #include "../DSP/MarembaEngine.h"
 #include "../DSP/ModalExcitation.h"
@@ -403,23 +402,74 @@ void TestPreampCompressorContainment()
     CHECK(Peak(r.ch[kMainL]) <= 1.5, "compressor/preamp failed to contain level: " << Peak(r.ch[kMainL]));
 }
 
-void TestPitchGlide()
+void TestLegacyPitchGlideIgnored()
 {
-    std::cout << "[Glide] Attack pitch glide is audible (differential) ..." << std::endl;
-    EngineParameters p = CleanParams();
-    p.model = 3; // clean tine
-    p.sympathetic = 0.0f;
-    p.pitchGlide = 0.0f;
-    Render off = RenderNote(44100.0, p, 69, 1.0f, 0.3);
-    p.pitchGlide = 1.0f;
-    Render on = RenderNote(44100.0, p, 69, 1.0f, 0.3);
-    // A ~18-cent glide at 440 Hz shifts the phase by ~0.1 cycle during the attack.
-    const double rel = DiffEnergy(on.ch[kCloseL], off.ch[kCloseL], 0, 2205) / Energy(off.ch[kCloseL], 0, 2205);
-    std::cout << "  -> glide difference in the first 50 ms: " << 10.0 * std::log10(rel) << " dB" << std::endl;
-    CHECK(rel > 1e-3, "pitch glide is inaudible");
-    // Settled pitch is unaffected
-    const double f = EstimateFrequency(on.ch[kCloseL], on.ch[kCloseR], 4410, on.size(), 44100.0, 440.0);
-    CHECK(std::fabs(Cents(f, 440.0)) < 1.0, "glide leaves the note detuned: " << Cents(f, 440.0) << " c");
+    std::cout << "[Legacy Glide] Stored/automated glide is inert; each attack starts at its tuned pitch ..." << std::endl;
+    double maxOnsetError = 0.0;
+    for (double rate : {44100.0, 48000.0, 96000.0}) {
+        for (int model = 0; model < 4; ++model) {
+            auto phrase = [&](float legacy) {
+                EngineParameters p = CleanParams();
+                p.model = model;
+                p.pitchGlide = legacy;
+                p.tuneCents = 37.0f;
+                MarembaEngine engine(rate);
+                engine.SetParameters(p);
+                CHECK(engine.GetParameters().pitchGlide == 0.0f, "legacy glide remains effective");
+                Render r;
+                engine.NoteOn(48, .3f);
+                RenderFrames(engine, r, static_cast<int>(rate * .02), &p);
+                engine.NoteOn(81, 1.0f); // different note must not slide from the old pitch
+                RenderFrames(engine, r, static_cast<int>(rate * .04), &p);
+                p.pitchGlide = legacy > 0 ? 1.0f - legacy : 0.0f;
+                engine.SetParameters(p); // automation while ringing is also inert
+                engine.NoteOn(81, .8f);  // repeated note must not restart a sweep
+                RenderFrames(engine, r, static_cast<int>(rate * .04), &p);
+                engine.SetPitchBendCents(100.0f); // ordinary pitch bend remains functional
+                RenderFrames(engine, r, static_cast<int>(rate * .04), &p);
+                return r;
+            };
+            const Render off = phrase(0.0f);
+            for (float legacy : {.3f, 1.0f}) {
+                const Render on = phrase(legacy);
+                for (int channel = 0; channel < kNumChannels; ++channel)
+                    CHECK(on.ch[channel] == off.ch[channel], "legacy glide changes audio at rate " << rate << " model " << model);
+            }
+            for (int note : {69, 81}) {
+                EngineParameters p = CleanParams();
+                p.model = model;
+                p.sympathetic = p.bodyBloom = p.buzzAmount = 0.0f;
+                p.pitchGlide = 1.0f;
+                p.tuneCents = 37.0f;
+                const Render strike = RenderNote(rate, p, note, 1.0f, .05);
+                const double target = NoteHz(note) * std::exp2(37.0 / 1200.0);
+                const double f = EstimateFrequency(strike.ch[kPiezo], strike.ch[kPiezo],
+                    static_cast<size_t>(rate * .004), static_cast<size_t>(rate * .024), rate, target);
+                const double error = std::fabs(Cents(f, target));
+                maxOnsetError = std::max(maxOnsetError, error);
+                CHECK(error < 1.0, "new strike starts off pitch: " << error << " cents, model " << model << " note " << note);
+            }
+        }
+    }
+    // Public voice entry point also ignores the legacy argument, even without
+    // the wrapper/engine sanitizer. This catches a reintroduced per-sample sweep.
+    for (int model = 0; model < 4; ++model) {
+        maremba::MarembaVoice off, on;
+        maremba::FastPRNG a(123), b(123);
+        for (int note : {60, 81, 81}) {
+            off.Trigger(note, 1, static_cast<maremba::EMarimbaModel>(model), .4f, .35f, 0, .7f, 1, 0, 0, 0, 88200, a, 0, 0, 1, 0);
+            on.Trigger(note, 1, static_cast<maremba::EMarimbaModel>(model), .4f, .35f, 0, .7f, 1, 0, 0, 1, 88200, b, 0, 0, 1, 0);
+            bool identical = true;
+            for (int frame = 0; frame < 4410; ++frame) {
+                float c0, f0, p0, c1, f1, p1;
+                off.ProcessSample(c0, f0, p0);
+                on.ProcessSample(c1, f1, p1);
+                identical = identical && c0 == c1 && f0 == f1 && p0 == p1;
+            }
+            CHECK(identical, "raw voice still applies legacy glide, model " << model << " note " << note);
+        }
+    }
+    std::cout << "  -> maximum first 4-24 ms pitch error: " << maxOnsetError << " cents" << std::endl;
 }
 
 void TestSympatheticHalo()
@@ -1340,11 +1390,11 @@ void TestStealSparesJustStruckNote()
     CHECK(stolen == 0, stolen << " cases stole the note struck a few frames earlier");
 }
 
-// Every sound parameter changes the output (dead-knob sweep), and the velocity
+// Every active sound parameter changes the output (dead-knob sweep), and the velocity
 // curves go the documented way: Soft (0) plays louder than Linear, Hard (2) quieter.
 void TestNoDeadParameters()
 {
-    std::cout << "[Knobs] Every engine parameter changes the output ..." << std::endl;
+    std::cout << "[Knobs] Every active engine parameter changes the output ..." << std::endl;
     auto render = [](const EngineParameters& p) {
         MarembaEngine e(44100.0);
         e.SetParameters(p);
@@ -1370,7 +1420,6 @@ void TestNoDeadParameters()
         { "buzzAmount", [](EngineParameters& p) { p.buzzAmount = 0.8f; } },
         { "artifacts", [](EngineParameters& p) { p.artifacts = 1.0f; } },
         { "sympathetic", [](EngineParameters& p) { p.sympathetic = 1.0f; } },
-        { "pitchGlide", [](EngineParameters& p) { p.pitchGlide = 1.0f; } },
         { "bodyBloom", [](EngineParameters& p) { p.bodyBloom = 1.0f; } },
         { "closeLevel", [](EngineParameters& p) { p.closeLevel = 0.2f; } },
         { "farLevel", [](EngineParameters& p) { p.farLevel = 1.0f; } },
@@ -2394,7 +2443,7 @@ int main(int argc, char** argv)
     TestStereoWidth();
     TestMirlitonBuzz();
     TestPreampCompressorContainment();
-    TestPitchGlide();
+    TestLegacyPitchGlideIgnored();
     TestSympatheticHalo();
     TestBodyBloom();
     TestVelocityAndMixerSilence();

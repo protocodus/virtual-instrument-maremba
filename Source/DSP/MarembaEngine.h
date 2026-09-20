@@ -31,7 +31,7 @@ struct EngineParameters {
 
     // Premium physical modeling phenomena
     float sympathetic = 0.40f;      // 0..1 inter-bar sympathetic resonance halo
-    float pitchGlide = 0.30f;       // 0..1 tension-modulation pitch attack
+    float pitchGlide = 0.30f;       // legacy input, ignored and sanitized to 0
     float bodyBloom = 0.50f;        // 0..1 frame & soundboard body
 
     float closeLevel = 0.85f;       // 0..1

@@ -98,7 +98,7 @@ EngineParameters MarembaEngine::Sanitize(const EngineParameters& in) {
     p.buzzAmount = FiniteClamp(in.buzzAmount, 0.0f, 1.0f, d.buzzAmount);
     p.artifacts = FiniteClamp(in.artifacts, 0.0f, 1.0f, d.artifacts);
     p.sympathetic = FiniteClamp(in.sympathetic, 0.0f, 1.0f, d.sympathetic);
-    p.pitchGlide = FiniteClamp(in.pitchGlide, 0.0f, 1.0f, d.pitchGlide);
+    p.pitchGlide = 0.0f; // old patches may retain this value; pitch sweep was removed
     p.bodyBloom = FiniteClamp(in.bodyBloom, 0.0f, 1.0f, d.bodyBloom);
     p.closeLevel = FiniteClamp(in.closeLevel, 0.0f, 1.0f, d.closeLevel);
     p.farLevel = FiniteClamp(in.farLevel, 0.0f, 1.0f, d.farLevel);
