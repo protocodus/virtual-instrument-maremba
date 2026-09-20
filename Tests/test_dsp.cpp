@@ -574,7 +574,8 @@ void TestStrikeJitter()
 {
     std::cout << "[Jitter] Strike variance is differential and stable ..." << std::endl;
     // Strike note 60, let the engine go fully idle, strike it again: the second
-    // strike draws later PRNG values. With jitter 0 only the clack noise differs.
+    // strike draws later PRNG values. Zero keeps the natural contact floor;
+    // raising Variance should add a larger expressive range.
     auto measure = [](float jitter) {
         MarembaEngine engine(44100.0);
         EngineParameters p;
@@ -612,6 +613,211 @@ void TestStrikeJitter()
             RenderFrames(engine, r, 64 * 8);
         }
         CHECK(AllFinite(r) && Peak(r.ch[kMainL]) < 1.5, "instability at strikeJitter 100, model " << m);
+    }
+}
+
+// Remove the best scalar gain before comparing waveforms. This rejects a
+// louder/quieter clone as evidence of changing contact timbre or phase.
+double GainFitResidual(const std::vector<float>& a, const std::vector<float>& b,
+                       size_t from, size_t to)
+{
+    double aa = 0.0, ab = 0.0, bb = 0.0;
+    to = std::min({to, a.size(), b.size()});
+    for (size_t i = from; i < to; ++i) {
+        aa += static_cast<double>(a[i]) * a[i];
+        ab += static_cast<double>(a[i]) * b[i];
+        bb += static_cast<double>(b[i]) * b[i];
+    }
+    // A silent analysis window provides no evidence of varying pitched tone.
+    // Returning a maximal residual here could let attack-only output pass.
+    if (aa == 0.0 || bb == 0.0) return 0.0;
+    return std::sqrt(std::max(0.0, 1.0 - ab * ab / (aa * bb)));
+}
+
+double Median(std::vector<double> values)
+{
+    std::sort(values.begin(), values.end());
+    return values[values.size() / 2];
+}
+
+struct RepeatMetrics {
+    double attack, ring, spectrumDb, levelDb, pitchCents, minAdjacent, minLag;
+};
+
+RepeatMetrics MeasureRepeats(const std::vector<std::vector<float>>& hits, int model,
+                            double sampleRate, bool measurePitch)
+{
+    const size_t attackEnd = static_cast<size_t>(0.008 * sampleRate);
+    const size_t ringStart = static_cast<size_t>(0.040 * sampleRate);
+    const size_t ringEnd = static_cast<size_t>(0.160 * sampleRate);
+    const auto material = maremba::GetModelParams(static_cast<maremba::EMarimbaModel>(model));
+    std::vector<std::array<double, 4>> spectra;
+    std::vector<double> levels, pitch, attack, ring, spectral;
+    for (const auto& hit : hits) {
+        levels.push_back(Db(Rms(hit, ringStart, ringEnd)));
+        if (measurePitch) pitch.push_back(Cents(EstimateFrequency(hit, hit, ringStart, ringEnd, sampleRate, NoteHz(60)), NoteHz(60)));
+        std::vector<double> segment(hit.begin() + static_cast<size_t>(0.008 * sampleRate),
+                                    hit.begin() + static_cast<size_t>(0.045 * sampleRate));
+        segment = HannWindowed(segment);
+        std::array<double, 4> powers{};
+        for (size_t mode = 0; mode < powers.size(); ++mode)
+            powers[mode] = GoertzelPower(segment, sampleRate, material.overtoneRatio[mode] * NoteHz(60));
+        spectra.push_back(powers);
+    }
+    for (size_t h = 1; h < hits.size(); ++h) {
+        attack.push_back(GainFitResidual(hits[h - 1], hits[h], 0, attackEnd));
+        ring.push_back(GainFitResidual(hits[h - 1], hits[h], ringStart, ringEnd));
+        double change = 0.0;
+        int count = 0;
+        for (size_t mode = 1; mode < spectra[h].size(); ++mode) {
+            const double before = spectra[h - 1][mode] / spectra[h - 1][0];
+            const double after = spectra[h][mode] / spectra[h][0];
+            // Ignore effectively absent partials and leakage at symmetry nodes.
+            if (std::min(before, after) < 1e-5) continue;
+            const double delta = 10.0 * std::log10(after / before);
+            change += delta * delta;
+            ++count;
+        }
+        spectral.push_back(count ? std::sqrt(change / count) : 0.0);
+    }
+    double lagFloor = 1.0;
+    for (size_t lag = 1; lag <= 4; ++lag) {
+        std::vector<double> differences;
+        for (size_t h = lag; h < hits.size(); ++h)
+            differences.push_back(GainFitResidual(hits[h - lag], hits[h], ringStart, ringEnd));
+        lagFloor = std::min(lagFloor, Median(differences));
+    }
+    return {Median(attack), Median(ring), Median(spectral),
+            *std::max_element(levels.begin(), levels.end()) - *std::min_element(levels.begin(), levels.end()),
+            measurePitch ? *std::max_element(pitch.begin(), pitch.end()) - *std::min_element(pitch.begin(), pitch.end()) : 0.0,
+            *std::min_element(ring.begin(), ring.end()), lagFloor};
+}
+
+void TestOrganicRepeatVariation(bool measurementsOnly = false)
+{
+    std::cout << "[Organic strikes] Same note/velocity with Variance and Artifacts at zero ..." << std::endl;
+    constexpr double rate = 88200.0;
+    constexpr int hitCount = 16;
+    const std::vector<float> silence(1600, 0.0f), constant(1600, 0.1f);
+    CHECK(GainFitResidual(silence, silence, 0, silence.size()) == 0.0
+          && GainFitResidual(silence, constant, 0, silence.size()) == 0.0,
+          "silent windows count as evidence of tonal variation");
+    // All comparisons hold the local noise sequence identical. FastKill clears
+    // every resonator without touching the shared event PRNG. For restrikes a
+    // copied ringing anchor also holds old-tail phase/energy identical, so old
+    // tails and noise cannot explain the observed differences.
+    auto renderVoice = [](maremba::MarembaVoice& voice, int frames) {
+        std::vector<float> audio;
+        audio.reserve(frames);
+        for (int i = 0; i < frames; ++i) {
+            float close, far, piezo;
+            voice.ProcessSample(close, far, piezo);
+            if ((i & 31) == 31) voice.UpdateEnvelope();
+            CHECK(std::isfinite(close) && std::isfinite(far) && std::isfinite(piezo), "non-finite organic strike");
+            audio.push_back(piezo);
+        }
+        return audio;
+    };
+    std::cout << "REPEAT,model,velocity,position,path,attack_residual,ring_residual,spectral_delta_db,level_span_db,pitch_span_cents,min_adjacent,min_lag_1_to_4" << std::endl;
+    for (int model = 0; model < 4; ++model) {
+        for (int velocity : {48, 112}) {
+            for (float position : {0.10f, 0.50f}) {
+                for (int path = 0; path < 3; ++path) {
+                    const bool restrike = path == 2;
+                    maremba::FastPRNG eventRandom(0x12345678), anchorRandom(0xA34B29CD);
+                    maremba::MarembaVoice anchor, voice;
+                    auto trigger = [&](maremba::MarembaVoice& target, float v, maremba::FastPRNG& random) {
+                        target.Trigger(60, v, static_cast<maremba::EMarimbaModel>(model),
+                                       0.60f, position, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+                                       rate, random, 0.0f, 0.0f, 1, 0.0f);
+                    };
+                    if (restrike) {
+                        anchor.SetSeed(0x2468ACE1);
+                        trigger(anchor, 0.4f * velocity / 127.0f, anchorRandom);
+                        renderVoice(anchor, static_cast<int>(0.060 * rate));
+                        CHECK(anchor.IsActive(), "restrike anchor unexpectedly died");
+                    }
+                    std::vector<std::vector<float>> hits;
+                    for (int hit = 0; hit < hitCount; ++hit) {
+                        if (restrike) voice = anchor;
+                        else {
+                            if (path == 1) voice = maremba::MarembaVoice();
+                            else voice.FastKill();
+                            voice.SetSeed(0x2468ACE1); // freeze noise, not event randomness
+                        }
+                        trigger(voice, velocity / 127.0f, eventRandom);
+                        hits.push_back(renderVoice(voice, static_cast<int>(0.180 * rate)));
+                    }
+                    const RepeatMetrics m = MeasureRepeats(hits, model, rate, true);
+                    std::cout << "REPEAT," << model << ',' << velocity << ',' << position << ','
+                              << (restrike ? "restrike" : path == 1 ? "new_voice" : "cleared") << ',' << m.attack << ',' << m.ring << ','
+                              << m.spectrumDb << ',' << m.levelDb << ',' << m.pitchCents << ',' << m.minAdjacent << ',' << m.minLag << std::endl;
+                    CHECK(m.levelDb < 0.6 && m.pitchCents < 0.3, "organic floor changes level/pitch too far, model " << model);
+                    CHECK(m.attack < 0.08 && m.ring < 0.06 && m.spectrumDb < 1.0, "organic floor changes tone too far, model " << model);
+                    if (!measurementsOnly) {
+                        // Regression floors distinguish tonal contact changes
+                        // from numerical/noise residue; they are not calibrated
+                        // perceptual thresholds. Lags 1..4 cover short loops in
+                        // this 16-hit phrase, not a claim of infinite aperiodicity.
+                        CHECK(m.attack > 0.0005 && m.ring > 0.0005,
+                              "no substantive gain-independent contact change, model " << model << " position " << position);
+                        CHECK(m.minAdjacent > 0.00001 && m.minLag > m.ring * 0.15,
+                              "organic strikes repeat or form a short pattern, model " << model);
+                        if (position < 0.2f)
+                            CHECK(m.spectrumDb > 0.005, "partial balance does not vary, model " << model);
+                    }
+                    // Negative controls: scalar gain and changed attack noise
+                    // alone must not satisfy the late pitched-waveform metric.
+                    auto changed = hits.front();
+                    for (float& sample : changed) sample *= 1.01f;
+                    CHECK(GainFitResidual(hits.front(), changed, static_cast<size_t>(0.040 * rate), static_cast<size_t>(0.160 * rate)) < 1e-6,
+                          "gain-fit metric accepts scalar gain as timbre");
+                    changed = hits.front();
+                    for (size_t i = 0; i < static_cast<size_t>(0.008 * rate); ++i) changed[i] += 0.01f * std::sin(i * 0.7f);
+                    CHECK(GainFitResidual(hits.front(), changed, static_cast<size_t>(0.040 * rate), static_cast<size_t>(0.160 * rate)) < 1e-6,
+                          "late-ring metric accepts attack noise alone");
+                }
+            }
+        }
+    }
+
+    // Exercise the public engine path too: natural wake after full silence,
+    // continued PRNG state, then exact seven-output replay after explicit Reset.
+    for (int model = 0; model < 4; ++model) {
+        EngineParameters p = CleanParams();
+        p.model = model;
+        p.decay = 0.1f;
+        p.sympathetic = p.bodyBloom = p.farLevel = p.buzzAmount = 0.0f;
+        p.preampDrive = p.warmth = p.compAmount = 0.0f;
+        MarembaEngine engine(44100.0);
+        engine.SetParameters(p);
+        std::vector<Render> firstPass;
+        for (int pass = 0; pass < 2; ++pass) {
+            if (pass) engine.Reset();
+            for (int hit = 0; hit < 8; ++hit) {
+                CHECK(engine.IsSilent(), "repeat note must wake from full engine silence");
+                engine.NoteOn(60, 90.0f / 127.0f);
+                Render audio;
+                RenderFrames(engine, audio, 7938);
+                CHECK(AllFinite(audio) && Rms(audio.ch[kPiezo], 0, audio.size()) > 1e-5, "idle engine failed to wake audibly");
+                if (!pass) firstPass.push_back(audio);
+                else for (int channel = 0; channel < kNumChannels; ++channel)
+                    CHECK(audio.ch[channel] == firstPass[hit].ch[channel], "Reset did not reproduce organic phrase exactly");
+                float discard[kNumChannels][64];
+                int batches = 0;
+                while (!engine.IsSilent() && batches++ < 44100 * 25 / 64)
+                    engine.RenderBatch(discard[0], discard[1], discard[2], discard[3], discard[4], discard[5], discard[6], 64);
+                CHECK(engine.IsSilent(), "repeat probe engine never reaches natural silence");
+            }
+        }
+        std::vector<std::vector<float>> hits;
+        for (const auto& r : firstPass) hits.push_back(r.ch[kPiezo]);
+        const RepeatMetrics m = MeasureRepeats(hits, model, 44100.0, false);
+        std::cout << "REPEAT," << model << ",90,0.5,engine_idle," << m.attack << ',' << m.ring << ',' << m.spectrumDb
+                  << ',' << m.levelDb << ",0," << m.minAdjacent << ',' << m.minLag << std::endl;
+        if (!measurementsOnly)
+            CHECK(m.ring > 0.0005 && m.minAdjacent > 0.00001 && m.minLag > m.ring * 0.15,
+                  "engine silence resets organic variation, model " << model);
     }
 }
 
@@ -2436,6 +2642,10 @@ int main(int argc, char** argv)
         RunPerformanceProbe();
         return 0;
     }
+    if (argc == 2 && (std::string(argv[1]) == "--repeat-variation" || std::string(argv[1]) == "--repeat-measure")) {
+        TestOrganicRepeatVariation(std::string(argv[1]) == "--repeat-measure");
+        return gFailures ? 1 : 0;
+    }
     std::cout << "=== Running Maremba DSP Verification Suite ===" << std::endl;
 
     TestNoteRangeStability();
@@ -2451,6 +2661,7 @@ int main(int argc, char** argv)
     TestStrikerHierarchy();
     TestKalimbaSustain();
     TestStrikeJitter();
+    TestOrganicRepeatVariation();
     TestMeshCoupling();
     TestRestrikeContinuity();
     TestVoicesDieAndEngineIdles();

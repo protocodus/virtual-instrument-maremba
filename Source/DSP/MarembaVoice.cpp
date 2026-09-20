@@ -218,6 +218,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
 
     const double fs = mSampleRate;
     ModelParams params = GetModelParams(model);
+    const StrikeCharacter character = GenerateStrikeCharacter(prng, strikeJitter);
     StrikeArtifacts art = GenerateStrikeArtifacts(prng, mVelocity, malletHardness, artifactsAmount);
     static constexpr double kPhysicalImpulseScale = 0.018;
 
@@ -245,14 +246,14 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         + (tine ? 0.10f : 0.22f) * (mVelocity - 0.70f) * (1.0f - baseHardness), 0.02f, 0.98f);
     // The public velocity curve maps controller touch, then this common drive
     // feeds the tone AND release/impact noises. Quiet touches have no noise floor.
-    const double impactStrength = std::pow(static_cast<double>(mVelocity), 1.25);
+    const double impactStrength = std::pow(static_cast<double>(mVelocity), 1.25) * character.impulseScale;
 
     // ────────────────────────────────────────────────────────
     // Striker Physics: Marimba Mallets vs Kalimba Thumbs
     // ────────────────────────────────────────────────────────
     float modeWeightMult[kNumPitchedModes];
     for (int m = 0; m < kNumPitchedModes; ++m) modeWeightMult[m] = 1.0f;
-    float contactTimeSec = 0.0005f;
+    double contactTimeSec = 0.0005;
     float frictionMult = 1.0f;
     int mt = std::clamp(malletType, 0, 3);
 
@@ -375,27 +376,14 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     contactTimeSec /= std::sqrt(std::sqrt(1.0 + std::pow(relativeDuration, 4.0)));
     mContactSkew = tine ? 0.0 : 0.12 + 0.18 * (1.0 - effectiveHardness);
 
-    // Organic Strike Stochastic Micro-Jitter (0 to 100%)
-    if (strikeJitter > 0.001f) {
-        float normJitter = std::clamp(strikeJitter, 0.0f, 100.0f) * 0.01f;
-
-        // 1. Mallet / Tine Contact Time noise: +/- 4% max at 100%
-        float contactJitter = std::clamp(prng.NextGaussian() * 0.04f * normJitter, -0.10f, 0.10f);
-        contactTimeSec *= (1.0f + contactJitter);
-
-        // 2. Slight asymmetry variation without changing integrated force.
-        mContactSkew = std::clamp(mContactSkew + prng.NextGaussian() * 0.025 * normJitter, -0.3, 0.6);
-
-        // 3. Initial Impact Shock Impulse noise: +/- 6% max at 100%
-        float shockJitter = std::clamp(prng.NextGaussian() * 0.06f * normJitter, -0.15f, 0.15f);
-        mMalletShockImpulse = std::clamp(mMalletShockImpulse * (1.0f + shockJitter), 0.0f, 3.0f);
-
-        // 4. Modal Overtone Excitation Weights: independent +/- 3.5% per mode at 100%
-        for (int m = 0; m < kNumPitchedModes; ++m) {
-            float modeJitter = std::clamp(prng.NextGaussian() * 0.035f * normJitter, -0.10f, 0.10f);
-            modeWeightMult[m] = std::clamp(modeWeightMult[m] * (1.0f + modeJitter), 0.01f, 4.0f);
-        }
-    }
+    // A quiet organic floor remains at Variance = 0; the control increases it.
+    // Fractional duration and independent shape/partial balance avoid relying
+    // on an integer sample count or on random clack alone to distinguish hits.
+    contactTimeSec *= character.contactTimeScale;
+    mContactSkew = std::clamp(mContactSkew + character.pulseSkewOffset, -0.3, 0.6);
+    mMalletShockImpulse = std::clamp(static_cast<float>(mMalletShockImpulse * character.shockScale), 0.0f, 3.0f);
+    for (int m = 0; m < kNumPitchedModes; ++m)
+        modeWeightMult[m] = std::clamp(static_cast<float>(modeWeightMult[m] * character.modalScale[m]), 0.01f, 4.0f);
 
     // Viscoelastic contact damping of the upper modes: the per-sample factor
     // voiced at the reference rate, converted to a per-second constant.

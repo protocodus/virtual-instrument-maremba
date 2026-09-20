@@ -1,5 +1,7 @@
 #pragma once
 
+#include "MarimbaModel.h"
+#include <algorithm>
 #include <cstdint>
 #include <cmath>
 
@@ -33,9 +35,44 @@ public:
         return (NextBipolar() + NextBipolar() + NextBipolar()) * 0.33333333f;
     }
 
+    // Full-state precision for event-rate contact parameters. The audio noise
+    // helpers above retain their existing sequence and cost.
+    inline double NextGaussianDouble() {
+        constexpr double scale = 1.0 / 2147483648.0;
+        const double a = static_cast<double>(Next()) * scale - 1.0;
+        const double b = static_cast<double>(Next()) * scale - 1.0;
+        const double c = static_cast<double>(Next()) * scale - 1.0;
+        return (a + b + c) / 3.0;
+    }
+
 private:
     uint32_t mState;
 };
+
+// A new contact/release character for every strike, including Variance = 0.
+// It changes the pitched excitation itself, not just the separate clack noise.
+// No position/pitch offsets: exact strike nodes and settled tuning are retained.
+struct StrikeCharacter {
+    double contactTimeScale;
+    double pulseSkewOffset;
+    double impulseScale;
+    double shockScale;
+    double modalScale[kNumPitchedModes];
+};
+
+inline StrikeCharacter GenerateStrikeCharacter(FastPRNG& prng, float variance) {
+    const double amount = std::isfinite(variance) ? std::clamp(variance, 0.0f, 100.0f) * 0.01 : 0.0;
+    StrikeCharacter strike;
+    // Fixed draw count at note-on, independent of amount and sample rate. The
+    // engine's strike PRNG survives voice reuse/silence; explicit Reset reseeds it.
+    strike.contactTimeScale = 1.0 + prng.NextGaussianDouble() * (0.0075 + 0.04 * amount);
+    strike.pulseSkewOffset = prng.NextGaussianDouble() * (0.006 + 0.025 * amount);
+    strike.impulseScale = 1.0 + prng.NextGaussianDouble() * (0.0035 + 0.01 * amount);
+    strike.shockScale = 1.0 + prng.NextGaussianDouble() * (0.06 * amount);
+    for (int mode = 0; mode < kNumPitchedModes; ++mode)
+        strike.modalScale[mode] = 1.0 + prng.NextGaussianDouble() * (0.004 + 0.035 * amount);
+    return strike;
+}
 
 struct StrikeArtifacts {
     float strikePositionOffset; // +/- jitter
