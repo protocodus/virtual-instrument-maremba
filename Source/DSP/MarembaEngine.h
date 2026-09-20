@@ -4,7 +4,7 @@
 #include "MarembaVoice.h"
 #include "MicMixer.h"
 #include "AnalogPreamp.h"
-#include "Compressor.h"
+#include "AnalogLimiter.h"
 #include "Oversampler.h"
 #include "RandomArtifacts.h"
 #include "SympatheticMesh.h"
@@ -41,9 +41,9 @@ struct EngineParameters {
 
     float preampDrive = 0.15f;      // 0..1
     float warmth = 0.10f;           // -1..1 tilt
-    float compAmount = 0.25f;       // 0..1
-    float compAttack = 10.0f;       // ms, 1..50
-    float compRelease = 120.0f;     // ms, 20..500
+    float compAmount = 0.25f;       // 0..1 analog limiter; legacy stored name
+    float compAttack = 10.0f;       // main limiter control attack, ms, 1..50
+    float compRelease = 120.0f;     // initial limiter recovery, ms, 20..500
 
     float volume = 0.80f;           // 0..1 (knob + volume CV, before the squared law)
     int oversampling = 0;           // 0: 2x, 1: 4x, 2: 8x (literal factors at every host rate)
@@ -170,7 +170,7 @@ private:
     std::array<MarembaVoice, kVoicePoolSize> mVoices;
     MicMixer mMicMixer;
     AnalogPreamp mPreamp;
-    Compressor mCompressor;
+    AnalogLimiter mLimiter;
     StereoOversampler mOversampler;
     std::array<MonoOversampler, kNumDirectOuts> mDirectDecimators;
     std::array<bool, kNumDirectOuts> mDirectRunning{};

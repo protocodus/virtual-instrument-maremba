@@ -147,8 +147,9 @@ void MarembaEngine::Reset() {
 void MarembaEngine::ConfigureForRate() {
     const double rate = InternalRate();
     mMicMixer.SetSampleRate(rate);   // changes the room's active lengths, no allocation
-    mCompressor.SetSampleRate(rate);
-    mCompressor.SetTimes(mParams.compAttack, mParams.compRelease);
+    mLimiter.SetSampleRate(rate);
+    mLimiter.SetTimes(mParams.compAttack, mParams.compRelease);
+    mLimiter.SetAmount(mParams.compAmount);
     mPreamp.SetSampleRate(rate);
     mAppliedGlobalCents = GlobalCents();
     mSympathetic.Configure(rate, mAppliedGlobalCents);
@@ -164,7 +165,7 @@ void MarembaEngine::ConfigureModel() {
 void MarembaEngine::FlushTails() {
     mMicMixer.Reset();
     mPreamp.Reset();
-    mCompressor.Reset();
+    mLimiter.Reset();
     mOversampler.Reset();
     for (int k = 0; k < kNumDirectOuts; ++k) {
         mDirectDecimators[k].Reset();
@@ -180,7 +181,8 @@ void MarembaEngine::SetParameters(const EngineParameters& params) {
     const int previousPolyphony = mParams.polyphony;
     mParams = p;
 
-    mCompressor.SetTimes(p.compAttack, p.compRelease);
+    mLimiter.SetTimes(p.compAttack, p.compRelease);
+    mLimiter.SetAmount(p.compAmount);
 
     // Oversampling change: switch at once when nothing sounds, otherwise fade
     // everything out at the old rate first (see RenderBatch / ApplyFactorSwitch).
@@ -475,6 +477,7 @@ void MarembaEngine::ControlTick() {
     mSympathetic.FlushTiny();
     mFrameBody.FlushTiny();
     mPreamp.FlushTiny();
+    mLimiter.FlushTiny();
     mOversampler.FlushTiny();
     for (auto& decimator : mDirectDecimators) decimator.FlushTiny();
 }
@@ -582,18 +585,12 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
                                    mSubBufDirect[2][s], mSubBufDirect[3][s],
                                    mSubBufDirect[4][s]);
 
-            // 1. Percussion Compressor (gentle glue on the main bus before saturation)
-            float compL = 0.0f;
-            float compR = 0.0f;
-            mCompressor.Process(frameMainL, frameMainR, mParams.compAmount, compL, compR);
-
-            // 2. Analog Preamp (operates smoothly and cleanly on controlled dynamics)
+            // Preamp tone/drive precede limiting so they cannot recreate peaks
+            // afterward. Both nonlinear stages run at the oversampled rate.
             float preL = 0.0f;
             float preR = 0.0f;
-            mPreamp.Process(compL, compR, mParams.preampDrive, mParams.warmth, preL, preR);
-
-            mSubBufMainL[s] = preL;
-            mSubBufMainR[s] = preR;
+            mPreamp.Process(frameMainL, frameMainR, mParams.preampDrive, mParams.warmth, preL, preR);
+            mLimiter.Process(preL, preR, mSubBufMainL[s], mSubBufMainR[s]);
         }
 
         // Decimate through polyphase half-band filters
@@ -605,6 +602,7 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         const float gain = mVolumeGain * mSwitchGain;
         outMainL[f] = mainL * gain;
         outMainR[f] = mainR * gain;
+        mLimiter.ProtectOutput(outMainL[f], outMainR[f]);
 
         // Direct outs: same half-band chain as main, pre-fader mic taps scaled
         // by the main mix scale, a fixed -6 dB trim and the master volume

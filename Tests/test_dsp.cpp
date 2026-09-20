@@ -29,9 +29,10 @@ namespace maremba {
 struct MarembaEngineTestAccess {
     static bool MeshNormal(const MarembaEngine& e) { return e.mSympathetic.HasNoSubnormalState(); }
     static bool BodyNormal(const MarembaEngine& e) { return e.mFrameBody.HasNoSubnormalState(); }
-    // Float main-bus chain after the mixer: preamp and the decimators
+    // Float main-bus chain after the mixer, including limiter control memory.
     static bool MainBusNormal(const MarembaEngine& e) {
-        bool ok = e.mPreamp.HasNoSubnormalState() && e.mOversampler.HasNoSubnormalState();
+        bool ok = e.mPreamp.HasNoSubnormalState() && e.mLimiter.HasNoSubnormalState()
+                  && e.mOversampler.HasNoSubnormalState();
         for (const auto& d : e.mDirectDecimators) ok = ok && d.HasNoSubnormalState();
         return ok;
     }
@@ -385,21 +386,174 @@ void TestMirlitonBuzz()
     std::cout << "  -> fallback membrane vs Balafon: worst " << worstExcess << " dB" << std::endl;
 }
 
-void TestPreampCompressorContainment()
+void TestAnalogLimiterCurveAndLink()
 {
-    std::cout << "[Dynamics] Preamp + compressor keep a hard chord contained ..." << std::endl;
-    MarembaEngine engine(44100.0);
-    EngineParameters p;
-    p.preampDrive = 0.9f;
-    p.compAmount = 0.8f;
-    p.compAttack = 5.0f;
-    p.compRelease = 50.0f;
-    engine.SetParameters(p);
-    for (int n : { 48, 52, 55, 60 }) engine.NoteOn(n, 1.0f);
-    Render r;
-    RenderFrames(engine, r, 64 * 40);
-    CHECK(AllFinite(r), "non-finite output");
-    CHECK(Peak(r.ch[kMainL]) <= 1.5, "compressor/preamp failed to contain level: " << Peak(r.ch[kMainL]));
+    std::cout << "[Limiter] Settled limiting slope, quiet transparency and stereo peak linking ..." << std::endl;
+    auto settled = [](float input) {
+        maremba::AnalogLimiter limiter;
+        limiter.SetSampleRate(96000.0);
+        limiter.SetTimes(2.0f, 100.0f);
+        limiter.SetAmount(1.0f);
+        limiter.Reset();
+        float l = 0.0f, r = 0.0f;
+        for (int i = 0; i < 96000; ++i) limiter.Process(input, -input * .37f, l, r);
+        return l;
+    };
+    const float low = settled(0.0001f), a = settled(2.0f), b = settled(8.0f);
+    CHECK(std::abs(low - .0001f) < 1e-8f, "limiter colors a signal far below its threshold");
+    const double rise = Db(b / a);
+    std::cout << "  -> +12 dB input produces " << rise << " dB output rise" << std::endl;
+    CHECK(a > .01f && a < .5f && std::abs(rise) < 1.0,
+          "limiter still behaves as gentle compression, rise=" << rise);
+
+    for (double rate : { 88200.0, 96000.0, 384000.0, 1536000.0 }) {
+        maremba::AnalogLimiter limiter;
+        limiter.SetSampleRate(rate);
+        limiter.SetTimes(50.0f, 500.0f); // slowest musical attack must still arrest a peak
+        limiter.SetAmount(1.0f);
+        limiter.Reset();
+        double maxPeak = 0.0, maxLinkError = 0.0;
+        for (int i = 0; i < 4096; ++i) {
+            const float input = i % 97 == 0 ? 20.0f : static_cast<float>(3.0 * std::sin(i * .17));
+            float l = 0.0f, r = 0.0f;
+            limiter.Process(input, -.37f * input, l, r);
+            limiter.ProtectOutput(l, r);
+            CHECK(std::isfinite(l) && std::isfinite(r), "limiter produced non-finite audio at " << rate);
+            maxPeak = std::max(maxPeak, static_cast<double>(std::max(std::abs(l), std::abs(r))));
+            maxLinkError = std::max(maxLinkError, static_cast<double>(std::abs(r + .37f * l)));
+        }
+        CHECK(maxPeak <= maremba::AnalogLimiter::kOutputCeiling + 1e-6f, "peak escaped the active limiter");
+        CHECK(maxLinkError < 1e-6, "limiter changes the stereo ratio: " << maxLinkError);
+        // Reconstruction peaks after the oversampled block also share one gain.
+        float l = 1.3f, r = -.52f;
+        limiter.ProtectOutput(l, r);
+        CHECK(std::abs(l) <= maremba::AnalogLimiter::kOutputCeiling + 1e-6f,
+              "post-decimation sample guard missed a reconstruction peak");
+        CHECK(std::abs(r + .4f * l) < 1e-6f, "output guard changes stereo balance");
+    }
+}
+
+void TestAnalogLimiterBallistics()
+{
+    std::cout << "[Limiter] Attack, release, sustained-overload memory and sample-rate equivalence ..." << std::endl;
+    auto probe = [](double rate, float attack, float release, double chargeMs, double recoveryMs) {
+        maremba::AnalogLimiter limiter;
+        limiter.SetSampleRate(rate);
+        limiter.SetTimes(attack, release);
+        limiter.SetAmount(1.0f);
+        limiter.Reset();
+        float l = 0.0f, r = 0.0f;
+        for (long i = 0; i < std::lround(rate * chargeMs * .001); ++i)
+            limiter.Process(.6f, .3f, l, r);
+        if (recoveryMs == 0.0) return static_cast<double>(l / .6f);
+        for (long i = 0; i < std::lround(rate * recoveryMs * .001); ++i)
+            limiter.Process(.01f, .005f, l, r);
+        return static_cast<double>(l / .01f);
+    };
+    const double fastAttack = probe(96000, 1, 100, 10, 0);
+    const double slowAttack = probe(96000, 50, 100, 10, 0);
+    CHECK(fastAttack < slowAttack * .9, "attack control is ineffective: " << fastAttack << "/" << slowAttack);
+    const double fastRelease = probe(96000, 1, 20, 300, 100);
+    const double slowRelease = probe(96000, 1, 500, 300, 100);
+    CHECK(fastRelease > slowRelease * 1.2, "release control is ineffective: " << fastRelease << "/" << slowRelease);
+    const double brief = probe(96000, 1, 100, 50, 100);
+    const double sustained = probe(96000, 1, 100, 1000, 100);
+    std::cout << "  -> 100 ms recovery gain: brief " << brief << ", sustained " << sustained << std::endl;
+    CHECK(brief > sustained * 1.01, "release has no sustained-overload memory");
+    const double reference = probe(88200, 12, 120, 30, 70);
+    for (double rate : { 96000.0, 384000.0, 1536000.0 }) {
+        const double delta = Db(probe(rate, 12, 120, 30, 70) / reference);
+        CHECK(std::abs(delta) < .1, "time constants drift with internal rate " << rate << ": " << delta << " dB");
+    }
+}
+
+void TestAnalogLimiterState()
+{
+    std::cout << "[Limiter] Exact bypass, reset, smooth automation and silent control state ..." << std::endl;
+    maremba::AnalogLimiter limiter;
+    limiter.SetSampleRate(96000.0);
+    limiter.SetAmount(0.0f);
+    limiter.Reset();
+    for (int i = 0; i < 1000; ++i) {
+        const float input = static_cast<float>(2.0 * std::sin(i * .031));
+        float l = 0.0f, r = 0.0f;
+        limiter.Process(input, -input * .5f, l, r);
+        limiter.ProtectOutput(l, r);
+        CHECK(l == input && r == -input * .5f, "zero amount is not an exact dry bypass");
+    }
+    auto sequence = [&]() {
+        limiter.SetAmount(1.0f);
+        limiter.SetTimes(12.0f, 120.0f);
+        limiter.Reset();
+        std::vector<float> output;
+        for (int i = 0; i < 12000; ++i) {
+            float l = 0.0f, r = 0.0f;
+            const float in = i < 2400 ? .8f : .02f;
+            limiter.Process(in, -.5f * in, l, r);
+            output.push_back(l);
+        }
+        return output;
+    };
+    const auto first = sequence(), second = sequence();
+    CHECK(first == second, "Reset does not clear all limiter memory");
+
+    // Constant input isolates control discontinuities from the input waveform.
+    float l = first.back(), r = 0.0f, previous = l;
+    limiter.SetAmount(0.0f);
+    double maxStep = 0.0;
+    for (int i = 0; i < 9600; ++i) {
+        limiter.Process(.02f, -.01f, l, r);
+        maxStep = std::max(maxStep, static_cast<double>(std::abs(l - previous)));
+        previous = l;
+    }
+    CHECK(maxStep < .001, "bypass automation makes a discontinuity: " << maxStep);
+    CHECK(l == .02f && r == -.01f, "bypass never settles to exact dry signal");
+    limiter.SetAmount(1.0f);
+    for (int i = 0; i < 96000 * 12; ++i) {
+        limiter.Process(0.0f, 0.0f, l, r);
+        if (i % 128 == 0) {
+            limiter.FlushTiny();
+            CHECK(limiter.HasNoSubnormalState(), "silent limiter leaves subnormal control state");
+        }
+    }
+    CHECK(l == 0.0f && r == 0.0f, "silent limiter generates a residual output");
+    limiter.Process(.0001f, -.0001f, l, r);
+    CHECK(std::abs(l - .0001f) < 1e-8f, "limiter resumes with stale attenuation");
+}
+
+void TestPreampLimiterContainment()
+{
+    std::cout << "[Dynamics] Main limiter after drive; raw direct stems stay identical ..." << std::endl;
+    for (double rate : { 44100.0, 48000.0, 96000.0 }) {
+        for (int quality : { 0, 1, 2 }) {
+            EngineParameters p;
+            p.preampDrive = .9f;
+            p.warmth = 1.0f;
+            p.compAttack = 50.0f;
+            p.compRelease = 20.0f;
+            p.volume = 1.0f;
+            p.oversampling = quality;
+            p.stereoWidth = 2.0f;
+            auto chord = [&](float amount) {
+                MarembaEngine engine(rate);
+                p.compAmount = amount;
+                engine.SetParameters(p);
+                for (int n = 48; n < 64; ++n) engine.NoteOn(n, 1.0f);
+                Render out;
+                RenderFrames(engine, out, static_cast<int>(rate * .12));
+                return out;
+            };
+            const Render dry = chord(0.0f), limited = chord(1.0f);
+            CHECK(AllFinite(limited), "limiter engine path produces non-finite audio");
+            CHECK(std::max(Peak(limited.ch[kMainL]), Peak(limited.ch[kMainR]))
+                      <= maremba::AnalogLimiter::kOutputCeiling + 1e-6f,
+                  "final main bus exceeds sample ceiling at " << rate << "/" << quality);
+            CHECK(DiffEnergy(dry.ch[kMainL], limited.ch[kMainL], 0, dry.size()) > 1e-5,
+                  "limiter is not active on the main bus");
+            for (int channel = kCloseL; channel < kNumChannels; ++channel)
+                CHECK(dry.ch[channel] == limited.ch[channel], "limiter leaked into direct stem " << channel);
+        }
+    }
 }
 
 void TestLegacyPitchGlideIgnored()
@@ -2642,6 +2796,13 @@ int main(int argc, char** argv)
         RunPerformanceProbe();
         return 0;
     }
+    if (argc == 2 && std::string(argv[1]) == "--limiter") {
+        TestAnalogLimiterCurveAndLink();
+        TestAnalogLimiterBallistics();
+        TestAnalogLimiterState();
+        TestPreampLimiterContainment();
+        return gFailures ? 1 : 0;
+    }
     if (argc == 2 && (std::string(argv[1]) == "--repeat-variation" || std::string(argv[1]) == "--repeat-measure")) {
         TestOrganicRepeatVariation(std::string(argv[1]) == "--repeat-measure");
         return gFailures ? 1 : 0;
@@ -2652,7 +2813,10 @@ int main(int argc, char** argv)
     TestKeyboardPanning();
     TestStereoWidth();
     TestMirlitonBuzz();
-    TestPreampCompressorContainment();
+    TestAnalogLimiterCurveAndLink();
+    TestAnalogLimiterBallistics();
+    TestAnalogLimiterState();
+    TestPreampLimiterContainment();
     TestLegacyPitchGlideIgnored();
     TestSympatheticHalo();
     TestBodyBloom();
