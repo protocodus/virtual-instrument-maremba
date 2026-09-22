@@ -50,7 +50,7 @@ constexpr float kMaxOutputLevel = 1.0e3f;
 constexpr float kVelocityFloor = 0.01f;
 
 // Audible frame resonance at full Bloom, with a restrained lower half.
-constexpr float kBodyBloomGain = 0.180f;
+constexpr float kBodyBloomGain = 0.135f;
 
 // Fixed -6 dB headroom on the pre-fader direct taps (close/far/piezo are summed
 // before the compressor and saturator, so they run hotter than main).
@@ -141,6 +141,7 @@ void MarembaEngine::Reset() {
     FlushTails();
 
     mVolumeGain = mParams.volume * mParams.volume;
+    SnapLiveControls();
     mControlCounter = 0;
     mTailsSilent = true;
     mMeshRunning = mParams.sympathetic > 0.001f;
@@ -156,14 +157,14 @@ void MarembaEngine::ConfigureForRate() {
     mLimiter.SetAmount(mParams.compAmount);
     mPreamp.SetSampleRate(rate);
     mAppliedGlobalCents = GlobalCents();
-    mSympathetic.Configure(rate, mAppliedGlobalCents);
     ConfigureModel();
 }
 
 void MarembaEngine::ConfigureModel() {
     mConfiguredModel = mParams.model;
     ModelParams mp = GetModelParams(static_cast<EMarimbaModel>(mParams.model));
-    mFrameBody.Configure(InternalRate(), mp.frameBodyFreq, mp.frameBodyQ);
+    mFrameBody.Configure(InternalRate(), mp.frameBodyFreq, mp.frameBodyQ, static_cast<EMarimbaModel>(mParams.model));
+    mSympathetic.Configure(InternalRate(), GlobalCents(), static_cast<EMarimbaModel>(mParams.model));
 }
 
 void MarembaEngine::FlushTails() {
@@ -219,21 +220,45 @@ void MarembaEngine::SetParameters(const EngineParameters& params) {
         EnforcePolyphony();
     }
 
-    // A bypassed mesh, body or room is cleared once, so it restarts cleanly later
-    // (no stale tail bursts back when the knob comes up again).
-    const bool meshOn = p.sympathetic > 0.001f;
+    if (IsSilent()) {
+        mVolumeGain = p.volume * p.volume;
+        SnapLiveControls();
+    }
+}
+
+void MarembaEngine::SnapLiveControls() {
+    mBodyGain = mParams.bodyBloom;
+    mSympatheticGain = mParams.sympathetic;
+    mCloseGain = mParams.closeLevel;
+    mFarGain = mParams.farLevel;
+    mPiezoGain = mParams.piezoLevel;
+    mStereoWidth = mParams.stereoWidth;
+    mDrive = mParams.preampDrive;
+}
+
+void MarembaEngine::SmoothLiveControls() {
+    const auto smooth = [this](float& value, float target) {
+        value += mVolumeAlpha * (target - value);
+        if (std::abs(target - value) < 1.0e-5f) value = target;
+    };
+    smooth(mBodyGain, mParams.bodyBloom);
+    smooth(mSympatheticGain, mParams.sympathetic);
+    smooth(mCloseGain, mParams.closeLevel);
+    smooth(mFarGain, mParams.farLevel);
+    smooth(mPiezoGain, mParams.piezoLevel);
+    smooth(mStereoWidth, mParams.stereoWidth);
+    smooth(mDrive, mParams.preampDrive);
+    // Finish the audible fade before clearing a bypassed branch. Re-enabling
+    // it starts from silence rather than reviving an old stored resonance.
+    const bool meshOn = mSympatheticGain > 0.001f;
     if (!meshOn && mMeshRunning) mSympathetic.Reset();
     mMeshRunning = meshOn;
-    const bool bodyOn = p.bodyBloom > 0.001f;
+    const bool bodyOn = mBodyGain > 0.001f;
     if (!bodyOn && mBodyRunning) mFrameBody.Reset();
     mBodyRunning = bodyOn;
-    const bool roomOn = p.farLevel > 0.001f;   // AcousticRoom's bypass threshold (roomLevel = farLevel)
+    const bool roomOn = mFarGain > 0.001f;
     if (!roomOn && mRoomRunning) mMicMixer.Reset();
     mRoomRunning = roomOn;
-
-    if (IsSilent()) {
-        mVolumeGain = p.volume * p.volume; // no ramp from a stale gain when sound resumes
-    }
 }
 
 void MarembaEngine::SetPitchBendCents(float cents) {
@@ -248,7 +273,7 @@ void MarembaEngine::ApplyGlobalTuning() {
     for (auto& voice : mVoices) {
         if (voice.IsActive()) voice.Retune(total);
     }
-    mSympathetic.Configure(InternalRate(), total);
+    mSympathetic.Configure(InternalRate(), total, static_cast<EMarimbaModel>(mParams.model));
 }
 
 void MarembaEngine::ApplyFactorSwitch() {
@@ -264,6 +289,7 @@ void MarembaEngine::ApplyFactorSwitch() {
     mTailsSilent = true;
     mControlCounter = 0;
     mVolumeGain = mParams.volume * mParams.volume;
+    SnapLiveControls();
 
     // Notes that arrived during the fade start now, at the new rate.
     StartPendingNotes();
@@ -531,10 +557,10 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
     }
 
     const float volumeTarget = mParams.volume * mParams.volume;
-    const bool meshOn = mParams.sympathetic > 0.001f;
-    const bool bodyOn = mParams.bodyBloom > 0.001f;
-
     for (int f = 0; f < frameCount; ++f) {
+        SmoothLiveControls();
+        const bool meshOn = mMeshRunning;
+        const bool bodyOn = mBodyRunning;
         const int factor = mActiveFactor;
         bool anyVoice = false;
 
@@ -569,7 +595,7 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
                         totalMechanical += mVoices[v].GetMechanicalSample();
 
                         if (meshOn) {
-                            mSympathetic.AccumulateVoice(noteNum, voiceClose + voiceFar);
+                            mSympathetic.AccumulateVoice(noteNum, mVoices[v].GetMechanicalSample());
                         }
                     }
                 }
@@ -578,13 +604,13 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
             // Frame Body Bloom (low-frequency frame & rail mass resonance)
             float bodySound = 0.0f;
             if (bodyOn) {
-                bodySound = mFrameBody.Process(totalMechanical) * mParams.bodyBloom * kBodyBloomGain;
+                bodySound = mFrameBody.Process(totalMechanical) * mBodyGain * kBodyBloomGain;
             }
 
             // Inter-Bar Sympathetic Resonance Halo ("Singing Rack")
             float haloL = 0.0f, haloR = 0.0f;
             if (meshOn) {
-                mSympathetic.Process(mParams.sympathetic, haloL, haloR);
+                mSympathetic.Process(mSympatheticGain, haloL, haloR);
             }
 
             // Route acoustic emissions (frame body bloom & sympathetic halo) into acoustic mic accumulators
@@ -600,8 +626,8 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
             mMicMixer.ProcessFrame(accCloseL, accCloseR,
                                    accFarL, accFarR,
                                    accPiezo,
-                                   mParams.closeLevel, mParams.farLevel, mParams.piezoLevel,
-                                   mParams.stereoWidth,
+                                   mCloseGain, mFarGain, mPiezoGain,
+                                   mStereoWidth,
                                    frameMainL, frameMainR,
                                    mSubBufDirect[0][s], mSubBufDirect[1][s],
                                    mSubBufDirect[2][s], mSubBufDirect[3][s],
@@ -611,7 +637,7 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
             // afterward. Both nonlinear stages run at the oversampled rate.
             float preL = 0.0f;
             float preR = 0.0f;
-            mPreamp.Process(frameMainL, frameMainR, mParams.preampDrive, mParams.warmth, preL, preR);
+            mPreamp.Process(frameMainL, frameMainR, mDrive, mParams.warmth, preL, preR);
             mLimiter.Process(preL, preR, mSubBufMainL[s], mSubBufMainR[s]);
         }
 
@@ -658,6 +684,7 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
                 mTailsSilent = true;
                 mControlCounter = 0;
                 mVolumeGain = volumeTarget;
+                SnapLiveControls();
                 mSwitchGain = 1.0f;   // a cancelled switch may still be ramping back up
                 zeroFrames(f + 1);
                 break;

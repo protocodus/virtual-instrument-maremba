@@ -1,6 +1,7 @@
 #pragma once
 
 #include "DspMath.h"
+#include "MarimbaModel.h"
 #include <cmath>
 #include <array>
 #include <algorithm>
@@ -14,16 +15,18 @@ struct ResonatorCouplingEntry {
 };
 
 struct VoiceCouplingList {
-    // With 24 resonators a note has at most 9 consonant partners (unison,
-    // octaves, 5ths, 4ths, major 3rds), so 12 never truncates the list.
-    static constexpr int kCapacity = 12;
+    // Mechanical transmission reaches nearby modeled neighbors. Frequency
+    // selectivity belongs to the resonators, not a musical-interval whitelist.
+    static constexpr int kCapacity = 24;
     uint8_t count;
     ResonatorCouplingEntry entries[kCapacity];
 };
 
 class SympatheticMesh {
 public:
-    static constexpr int kNumResonators = 24; // C3 (MIDI 48) to B5 (MIDI 71)
+    static constexpr int kFirstNote = 36; // C2
+    static constexpr int kLastNote = 96;  // C7
+    static constexpr int kNumResonators = kLastNote - kFirstNote + 1;
 
     SympatheticMesh() {
         for (int i = 0; i < kNumResonators; ++i) {
@@ -41,6 +44,7 @@ public:
             mY2[i] = 0.0;
             mDrive[i] = 0.0f;
             mDriveLpState[i] = 0.0;
+            mInput1[i] = mInput2[i] = 0.0;
         }
     }
 
@@ -49,17 +53,22 @@ public:
     // table is built once in the constructor. A ringing resonator keeps its
     // amplitude and phase across the change (its delayed state is re-expressed
     // for the new pole), so bend or tune modulation cannot pump it.
-    void Configure(double sampleRate, double tuneOffsetCents = 0.0) {
+    void Configure(double sampleRate, double tuneOffsetCents = 0.0,
+                   EMarimbaModel model = EMarimbaModel::ImperialRosewood) {
         mSampleRate = sampleRate > 8000.0 ? sampleRate : 44100.0;
-        mLpAlpha = 1.0 - std::exp(-kTwoPiD * 600.0 / mSampleRate);
+        const int index = std::clamp(static_cast<int>(model), 0, 3);
+        static constexpr double transmissionCutoff[4] = {1800.0, 1400.0, 1200.0, 3200.0};
+        static constexpr double supportQ[4] = {24.0, 14.0, 18.0, 38.0};
+        mLpAlpha = 1.0 - std::exp(-kTwoPiD * transmissionCutoff[index] / mSampleRate);
 
-        // 24 chromatic sympathetic resonators spanning C3 (MIDI 48) to B5 (MIDI 71)
+        // Reduced chromatic bank covering the core five-octave playing register.
         for (int i = 0; i < kNumResonators; ++i) {
-            double note = 48.0 + static_cast<double>(i); // C3 to B5
+            double note = kFirstNote + static_cast<double>(i);
             double f = 440.0 * std::exp2((note - 69.0 + tuneOffsetCents / 100.0) / 12.0);
 
-            // Realistic wooden bar & air column sympathetic Q (20 to 28)
-            double q = 20.0 + 8.0 * (static_cast<double>(i) / static_cast<double>(kNumResonators - 1));
+            // Steel bridge/tines ring longer than a lossy wooden soundbox.
+            // These effective support losses are voiced, not species data.
+            double q = supportQ[index] * (1.0 + 0.4 * i / (kNumResonators - 1.0));
             double r = std::exp(-kPiD * f / (q * mSampleRate));
             double w = std::min(kTwoPiD * f / mSampleRate, 0.98 * kPiD);
             // With y1 = A cos(phi) and rOld*y2 = A cos(phi - wOld):
@@ -75,15 +84,17 @@ public:
             mS[i] = r * r;
 
             // Coupling strength diminishes slightly toward outer edges
-            double octavePos = static_cast<double>(i) / 12.0;
-            double distFromCenter = std::abs(octavePos - 1.0);
+            double distFromCenter = std::abs(2.0 * i / (kNumResonators - 1.0) - 1.0);
             double couplingFalloff = 1.0 - 0.25 * distFromCenter;
 
             // Input gain (1 - r) * 0.05 as voiced at the reference rate, kept at the
             // same centre gain at every rate (the plain (1 - r) form grows with fs).
             double rRef = std::exp(-kPiD * f / (q * kReferenceRate));
             double wRef = std::min(kTwoPiD * f / kReferenceRate, 0.98 * kPiD);
-            mB[i] = RateInvariantResonatorGain((1.0 - rRef) * 0.05 * couplingFalloff, rRef, wRef, r, w);
+            // Force-to-velocity bandpass: suppress off-resonant low-frequency
+            // accumulation as well as DC, while retaining centre sensitivity.
+            mB[i] = RateInvariantResonatorGain((1.0 - rRef) * 0.05 * couplingFalloff, rRef, wRef, r, w)
+                / (2.0 * std::sin(w));
         }
     }
 
@@ -94,16 +105,17 @@ public:
         }
     }
 
-    // Accumulate acoustic energy from an active voice into harmonically coupled resonators
-    inline void AccumulateVoice(int noteNumber, float voiceAcoustic) {
+    // Accumulate transmitted mechanical motion; the bank selects the spectral
+    // overlap of neighboring bars/tines, including adjacent semitones.
+    inline void AccumulateVoice(int noteNumber, float voiceMechanical) {
         if (noteNumber < 0 || noteNumber >= 128) return;
         const auto& list = mNoteCoupling[noteNumber];
         for (uint8_t k = 0; k < list.count; ++k) {
-            mDrive[list.entries[k].resonatorIdx] += list.entries[k].weight * voiceAcoustic;
+            mDrive[list.entries[k].resonatorIdx] += list.entries[k].weight * voiceMechanical;
         }
     }
 
-    // Process all 24 resonators and produce spatialized stereo halo
+    // Process the receiver bank and produce a spatialized stereo halo
     inline void Process(float sympatheticAmount, float& outHaloL, float& outHaloR) {
         if (sympatheticAmount <= 0.001f) {
             outHaloL = 0.0f;
@@ -118,17 +130,23 @@ public:
             // Lowpass input to smooth out abrupt transients
             mDriveLpState[i] += mLpAlpha * (mDrive[i] - mDriveLpState[i]);
 
-            double y = mC[i] * mY1[i] - mS[i] * mY2[i] + mB[i] * mDriveLpState[i];
+            const double drive = mDriveLpState[i] - mInput2[i];
+            mInput2[i] = mInput1[i];
+            mInput1[i] = mDriveLpState[i];
+            double y = mC[i] * mY1[i] - mS[i] * mY2[i] + mB[i] * drive;
             mY2[i] = mY1[i];
             mY1[i] = y;
 
-            // Spatial distribution across stereo field: C3 left (0.12) to B5 right (0.88)
+            // Spatial distribution across stereo field: C2 left to C7 right
             sumL += y * mPanL[i];
             sumR += y * mPanR[i];
         }
 
-        outHaloL = static_cast<float>(sumL * sympatheticAmount * 0.035);
-        outHaloR = static_cast<float>(sumR * sympatheticAmount * 0.035);
+        // Neighbor-only readout needs a modest level restoration after the
+        // parallel driven-key resonance is removed. This is an acoustic gain,
+        // not feedback energy; low-frequency rejection remains in each receiver.
+        outHaloL = static_cast<float>(sumL * sympatheticAmount * 0.20);
+        outHaloR = static_cast<float>(sumR * sympatheticAmount * 0.20);
     }
 
     // Control rate: zero states that have decayed to nothing (below 1e-15,
@@ -141,6 +159,8 @@ public:
             if (std::abs(mDriveLpState[i]) < 1.0e-15) {
                 mDriveLpState[i] = 0.0;
             }
+            if (std::abs(mInput1[i]) < 1.0e-15) mInput1[i] = 0.0;
+            if (std::abs(mInput2[i]) < 1.0e-15) mInput2[i] = 0.0;
             const double mag = std::abs(mY1[i]) + std::abs(mY2[i]);
             if (mag < 1.0e-15 || !(mag <= kMaxState)) {
                 mY1[i] = 0.0;
@@ -153,7 +173,8 @@ public:
     bool HasNoSubnormalState() const {
         for (int i = 0; i < kNumResonators; ++i) {
             if (std::fpclassify(mY1[i]) == FP_SUBNORMAL || std::fpclassify(mY2[i]) == FP_SUBNORMAL
-                || std::fpclassify(mDriveLpState[i]) == FP_SUBNORMAL) return false;
+                || std::fpclassify(mDriveLpState[i]) == FP_SUBNORMAL
+                || std::fpclassify(mInput1[i]) == FP_SUBNORMAL || std::fpclassify(mInput2[i]) == FP_SUBNORMAL) return false;
         }
         return true;
     }
@@ -173,37 +194,24 @@ public:
 private:
     static constexpr double kMaxState = 1.0e3;
 
-    // Build Harmonic Coupling Matrix: each MIDI note (0-127) couples ONLY
-    // to consonant harmonic intervals (unison, octave, 5th, 4th, major 3rd).
-    // Semitones, whole-tones, and tritones have STRICTLY 0.0 coupling.
+    // A local support transmits most strongly to nearby keys. The spectral
+    // filters decide what rings: no fifth/third whitelist and no arbitrary
+    // prohibition on adjacent keys. The finite bank is a reduced approximation
+    // to mounting transmission, not a reciprocal simulation of all 128 bars.
     void BuildCouplingTable() {
         for (int n = 0; n < 128; ++n) {
             auto& list = mNoteCoupling[n];
             list.count = 0;
-
-            for (int i = 0; i < kNumResonators; ++i) {
-                int resNote = 48 + i;
-                int delta = std::abs(n - resNote);
-                int intervalClass = delta % 12;
-                int octDist = delta / 12;
-                float octFalloff = 1.0f / (1.0f + 0.5f * static_cast<float>(octDist));
-
-                float w = 0.0f;
-                if (delta == 0) {
-                    w = 1.0f; // Unison
-                } else if (intervalClass == 0) {
-                    w = 0.70f * octFalloff; // Octaves
-                } else if (intervalClass == 7) {
-                    w = 0.45f * octFalloff; // Perfect Fifth
-                } else if (intervalClass == 5) {
-                    w = 0.25f * octFalloff; // Perfect Fourth
-                } else if (intervalClass == 4) {
-                    w = 0.15f * octFalloff; // Major Third
-                }
-
-                if (w > 0.001f && list.count < VoiceCouplingList::kCapacity) {
-                    list.entries[list.count++] = { static_cast<uint8_t>(i), w };
-                }
+            // The driven key already exists in the voice bank. Duplicating it
+            // here masks neighboring resonances with a parallel fundamental.
+            // A one-octave support neighborhood bounds work to 24 paths per
+            // voice while the receiver bank spans the full core register.
+            for (int key = std::max(kFirstNote, n - 12);
+                 key <= std::min(kLastNote, n + 12); ++key) {
+                if (key == n) continue;
+                const double distance = std::abs(n - key);
+                const float weight = static_cast<float>(1.0 / (1.0 + 0.12 * distance * distance));
+                list.entries[list.count++] = {static_cast<uint8_t>(key - kFirstNote), weight};
             }
         }
     }
@@ -218,6 +226,7 @@ private:
     std::array<double, kNumResonators> mB{};
     std::array<float, kNumResonators> mDrive{};
     std::array<double, kNumResonators> mDriveLpState{};
+    std::array<double, kNumResonators> mInput1{}, mInput2{};
     std::array<double, kNumResonators> mPanL{};
     std::array<double, kNumResonators> mPanR{};
     std::array<VoiceCouplingList, 128> mNoteCoupling{};

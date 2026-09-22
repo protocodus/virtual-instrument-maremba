@@ -979,32 +979,41 @@ void TestOrganicRepeatVariation(bool measurementsOnly = false)
 
 void TestMeshCoupling()
 {
-    std::cout << "[Mesh] Zero semitone bleed and every consonant interval coupled ..." << std::endl;
+    std::cout << "[Mesh] Mechanical neighbors respond; resonant selectivity rejects remote frequencies ..." << std::endl;
     maremba::SympatheticMesh mesh;
     mesh.Configure(88200.0);
-    for (int s = 0; s < 1000; ++s) {
+    double energy[maremba::SympatheticMesh::kNumResonators] = {};
+    // Transmit a C4 component from B3: only OTHER keys may respond.
+    for (int s = 0; s < 44100; ++s) {
         mesh.BeginSample();
-        mesh.AccumulateVoice(60, static_cast<float>(std::sin(2.0 * M_PI * 261.63 * s / 88200.0)));
+        mesh.AccumulateVoice(59, static_cast<float>(std::sin(2.0 * M_PI * NoteHz(60) * s / 88200.0)));
         float l, r;
         mesh.Process(1.0f, l, r);
+        if (s >= 22050) for (int i = 0; i < maremba::SympatheticMesh::kNumResonators; ++i) {
+            const double out = mesh.GetResonatorOutput(i);
+            energy[i] += out * out;
+        }
     }
-    CHECK(std::fabs(mesh.GetResonatorOutput(12)) > 0.0f, "C4 unison resonator not excited");
-    CHECK(mesh.GetResonatorOutput(11) == 0.0f && mesh.GetResonatorOutput(13) == 0.0f, "semitone resonators excited");
+    const auto response = [&](int note) { return energy[note - maremba::SympatheticMesh::kFirstNote]; };
+    CHECK(response(59) == 0.0, "support duplicates the driven key");
+    CHECK(response(60) > 0.0, "neighboring resonant receiver not excited");
+    CHECK(response(58) > 0.0 && response(61) > 0.0, "support suppresses nearby keys artificially");
+    CHECK(response(60) > 4.0 * std::max(response(58), response(61)), "support loses resonance selectivity");
+    CHECK(response(60) > 100.0 * response(54), "remote detuned support muddies the played note");
 
-    int missing = 0;
     for (int n = 0; n < 128; ++n) {
         const auto& list = mesh.GetCouplingList(n);
         CHECK(list.count <= maremba::VoiceCouplingList::kCapacity, "coupling list overflow");
-        for (int i = 0; i < maremba::SympatheticMesh::kNumResonators; ++i) {
-            const int delta = std::abs(n - (48 + i));
-            const int cls = delta % 12;
-            const bool consonant = (cls == 0 || cls == 4 || cls == 5 || cls == 7);
-            bool present = false;
-            for (int k = 0; k < list.count; ++k) present = present || list.entries[k].resonatorIdx == i;
-            if (consonant != present) ++missing;
+        int previous = -1;
+        for (int k = 0; k < list.count; ++k) {
+            const int index = list.entries[k].resonatorIdx;
+            const int target = maremba::SympatheticMesh::kFirstNote + index;
+            CHECK(index > previous && index < maremba::SympatheticMesh::kNumResonators, "invalid or duplicate receiver");
+            CHECK(target != n && std::abs(target - n) <= 12, "invalid support neighborhood");
+            CHECK(list.entries[k].weight > 0.0f && list.entries[k].weight <= 1.0f, "invalid transmission weight");
+            previous = index;
         }
     }
-    CHECK(missing == 0, missing << " consonant couplings missing or dissonant ones present");
 }
 
 void TestRestrikeContinuity()
@@ -2542,14 +2551,14 @@ void TestMeshAndBodyBypassNoStaleTail()
 {
     std::cout << "[Halo/Body] Sympathetic / Body 1 -> 0 -> 1 while ringing brings back no stale tail ..." << std::endl;
     for (int which = 0; which < 2; ++which) {
-        auto run = [&](int mode) { // 0 steady on, 1 toggled, 2 always off
+        auto run = [&](int mode) { // 0 steady on, 1 toggled, 2 always off, 3 first enabled at 1.5 s
             EngineParameters p = CleanParams();
             p.decay = 4.0f;
             p.farLevel = 0.0f;
             p.sympathetic = which == 0 ? 1.0f : 0.0f;
             p.bodyBloom = which == 1 ? 1.0f : 0.0f;
             float& knob = which == 0 ? p.sympathetic : p.bodyBloom;
-            if (mode == 2) knob = 0.0f;
+            if (mode == 2 || mode == 3) knob = 0.0f;
             MarembaEngine e(44100.0);
             e.SetParameters(p);
             for (int n : { 48, 55, 60 }) e.NoteOn(n, 0.9f);
@@ -2557,11 +2566,11 @@ void TestMeshAndBodyBypassNoStaleTail()
             RenderFrames(e, r, 44100 / 2, &p);
             if (mode == 1) knob = 0.0f;
             RenderFrames(e, r, 44100, &p);
-            if (mode == 1) knob = 1.0f;
+            if (mode == 1 || mode == 3) knob = 1.0f;
             RenderFrames(e, r, 44100 / 2, &p);
             return r;
         };
-        const Render steady = run(0), toggled = run(1), dry = run(2);
+        const Render steady = run(0), toggled = run(1), dry = run(2), fresh = run(3);
         const size_t at = 44100 / 2 + 44100, win = which == 0 ? 882 : 220;
         double eToggled = 0.0, eSteady = 0.0;
         for (size_t i = at; i < at + win; ++i) {
@@ -2573,7 +2582,15 @@ void TestMeshAndBodyBypassNoStaleTail()
         std::cout << "  -> " << (which == 0 ? "halo" : "body") << " right after re-enable: " << Db(std::sqrt(eToggled / win))
                   << " dBFS (steady " << Db(std::sqrt(eSteady / win)) << ")" << std::endl;
         CHECK(eSteady > 0.0, "no " << (which == 0 ? "halo" : "body") << " to compare");
-        CHECK(eToggled <= eSteady, "stale " << (which == 0 ? "halo" : "body") << " resumes when the knob returns");
+        // A freshly driven bank can exceed its steady output: detuned neighbors
+        // can cancel differently during the build-up. Compare identical input
+        // histories from rest instead of assuming an ordering of their energy.
+        // This detects ANY revived old state, even one too quiet to exceed the
+        // continuously running branch, throughout the entire post-enable tail.
+        CHECK(eToggled > 0.0, "re-enabled " << (which == 0 ? "halo" : "body") << " stays silent");
+        const double stale = DiffEnergy(toggled.ch[kCloseL], fresh.ch[kCloseL], at, toggled.size());
+        std::cout << "  -> difference from a never-before-enabled branch: " << stale << std::endl;
+        CHECK(stale == 0.0, "stale " << (which == 0 ? "halo" : "body") << " state differs from a fresh branch");
     }
 }
 

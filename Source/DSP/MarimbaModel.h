@@ -1,5 +1,6 @@
 #pragma once
 
+#include "KalimbaModes.h"
 #include <cmath>
 #include <cstdint>
 
@@ -116,8 +117,8 @@ struct ModelParams {
     float clackBandwidth;    // Bandwidth of clack noise burst (Hz)
     float woodInternalFriction;
 
-    // Premium physical modeling phenomena
-    float anisotropicSplitCents; // Dual-mode orthogonal bending split for singing beating
+    // Voiced secondary-mode and support properties
+    float anisotropicSplitCents; // Legacy name: voiced weak secondary-mode split, not measured grain data
     float contactDampingFactor;  // Viscoelastic mallet damping of overtones during contact
     float frameBodyFreq;         // Low-frequency frame & rail resonance frequency (Hz)
     float frameBodyQ;            // Frame body acoustic Q
@@ -153,7 +154,7 @@ inline ModelParams GetModelParams(EMarimbaModel model) {
                 2800.0f,  // clack bandwidth
                 0.0008f,
                 // Premium phenomena:
-                1.0f,     // subtle rosewood anisotropic split (1.0 cent beating)
+                1.0f,     // voiced weak rosewood split (1.0 cent beating)
                 1.30f,    // pronounced mallet felt contact damping
                 86.0f,    // 86 Hz mahogany frame resonance
                 1.2f,     // well-damped frame Q
@@ -182,7 +183,7 @@ inline ModelParams GetModelParams(EMarimbaModel model) {
                 1600.0f,
                 0.0027f,
                 // Premium phenomena:
-                1.2f,     // padauk anisotropic split
+                1.2f,     // voiced weak padauk split
                 1.15f,
                 110.0f,   // 110 Hz cedar frame body resonance
                 1.2f,
@@ -222,8 +223,12 @@ inline ModelParams GetModelParams(EMarimbaModel model) {
                 "Kalimba Artisan 17-Key",
                 "Solid African Acacia wood soundbox with pyrography rosette",
                 "Ergonomic spring steel tines on brass and hardwood bridge",
-                // Clamped cantilever beam overtone ratios (Euler-Bernoulli theory)
-                { 1.000f, 6.267f, 17.550f, 34.390f, 56.840f, 83.900f, 116.700f, 155.300f },
+                // Clamped--supported--free beam: frequencies and contact/radiation
+                // shapes share the same two-span boundary solution.
+                { float(KalimbaModeRatio(0)), float(KalimbaModeRatio(1)),
+                  float(KalimbaModeRatio(2)), float(KalimbaModeRatio(3)),
+                  float(KalimbaModeRatio(4)), float(KalimbaModeRatio(5)),
+                  float(KalimbaModeRatio(6)), float(KalimbaModeRatio(7)) },
                 { 1.000f, 0.220f,  0.045f,  0.015f,  0.006f,  0.002f,  0.001f,  0.0005f },
                 0.025f,   // low radiation damping (narrow tine, high modes sing out)
                 0.12f,    // low internal damping (spring steel)

@@ -2,6 +2,7 @@
 
 #include "RoomAlgorithms.h"
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 namespace maremba {
@@ -11,7 +12,18 @@ public:
     // Master mix scale of the three mic buses (also applied to the direct outs).
     static constexpr float kMasterMixScale = 0.65f;
 
-    MicMixer() = default;
+    MicMixer() {
+        // Keyboard geometry is fixed. Evaluate the four trigonometric gains
+        // once, not for every voice at every oversampled audio frame.
+        for (int note = 0; note < 128; ++note) {
+            const float position = std::clamp((static_cast<float>(note) - 36.0f) / 60.0f, 0.0f, 1.0f);
+            const float bipolar = (position - 0.5f) * 2.0f;
+            const float closeAngle = (bipolar * 0.45f + 0.5f) * 1.57079632679f;
+            const float farAngle = (bipolar * 0.25f + 0.5f) * 1.57079632679f;
+            mPan[note] = {std::cos(closeAngle), std::sin(closeAngle),
+                          std::cos(farAngle), std::sin(farAngle)};
+        }
+    }
 
     // Not realtime safe: reserve the room's delay memory (see AcousticRoom::Allocate).
     void Allocate(double maxSampleRate) {
@@ -34,22 +46,12 @@ public:
                         float& accFarL, float& accFarR,
                         float& accPiezo)
     {
-        // Stereo panning across keyboard: C2 (MIDI 36) -> pan 0.15 (left), C7 (MIDI 96) -> pan 0.85 (right)
-        float panNorm = std::clamp((static_cast<float>(noteNumber) - 36.0f) / 60.0f, 0.0f, 1.0f);
-        float panBipolar = (panNorm - 0.5f) * 2.0f;
-
-        // Apply keyboard pan to Close mic
-        float angle = (panBipolar * 0.45f + 0.5f) * 1.57079632679f; // 0 to pi/2
-        float gainL = std::cos(angle);
-        float gainR = std::sin(angle);
-
-        accCloseL += closeIn * gainL;
-        accCloseR += closeIn * gainR;
-
-        // Far/Room mic has diffuse spatialization (wider stereo image, softer panning)
-        float farAngle = (panBipolar * 0.25f + 0.5f) * 1.57079632679f;
-        accFarL += farIn * std::cos(farAngle);
-        accFarR += farIn * std::sin(farAngle);
+        const auto& pan = mPan[std::clamp(noteNumber, 0, 127)];
+        accCloseL += closeIn * pan.closeL;
+        accCloseR += closeIn * pan.closeR;
+        // Far microphones use the same softer keyboard panning as before.
+        accFarL += farIn * pan.farL;
+        accFarR += farIn * pan.farR;
 
         // Piezo is direct contact (mono)
         accPiezo += piezoIn;
@@ -100,6 +102,8 @@ public:
     }
 
 private:
+    struct Pan { float closeL, closeR, farL, farR; };
+    std::array<Pan, 128> mPan{};
     RoomBank mRoom;
 };
 

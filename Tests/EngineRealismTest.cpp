@@ -209,6 +209,10 @@ int main(int argc, char** argv) {
     std::array<std::array<double, 4>, 4> fingerprints{};
     for (int model = 0; model < 4; ++model) {
         Settings s; s.model = model; s.seconds = .8;
+        // Tuned bar cavities follow C3; the fixed kalimba box responds most
+        // strongly near C4. Its extended bass register must not be forced into
+        // the same loading merely to emulate the former note-following tube.
+        s.note = model == 3 ? 60 : 48;
         s.hardness = .1f; const auto soft = render(s);
         s.hardness = .9f; const auto hard = render(s);
         s.hardness = .4f;

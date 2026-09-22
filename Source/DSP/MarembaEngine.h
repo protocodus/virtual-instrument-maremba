@@ -29,7 +29,7 @@ struct EngineParameters {
     float buzzAmount = 0.15f;       // 0..1
     float artifacts = 0.35f;        // 0..1
 
-    // Premium physical modeling phenomena
+    // Shared acoustic response
     float sympathetic = 0.40f;      // 0..1 inter-bar sympathetic resonance halo
     float pitchGlide = 0.30f;       // legacy input, ignored and sanitized to 0
     float bodyBloom = 0.50f;        // 0..1 frame & soundboard body
@@ -142,6 +142,8 @@ private:
     int FindStealVictim() const;
     void EnforcePolyphony();
     void ControlTick();
+    void SnapLiveControls();
+    void SmoothLiveControls();
 
     double mBaseSampleRate = 44100.0;
     EngineParameters mParams;
@@ -164,6 +166,11 @@ private:
     // Master volume smoothing (per output frame)
     float mVolumeGain = 0.0f;
     float mVolumeAlpha = 0.0f;
+    // Five-millisecond output-rate smoothing for continuously audible controls.
+    // Strike/contact parameters deliberately stay latched to the next note.
+    float mBodyGain = 0.0f, mSympatheticGain = 0.0f;
+    float mCloseGain = 0.0f, mFarGain = 0.0f, mPiezoGain = 0.0f;
+    float mStereoWidth = 1.0f, mDrive = 0.0f;
 
     // Control-rate clock and silence tracking
     int mControlCounter = 0;

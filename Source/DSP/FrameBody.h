@@ -1,104 +1,100 @@
 #pragma once
 
 #include "DspMath.h"
+#include "MarimbaModel.h"
+#include <array>
 #include <cmath>
 #include <algorithm>
-#include <initializer_list>
 
 namespace maremba {
 
+// Reduced force-to-velocity-shaped response of the support and wooden
+// radiating surfaces to normalized mechanical drive (not calibrated force). Each damped mode has zeros at DC and Nyquist: static displacement
+// cannot radiate, and a low note cannot leave a large unpitched displacement
+// offset in the microphone. Frequencies/Q/levels are voiced, not measurements.
 class FrameBody {
 public:
-    FrameBody() {
-        Reset();
-    }
-
     void Reset() {
-        mY1_1 = mY2_1 = 0.0;
-        mY1_2 = mY2_2 = 0.0;
-        mHpInPrev = 0.0;
-        mHpOutPrev = 0.0;
+        for (auto& mode : mModes) mode.y1 = mode.y2 = 0.0;
+        mInput1 = mInput2 = mHpInPrev = mHpOutPrev = 0.0;
     }
 
-    // Control rate: once every state has decayed below 1e-15 (about -300 dB),
-    // clear the body so it never cycles on subnormal values.
     void FlushTiny() {
-        if (std::abs(mY1_1) < 1.0e-15 && std::abs(mY2_1) < 1.0e-15
-            && std::abs(mY1_2) < 1.0e-15 && std::abs(mY2_2) < 1.0e-15
-            && std::abs(mHpInPrev) < 1.0e-15 && std::abs(mHpOutPrev) < 1.0e-15) {
-            Reset();
+        for (auto& mode : mModes) {
+            if (std::abs(mode.y1) + std::abs(mode.y2) < 1.0e-15)
+                mode.y1 = mode.y2 = 0.0;
         }
+        if (std::abs(mInput1) < 1.0e-15) mInput1 = 0.0;
+        if (std::abs(mInput2) < 1.0e-15) mInput2 = 0.0;
+        if (std::abs(mHpInPrev) < 1.0e-15) mHpInPrev = 0.0;
+        if (std::abs(mHpOutPrev) < 1.0e-15) mHpOutPrev = 0.0;
     }
 
-    // True when no state is subnormal (unit testing)
     bool HasNoSubnormalState() const {
-        for (double v : { mY1_1, mY2_1, mY1_2, mY2_2, mHpInPrev, mHpOutPrev }) {
-            if (std::fpclassify(v) == FP_SUBNORMAL) return false;
+        for (const auto& mode : mModes)
+            if (std::fpclassify(mode.y1) == FP_SUBNORMAL || std::fpclassify(mode.y2) == FP_SUBNORMAL)
+                return false;
+        return std::fpclassify(mInput1) != FP_SUBNORMAL && std::fpclassify(mInput2) != FP_SUBNORMAL
+            && std::fpclassify(mHpInPrev) != FP_SUBNORMAL && std::fpclassify(mHpOutPrev) != FP_SUBNORMAL;
+    }
+
+    void Configure(double sampleRate, double frameFreq, double frameQ,
+                   EMarimbaModel model = EMarimbaModel::ImperialRosewood) {
+        const double fs = sampleRate > 8000.0 ? sampleRate : 44100.0;
+        const int index = std::clamp(static_cast<int>(model), 0, 3);
+        const double f1 = std::clamp(frameFreq, 40.0, 300.0);
+        const double q1 = std::clamp(frameQ, 1.0, 2.5);
+        // Rail/end-cheek, wooden box panels, bamboo frame, or kalimba board.
+        static constexpr double secondRatio[4] = {2.85, 2.35, 3.15, 1.83};
+        static constexpr double thirdRatio[4] = {5.2, 4.1, 5.6, 3.47};
+        const double frequencies[3] = {f1, f1 * secondRatio[index], f1 * thirdRatio[index]};
+        const double weights[3] = {0.15, 0.10, index == 3 ? 0.055 : 0.035};
+        for (int i = 0; i < 3; ++i) {
+            auto& mode = mModes[i];
+            const double frequency = std::min(frequencies[i], fs * 0.1);
+            const double q = q1 * (i == 2 ? 0.75 : 1.0);
+            const double w = kTwoPiD * frequency / fs;
+            const double r = std::exp(-kPiD * frequency / (q * fs));
+            // Preserve amplitude/phase across a live instrument change.
+            // Reusing the old delayed state with a new frequency can pump it.
+            if (mode.r > 0.0 && mode.w > 1.0e-12) {
+                const double quadrature = (mode.r * mode.y2 - mode.y1 * std::cos(mode.w)) / std::sin(mode.w);
+                mode.y2 = (mode.y1 * std::cos(w) + quadrature * std::sin(w)) / r;
+            }
+            mode.r = r;
+            mode.w = w;
+            mode.c = 2.0 * r * std::cos(w);
+            mode.s = r * r;
+            const double rRef = std::exp(-kPiD * frequency / (q * kReferenceRate));
+            const double wRef = kTwoPiD * frequency / kReferenceRate;
+            const double centreGain = (1.0 - rRef) * weights[i] / ResonatorDenominatorAt(rRef, wRef);
+            mode.b = centreGain * ResonatorDenominatorAt(r, w) / (2.0 * std::sin(w));
         }
-        return true;
+        mHpAlpha = std::exp(-kTwoPiD * 70.0 / fs);
     }
 
-    // Coefficients only (realtime safe); call when the rate or the model changes.
-    void Configure(double sampleRate, double frameFreq, double frameQ) {
-        mSampleRate = sampleRate > 8000.0 ? sampleRate : 44100.0;
-
-        // Mode 1: Primary frame / rail mass resonance (e.g. ~86-145 Hz)
-        // High internal friction in wood rails gives heavily damped mechanical Q (1.0 - 2.5)
-        double f1 = std::clamp(frameFreq, 40.0, 300.0);
-        double q1 = std::clamp(frameQ, 1.0, 2.5);
-        ConfigureMode(f1, q1, 0.15, mC1, mS1, mB1);
-
-        // Mode 2: Secondary wooden end-cheek / rail impulse thump
-        // Damped identically to prevent pitched sine-wave ringing
-        double f2 = std::min(f1 * 2.85, 600.0);
-        ConfigureMode(f2, q1, 0.10, mC2, mS2, mB2);
-
-        // High-pass filter coefficient (~70 Hz cutoff to prevent sub rumble)
-        double hpCutoff = 70.0;
-        mHpAlpha = std::exp(-kTwoPiD * hpCutoff / mSampleRate);
-    }
-
-    // Process a mechanical excitation sample from the bars
-    inline float Process(float mechanicalIn) {
-        double y1 = mC1 * mY1_1 - mS1 * mY2_1 + mB1 * mechanicalIn;
-        mY2_1 = mY1_1;
-        mY1_1 = y1;
-
-        double y2 = mC2 * mY1_2 - mS2 * mY2_2 + mB2 * mechanicalIn;
-        mY2_2 = mY1_2;
-        mY1_2 = y2;
-
-        double rawOut = y1 + y2;
-
-        // 1-pole high-pass: y[n] = alpha * (y[n-1] + x[n] - x[n-1])
-        double hpOut = mHpAlpha * (mHpOutPrev + rawOut - mHpInPrev);
-        mHpInPrev = rawOut;
-        mHpOutPrev = hpOut;
-
-        return static_cast<float>(hpOut);
+    float Process(float mechanicalIn) {
+        const double forceDifference = mechanicalIn - mInput2;
+        mInput2 = mInput1;
+        mInput1 = mechanicalIn;
+        double raw = 0.0;
+        for (auto& mode : mModes) {
+            const double y = mode.c * mode.y1 - mode.s * mode.y2 + mode.b * forceDifference;
+            mode.y2 = mode.y1;
+            mode.y1 = y;
+            raw += y;
+        }
+        const double out = mHpAlpha * (mHpOutPrev + raw - mHpInPrev);
+        mHpInPrev = raw;
+        mHpOutPrev = out;
+        return static_cast<float>(out);
     }
 
 private:
-    // Two-pole resonator whose centre gain equals that of b = (1 - r) * k at the
-    // reference rate (the plain (1 - r) * k form grows in proportion to fs).
-    void ConfigureMode(double f, double q, double k, double& c, double& s, double& b) const {
-        double r = std::exp(-kPiD * f / (q * mSampleRate));
-        double w = kTwoPiD * f / mSampleRate;
-        c = 2.0 * r * std::cos(w);
-        s = r * r;
-        double rRef = std::exp(-kPiD * f / (q * kReferenceRate));
-        double wRef = kTwoPiD * f / kReferenceRate;
-        b = RateInvariantResonatorGain((1.0 - rRef) * k, rRef, wRef, r, w);
-    }
-
-    double mSampleRate = 44100.0;
-    double mY1_1 = 0.0, mY2_1 = 0.0;
-    double mC1 = 0.0, mS1 = 0.0, mB1 = 0.0;
-    double mY1_2 = 0.0, mY2_2 = 0.0;
-    double mC2 = 0.0, mS2 = 0.0, mB2 = 0.0;
-    double mHpAlpha = 0.99;
-    double mHpInPrev = 0.0;
-    double mHpOutPrev = 0.0;
+    struct Mode { double y1 = 0.0, y2 = 0.0, c = 0.0, s = 0.0, b = 0.0, r = 0.0, w = 0.0; };
+    std::array<Mode, 3> mModes{};
+    double mInput1 = 0.0, mInput2 = 0.0;
+    double mHpAlpha = 0.99, mHpInPrev = 0.0, mHpOutPrev = 0.0;
 };
 
 } // namespace maremba

@@ -3,6 +3,8 @@
 #include "MarimbaModel.h"
 #include "RandomArtifacts.h"
 #include "PiezoPickup.h"
+#include "ModalRadiation.h"
+#include "MalletContact.h"
 #include <cmath>
 #include <cstdint>
 
@@ -93,12 +95,15 @@ private:
         double w = 0.0;       // pole angle currently in c (tuning and bend applied)
         double r = 0.0;
         double cosW = 1.0, invSin = 0.0; // quadrature displacement of a tine
+        double cosOverR = 0.0, sinOverR = 0.0; // cached state-junction coordinate maps
         double invSin2 = 0.0; // 1 / sin^2(w): converts the quadratic invariant to squared amplitude
         double contactPole = 1.0; // loss at this mode's contact footprint
         double restrikePole = 1.0;
     };
 
     void SetModeCoefficients(ModeState& mode, double omega) const;
+    void UpdateTineStrainScales();
+    void UpdateCavityCoupling();
     // New pole angle for a ringing resonator, keeping its amplitude and phase.
     void RetuneMode(ModeState& mode, double omega) const;
     // Also preserve a ringing state when a restrike changes its decay radius.
@@ -107,6 +112,11 @@ private:
     // ModeEnergy, and a mode that has decayed below -300 dB is zeroed so it
     // never cycles on subnormal values while the rest of the voice rings on.
     static double FlushedModeEnergy(ModeState& mode);
+    double MembraneEnergy() const;
+    // Lossless exchange of normalized bar velocity and cavity pressure. The
+    // oscillator propagators supply all losses; this junction cannot add energy.
+    void CoupleCavity(ModeState& cavity, int barIndex, double cosine, double sine, bool residual = false);
+    void CoupleCavityAperture(ModeState& cavity, int cavityIndex, bool residual = false);
 
     bool mActive = false;
     bool mReleased = false;
@@ -141,6 +151,8 @@ private:
     // Gradual restrike damping of the previous ring (applied to the residual states)
     int mRestrikeSamplesLeft = 0;
     double mRestrikePole = 1.0;
+    MalletContact mMalletContact;
+    bool mLocalContactActive = false;
 
     // Hand damping (transport stop) and fade-out
     double mHandDampPole = 1.0;
@@ -148,10 +160,13 @@ private:
     float mFadeGain = 1.0f;
     float mFadeStep = 0.0f;
 
-    // 8 Pitched Modal Bar Resonators + Anisotropic Twin Mode 0b
+    // 8 pitched bar resonators plus a weak voiced split mode
     ModeState mModes[kNumPitchedModes];
+    // Directional surface readouts, latched with the instrument geometry at
+    // each strike. They color only the microphones, not mechanical feedback.
+    ModalRadiationReadout mRadiation[kNumPitchedModes];
     int mNumModes = 0;                 // modes below 0.45 * fs; higher ones are dropped
-    ModeState mMode0b; // Orthogonal wood grain split mode for organic acoustic beating
+    ModeState mMode0b; // voiced weak split: not a measured torsional eigenmode
     bool mHasTwin = false;
 
     // Strike clack noise burst (band-passed noise, not a tonal mode)
@@ -165,17 +180,34 @@ private:
     double mClackDecayRate = 0.0;
     double mNoiseScale = 1.0;          // sqrt(fs / reference): keeps output noise density rate-invariant
 
-    // Resonator Pipe / Gourd Cavity State
+    // Air pressure modes: a closed tube, broad wooden cavity, gourd, or the
+    // fixed kalimba soundbox. mTube is the lowest (dominant) air resonance.
     ModeState mTube;
+    ModeState mUpperCavity[2];
+    int mNumCavityModes = 0;
+    double mCavityCos[3] = {1.0, 1.0, 1.0};
+    double mCavitySin[3] = {};
+    double mCavityReadout[3] = {1.0, 0.0, 0.0};
+    int mCavityBarIndex[3][2] = {};
+    int mCavityConnections[3] = {};
+    double mCavityDirection[3][2] = {};
+    double mCavityExchangeScale[3] = {};
     double mResCoupling = 0.5;
+    double mResReadoutGain = 0.0;
+    double mResReadoutStep = 1.0;
 
     // Mirliton Buzz Membrane State
     bool mHasMirliton = false;
     double mMirlitonThreshold = 0.05;
     double mMirlitonDrive = 2.0;
-    double mMirlitonFilterState = 0.0;
-    double mMirlitonAttack = 0.35;
-    double mMirlitonRelease = 0.92;
+    double mMirlitonDisplacement = 0.0;
+    double mMirlitonVelocity = 0.0;
+    double mMirlitonStep = 0.05;
+    double mMirlitonLoss = 0.02;
+    double mMirlitonStiffness = 12.0;
+    double mMirlitonForceStep = 0.0;
+    double mMirlitonVelocityStep = 0.0;
+    double mMirlitonInverseStep = 0.0;
 
     // Secondary physical contacts share the initial stroke's impulse budget.
     int mArtifactSample = 0, mArtifactEnd = 0;
@@ -192,6 +224,8 @@ private:
     double mCollisionEnvelope = 0.0, mCollisionDecay = 0.0;
     double mBrushPickupWeight = 1.0;
     double mStrainWeights[kNumPitchedModes]{};
+    double mTineStrainScales[kNumPitchedModes]{};
+    double mPickupContactGain = 0.060;
     float mMechanicalSample = 0.0f;
     PiezoPickup mPickup;
 
