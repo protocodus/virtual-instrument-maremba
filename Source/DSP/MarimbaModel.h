@@ -18,6 +18,74 @@ static constexpr int kNumPitchedModes = 8;
 // Total modes = pitched + 1 clack noise burst
 static constexpr int kNumTotalModes = kNumPitchedModes + 1;
 
+// Instrument-level response laws, separate from the bar's modal tuning. These
+// are deliberately voiced coefficients, not measured species constants. A
+// mallet/bar collision and a thumb/bridge release need different excitation and
+// loss behavior even when their front-panel control values are the same.
+struct InstrumentResponseProfile {
+    float hardnessExponent;        // pow(normalized hardness, exponent)
+    float velocityCoreCompression; // velocity-dependent extra contact hardness
+    float contactTimeScale;        // mallet dwell / finite thumb-release duration
+    float contactWidthScale;       // spatial footprint, preserving mode-node positions
+    float decayExponent;           // pow(Decay multiplier, exponent); unity stays unity
+    float resonatorDecayExponent;  // how much Decay extends the tube / cavity Q
+    float couplingExponent;        // shape of normalized resonator-coupling control
+    float radiationLoading;        // extra fundamental loss per unit of coupling
+
+    // Per-strike event probabilities at maximum Artifacts. The event generator
+    // also accounts for the control amount and touch; these are not continuous
+    // noise levels. A zero Artifacts amount must disable all of these events.
+    float reboundProbability;      // secondary mallet contact / thumb recatch
+    float collisionProbability;    // rail, cord or bridge contact
+    float grazingProbability;      // weak, off-centre main stroke / incomplete pluck
+    float neighborBrushProbability; // unintended adjacent bar / tine excitation
+    float reboundDelayMs;
+    float collisionRatio;          // short mount-ring frequency / frameBodyFreq
+    float collisionDecaySec;       // mount-ring T60, independent of pitched sustain
+    float collisionLevel;          // mechanical impact level relative to strike drive
+};
+
+inline InstrumentResponseProfile GetInstrumentResponseProfile(EMarimbaModel model) {
+    switch (model) {
+        case EMarimbaModel::ImperialRosewood:
+            // Broad concert-mallet contact, a wide Decay range, and strong
+            // tube loading. The neutral response preserves the existing touch.
+            return {
+                1.00f, 0.22f, 1.00f, 1.00f, 1.00f, 0.50f, 1.00f, 0.65f,
+                0.32f, 0.36f, 0.20f, 0.16f,
+                14.0f, 8.3f, 0.038f, 0.080f
+            };
+        case EMarimbaModel::MayanPadauk:
+            // Firmer, shorter contact exposes its voiced woody upper modes.
+            // The broad box responds early to Coupling without acquiring the
+            // long narrow resonance of the concert tubes at high Decay.
+            return {
+                0.78f, 0.12f, 0.78f, 0.86f, 0.78f, 0.30f, 0.75f, 0.90f,
+                0.40f, 0.62f, 0.28f, 0.22f,
+                10.0f, 9.7f, 0.024f, 0.110f
+            };
+        case EMarimbaModel::BalafonAncestral:
+            // More compliant contact has a larger change with playing force;
+            // gourd coupling rises later, and the mount has a looser short ring.
+            // Membrane behavior remains in the separate Buzz path.
+            return {
+                1.20f, 0.30f, 1.16f, 1.20f, 0.87f, 0.35f, 1.35f, 0.50f,
+                0.48f, 0.78f, 0.34f, 0.28f,
+                19.0f, 7.2f, 0.068f, 0.150f
+            };
+        case EMarimbaModel::KalimbaArtisan:
+        default:
+            // Hardness describes release sharpness here. The steel tine keeps
+            // its long ring while the wooden cavity stays relatively short;
+            // adjacent-tine brushes and a metallic bridge tick dominate errors.
+            return {
+                0.72f, 0.10f, 0.90f, 0.85f, 1.20f, 0.20f, 0.70f, 0.28f,
+                0.18f, 0.70f, 0.35f, 0.42f,
+                7.0f, 6.4f, 0.095f, 0.100f
+            };
+    }
+}
+
 struct ModelParams {
     const char* name;
     const char* woodDescription;
@@ -98,19 +166,21 @@ inline ModelParams GetModelParams(EMarimbaModel model) {
                 "Quarter-sawn Mexican Padauk (Hormiguillo)",
                 "Square handcrafted cedar soundboxes with beeswax plugs",
                 { 1.000f, 4.000f,  9.800f, 15.600f, 21.400f, 28.200f, 36.000f, 44.800f },
-                { 1.000f, 0.340f,  0.090f,  0.030f,  0.012f,  0.006f,  0.003f,  0.001f },
+                // A voiced, woody attack and shorter fundamental distinguish
+                // this model; these weights are not species measurements.
+                { 0.940f, 0.720f,  0.200f,  0.075f,  0.030f,  0.012f,  0.006f,  0.002f },
                 0.22f,    // slightly higher radiation damping (denser wood)
                 0.90f,    // higher internal friction = tight punchy decay
-                10.5f,    // warm wooden cedar soundbox Q
-                0.52f,
+                6.5f,     // broad wooden soundbox response
+                0.45f,
                 false,
                 0.0f,
                 0.0f,
-                2.0f,     // punchy, warm sustain
+                1.25f,    // short, woody response against Rosewood's 3 seconds
                 0.75f,
-                3600.0f,
-                2200.0f,
-                0.0016f,
+                2800.0f,
+                1600.0f,
+                0.0027f,
                 // Premium phenomena:
                 1.2f,     // padauk anisotropic split
                 1.15f,

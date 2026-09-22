@@ -36,6 +36,7 @@ struct EngineParameters {
 
     float closeLevel = 0.85f;       // 0..1
     float farLevel = 0.45f;         // 0..1
+    int roomType = 0;              // 0: Wood (legacy), 1: Chamber FDN, 2: Hall tank
     float piezoLevel = 0.30f;       // 0..1
     float stereoWidth = 1.0f;       // 0..2 (1 = natural), applied to the main bus
 
@@ -52,6 +53,9 @@ struct EngineParameters {
     float tuneCents = 0.0f;         // static tuning offset in cents: device Master Tune knob (+/-100) + Reason global master tune (+/-100)
     float detune = 0.0f;            // 0..100: per-key drift (0 = exact, 100 = up to +/-100 cents per key)
     float strikeJitter = 15.0f;     // 0..100: stochastic strike variance
+    float velocityToHardness = 0.20f; // 0..1 depth: softer strikes reduce the base value
+    float velocityToPosition = 0.20f; // 0..1 depth, applied per strike after the velocity curve
+    float velocityToDecay = 0.20f;    // 0..1 depth; full velocity retains the base decay
 };
 
 class MarembaEngine {

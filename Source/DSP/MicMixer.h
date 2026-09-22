@@ -1,6 +1,6 @@
 #pragma once
 
-#include "AcousticRoom.h"
+#include "RoomAlgorithms.h"
 #include <algorithm>
 #include <cmath>
 
@@ -26,6 +26,7 @@ public:
     void Reset() {
         mRoom.Reset();
     }
+    void SetRoomType(int type) { mRoom.SetType(type); }
 
     // Process a sample from a voice at a specific MIDI note (for keyboard panning)
     void MixVoiceSample(int noteNumber, float closeIn, float farIn, float piezoIn,
@@ -72,7 +73,7 @@ public:
         outDirectCloseL = inCloseL;
         outDirectCloseR = inCloseR;
 
-        // 2. Far/Room Mic — through authentic wooden concert hall reverberation
+        // 2. Far/Room Mic — through the selected Wood, Chamber or Hall algorithm
         float farDryL = 0.0f, farDryR = 0.0f, roomWetL = 0.0f, roomWetR = 0.0f;
         mRoom.Process(inFarL, inFarR, farLevel, farDryL, farDryR, roomWetL, roomWetR);
         outDirectFarL = farDryL + roomWetL;
@@ -99,7 +100,7 @@ public:
     }
 
 private:
-    AcousticRoom mRoom;
+    RoomBank mRoom;
 };
 
 } // namespace maremba

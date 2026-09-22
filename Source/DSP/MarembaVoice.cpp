@@ -21,13 +21,6 @@ constexpr double kMaxT60Seconds = 60.0;
 constexpr double kModeDropFraction = 0.45;
 // Highest pole angle a retuned (pitch-bent) resonator may reach.
 constexpr double kMaxOmega = 0.98 * kPiD;
-// Mirliton fallback for models without a native membrane: the knob only starts
-// to buzz above this value, so patches voiced with buzz <= 0.2 keep their sound.
-// Its law is the Balafon's own membrane curve, with a 25% higher threshold and
-// half the drive, so the fallback always buzzes less than the Balafon.
-constexpr float kFallbackBuzzOnset = 0.20f;
-constexpr double kFallbackThresholdScale = 1.25;
-constexpr double kFallbackDriveScale = 0.5;
 // Reference treble contact limit, in cycles of the fundamental. The effective
 // limit also follows touch, keeping f0 in the pulse main lobe across dynamics.
 constexpr float kMaxContactCycles = 0.8f;
@@ -35,7 +28,7 @@ constexpr float kMaxContactCycles = 0.8f;
 // above any strike) is unstable and is freed (defence in depth).
 constexpr double kMaxVoiceEnergy = 1.0e4;
 
-constexpr double kPiezoWeight[kNumPitchedModes] = { 0.5, 1.0, 1.2, 1.2, 1.2, 1.2, 1.5, 1.5 };
+constexpr double kFrameWeight[kNumPitchedModes] = { 0.5, 1.0, 1.2, 1.2, 1.2, 1.2, 1.5, 1.5 };
 
 // Fast contact component: 1.0, 0.5, 0.2 over the first three
 // reference-rate samples (34 us). Integrated over each internal sample so the
@@ -74,7 +67,16 @@ void MarembaVoice::FastKill() {
     mFadeStep = 0.0f;
     mFrictionFilterState = 0.0;
     mMirlitonFilterState = 0.0;
-    mRattleLevel = 0.0;
+    mArtifactSample = mArtifactEnd = 0;
+    mReboundImpulse = mBrushImpulse = 0.0;
+    mCollisionEnvelope = 0.0;
+    mBrushActive = mCollisionActive = false;
+    mCollisionPrevious = mCollisionImpulse = 0.0;
+    mCollisionSide = mCollisionSample = mCollisionSamplesTotal = 0;
+    mMechanicalSample = 0.0f;
+    for (auto& mode : mBrushModes) mode = ModeState{};
+    for (auto& mode : mCollisionModes) mode = ModeState{};
+    mPickup.Reset();
     mClackActive = false;
     mClackBpY1 = mClackBpY2 = 0.0;
     mClackEnvelope = 0.0;
@@ -92,7 +94,9 @@ void MarembaVoice::SetModeCoefficients(ModeState& mode, double omega) const {
     const double w = std::clamp(omega, 1.0e-9, kMaxOmega);
     const double sinW = std::sin(w);
     mode.w = w;
-    mode.c = 2.0 * mode.r * std::cos(w);
+    mode.cosW = std::cos(w);
+    mode.invSin = 1.0 / sinW;
+    mode.c = 2.0 * mode.r * mode.cosW;
     mode.s = mode.r * mode.r;
     mode.invSin2 = 1.0 / (sinW * sinW);
 }
@@ -149,7 +153,9 @@ bool MarembaVoice::HasNoSubnormalState() const {
     for (int m = 0; m < kNumPitchedModes; ++m) {
         if (!clean(mModes[m])) return false;
     }
-    return clean(mMode0b) && clean(mTube);
+    for (const auto& mode : mBrushModes) if (!clean(mode)) return false;
+    for (const auto& mode : mCollisionModes) if (!clean(mode)) return false;
+    return clean(mMode0b) && clean(mTube) && mPickup.HasNoSubnormalState();
 }
 
 double MarembaVoice::ComputeEnergy() const {
@@ -160,7 +166,9 @@ double MarembaVoice::ComputeEnergy() const {
     }
     if (mHasTwin) energy += ModeEnergy(mMode0b);
     energy += ModeEnergy(mTube);
-    return energy;
+    for (const auto& mode : mBrushModes) energy += ModeEnergy(mode);
+    for (const auto& mode : mCollisionModes) energy += ModeEnergy(mode);
+    return energy + mPickup.StateEnergy();
 }
 
 void MarembaVoice::StartDamping() {
@@ -185,6 +193,7 @@ void MarembaVoice::Retune(float globalCents) {
     }
     if (mHasTwin) RetuneMode(mMode0b, mMode0b.omega * mPitchRatio);
     RetuneMode(mTube, mTube.omega * mPitchRatio);
+    for (auto& mode : mBrushModes) if (mode.r > 0.0) RetuneMode(mode, mode.omega * mPitchRatio);
 }
 
 void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
@@ -217,9 +226,13 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     mPitchRatio = 1.0;
 
     const double fs = mSampleRate;
-    ModelParams params = GetModelParams(model);
+    const ModelParams params = GetModelParams(model);
+    const auto response = GetInstrumentResponseProfile(model);
+    mPickup.Configure(fs, model);
+    for (int m = 0; m < kNumPitchedModes; ++m)
+        mStrainWeights[m] = PiezoPickup::ModalStrainWeight(model, m);
     const StrikeCharacter character = GenerateStrikeCharacter(prng, strikeJitter);
-    StrikeArtifacts art = GenerateStrikeArtifacts(prng, mVelocity, malletHardness, artifactsAmount);
+    StrikeArtifacts art = GenerateStrikeArtifacts(prng, mVelocity, malletHardness, artifactsAmount, model);
     static constexpr double kPhysicalImpulseScale = 0.018;
 
     mHandDampRate = params.handDampRate;
@@ -233,7 +246,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     // Register-dependent decay time: lower register sustains longer, treble is shorter
     const double noteFactor = std::clamp(130.81 / f0, 0.25, 3.5); // C3 as reference
     const double registerDecay = params.baseDecaySec * std::pow(noteFactor, static_cast<double>(params.trebleDampFactor));
-    const double t60_f0 = std::min(registerDecay * std::clamp(decayMultiplier, 0.10f, 8.0f), kMaxT60Seconds);
+    const double t60_f0 = std::min(registerDecay * std::pow(std::clamp(decayMultiplier, 0.10f, 8.0f), response.decayExponent), kMaxT60Seconds);
 
     // Strike position modulation
     float effectivePos = std::clamp(strikePosition + art.strikePositionOffset, 0.05f, 0.95f);
@@ -241,12 +254,12 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     // Compression exposes a firmer core at higher speed. This is a material
     // voicing law, not a calibrated measurement of a particular mallet.
     const bool tine = model == EMarimbaModel::KalimbaArtisan;
-    const float baseHardness = std::clamp(malletHardness + art.malletHardnessJitter, 0.05f, 0.95f);
+    const float baseHardness = std::pow(std::clamp(malletHardness + art.malletHardnessJitter, 0.05f, 0.95f), response.hardnessExponent);
     const float effectiveHardness = std::clamp(baseHardness
-        + (tine ? 0.10f : 0.22f) * (mVelocity - 0.70f) * (1.0f - baseHardness), 0.02f, 0.98f);
+        + response.velocityCoreCompression * (mVelocity - 0.70f) * (1.0f - baseHardness), 0.02f, 0.98f);
     // The public velocity curve maps controller touch, then this common drive
     // feeds the tone AND release/impact noises. Quiet touches have no noise floor.
-    const double impactStrength = std::pow(static_cast<double>(mVelocity), 1.25) * character.impulseScale;
+    const double impactStrength = std::pow(static_cast<double>(mVelocity), 1.25) * character.impulseScale * art.impulseScale;
 
     // ────────────────────────────────────────────────────────
     // Striker Physics: Marimba Mallets vs Kalimba Thumbs
@@ -368,6 +381,10 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         }
     }
 
+    // Flesh releases a tine progressively, whereas a firm nail contact slips
+    // off quickly. Hardness changes this release interval as well as amplitude.
+    contactTimeSec *= response.contactTimeScale * (tine ? 0.55 + 1.8 * (1.0 - effectiveHardness) : 1.0);
+
     // A small treble bar has a shorter contact, but the limiting duration
     // still shortens with touch. A smooth fourth-order minimum avoids the old
     // plateau where soft/medium mallets lost ALL velocity-dependent filtering.
@@ -395,10 +412,10 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     double fRes = f0 * std::exp2(resonatorTuneCents / 1200.0);
     fRes = std::min(fRes, fs * 0.45);
     const double decayScale = std::clamp(decayMultiplier, 0.10f, 4.0f);
-    const double qRes = params.resonatorQ * (0.8 + 0.4 * resonatorCoupling) * std::sqrt(decayScale);
-    mResCoupling = params.couplingStrength * std::clamp(resonatorCoupling, 0.05f, 1.0f);
+    const double qRes = params.resonatorQ * (0.8 + 0.4 * resonatorCoupling) * std::pow(decayScale, response.resonatorDecayExponent);
+    mResCoupling = params.couplingStrength * std::pow(std::clamp(resonatorCoupling, 0.0f, 1.0f), response.couplingExponent);
     // Radiation damping applied to the fundamental bar mode (and its twin)
-    const double radDamping = 1.0 + 0.65 * mResCoupling;
+    const double radDamping = 1.0 + response.radiationLoading * mResCoupling;
     const double tau_f0 = t60_f0 / 6.907755;
     const double r_0 = std::exp(-radDamping / (tau_f0 * fs));
 
@@ -423,9 +440,9 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     // traverses the whole free bar. Soft/wide contact spatially averages modes
     // instead of applying a generic treble boost at every off-centre position.
     const double spatialPosition = tine ? 0.65 + 0.35 * effectivePos : effectivePos;
-    const double footprint = tine ? 0.025 + 0.04 * (1.0 - effectiveHardness)
+    const double footprint = response.contactWidthScale * (tine ? 0.025 + 0.04 * (1.0 - effectiveHardness)
         : (0.025 + 0.06 * (1.0 - baseHardness) + (mt == 0 ? 0.045 : 0.0))
-          * (0.72 + 0.36 * std::pow(mVelocity, 0.4f));
+          * (0.72 + 0.36 * std::pow(mVelocity, 0.4f)));
     // Diagonal approximation to local contact damping. Soft fingers/yarn
     // absorb more of the old ring; hard, brief strokes let more sustain through.
     const double contactLoss = (tine ? 2.0 - 0.85 * effectiveHardness - 0.12 * mt
@@ -557,8 +574,9 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     // It shares the impulse budget instead of adding velocity-dependent energy.
     const double shockFraction = tine ? 0.0
         : 0.08 * mMalletShockImpulse * std::pow(mVelocity, 0.45f);
-    mContactImpulse = impulse * (1.0 - shockFraction);
-    mShockGain = impulse * shockFraction / 1.7;
+    const double primaryShare = 1.0 - art.reboundGain - art.brushGain;
+    mContactImpulse = impulse * primaryShare * (1.0 - shockFraction);
+    mShockGain = impulse * primaryShare * shockFraction / 1.7;
     mShockSamplesTotal = mShockGain > 0.0 ? static_cast<int>(std::ceil(kShockDurationRef / mRefStep)) : 0;
     mShockSample = 0;
 
@@ -599,6 +617,9 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         // Clack gain: scales with hardness, velocity, and wood friction
         double clackIntensity = mMalletShockImpulse * effectiveHardness * impactStrength * std::pow(mVelocity, 0.55f);
         mClackEnvelope = clackIntensity * 0.05 * (1.0 + params.woodInternalFriction * 100.0);
+        // This short contact transient is independent of Artifacts. Raising
+        // playing imperfections must never become a broadband noise fader.
+        mClackEnvelope *= primaryShare;
         mClackActive = mClackEnvelope > 0.0;
     }
 
@@ -614,31 +635,72 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         mTube.o1 = mTube.o2 = 0.0;
     }
 
-    // Mirliton Buzz Setup: native membrane (Balafon) or a fallback membrane on
-    // the other models that only starts above kFallbackBuzzOnset.
-    if (params.hasMirliton) {
-        mHasMirliton = true;
-        mMirlitonThreshold = params.mirlitonThreshold * std::max(0.1f, 1.3f - 0.9f * buzzAmount);
-        mMirlitonDrive = params.mirlitonDrive * (0.3f + 1.2f * buzzAmount);
-    } else if (buzzAmount > kFallbackBuzzOnset) {
-        const ModelParams balafon = GetModelParams(EMarimbaModel::BalafonAncestral);
-        const double amount = (buzzAmount - kFallbackBuzzOnset) / (1.0 - kFallbackBuzzOnset);
-        mHasMirliton = true;
-        mMirlitonThreshold = kFallbackThresholdScale * balafon.mirlitonThreshold * std::max(0.1f, 1.3f - 0.9f * buzzAmount);
-        // 0 at the onset: no jump when the knob crosses it
-        mMirlitonDrive = kFallbackDriveScale * balafon.mirlitonDrive * (0.3f + 1.2f * buzzAmount) * amount;
-    } else {
-        mHasMirliton = false;
-    }
+    SetBuzz(buzzAmount);
     mMirlitonAttack = SmootherAtRate(0.35, fs);
     mMirlitonRelease = PoleAtRate(0.92, fs);
     // A restrike keeps the ringing buzz; without a membrane now, it releases out
     // in ProcessSample (no cut, and the voice can still be freed).
     if (!isRestrike) mMirlitonFilterState = 0.0;
 
-    // Cord rattle
-    mRattleLevel = art.mechanicalRattle;
-    mRattleDecay = std::exp(-80.0 / fs);
+    // Schedule a small rebound and/or an accidental brush of a neighboring
+    // key. Both take energy from the primary hit; no delayed random noise.
+    mArtifactSample = mArtifactEnd = 0;
+    mReboundImpulse = impulse * art.reboundGain;
+    mBrushImpulse = impulse * art.brushGain;
+    mReboundStart = static_cast<int>(art.reboundDelaySec * fs);
+    mBrushStart = static_cast<int>(art.brushDelaySec * fs);
+    const double secondaryDuration = std::max(3.0, contactTimeSec * 1.35 * fs);
+    mSecondaryStep = 1.0 / secondaryDuration;
+    if (mReboundImpulse > 0.0) mArtifactEnd = mReboundStart + static_cast<int>(std::ceil(secondaryDuration));
+    if (mBrushImpulse > 0.0) mArtifactEnd = std::max(mArtifactEnd, mBrushStart + static_cast<int>(std::ceil(secondaryDuration)));
+    const double brushF0 = f0 * std::exp2(art.brushSemitones / 12.0);
+    // A clean restrike cannot retune a neighboring key that is still ringing.
+    // Rebase its current bend as the new trigger reference, then change its
+    // modal coefficients only when another brush actually excites it.
+    for (auto& mode : mBrushModes) mode.omega = mode.w;
+    for (int m = 0; m < 2 && mBrushImpulse > 0.0; ++m) {
+        auto& mode = mBrushModes[m];
+        const double frequency = brushF0 * (m == 0 ? 1.0 : params.overtoneRatio[1]);
+        if (frequency >= fs * kModeDropFraction) { mode = ModeState{}; continue; }
+        mode.omega = kTwoPiD * frequency / fs;
+        ReconfigureMode(mode, std::exp(-6.907755 / (std::max(0.025, t60_f0 * (m == 0 ? 0.4 : 0.06)) * fs)), mode.omega);
+        mode.b0 = std::sin(mode.w) * kPhysicalImpulseScale * (m == 0 ? 0.8 : 0.12);
+    }
+    mBrushPickupWeight = PiezoPickup::ModalStrainWeight(model, 0);
+    mBrushActive = mBrushImpulse > 0.0 || ModeEnergy(mBrushModes[0]) + ModeEnergy(mBrushModes[1]) > kFlushEnergy;
+
+    // A loose mounting is struck as bar/tine motion crosses its clearance.
+    // Closing velocity sets a bounded impact, spread over a finite contact.
+    // Two short modes ring at rail/bridge frequencies, independent of the note.
+    mCollisionEnvelope = art.collisionAmount * response.collisionLevel;
+    mCollisionActive = mCollisionEnvelope > 0.0 || ModeEnergy(mCollisionModes[0]) + ModeEnergy(mCollisionModes[1]) > kFlushEnergy;
+    mCollisionGap = std::max(0.00005, impulse * kPhysicalImpulseScale * (0.08 + 0.22 * (1.0 - art.collisionAmount)));
+    mCollisionDecay = std::exp(-1.0 / ((tine ? 0.09 : 0.055) * fs));
+    mCollisionPrevious = mModes[0].y1 + mModes[0].o1;
+    mCollisionSide = 0;
+    mCollisionImpulse = 0.0;
+    mCollisionImpulseLimit = impulse * kPhysicalImpulseScale * 0.4;
+    // Contacts must finish before the next half-cycle, including in treble.
+    const double collisionDuration = std::max(1.0, std::min(tine ? 0.00012 : 0.00025, 0.18 / f0) * fs);
+    mCollisionAmplitudeRatio = 0.35 * art.collisionAmount;
+    mCollisionPulseStep = 1.0 / collisionDuration;
+    mCollisionSamplesTotal = static_cast<int>(std::ceil(collisionDuration));
+    mCollisionSample = mCollisionSamplesTotal;
+    for (int m = 0; m < 2; ++m) {
+        auto& mode = mCollisionModes[m];
+        const double frequency = std::min(fs * 0.4, params.frameBodyFreq * response.collisionRatio * (m == 0 ? 1.0 : 2.71));
+        mode.omega = kTwoPiD * frequency / fs;
+        ReconfigureMode(mode, std::exp(-6.907755 / (response.collisionDecaySec * (m == 0 ? 1.0 : 0.43) * fs)), mode.omega);
+        mode.b0 = std::sin(mode.w) * (m == 0 ? 1.0 : 0.45);
+    }
+}
+
+void MarembaVoice::SetBuzz(float amount) {
+    amount = std::clamp(amount, 0.0f, 1.0f);
+    const bool native = mModel == EMarimbaModel::BalafonAncestral;
+    mHasMirliton = amount > 0.001f;
+    mMirlitonThreshold = (native ? 0.008 : 0.012) * (1.5 - amount);
+    mMirlitonDrive = amount * (native ? 3.0 : 1.5);
 }
 
 bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo) {
@@ -646,6 +708,7 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
         outClose = 0.0f;
         outFar = 0.0f;
         outPiezo = 0.0f;
+        mMechanicalSample = 0.0f;
         return false;
     }
 
@@ -674,9 +737,23 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
         mShockSample++;
     }
 
+    // Integrated delayed contacts are positive force pulses at every rate.
+    double brushForce = 0.0;
+    if (mArtifactSample < mArtifactEnd) {
+        const auto pulse = [&](int start) {
+            const double t = (mArtifactSample - start) * mSecondaryStep;
+            return std::max(0.0, ContactCumulative(t + mSecondaryStep, 0.0) - ContactCumulative(t, 0.0));
+        };
+        const double damp = mDamping ? 0.0 : 1.0;
+        excitation += damp * mReboundImpulse * pulse(mReboundStart);
+        brushForce = damp * mBrushImpulse * pulse(mBrushStart);
+        ++mArtifactSample;
+    }
+
     // 3. Bar Modal Resonator Updates (8 pitched modes + twin mode 0b)
     double barAcousticSum = 0.0;
     double barMechanicalSum = 0.0;
+    double mountingStrain = 0.0;
 
     const bool restriking = mRestrikeSamplesLeft > 0;
     const bool scaled = inContact || restriking || mDamping;
@@ -689,7 +766,12 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
             mode.y2 = mode.y1;
             mode.y1 = ym;
             barAcousticSum += ym;
-            barMechanicalSum += ym * kPiezoWeight[m];
+            barMechanicalSum += ym * kFrameWeight[m];
+            // The released-tine bank is velocity-like: integrate its modal
+            // quadrature for bending strain. Bar modes already read displacement.
+            const double strain = mModel == EMarimbaModel::KalimbaArtisan
+                ? (mode.r * mode.y2 - mode.y1 * mode.cosW) * mode.invSin * mModes[0].w / mode.w : ym;
+            mountingStrain += strain * mStrainWeights[m];
         }
         if (mHasTwin) {
             const double y0b = mMode0b.c * mMode0b.y1 - mMode0b.s * mMode0b.y2 + mMode0b.b0 * excitation;
@@ -697,6 +779,7 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
             mMode0b.y1 = y0b;
             barAcousticSum += y0b;
             barMechanicalSum += y0b * 0.6;
+            mountingStrain += y0b * mStrainWeights[0] * 0.6;
         }
     } else {
         // Damping here always scales BOTH states (a smaller pole radius), which
@@ -726,12 +809,18 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
             // Viscoelastic contact damping: the mallet damps the upper modes during contact
             const double out = step(mModes[m], handPole * (inContact ? mModes[m].contactPole : 1.0));
             barAcousticSum += out;
-            barMechanicalSum += out * kPiezoWeight[m];
+            barMechanicalSum += out * kFrameWeight[m];
+            const auto& mode = mModes[m];
+            const double strain = mModel == EMarimbaModel::KalimbaArtisan
+                ? (mode.r * (mode.y2 + mode.o2) - (mode.y1 + mode.o1) * mode.cosW)
+                    * mode.invSin * mModes[0].w / mode.w : out;
+            mountingStrain += strain * mStrainWeights[m];
         }
         if (mHasTwin) {
             const double out = step(mMode0b, handPole);
             barAcousticSum += out;
             barMechanicalSum += out * 0.6;
+            mountingStrain += out * mStrainWeights[0] * 0.6;
         }
         if (restriking && --mRestrikeSamplesLeft == 0) {
             // Contact over: fold the damped previous ring back into the main states
@@ -785,7 +874,7 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
         const double absRes = std::abs(yRes);
         if (absRes > mMirlitonThreshold) {
             const double excess = absRes - mMirlitonThreshold;
-            const double rawBuzz = (yRes > 0.0 ? 1.0 : -1.0) * std::tanh(mMirlitonDrive * excess * excess);
+            const double rawBuzz = (yRes > 0.0 ? 1.0 : -1.0) * std::tanh(8.0 * mMirlitonDrive * excess * excess);
             mMirlitonFilterState += mMirlitonAttack * (rawBuzz - mMirlitonFilterState);
         } else {
             mMirlitonFilterState *= mMirlitonRelease;
@@ -800,26 +889,74 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
         buzzComponent = mMirlitonFilterState * 0.75;
     }
 
-    // 7. Cord / Mechanical Rattle
-    double rattleSound = 0.0;
-    if (mRattleLevel > 0.0) {
-        rattleSound = mLocalPrng.NextBipolar() * mNoiseScale * mRattleLevel;
-        mRattleLevel *= mRattleDecay;
-        if (mRattleLevel < 1.0e-7) mRattleLevel = 0.0;
+    // 7. Adjacent-key brush and vibration-driven mount/bridge collision.
+    // No independent random excitation is generated after the primary contact.
+    double brushSound = 0.0;
+    if (mBrushActive) for (auto& mode : mBrushModes) {
+        const double y = mode.c * mode.y1 - mode.s * mode.y2 + mode.b0 * brushForce;
+        mode.y2 = mode.y1 * handPole;
+        mode.y1 = y * handPole;
+        brushSound += y;
     }
+    double collisionDrive = 0.0;
+    if (mCollisionActive) {
+        const double motion = mode0.y1 + mode0.o1;
+        const double magnitude = std::abs(motion);
+        const int side = motion < 0.0 ? -1 : 1;
+        // Hysteresis prevents a noisy threshold from retriggering the same
+        // contact. Sub-sample contact integration keeps the impulse rate-safe.
+        if (magnitude < 0.7 * mCollisionGap) mCollisionSide = 0;
+        if (mCollisionEnvelope > 1.0e-8 && magnitude > mCollisionGap && side != mCollisionSide
+            && mCollisionSample >= mCollisionSamplesTotal) {
+            const double approach = std::max(0.0, magnitude - std::abs(mCollisionPrevious)) * mode0.invSin;
+            // Repeated collisions can coincide with a mounting resonance.
+            // Reserve only the amplitude headroom below a fraction of the
+            // current bar ring, so coherent impacts cannot swamp the note.
+            const double ringBound = std::sqrt(2.0 * (ModeEnergy(mCollisionModes[0]) + ModeEnergy(mCollisionModes[1])));
+            const double barBound = std::sqrt(std::max(0.0, ModeEnergy(mode0))) * mCollisionAmplitudeRatio;
+            const double available = std::max(0.0, barBound - ringBound) / 1.45;
+            mCollisionImpulse = side * std::min(available,
+                std::min(approach, mCollisionImpulseLimit) * mCollisionEnvelope * 4.0);
+            mCollisionSample = 0;
+            mCollisionSide = side;
+        }
+        if (mCollisionSample < mCollisionSamplesTotal) {
+            const double t = mCollisionSample++ * mCollisionPulseStep;
+            collisionDrive = mCollisionImpulse * (ContactCumulative(t + mCollisionPulseStep, 0.0) - ContactCumulative(t, 0.0));
+        }
+        mCollisionPrevious = motion;
+        mCollisionEnvelope *= mCollisionDecay * handPole;
+        if (mCollisionEnvelope < 1.0e-8) mCollisionEnvelope = 0.0;
+    }
+    double collisionSound = 0.0;
+    if (mCollisionActive) for (auto& mode : mCollisionModes) {
+        const double y = mode.c * mode.y1 - mode.s * mode.y2 + mode.b0 * collisionDrive;
+        mode.y2 = mode.y1 * handPole;
+        mode.y1 = y * handPole;
+        collisionSound += y;
+    }
+    barAcousticSum += brushSound;
+    barMechanicalSum += brushSound * 0.5;
+    mountingStrain += brushSound * mBrushPickupWeight;
+    // Keep the acoustic frame's input ahead of the pickup electronics. Changing
+    // pickup mounting/loading must not change acoustic body resonance.
+    mMechanicalSample = static_cast<float>(barMechanicalSum * 0.90 + collisionSound);
 
-    // 8. Synthesize Microphone Outputs (with clack noise burst in close and piezo)
+    // 8. Air microphones and an adhesive/bridge mounted contact transducer.
     double close = (barAcousticSum * 0.90) + (yRes * 0.25 * mResCoupling) + (buzzComponent * 0.35)
-                 + rattleSound + (clackSound * 0.50);
+                 + collisionSound * 0.65 + (clackSound * 0.50);
     double far = (yRes * 0.50 * mResCoupling) + (barAcousticSum * 0.55) + (buzzComponent * 0.50)
-               + (clackSound * 0.20); // Clack is less prominent in far mic
-    double piezo = (barMechanicalSum * 0.90) + (rattleSound * 1.0) + (clackSound * 0.60);
+               + collisionSound * 0.22 + (clackSound * 0.20);
+    double piezo = mPickup.Process(mountingStrain + collisionSound * 1.6,
+        (excitation + brushForce) * 0.060 / mRefStep,
+        (mode0.y1 + mode0.o1) * 0.35 + brushSound * 0.2 + collisionSound);
 
     // 9. Fade-out (steal, polyphony reduction, oversampling change)
     if (mFading) {
         close *= mFadeGain;
         far *= mFadeGain;
         piezo *= mFadeGain;
+        mMechanicalSample *= mFadeGain;
         mFadeGain -= mFadeStep;
         if (mFadeGain <= 0.0f) {
             outClose = static_cast<float>(close);
@@ -845,6 +982,14 @@ void MarembaVoice::UpdateEnvelope() {
     }
     if (mHasTwin) energy += FlushedModeEnergy(mMode0b);
     energy += FlushedModeEnergy(mTube);
+    double brushEnergy = 0.0, collisionEnergy = 0.0;
+    for (auto& mode : mBrushModes) brushEnergy += FlushedModeEnergy(mode);
+    for (auto& mode : mCollisionModes) collisionEnergy += FlushedModeEnergy(mode);
+    if (mArtifactSample >= mArtifactEnd && brushEnergy < kFlushEnergy) mBrushActive = false;
+    if (mCollisionEnvelope == 0.0 && mCollisionSample >= mCollisionSamplesTotal && collisionEnergy < kFlushEnergy) mCollisionActive = false;
+    energy += brushEnergy + collisionEnergy;
+    mPickup.FlushTiny();
+    energy += mPickup.StateEnergy();
 
     if (!std::isfinite(energy) || energy > kMaxVoiceEnergy
         || !std::isfinite(mClackBpY1) || !std::isfinite(mMirlitonFilterState)) {
@@ -857,7 +1002,7 @@ void MarembaVoice::UpdateEnvelope() {
     // a left-over buzz releases out after the membrane went away (both reach 0).
     const bool buzzing = mMirlitonFilterState != 0.0;
     const bool exciting = IsStriking();
-    if (exciting || mClackActive || mRattleLevel > 0.0 || buzzing) return;
+    if (exciting || mClackActive || buzzing) return;
 
     // -120 dB and nothing left to excite the bar: free the voice (state flushed)
     if (energy < kSilenceEnergy) {

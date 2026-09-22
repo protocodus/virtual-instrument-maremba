@@ -2,6 +2,7 @@
 
 #include "MarimbaModel.h"
 #include "RandomArtifacts.h"
+#include "PiezoPickup.h"
 #include <cmath>
 #include <cstdint>
 
@@ -39,6 +40,8 @@ public:
     // Engine-wide tuning changed (master tune, pitch bend): recompute the
     // resonator coefficients from the stored trigger-time frequencies.
     void Retune(float globalCents);
+    // Membrane amount follows automation while the bar is ringing.
+    void SetBuzz(float amount);
 
     void FastKill();
 
@@ -56,6 +59,7 @@ public:
     inline bool IsLive() const { return mActive && !mFading; }
     inline int GetNoteNumber() const { return mNoteNumber; }
     inline EMarimbaModel GetModel() const { return mModel; }   // model of the last strike
+    inline float GetMechanicalSample() const { return mMechanicalSample; } // before pickup electronics
     inline float GetFadeGain() const { return mFadeGain; }     // 1 unless fading out
 
     // Sum over the resonators of their squared amplitude (phase independent),
@@ -71,9 +75,12 @@ public:
 
     // True while the strike is still being delivered (never steal such a voice
     // if anything else can go).
-    inline bool IsStriking() const { return mContactSample < mContactSamplesTotal || mShockSample < mShockSamplesTotal; }
+    inline bool IsStriking() const { return mContactSample < mContactSamplesTotal || mShockSample < mShockSamplesTotal
+        || mArtifactSample < mArtifactEnd; }
 
 private:
+    friend struct MarembaVoiceTestAccess; // isolated mechanical-response tests
+
     struct ModeState {
         double y1 = 0.0;
         double y2 = 0.0;
@@ -85,6 +92,7 @@ private:
         double omega = 0.0;   // pole angle at the trigger-time tuning
         double w = 0.0;       // pole angle currently in c (tuning and bend applied)
         double r = 0.0;
+        double cosW = 1.0, invSin = 0.0; // quadrature displacement of a tine
         double invSin2 = 0.0; // 1 / sin^2(w): converts the quadratic invariant to squared amplitude
         double contactPole = 1.0; // loss at this mode's contact footprint
         double restrikePole = 1.0;
@@ -169,11 +177,25 @@ private:
     double mMirlitonAttack = 0.35;
     double mMirlitonRelease = 0.92;
 
-    // Cord / Mechanical rattle state
-    double mRattleLevel = 0.0;
-    double mRattleDecay = 0.992;
+    // Secondary physical contacts share the initial stroke's impulse budget.
+    int mArtifactSample = 0, mArtifactEnd = 0;
+    int mReboundStart = 0, mBrushStart = 0;
+    double mSecondaryStep = 1.0;
+    double mReboundImpulse = 0.0, mBrushImpulse = 0.0;
+    ModeState mBrushModes[2];       // incidental adjacent bar / tine
+    ModeState mCollisionModes[2];   // mount/rail/bridge knock
+    bool mBrushActive = false, mCollisionActive = false;
+    double mCollisionGap = 1.0;
+    double mCollisionPrevious = 0.0, mCollisionImpulse = 0.0, mCollisionImpulseLimit = 0.0;
+    double mCollisionPulseStep = 1.0, mCollisionAmplitudeRatio = 0.0;
+    int mCollisionSide = 0, mCollisionSample = 0, mCollisionSamplesTotal = 0;
+    double mCollisionEnvelope = 0.0, mCollisionDecay = 0.0;
+    double mBrushPickupWeight = 1.0;
+    double mStrainWeights[kNumPitchedModes]{};
+    float mMechanicalSample = 0.0f;
+    PiezoPickup mPickup;
 
-    // Per-voice noise source for yarn friction, clack and rattle
+    // Per-voice noise source for yarn friction and the brief primary clack
     FastPRNG mLocalPrng;
 };
 

@@ -39,7 +39,7 @@ constexpr double kStealFadeSeconds = 0.003;      // stolen voice fades in its ow
 constexpr double kPolyphonyFadeSeconds = 0.005;  // excess voices when Polyphony is lowered
 constexpr double kSwitchFadeSeconds = 0.005;     // all outputs, before an oversampling change
 constexpr double kVolumeSmoothingSeconds = 0.005;
-constexpr double kTailHoldSeconds = 0.1;         // > longest room echo gap
+constexpr double kTailHoldSeconds = 0.2;         // > longest hall echo gap
 constexpr float kSilenceLevel = 1.0e-9f;
 constexpr float kMaxPitchBendCents = 1200.0f;
 // Last-resort output guard: a sample above this (+60 dBFS) or a non-finite one
@@ -49,8 +49,8 @@ constexpr float kMaxOutputLevel = 1.0e3f;
 // response stays strictly monotonic down to the softest key.
 constexpr float kVelocityFloor = 0.01f;
 
-// Frame body contribution at bodyBloom = 1 (about -26 dB below the bar peak)
-constexpr float kBodyBloomGain = 0.040f;
+// Audible frame resonance at full Bloom, with a restrained lower half.
+constexpr float kBodyBloomGain = 0.180f;
 
 // Fixed -6 dB headroom on the pre-fader direct taps (close/far/piezo are summed
 // before the compressor and saturator, so they run hotter than main).
@@ -102,6 +102,7 @@ EngineParameters MarembaEngine::Sanitize(const EngineParameters& in) {
     p.bodyBloom = FiniteClamp(in.bodyBloom, 0.0f, 1.0f, d.bodyBloom);
     p.closeLevel = FiniteClamp(in.closeLevel, 0.0f, 1.0f, d.closeLevel);
     p.farLevel = FiniteClamp(in.farLevel, 0.0f, 1.0f, d.farLevel);
+    p.roomType = std::clamp(in.roomType, 0, 2);
     p.piezoLevel = FiniteClamp(in.piezoLevel, 0.0f, 1.0f, d.piezoLevel);
     p.stereoWidth = FiniteClamp(in.stereoWidth, 0.0f, 2.0f, d.stereoWidth);
     p.preampDrive = FiniteClamp(in.preampDrive, 0.0f, 1.0f, d.preampDrive);
@@ -116,6 +117,9 @@ EngineParameters MarembaEngine::Sanitize(const EngineParameters& in) {
     p.tuneCents = FiniteClamp(in.tuneCents, -200.0f, 200.0f, d.tuneCents);
     p.detune = FiniteClamp(in.detune, 0.0f, 100.0f, d.detune);
     p.strikeJitter = FiniteClamp(in.strikeJitter, 0.0f, 100.0f, d.strikeJitter);
+    p.velocityToHardness = FiniteClamp(in.velocityToHardness, 0.0f, 1.0f, d.velocityToHardness);
+    p.velocityToPosition = FiniteClamp(in.velocityToPosition, 0.0f, 1.0f, d.velocityToPosition);
+    p.velocityToDecay = FiniteClamp(in.velocityToDecay, 0.0f, 1.0f, d.velocityToDecay);
     return p;
 }
 
@@ -179,7 +183,14 @@ void MarembaEngine::FlushTails() {
 void MarembaEngine::SetParameters(const EngineParameters& params) {
     const EngineParameters p = Sanitize(params);
     const int previousPolyphony = mParams.polyphony;
+    const float previousBuzz = mParams.buzzAmount;
     mParams = p;
+    mMicMixer.SetRoomType(p.roomType);
+
+    if (p.buzzAmount != previousBuzz) {
+        for (auto& voice : mVoices)
+            if (voice.IsActive()) voice.SetBuzz(p.buzzAmount);
+    }
 
     mLimiter.SetTimes(p.compAttack, p.compRelease);
     mLimiter.SetAmount(p.compAmount);
@@ -421,10 +432,21 @@ int MarembaEngine::TriggerNote(int noteNumber, float velocity) {
 
     const float keyDetuneCents = GetKeyDetuneOffset(noteNumber, mParams.detune);
 
+    // Positive velocity sensitivity. The knobs set the full-velocity values;
+    // depth blends between that fixed value and value * mapped velocity.
+    // Evaluate at the strike boundary, including restrikes and queued notes,
+    // so separate notes retain independent settings without changing the knobs.
+    const auto velocityScale = [mappedVel](float depth) {
+        return 1.0f - depth * (1.0f - mappedVel);
+    };
+    const float hardness = mParams.malletHardness * velocityScale(mParams.velocityToHardness);
+    const float position = mParams.strikePosition * velocityScale(mParams.velocityToPosition);
+    const float decay = std::max(0.10f, mParams.decay * velocityScale(mParams.velocityToDecay));
+
     mVoices[slot].Trigger(noteNumber, mappedVel, model,
-                          mParams.malletHardness, mParams.strikePosition,
+                          hardness, position,
                           mParams.resonatorTune, mParams.resonatorCoupling,
-                          mParams.decay, mParams.buzzAmount, mParams.artifacts,
+                          decay, mParams.buzzAmount, mParams.artifacts,
                           mParams.pitchGlide,
                           InternalRate(), mPrng,
                           mAppliedGlobalCents, keyDetuneCents,
@@ -544,7 +566,7 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
                                                  accFarL, accFarR,
                                                  accPiezo);
 
-                        totalMechanical += voicePiezo;
+                        totalMechanical += mVoices[v].GetMechanicalSample();
 
                         if (meshOn) {
                             mSympathetic.AccumulateVoice(noteNum, voiceClose + voiceFar);

@@ -74,46 +74,66 @@ inline StrikeCharacter GenerateStrikeCharacter(FastPRNG& prng, float variance) {
     return strike;
 }
 
+// An event plan, sampled once per stroke. Amount controls the frequency and
+// severity of playing imperfections, not an independent broadband noise bed.
 struct StrikeArtifacts {
-    float strikePositionOffset; // +/- jitter
-    float malletHardnessJitter; // +/- human strike firmness
-    float pitchJitterCents;     // Wood grain micro-detuning
-    float frictionNoiseBurst;   // Initial yarn friction amplitude
-    float mechanicalRattle;     // Frame / cord grommet buzz on hard strikes
+    float strikePositionOffset = 0.0f;
+    float malletHardnessJitter = 0.0f;
+    float pitchJitterCents = 0.0f;
+    float frictionNoiseBurst = 0.0f;
+    float impulseScale = 1.0f;       // glancing/missed contact loses energy
+    float reboundGain = 0.0f;       // fraction of stroke impulse held for bounce
+    float reboundDelaySec = 0.0f;
+    float brushGain = 0.0f;         // fraction transferred to an adjacent key
+    float brushDelaySec = 0.0f;
+    float brushSemitones = 0.0f;
+    float collisionAmount = 0.0f;   // loose mounting driven by bar motion
 };
 
-inline StrikeArtifacts GenerateStrikeArtifacts(FastPRNG& prng, float velocity, float baseHardness, float artifactsAmount) {
+inline StrikeArtifacts GenerateStrikeArtifacts(FastPRNG& prng, float velocity,
+        float baseHardness, float artifactsAmount,
+        EMarimbaModel model = EMarimbaModel::ImperialRosewood) {
+    const auto response = GetInstrumentResponseProfile(model);
+    const float amount = std::clamp(artifactsAmount, 0.0f, 1.0f);
+    const float activity = amount * amount;
+    const float touch = std::clamp(velocity, 0.0f, 1.0f);
+    // Fixed draw count, including at zero. A/B control changes use the same
+    // event sequence and audio-rate noise cannot affect playing decisions.
+    const float position = prng.NextGaussian();
+    const float firmness = prng.NextGaussian();
+    const float tuning = prng.NextGaussian();
+    const float graze = prng.NextFloat();
+    const float rebound = prng.NextFloat();
+    const float brush = prng.NextFloat();
+    const float collision = prng.NextFloat();
+    const float severity = prng.NextFloat();
+    const float timing = prng.NextFloat();
+    const float direction = prng.NextFloat() < 0.5f ? -1.0f : 1.0f;
     StrikeArtifacts art;
-    if (artifactsAmount <= 0.001f) {
-        art.strikePositionOffset = 0.0f;
-        art.malletHardnessJitter = 0.0f;
-        art.pitchJitterCents = 0.0f;
-        art.frictionNoiseBurst = 0.0f;
-        art.mechanicalRattle = 0.0f;
-        return art;
+    art.strikePositionOffset = position * 0.035f * amount;
+    art.malletHardnessJitter = firmness * 0.04f * amount;
+    art.pitchJitterCents = tuning * 0.65f * amount;
+    // Small friction remains local to the contact pulse; no boosted clack bed.
+    art.frictionNoiseBurst = 0.018f * (1.0f - baseHardness) * amount;
+    if (graze < response.grazingProbability * activity) {
+        art.strikePositionOffset += direction * (0.055f + 0.12f * severity) * amount;
+        art.malletHardnessJitter -= 0.16f * amount;
+        art.impulseScale -= (0.12f + 0.25f * severity) * amount;
     }
-
-    // Position jitter (+/- 5% max)
-    art.strikePositionOffset = prng.NextGaussian() * 0.04f * artifactsAmount;
-    
-    // Mallet firmness jitter (+/- 4% max)
-    art.malletHardnessJitter = prng.NextGaussian() * 0.035f * artifactsAmount;
-    
-    // Wood grain micro-detuning (+/- 0.6 cents)
-    art.pitchJitterCents = prng.NextGaussian() * 0.65f * artifactsAmount;
-    
-    // Yarn friction burst: increases with softer yarn mallets and higher velocity
-    float yarnFactor = (1.0f - baseHardness);
-    art.frictionNoiseBurst = (0.02f + 0.08f * yarnFactor) * (0.3f + 0.7f * velocity) * artifactsAmount;
-    
-    // Cord / frame rattle on forte hits
-    if (velocity > 0.65f) {
-        float excess = (velocity - 0.65f) / 0.35f;
-        art.mechanicalRattle = excess * excess * 0.06f * artifactsAmount;
-    } else {
-        art.mechanicalRattle = 0.0f;
+    if (rebound < response.reboundProbability * activity * (0.35f + 0.65f * touch)) {
+        art.reboundGain = (0.12f + 0.22f * severity) * amount;
+        art.reboundDelaySec = response.reboundDelayMs * 0.001f
+            * (0.65f + 0.7f * timing) * (1.15f - 0.3f * baseHardness);
     }
-
+    if (brush < response.neighborBrushProbability * activity) {
+        art.brushGain = (0.07f + 0.16f * severity) * amount;
+        art.brushDelaySec = 0.002f + 0.009f * timing;
+        // Adjacent physical keys need not be a chromatic semitone apart.
+        art.brushSemitones = direction * (model == EMarimbaModel::KalimbaArtisan ? 3.0f : 2.0f);
+    }
+    if (collision < response.collisionProbability * amount) {
+        art.collisionAmount = amount * (0.35f + 0.65f * touch) * (0.55f + 0.45f * severity);
+    }
     return art;
 }
 

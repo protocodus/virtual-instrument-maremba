@@ -249,8 +249,11 @@ EngineParameters CleanParams()
 {
     EngineParameters p;
     p.artifacts = 0.0f;
+    p.buzzAmount = 0.0f;
     p.strikeJitter = 0.0f;
     p.pitchGlide = 0.0f;
+    // Isolate the original physical response from the optional velocity routes.
+    p.velocityToHardness = p.velocityToPosition = p.velocityToDecay = 0.0f;
     return p;
 }
 
@@ -339,7 +342,7 @@ void TestMirlitonBuzz()
     std::cout << "  -> Balafon buzz (hard hit) " << 10.0 * std::log10(hardBuzz) << " dB re bar" << std::endl;
     CHECK(hardBuzz > 1e-4, "Balafon buzz knob has no audible effect");
 
-    // Rosewood: inert up to 0.2 (factory patches keep their sound), audible above.
+    // Rosewood: the lower range now responds, with a clear full-range endpoint.
     EngineParameters r = CleanParams();
     r.buzzAmount = 0.0f;
     Render off = RenderNote(44100.0, r, 48, 0.8f, 0.4);
@@ -347,14 +350,13 @@ void TestMirlitonBuzz()
     Render atOnset = RenderNote(44100.0, r, 48, 0.8f, 0.4);
     r.buzzAmount = 1.0f;
     Render on = RenderNote(44100.0, r, 48, 0.8f, 0.4);
-    CHECK(DiffEnergy(atOnset.ch[kCloseL], off.ch[kCloseL], 0, off.size()) == 0.0, "Rosewood buzz <= 0.2 must be inert");
+    CHECK(DiffEnergy(atOnset.ch[kCloseL], off.ch[kCloseL], 0, off.size()) > 0.0, "Buzz should respond across its lower range");
     const double rosewoodBuzz = DiffEnergy(on.ch[kCloseL], off.ch[kCloseL], 0, off.size()) / Energy(off.ch[kCloseL], 0, off.size());
     std::cout << "  -> Rosewood buzz 1.0: " << 10.0 * std::log10(rosewoodBuzz) << " dB re bar" << std::endl;
-    CHECK(rosewoodBuzz > 1e-4, "Rosewood buzz above 0.2 is inaudible");
+    CHECK(rosewoodBuzz > 1e-4, "Rosewood buzz endpoint is inaudible");
 
     // P2-2: the fallback membrane of the other models never buzzes more than the
-    // Balafon's own (buzz relative to the bar; the Balafon's is measured against
-    // its buzz-0 membrane, which understates it, so the check is conservative).
+    // Balafon's own (both are measured relative to their membrane-off bar).
     auto buzzRe = [](int model, int note, float vel, float buzz) {
         EngineParameters q = CleanParams();
         q.model = model;
@@ -642,7 +644,7 @@ void TestSympatheticHalo()
 
 void TestBodyBloom()
 {
-    std::cout << "[Body] Frame body bloom level (differential, ~-26 dB below the bar) ..." << std::endl;
+    std::cout << "[Body] Frame body bloom level (differential, ~-13 dB below the bar) ..." << std::endl;
     EngineParameters p = CleanParams();
     p.sympathetic = 0.0f;
     p.bodyBloom = 0.0f;
@@ -653,7 +655,7 @@ void TestBodyBloom()
     for (size_t i = 0; i < body.size(); ++i) body[i] = on.ch[kCloseL][i] - off.ch[kCloseL][i];
     const double db = Db(Peak(body) / Peak(off.ch[kCloseL]));
     std::cout << "  -> body bloom at 1.0: " << db << " dB re bar peak" << std::endl;
-    CHECK(db > -32.0 && db < -20.0, "body bloom level out of range: " << db);
+    CHECK(db > -18.0 && db < -8.0, "body bloom level out of range: " << db);
 }
 
 void TestVelocityAndMixerSilence()
@@ -1352,6 +1354,8 @@ void TestParameterFuzz()
             && in(q.warmth, -1, 1) && in(q.compAmount, 0, 1) && in(q.compAttack, 1, 50) && in(q.compRelease, 20, 500)
             && in(q.volume, 0, 1) && q.oversampling >= 0 && q.oversampling <= 2 && q.velocityCurve >= 0 && q.velocityCurve <= 3
             && q.polyphony >= 0 && q.polyphony <= 2 && in(q.tuneCents, -200, 200) && in(q.detune, 0, 100)
+            && q.roomType >= 0 && q.roomType <= 2
+            && in(q.velocityToHardness, 0, 1) && in(q.velocityToPosition, 0, 1) && in(q.velocityToDecay, 0, 1)
             && in(q.strikeJitter, 0, 100);
     };
     for (double sr : { 44100.0, 192000.0 }) {
@@ -1363,12 +1367,14 @@ void TestParameterFuzz()
             float* fields[] = { &p.malletHardness, &p.strikePosition, &p.resonatorTune, &p.resonatorCoupling, &p.decay,
                                 &p.buzzAmount, &p.artifacts, &p.sympathetic, &p.pitchGlide, &p.bodyBloom, &p.closeLevel,
                                 &p.farLevel, &p.piezoLevel, &p.stereoWidth, &p.preampDrive, &p.warmth, &p.compAmount,
-                                &p.compAttack, &p.compRelease, &p.volume, &p.tuneCents, &p.detune, &p.strikeJitter };
+                                &p.compAttack, &p.compRelease, &p.volume, &p.tuneCents, &p.detune, &p.strikeJitter,
+                                &p.velocityToHardness, &p.velocityToPosition, &p.velocityToDecay };
             for (float* f : fields) if (next() % 3 == 0) *f = pick();
             p.model = static_cast<int>(next() % 9) - 2;
             p.malletType = static_cast<int>(next() % 9) - 2;
             p.oversampling = static_cast<int>(next() % 7) - 2;
             p.polyphony = static_cast<int>(next() % 7) - 2;
+            p.roomType = static_cast<int>(next() % 7) - 2;
             p.velocityCurve = static_cast<int>(next() % 9) - 2;
             engine.SetParameters(p);
             if (!inRange(engine.GetParameters())) ++outOfRange;
@@ -2742,6 +2748,200 @@ void TestRestrikePreservesStoredEnergy()
     }
 }
 
+void TestVelocityDepths()
+{
+    std::cout << "[Velocity routes] Defaults, independent destinations, curve, full-velocity reference and strike boundaries ..." << std::endl;
+    EngineParameters defaults;
+    CHECK(defaults.velocityToHardness==.20f && defaults.velocityToPosition==.20f && defaults.velocityToDecay==.20f,
+          "velocity sensitivities must all default to 20%");
+    using Field = float EngineParameters::*;
+    const std::array<std::pair<Field,Field>,3> routes{{
+        {&EngineParameters::velocityToHardness,&EngineParameters::malletHardness},
+        {&EngineParameters::velocityToPosition,&EngineParameters::strikePosition},
+        {&EngineParameters::velocityToDecay,&EngineParameters::decay}}};
+    auto p=CleanParams();
+    p.sympathetic=p.bodyBloom=p.farLevel=p.preampDrive=p.compAmount=p.warmth=0;
+    for (const auto& route:routes) {
+        for (int curve:{0,1}) for (float velocity:{.25f,1.f}) {
+            p.velocityCurve=curve;
+            const auto unmodulated=RenderNote(44100,p,60,velocity,.2);
+            for (float depth:{0.f,.2f,1.f}) {
+                auto routed=p; routed.*route.first=depth;
+                auto reference=p;
+                // The existing velocity mapper adds a 1% physical drive floor.
+                const float curved=curve==0?std::sqrt(velocity):velocity;
+                const float mapped=.01f+(1.f-.01f)*curved;
+                reference.*route.second *= 1-depth*(1-mapped);
+                reference.decay=std::max(.1f,reference.decay);
+                const auto actual=RenderNote(44100,routed,60,velocity,.2);
+                const auto expected=RenderNote(44100,reference,60,velocity,.2);
+                CHECK(actual.ch==expected.ch, "velocity route misses its destination, uses raw velocity or changes another parameter");
+                if (depth==0 || velocity==1)
+                    CHECK(actual.ch==unmodulated.ch, "zero depth/full-velocity reference changes the base setting");
+                else if (depth==1) {
+                    const double relative=DiffEnergy(actual.ch[kCloseL],unmodulated.ch[kCloseL],0,actual.size())
+                        / Energy(unmodulated.ch[kCloseL],0,unmodulated.size());
+                    CHECK(relative>1e-4, "velocity route has no audible response to a soft stroke");
+                }
+            }
+        }
+    }
+    p.velocityCurve=1;
+    auto ring=[&](bool change, bool restrike) {
+        MarembaEngine e(44100);e.SetParameters(p);e.NoteOn(60,.4f);
+        Render r;RenderFrames(e,r,4410);
+        auto q=p;
+        if(change) q.velocityToHardness=q.velocityToPosition=q.velocityToDecay=1;
+        e.SetParameters(q);
+        CHECK(e.GetParameters().malletHardness==p.malletHardness && e.GetParameters().strikePosition==p.strikePosition
+              && e.GetParameters().decay==p.decay, "per-note modulation changed the stored base knobs");
+        if(restrike)e.NoteOn(60,.4f);
+        RenderFrames(e,r,8820);return r;
+    };
+    CHECK(ring(true,false).ch==ring(false,false).ch, "depth automation altered an already ringing note");
+    const auto changed=ring(true,true),fixed=ring(false,true);
+    CHECK(DiffEnergy(changed.ch[kCloseL],fixed.ch[kCloseL],4410,changed.size())>1e-4,
+          "restrikes do not pick up the new velocity depths");
+}
+
+void TestCharacterRangeAndLiveBuzz()
+{
+    std::cout << "[Character] Medium-velocity audibility and live Buzz ..." << std::endl;
+    EngineParameters p = CleanParams();
+    p.sympathetic = p.bodyBloom = p.farLevel = p.piezoLevel = 0;
+    p.compAmount = p.preampDrive = p.warmth = 0;
+    const auto dry = RenderNote(44100, p, 60, .72f, .5);
+    // Artifacts produces occasional imperfect hits, so its audibility and
+    // delayed mechanical content are covered by the 64-strike ensemble in
+    // EngineRealismTest. A single arbitrary strike must be allowed to be clean.
+    for (auto field : {&EngineParameters::bodyBloom, &EngineParameters::buzzAmount}) {
+        auto q = p; q.*field = 1;
+        const auto wet = RenderNote(44100, q, 60, .72f, .5);
+        const size_t end = wet.size();
+        const double relative = DiffEnergy(dry.ch[kCloseL], wet.ch[kCloseL], 0, end) / Energy(dry.ch[kCloseL], 0, end);
+        std::cout << "  -> " << (field == &EngineParameters::bodyBloom ? "Bloom" : "Buzz")
+                  << " difference " << 10*std::log10(relative) << " dB re dry" << std::endl;
+        CHECK(relative > .005, "character endpoint remains too subtle at normal velocity");
+    }
+    auto live = [&](bool change) {
+        MarembaEngine e(44100); e.SetParameters(p); e.NoteOn(60, .72f);
+        Render r; RenderFrames(e, r, 2205);
+        auto q = p; q.buzzAmount = change ? 1 : 0; e.SetParameters(q);
+        RenderFrames(e, r, 8820); return r;
+    };
+    const auto off = live(false), on = live(true);
+    CHECK(DiffEnergy(off.ch[kCloseL], on.ch[kCloseL], 0, 2205) == 0, "Buzz modifies earlier audio");
+    CHECK(DiffEnergy(off.ch[kCloseL], on.ch[kCloseL], 2205, on.size()) / Energy(off.ch[kCloseL], 2205, on.size()) > .005,
+          "Buzz automation waits for another note");
+    CHECK(DiffEnergy(off.ch[kPiezo], on.ch[kPiezo], 0, on.size()) == 0, "Buzz leaked into direct Piezo");
+}
+
+void TestWarmthRange()
+{
+    std::cout << "[Warmth] Broad low/high tilt, smooth live changes, repeatable reset ..." << std::endl;
+    auto tone = [](double hz, float warmth) {
+        maremba::AnalogPreamp amp; amp.SetSampleRate(48000); amp.Reset();
+        double energy = 0;
+        for (int i=0;i<24000;++i) {
+            float l,r; const float x = .1f*std::sin(2*M_PI*hz*i/48000);
+            amp.Process(x,x,0,warmth,l,r);
+            if (i>=12000) energy += l*l;
+        }
+        return std::sqrt(energy/12000);
+    };
+    CHECK(Db(tone(80,1)/tone(80,-1)) > 9, "Warmth low shelf lacks range");
+    CHECK(Db(tone(8000,-1)/tone(8000,1)) > 9, "Warmth high shelf lacks range");
+    maremba::AnalogPreamp changed, steady;
+    changed.SetSampleRate(48000); steady.SetSampleRate(48000);
+    float a=0,b=0,unused=0;
+    for (int i=0;i<4800;++i) {
+        const float x=.1f*std::sin(2*M_PI*250*i/48000);
+        changed.Process(x,x,0,-1,a,unused); steady.Process(x,x,0,-1,b,unused);
+    }
+    changed.Process(.1f,.1f,0,1,a,unused); steady.Process(.1f,.1f,0,-1,b,unused);
+    CHECK(std::abs(a-b)<.002, "Warmth jumps at an automation edge");
+}
+
+void TestWoodModelSeparation()
+{
+    std::cout << "[Models] Padauk has a shorter ring than Rosewood at matched settings ..." << std::endl;
+    auto p = CleanParams();
+    p.sympathetic=p.bodyBloom=p.farLevel=p.preampDrive=p.compAmount=p.warmth=0;
+    for (int note : {48,60,72}) {
+        p.model=0; auto rose = RenderNote(44100,p,note,.72f,.6);
+        p.model=1; auto padauk = RenderNote(44100,p,note,.72f,.6);
+        auto envelope = [](const Render& r) { return Db(Rms(r.ch[kCloseL],8820,22050)/Rms(r.ch[kCloseL],0,4410)); };
+        const double delta=envelope(padauk)-envelope(rose);
+        std::cout << "  -> note " << note << " Padauk late/early " << delta << " dB below Rosewood" << std::endl;
+        CHECK(delta < -4, "Padauk and Rosewood decay remain too similar");
+    }
+}
+
+void TestRoomAlgorithms()
+{
+    std::cout << "[Rooms] Distinct tails, stereo, reset, switching, legacy Wood and realtime safety ..." << std::endl;
+    for (double rate : {44100.,48000.,96000.}) {
+        std::array<std::vector<float>,3> response;
+        std::array<double,3> late{};
+        for (int type=0;type<3;++type) {
+            maremba::RoomBank room; room.Allocate(rate); room.SetSampleRate(rate); room.SetType(type);
+            auto& left=response[type]; left.resize(static_cast<size_t>(4*rate));
+            std::vector<float> right(left.size());
+            for (int repeat=0;repeat<2;++repeat) {
+                if (repeat) room.Reset();
+                gAllocationCount=0; gCountAllocations=true;
+                bool exact=true,finite=true;
+                for (size_t i=0;i<left.size();++i) {
+                    float dl,dr,l,r; const float x=i==0?.1f:0;
+                    room.Process(x,x,1,dl,dr,l,r);
+                    finite &= std::isfinite(l) && std::isfinite(r);
+                    if (repeat) exact &= l==left[i] && r==right[i];
+                    else {left[i]=l;right[i]=r;}
+                    exact &= dl==.7f*x && dr==.7f*x;
+                }
+                gCountAllocations=false;
+                CHECK(exact && finite && gAllocationCount==0, "room reset/dry path/finite/allocation contract failed");
+            }
+            const double total=Energy(left,0,left.size());
+            late[type]=Energy(left,static_cast<size_t>(rate),static_cast<size_t>(3*rate))/total;
+            CHECK(total>1e-5 && Peak(left)<.2, "room impulse lost or unstable");
+            CHECK(DiffEnergy(left,right,0,left.size())/total > .1, "room has no stereo spread");
+            CHECK(Energy(left,static_cast<size_t>(3*rate),left.size())/total<1e-5, "room fails to decay");
+        }
+        CHECK(late[2] > 20*late[1], "Hall is not appreciably longer than Chamber");
+        for (int a=0;a<3;++a) for (int b=a+1;b<3;++b)
+            CHECK(DiffEnergy(response[a],response[b],0,response[a].size())/Energy(response[a],0,response[a].size()) > .2,
+                  "room algorithms sound identical");
+        maremba::AcousticRoom legacy; legacy.Allocate(rate); legacy.SetSampleRate(rate); legacy.Reset();
+        for (size_t i=0;i<response[0].size();++i) {
+            float dl,dr,l,r; const float x=i==0?.1f:0;
+            legacy.Process(x,x,1,dl,dr,l,r);
+            CHECK(l==response[0][i], "Wood changes the legacy room");
+        }
+        maremba::RoomBank switched, reference;
+        for (auto* room : {&switched,&reference}) {room->Allocate(rate);room->SetSampleRate(rate);}
+        gAllocationCount=0; gCountAllocations=true;
+        bool finite=true,continuous=true;
+        for (int i=0;i<static_cast<int>(rate);++i) {
+            const int at=static_cast<int>(.1*rate);
+            if (i==at) switched.SetType(2);
+            if (i==at+10) switched.SetType(1); // request during an active fade
+            if (i==static_cast<int>(.4*rate)) switched.SetType(0);
+            float dl,dr,l,r,refL,refR; float x=.01f*std::sin(i*.07f);
+            switched.Process(x,x,1,dl,dr,l,r); reference.Process(x,x,1,dl,dr,refL,refR);
+            if (i==at) continuous &= l==refL && r==refR;
+            finite &= std::isfinite(l) && std::isfinite(r) && std::abs(l)<1 && std::abs(r)<1;
+        }
+        gCountAllocations=false;
+        CHECK(finite && continuous && gAllocationCount==0, "live room switch clicks, allocates or diverges");
+        std::cout << "  -> " << rate << " Hz: late energy Wood=" << late[0] << " Chamber=" << late[1] << " Hall=" << late[2] << std::endl;
+    }
+    auto p=CleanParams(); p.roomType=2; p.decay=.1f; p.farLevel=1;
+    MarembaEngine e(44100); e.SetParameters(p); e.NoteOn(60,.72f);
+    Render r; RenderFrames(e,r,44100*12,&p);
+    CHECK(AllFinite(r) && e.IsSilent(), "Hall never lets the engine idle");
+}
+
 // Opt-in native timing probe, so machine scheduling cannot make correctness
 // tests flaky. Each block includes parameter delivery and periodic note-on.
 void RunPerformanceProbe()
@@ -2792,6 +2992,10 @@ void RunPerformanceProbe()
 
 int main(int argc, char** argv)
 {
+    if (argc == 2 && std::string(argv[1]) == "--velocity-depths") {
+        TestVelocityDepths();
+        return gFailures ? 1 : 0;
+    }
     if (argc == 2 && std::string(argv[1]) == "--benchmark") {
         RunPerformanceProbe();
         return 0;
@@ -2878,6 +3082,11 @@ int main(int argc, char** argv)
     TestContactImpulseConservation();
     TestTunedMiddleRegister();
     TestRestrikePreservesStoredEnergy();
+    TestVelocityDepths();
+    TestCharacterRangeAndLiveBuzz();
+    TestWarmthRange();
+    TestWoodModelSeparation();
+    TestRoomAlgorithms();
 
     if (gFailures > 0) {
         std::cerr << "\n>>> " << gFailures << " MAREMBA DSP CHECK(S) FAILED <<<" << std::endl;

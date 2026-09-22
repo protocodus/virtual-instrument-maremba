@@ -18,6 +18,8 @@ public:
         mDcBlockInL = mDcBlockOutL = 0.0f;
         mDcBlockInR = mDcBlockOutR = 0.0f;
         mTiltLowL = mTiltLowR = 0.0f;
+        mCachedWarmth = 2.0f;
+        mLowGain = mHighGain = mSmoothLow = mSmoothHigh = 1.0f;
     }
 
     // Control rate: with a silent input (all mic levels at 0) the DC blocker and
@@ -39,6 +41,7 @@ public:
 
     void SetSampleRate(double sampleRate) {
         mSampleRate = sampleRate > 8000.0 ? sampleRate : kReferenceRate;
+        mToneAlpha = static_cast<float>(1.0-std::exp(-1.0/(.005*mSampleRate)));
         mTiltAlpha = static_cast<float>(1.0 - std::exp(-kTwoPiD * 450.0 / mSampleRate));
         // DC blocker corner in Hz (was a fixed per-sample pole, i.e. a corner that moved with the rate)
         mDcPole = static_cast<float>(std::exp(-kTwoPiD * kDcBlockHz / mSampleRate));
@@ -85,19 +88,17 @@ public:
         // The low band tracks continuously so re-enabling the tilt is click-free.
         mTiltLowL += mTiltAlpha * (satL - mTiltLowL);
         mTiltLowR += mTiltAlpha * (satR - mTiltLowR);
-        if (std::abs(warmth) > 0.001f) {
-            float highL = satL - mTiltLowL;
-            float highR = satR - mTiltLowR;
-
-            float lowGain = 1.0f + warmth * 0.20f;
-            float highGain = 1.0f - warmth * 0.20f;
-
-            outL = (mTiltLowL * lowGain) + (highL * highGain);
-            outR = (mTiltLowR * lowGain) + (highR * highGain);
-        } else {
-            outL = satL;
-            outR = satR;
+        // +/-6 dB shelf endpoints; cache exponentials at control changes and
+        // smooth the actual gains over 5 ms, including transitions through flat.
+        if (warmth != mCachedWarmth) {
+            mCachedWarmth = warmth;
+            mLowGain = std::exp2(warmth);
+            mHighGain = 1.0f / mLowGain;
         }
+        mSmoothLow += mToneAlpha * (mLowGain - mSmoothLow);
+        mSmoothHigh += mToneAlpha * (mHighGain - mSmoothHigh);
+        outL = mTiltLowL*mSmoothLow + (satL-mTiltLowL)*mSmoothHigh;
+        outR = mTiltLowR*mSmoothLow + (satR-mTiltLowR)*mSmoothHigh;
     }
 
 private:
@@ -114,6 +115,9 @@ private:
     float mDcBlockOutR = 0.0f;
     float mTiltLowL = 0.0f;
     float mTiltLowR = 0.0f;
+    float mCachedWarmth = 2.0f;
+    float mLowGain = 1.0f, mHighGain = 1.0f;
+    float mSmoothLow = 1.0f, mSmoothHigh = 1.0f, mToneAlpha = .004f;
 };
 
 } // namespace maremba
