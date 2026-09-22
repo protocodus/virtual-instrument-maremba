@@ -65,19 +65,18 @@ struct MarembaVoiceTestAccess {
             + MarembaVoice::ModeEnergy(secondBar) + MarembaVoice::ModeEnergy(air);
         return std::abs(after / initial - 1.0);
     }
+    // Far past a taut limit, so the release exercises the stiff one-sided
+    // spring and the overshoot-dependent slap loss, not only the slack range.
     static void SeedFreeMembrane(MarembaVoice& voice) {
         voice.mContactSample = voice.mContactSamplesTotal;
         voice.mShockSample = voice.mShockSamplesTotal;
         voice.mArtifactSample = voice.mArtifactEnd;
         voice.mClackActive = false;
         voice.mHasMirliton = false;
-        voice.mMirlitonDisplacement = .5;
-        voice.mMirlitonVelocity = -.3;
+        voice.mMembrane.mX = .5;
+        voice.mMembrane.mV = -.3;
     }
-    static double MembraneEnergy(const MarembaVoice& voice) {
-        const double q = voice.mMirlitonDisplacement, v = voice.mMirlitonVelocity;
-        return .5 * (q * q + v * v) + .25 * voice.mMirlitonStiffness * q * q * q * q;
-    }
+    static double MembraneEnergy(const MarembaVoice& voice) { return voice.mMembrane.Energy(); }
 };
 }
 namespace {
@@ -172,7 +171,7 @@ int main() {
             float close, far, piezo;
             voice.ProcessSample(close, far, piezo);
             const double current = maremba::MarembaVoiceTestAccess::MembraneEnergy(voice);
-            require(current <= previous + 1.e-12, "unforced hardening membrane injected energy");
+            require(current <= previous + 1.e-12, "unforced slack/taut membrane injected energy");
             previous = current;
         }
         require(previous < 1.e-12, "unforced membrane did not release naturally");

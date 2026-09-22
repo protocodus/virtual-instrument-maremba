@@ -5,6 +5,8 @@
 #include "PiezoPickup.h"
 #include "ModalRadiation.h"
 #include "MalletContact.h"
+#include "SlackMembrane.h"
+#include "BuzzerRattle.h"
 #include <cmath>
 #include <cstdint>
 
@@ -71,7 +73,7 @@ public:
     // The same sum, evaluated now (voice stealing). Not cached; 0 when inactive.
     double ComputeEnergy() const;
 
-    // True when no resonator state (modes, twin, tube, restrike residuals) is
+    // True when no resonator state (modes, twin, torsion, tube, restrike residuals) is
     // subnormal (unit testing).
     bool HasNoSubnormalState() const;
 
@@ -168,6 +170,16 @@ private:
     int mNumModes = 0;                 // modes below 0.45 * fs; higher ones are dropped
     ModeState mMode0b; // voiced weak split: not a measured torsional eigenmode
     bool mHasTwin = false;
+    double mTwinRadiation = 1.0; // the fundamental's direct bar radiation
+
+    // First two torsional modes of a wooden bar, driven by the off-axis part
+    // of each contact. They carry no net volume velocity, so they never
+    // exchange with the cavity; only the surface near-field reaches the mics.
+    static constexpr int kNumTorsionModes = 2;
+    ModeState mTorsion[kNumTorsionModes];
+    double mTorsionClose[kNumTorsionModes] = {};
+    double mTorsionFar[kNumTorsionModes] = {};
+    int mNumTorsionModes = 0;
 
     // Strike clack noise burst (band-passed noise, not a tonal mode)
     bool mClackActive = false;
@@ -192,22 +204,23 @@ private:
     int mCavityConnections[3] = {};
     double mCavityDirection[3][2] = {};
     double mCavityExchangeScale[3] = {};
+    double mCavityAngle[3] = {}, mCavityAngleTarget[3] = {};
+    bool mCavityAngleRamp = false;
     double mResCoupling = 0.5;
     double mResReadoutGain = 0.0;
     double mResReadoutStep = 1.0;
+    double mFarAirWeight = 0.5;   // cavity pressure in the far microphone
 
-    // Mirliton Buzz Membrane State
+    // Buzzing membrane over a hole in the resonator (Buzz). Its slap loss is
+    // drained from the air modes, so buzzing shortens the resonator ring.
     bool mHasMirliton = false;
-    double mMirlitonThreshold = 0.05;
-    double mMirlitonDrive = 2.0;
-    double mMirlitonDisplacement = 0.0;
-    double mMirlitonVelocity = 0.0;
-    double mMirlitonStep = 0.05;
-    double mMirlitonLoss = 0.02;
-    double mMirlitonStiffness = 12.0;
-    double mMirlitonForceStep = 0.0;
-    double mMirlitonVelocityStep = 0.0;
-    double mMirlitonInverseStep = 0.0;
+    SlackMembrane mMembrane;
+    double mMembraneDrive = 0.0;
+    double mMembraneGapScale = 1.0;   // register: smaller treble membranes
+    double mMembraneDrain = 0.0;      // air energy removed per unit slap loss
+    double mMembraneRadiation = 0.0;  // radiated pressure per membrane acceleration
+    // Kalimba Buzz: loose buzzers on the board, driven by the bridge motion.
+    BuzzerRattle mBuzzer;
 
     // Secondary physical contacts share the initial stroke's impulse budget.
     int mArtifactSample = 0, mArtifactEnd = 0;

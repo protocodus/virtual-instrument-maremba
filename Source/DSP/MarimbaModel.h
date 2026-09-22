@@ -1,6 +1,7 @@
 #pragma once
 
 #include "KalimbaModes.h"
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 
@@ -127,6 +128,89 @@ struct ModelParams {
     float handDampRate;          // Exponential rate constant for hand-damping on note-off
 };
 
+// First two torsional (twisting) modes of a wooden bar, as ratios of the
+// bar's fundamental. The centre line is their nodal line, so they respond
+// only to off-axis contact, and opposite edges cancel much of their radiation.
+// Measured anchors: a rosewood C3 bar has T1 = 2.48 and T2 = 11.1 x f1 (Bork et
+// al. 1999); across a 5-octave instrument T1 falls from ~1.9 in the largest
+// bars to ~1.2 in the smallest (Rossing, Yoo & Morrison 2004). T2 stays near
+// the third bending mode through the tuned register (Beaton & Scavone 2019).
+// The note law between these anchors and the Balafon's stiffer, less
+// undercut scaling are voiced interpolations, not specimen measurements.
+struct TorsionProfile {
+    double ratio[2];
+    double lateralSpread;   // RMS off-axis contact at Variance 0, / half width
+};
+
+inline TorsionProfile GetTorsionProfile(EMarimbaModel model, int noteNumber) {
+    const double t = std::clamp((static_cast<double>(noteNumber) - 48.0) / 48.0, -0.25, 1.0);
+    // 2.48 at C3, 1.25 at C7, slightly lower again below C3 (the largest bars).
+    const double first = t >= 0.0 ? 2.48 * std::pow(1.25 / 2.48, t) : 2.48 + 1.6 * t;
+    switch (model) {
+        case EMarimbaModel::MayanPadauk:
+            return {{first, 4.40 * first}, 0.30};
+        case EMarimbaModel::BalafonAncestral:
+            return {{1.12 * first, 4.20 * 1.12 * first}, 0.35};
+        case EMarimbaModel::ImperialRosewood:
+        default:
+            return {{first, 4.46 * first}, 0.25};
+    }
+}
+
+// Hand-made instruments are not uniform: every bar, tine and resonator is cut,
+// tuned or chosen separately. A fixed per-key scatter (identical on every
+// strike, reset and rate) perturbs only what makers do not tune exactly:
+// upper partials beyond the tuned ones, torsional modes, resonator alignment
+// and loss. The fundamental keeps its exact tuning. Spreads are voiced by
+// construction: tight for the concert instrument, where the 4:1 and 10:1
+// partials are tuned; wide for hand-carved balafon bars and gourds chosen by
+// ear; Chapman's kalimba ratios scatter by ~0.1 about their trend.
+struct KeyVariation {
+    double partial[kNumPitchedModes]; // multiplies ratio of mode m (m >= 1)
+    double torsion;                   // multiplies both torsional ratios
+    double resonatorCents;            // cavity alignment error
+    double decayScale;                // wood/steel loss scatter
+};
+
+inline KeyVariation GetKeyVariation(EMarimbaModel model, int noteNumber) {
+    uint32_t state = static_cast<uint32_t>(noteNumber & 127) * 0x9E3779B1u
+                   ^ (static_cast<uint32_t>(model) + 1u) * 0x85EBCA6Bu;
+    const auto next = [&state]() {
+        // splitmix32: a fixed, well-mixed value per key, mapped to [-1, 1).
+        state += 0x9E3779B9u;
+        uint32_t z = state;
+        z = (z ^ (z >> 16)) * 0x21F0AAADu;
+        z = (z ^ (z >> 15)) * 0x735A2D97u;
+        z ^= z >> 15;
+        return static_cast<double>(z >> 8) * (2.0 / 16777216.0) - 1.0;
+    };
+    double tuned = 0.003, untuned = 0.012, torsion = 0.04, cents = 1.0, decay = 0.04;
+    int tunedModes = 3;                  // 1 : 4 : 10
+    switch (model) {
+        case EMarimbaModel::MayanPadauk:
+            tuned = 0.006; untuned = 0.02; torsion = 0.05; cents = 10.0; decay = 0.08;
+            break;
+        case EMarimbaModel::BalafonAncestral:
+            tuned = 0.025; untuned = 0.04; torsion = 0.06; cents = 30.0; decay = 0.12;
+            tunedModes = 2;
+            break;
+        case EMarimbaModel::KalimbaArtisan:
+            tuned = untuned = 0.015; torsion = 0.0; cents = 0.0; decay = 0.06;
+            tunedModes = 1;
+            break;
+        default:
+            break;
+    }
+    KeyVariation variation{};
+    variation.partial[0] = 1.0;
+    for (int m = 1; m < kNumPitchedModes; ++m)
+        variation.partial[m] = 1.0 + next() * (m < tunedModes ? tuned : untuned);
+    variation.torsion = 1.0 + next() * torsion;
+    variation.resonatorCents = next() * cents;
+    variation.decayScale = 1.0 + next() * decay;
+    return variation;
+}
+
 inline ModelParams GetModelParams(EMarimbaModel model) {
     switch (model) {
         case EMarimbaModel::ImperialRosewood:
@@ -141,9 +225,11 @@ inline ModelParams GetModelParams(EMarimbaModel model) {
                 // Voiced modal weights; not measurements of a specific instrument.
                 { 1.000f, 0.280f,  0.070f,  0.024f,  0.010f,  0.005f,  0.002f,  0.001f },
                 // Physics-based damping: alpha_rad, alpha_int
-                0.18f,    // radiation: modes radiate ∝ f^2 (fast upper mode radiation)
-                0.75f,    // internal: viscoelastic loss ∝ f
-                13.0f,    // realistic acoustic brass resonator tube Q
+                // Measured wood loss: near-constant loss factor (T60 ~ 1/f)
+                // with a small a2*f^2 term (Chaigne & Doutaut 1997; Hill 2011).
+                0.020f,   // a2*f^2-type loss relative to the fundamental
+                0.45f,    // loss ∝ f (constant loss factor)
+                20.0f,    // brass tube Q; a slower build matches recorded bloom
                 0.60f,    // balanced acoustic coupling without hollow whistling
                 false,    // no mirliton
                 0.0f,
@@ -170,8 +256,8 @@ inline ModelParams GetModelParams(EMarimbaModel model) {
                 // A voiced, woody attack and shorter fundamental distinguish
                 // this model; these weights are not species measurements.
                 { 0.940f, 0.720f,  0.200f,  0.075f,  0.030f,  0.012f,  0.006f,  0.002f },
-                0.22f,    // slightly higher radiation damping (denser wood)
-                0.90f,    // higher internal friction = tight punchy decay
+                0.035f,   // larger f^2 loss than rosewood (denser, drier wood)
+                0.45f,    // higher internal friction = tighter decay
                 6.5f,     // broad wooden soundbox response
                 0.45f,
                 false,
@@ -197,8 +283,8 @@ inline ModelParams GetModelParams(EMarimbaModel model) {
                 "Natural calabash gourds with vibrating mirliton membranes",
                 { 1.000f, 4.000f,  9.600f, 14.100f, 19.500f, 25.800f, 33.200f, 41.600f },
                 { 1.000f, 0.380f,  0.110f,  0.040f,  0.016f,  0.008f,  0.004f,  0.001f },
-                0.25f,    // higher radiation from irregular bar shape
-                1.10f,    // high internal friction from fire-cured wood
+                0.040f,   // irregular hand-carved bar: most f^2 loss
+                0.55f,    // high internal friction from fire-cured wood
                 9.0f,     // organic gourd cavity
                 0.48f,
                 true,     // active vibrating mirliton membrane
@@ -223,8 +309,9 @@ inline ModelParams GetModelParams(EMarimbaModel model) {
                 "Kalimba Artisan 17-Key",
                 "Solid African Acacia wood soundbox with pyrography rosette",
                 "Ergonomic spring steel tines on brass and hardwood bridge",
-                // Clamped--supported--free beam: frequencies and contact/radiation
-                // shapes share the same two-span boundary solution.
+                // Rigid clamped--supported--free beam: the solution behind the
+                // contact/radiation shapes. Played frequencies come from the
+                // mounted tine (GetKalimbaMount), not from these ratios.
                 { float(KalimbaModeRatio(0)), float(KalimbaModeRatio(1)),
                   float(KalimbaModeRatio(2)), float(KalimbaModeRatio(3)),
                   float(KalimbaModeRatio(4)), float(KalimbaModeRatio(5)),

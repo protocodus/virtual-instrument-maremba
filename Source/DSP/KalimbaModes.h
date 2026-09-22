@@ -56,6 +56,88 @@ static constexpr KalimbaBeamMode kKalimbaBeamModes[8] = {
 };
 // END GENERATED KALIMBA MODES
 
+// Mounted tine frequencies and bridge losses. The two-span shapes above keep
+// the round-3 rigid-bridge solution for contact, radiation and strain, but a
+// real tine rests on a bridge that yields under its reaction, and the
+// pressure bar holds it with a line contact that lets it rotate. That mount
+// lowers the upper modes more than the fundamental, more so for short, stiff
+// treble tines, and reproduces Chapman's measured f2/f1 = 5.86 ... 5.30
+// (Canadian Acoustics 34(3), 2006) with one bridge stiffness for all tines.
+// The same bridge motion carries energy into the board: Gamma_n / Gamma_1 is
+// the bridge loss of each mode relative to the fundamental's. The table is
+// generated (and FEM-checked) by Tests/generate_kalimba_mount.py; outside
+// C3..A5, where the fitted law is extrapolating, the end values are held.
+struct KalimbaMountPoint {
+    double hz;
+    double ratio[8];
+    double bridgeLoss[8];
+};
+
+// BEGIN GENERATED KALIMBA MOUNT
+static constexpr int kKalimbaMountPoints = 12;
+static constexpr KalimbaMountPoint kKalimbaMount[kKalimbaMountPoints] = {
+    {130.81278265029931,
+     {1, 6.09569602, 16.4029394, 30.3236977, 47.307231, 68.8091039, 96.1001593, 129.065293},
+     {1, 8.66123344, 29.4027846, 55.4615895, 50.4485232, 20.1353982, 3.10973086, 0.0692399923}},
+    {155.56349186104043,
+     {1, 6.05944657, 16.1475027, 29.4973145, 46.0189648, 67.5919832, 94.997159, 127.862612},
+     {1, 8.75893235, 29.1759772, 48.661253, 33.7228693, 9.18454788, 0.41206548, 1.01255063}},
+    {184.99721135581717,
+     {1, 6.01568002, 15.8410697, 28.6014515, 44.843376, 66.5534837, 93.9886367, 126.643323},
+     {1, 8.83777338, 28.4765559, 40.2063257, 20.3435232, 3.31020149, 0.0424031201, 2.23327426}},
+    {219.99999999999997,
+     {1, 5.96299266, 15.4794925, 27.6773986, 43.8126225, 65.6547363, 93.021885, 125.36186},
+     {1, 8.88907555, 27.1731041, 31.0325477, 10.9380118, 0.725541165, 0.667687947, 3.08493016}},
+    {261.62556530059862,
+     {1, 5.89982236, 15.0624806, 26.7716632, 42.9300569, 64.852877, 92.0523322, 123.989043},
+     {1, 8.90179497, 25.1804189, 22.2449227, 5.08924899, 0.0110122593, 1.49507958, 3.29700532}},
+    {311.12698372208087,
+     {1, 5.8245001, 14.5954156, 25.925354, 42.1792332, 64.1077271, 91.0455731, 122.516613},
+     {1, 8.86237487, 22.5126056, 14.7361, 1.90026065, 0.201906467, 2.09399086, 2.88149108}},
+    {369.9944227116344,
+     {1, 5.73535483, 14.0901756, 25.1663952, 41.5341544, 63.3847524, 89.98005, 120.959631},
+     {1, 8.75506452, 19.3149873, 8.96128676, 0.451731072, 0.700438565, 2.28147838, 2.05804966}},
+    {440,
+     {1, 5.63087994, 13.5641699, 24.5070414, 40.966667, 62.6565568, 88.8499329, 119.352739},
+     {1, 8.56309435, 15.8446686, 4.93934605, 0.0147251403, 1.16453872, 2.05565569, 1.14793506}},
+    {523.25113060119725,
+     {1, 5.50998203, 13.0376861, 23.9461259, 40.4506079, 61.9044006, 87.6665983, 117.73913},
+     {1, 8.27106064, 12.4019114, 2.40122029, 0.0858081881, 1.42476629, 1.54405512, 0.43736602}},
+    {622.25396744416184,
+     {1, 5.37228202, 12.5305178, 23.4736107, 39.96373, 61.119846, 86.4561601, 116.155768},
+     {1, 7.8685866, 9.25034974, 0.966682836, 0.346853395, 1.43215732, 0.940117412, 0.0672811891}},
+    {739.98884542326891,
+     {1, 5.21842577, 12.0591327, 23.0751939, 39.4887185, 60.3059949, 85.2523605, 114.6226},
+     {1, 7.35457252, 6.56527514, 0.27095144, 0.612169561, 1.22332735, 0.426408894, 0.00743723807}},
+    {880,
+     {1, 5.0502983, 11.6350629, 22.7356942, 39.0139355, 59.4769866, 84.0867235, 113.141329},
+     {1, 6.74048106, 4.421884, 0.0233374357, 0.786398483, 0.888043688, 0.110449373, 0.115839164}},
+};
+// END GENERATED KALIMBA MOUNT
+
+struct KalimbaMount {
+    double ratio[8];
+    double bridgeLoss[8];
+};
+
+// Linear in log frequency between the generated notes; allocation-free and
+// trigger-time only.
+inline KalimbaMount GetKalimbaMount(double fundamentalHz) {
+    const double hz = std::clamp(fundamentalHz, kKalimbaMount[0].hz,
+                                 kKalimbaMount[kKalimbaMountPoints - 1].hz);
+    int upper = 1;
+    while (upper < kKalimbaMountPoints - 1 && kKalimbaMount[upper].hz < hz) ++upper;
+    const auto& lo = kKalimbaMount[upper - 1];
+    const auto& hi = kKalimbaMount[upper];
+    const double t = std::clamp(std::log(hz / lo.hz) / std::log(hi.hz / lo.hz), 0.0, 1.0);
+    KalimbaMount mount{};
+    for (int m = 0; m < 8; ++m) {
+        mount.ratio[m] = lo.ratio[m] + t * (hi.ratio[m] - lo.ratio[m]);
+        mount.bridgeLoss[m] = lo.bridgeLoss[m] + t * (hi.bridgeLoss[m] - lo.bridgeLoss[m]);
+    }
+    return mount;
+}
+
 inline double KalimbaModeRatio(int mode) {
     return kKalimbaBeamModes[std::clamp(mode, 0, 7)].ratio;
 }

@@ -19,6 +19,9 @@ struct MarembaVoiceTestAccess {
     static void BypassRadiation(MarembaVoice& voice) {
         for (auto& coefficient : voice.mRadiation) coefficient = {};
     }
+    // Stored energy of the Buzz layer itself: membrane (and its shadow) or
+    // the kalimba buzzers' rings.
+    static double BuzzEnergy(const MarembaVoice& voice) { return voice.MembraneEnergy(); }
 };
 }
 
@@ -29,6 +32,7 @@ struct Settings {
     double rate = 96000, seconds = .12;
     float cavityTune = 0, buzz = 0;
     bool disableBuzz = false;
+    std::vector<double>* buzzEnergy = nullptr;   // per-sample Buzz layer energy
 };
 std::vector<double> render(const Settings& s) {
     maremba::MarembaVoice voice;
@@ -42,6 +46,7 @@ std::vector<double> render(const Settings& s) {
         float close, far, piezo;
         voice.ProcessSample(close, far, piezo);
         output[i] = close;
+        if (s.buzzEnergy) s.buzzEnergy->push_back(maremba::MarembaVoiceTestAccess::BuzzEnergy(voice));
         if ((i & 31u) == 31u) voice.UpdateEnvelope();
     }
     return output;
@@ -156,21 +161,26 @@ int main(int argc, char** argv) {
     }
 
     // Buzz-off removes pressure drive while preserving a short inertial decay.
-    // The isolated layer must then disappear, on every model/register, while
-    // the bar still rings. It must not leave a frozen or autonomous oscillator.
+    // The layer's own stored energy (membrane, or kalimba buzzers) must then
+    // die away, on every model/register, while the bar still rings: no frozen
+    // or autonomous oscillator. The buzzing already drained energy from the
+    // resonator, so the released note is not compared with a never-buzzed one.
     for (int model = 0; model < 4; ++model) for (int note : {48, 72}) {
         Settings s;
         s.model = model; s.note = note;
-        const auto dry = render(s);
         s.buzz = 1; s.disableBuzz = true;
+        std::vector<double> layer;
+        s.buzzEnergy = &layer;
         const auto released = render(s);
-        const double before = difference(released, dry, static_cast<size_t>(.02*s.rate),
-                                         static_cast<size_t>(.04*s.rate));
-        const double after = difference(released, dry, static_cast<size_t>(.06*s.rate),
-                                        static_cast<size_t>(.08*s.rate));
+        const auto peak = [&](double from, double to) {
+            return *std::max_element(layer.begin() + static_cast<size_t>(from * s.rate),
+                                     layer.begin() + static_cast<size_t>(to * s.rate));
+        };
+        const double before = peak(.02, .04), after = peak(.06, .08);
         const double decay = db(after/std::max(before, 1.e-30));
         check(before > 1.e-12, "Buzz-off probe never excited its membrane");
-        check(std::isfinite(decay) && decay < -60, "disabled membrane fails to release model="
+        check(energy(released) > 0 && std::isfinite(decay) && decay < -60,
+              "disabled membrane fails to release model="
               + std::to_string(model) + " note=" + std::to_string(note));
         std::cout << "BUZZ_OFF model=" << model << " note=" << note
                   << " residual_after_20ms_db=" << decay << '\n';
