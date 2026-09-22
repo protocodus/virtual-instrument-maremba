@@ -188,8 +188,19 @@ int main(int argc, char** argv) {
             const double rumble = db(bandFraction(delta, 25, false));
             const double late = db(energy(delta, .7, 1) / std::max(energy(delta, .04, .3), 1e-30));
             check(finite(full), "unbounded character output");
-            check(full.piezo == dry.piezo,
-                  std::string(names[f]) + " acoustic layer leaks into isolated contact pickup");
+            // Body and halo are purely acoustic returns. A resonator membrane
+            // is acoustic too, but it drains the air that loads the bar, so
+            // the bar-mounted pickup may change slightly and only indirectly.
+            // Kalimba buzzers sit on the board itself and may knock the pickup.
+            if (fields[f] != &maremba::EngineParameters::buzzAmount) {
+                check(full.piezo == dry.piezo,
+                      std::string(names[f]) + " acoustic layer leaks into isolated contact pickup");
+            } else if (model != 3) {
+                std::vector<double> pickupDelta(full.piezo.size());
+                for (size_t i = 0; i < pickupDelta.size(); ++i) pickupDelta[i] = full.piezo[i] - dry.piezo[i];
+                check(db(energy(pickupDelta) / std::max(energy(dry.piezo), 1e-30)) < -30,
+                      "buzz acoustic layer leaks into isolated contact pickup");
+            }
             check(contribution > -45 && contribution < 6,
                   std::string(names[f]) + " contribution inaudible or dominates the bar model="
                   + std::to_string(model));

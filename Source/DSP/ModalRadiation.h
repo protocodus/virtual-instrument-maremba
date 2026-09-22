@@ -214,6 +214,24 @@ inline ModalRadiationCoefficient ProjectModalSurface(int mode, double frequencyH
     return {real, imag};
 }
 
+// A bare bar is an acoustically short-circuited source: air pushed by one face
+// flows around the edges to the other. Below k*d~1 the pair radiates like a
+// dipole, ~k*d weaker than a monopole of the same volume velocity; well above
+// it the faces radiate almost independently. d is the effective edge path, a
+// voiced multiple of the bar width. Normalized to unity for C4's tuned 4:1
+// partial, so the voiced upper-mode balance near 1 kHz is retained while bass
+// fundamentals lose the direct radiation that the resonator must supply.
+// Relative amplitude only; not an absolute SPL or radiation-damping model.
+inline double BarDirectRadiationScale(double frequencyHz, double width) {
+    constexpr double kEdgePath = 1.6;
+    const auto efficiency = [](double frequency, double barWidth) {
+        const double kd = 2.0 * 3.14159265358979323846 * std::max(frequency, 0.0) / 343.0
+                        * kEdgePath * barWidth;
+        return kd / std::sqrt(1.0 + kd * kd);
+    };
+    return efficiency(frequencyHz, width) / efficiency(1046.502261, .055);
+}
+
 inline ModalRadiationReadout ComputeModalRadiation(int mode, double frequencyHz,
         const ModalRadiationGeometry& geometry, bool tine) {
     // Existing excitation/readout weights already include a voiced radiation
