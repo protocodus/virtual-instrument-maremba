@@ -972,7 +972,10 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
 }
 
 void MarembaVoice::SetBuzz(float amount) {
-    amount = std::clamp(amount, 0.0f, 1.0f);
+    // Keep the persisted/automated knob at 0..1 while restricting the physical
+    // response to the former 0..0.7 range. Trigger, restrike and live changes
+    // all enter here; apply this once, before both membrane and buzzer voicing.
+    amount = 0.7f * std::clamp(amount, 0.0f, 1.0f);
     const MembraneVoicing membrane = GetMembraneVoicing(mModel);
     // A kalimba has no resonator membrane; its Buzz is the board buzzers.
     const bool tine = mModel == EMarimbaModel::KalimbaArtisan;

@@ -3049,6 +3049,11 @@ int main(int argc, char** argv)
         TestOrganicRepeatVariation(std::string(argv[1]) == "--repeat-measure");
         return gFailures ? 1 : 0;
     }
+    if (argc == 2 && std::string(argv[1]) == "--buzz") {
+        TestMirlitonBuzz();
+        TestCharacterRangeAndLiveBuzz();
+        return gFailures ? 1 : 0;
+    }
     std::cout << "=== Running Maremba DSP Verification Suite ===" << std::endl;
 
     TestNoteRangeStability();

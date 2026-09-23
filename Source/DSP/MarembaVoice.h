@@ -44,7 +44,8 @@ public:
     // Engine-wide tuning changed (master tune, pitch bend): recompute the
     // resonator coefficients from the stored trigger-time frequencies.
     void Retune(float globalCents);
-    // Membrane amount follows automation while the bar is ringing.
+    // Normalized 0..1 knob; maps to 0..0.7 of the physical membrane/buzzer
+    // response and follows automation while the bar is ringing.
     void SetBuzz(float amount);
 
     void FastKill();

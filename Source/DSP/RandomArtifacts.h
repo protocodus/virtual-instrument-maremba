@@ -62,15 +62,20 @@ struct StrikeCharacter {
 
 inline StrikeCharacter GenerateStrikeCharacter(FastPRNG& prng, float variance) {
     const double amount = std::isfinite(variance) ? std::clamp(variance, 0.0f, 100.0f) * 0.01 : 0.0;
+    // Keep the existing natural floor and 0..25% response exactly. Above it,
+    // widen contact duration, release shape and partial balance progressively
+    // so the high range is clearly expressive without detuning/moving the hit.
+    const double upper = std::max(0.0, (amount - 0.25) / 0.75);
+    const double expressive = upper * upper;
     StrikeCharacter strike;
     // Fixed draw count at note-on, independent of amount and sample rate. The
     // engine's strike PRNG survives voice reuse/silence; explicit Reset reseeds it.
-    strike.contactTimeScale = 1.0 + prng.NextGaussianDouble() * (0.0075 + 0.04 * amount);
-    strike.pulseSkewOffset = prng.NextGaussianDouble() * (0.006 + 0.025 * amount);
-    strike.impulseScale = 1.0 + prng.NextGaussianDouble() * (0.0035 + 0.01 * amount);
-    strike.shockScale = 1.0 + prng.NextGaussianDouble() * (0.06 * amount);
+    strike.contactTimeScale = 1.0 + prng.NextGaussianDouble() * (0.0075 + 0.04 * amount + 0.30 * expressive);
+    strike.pulseSkewOffset = prng.NextGaussianDouble() * (0.006 + 0.025 * amount + 0.10 * expressive);
+    strike.impulseScale = 1.0 + prng.NextGaussianDouble() * (0.0035 + 0.01 * amount + 0.10 * expressive);
+    strike.shockScale = 1.0 + prng.NextGaussianDouble() * (0.06 * amount + 0.35 * expressive);
     for (int mode = 0; mode < kNumPitchedModes; ++mode)
-        strike.modalScale[mode] = 1.0 + prng.NextGaussianDouble() * (0.004 + 0.035 * amount);
+        strike.modalScale[mode] = 1.0 + prng.NextGaussianDouble() * (0.004 + 0.035 * amount + 0.40 * expressive);
     return strike;
 }
 
