@@ -109,9 +109,12 @@ public:
     // overlap of neighboring bars/tines, including adjacent semitones.
     inline void AccumulateVoice(int noteNumber, float voiceMechanical) {
         if (noteNumber < 0 || noteNumber >= 128) return;
-        const auto& list = mNoteCoupling[noteNumber];
-        for (uint8_t k = 0; k < list.count; ++k) {
-            mDrive[list.entries[k].resonatorIdx] += list.entries[k].weight * voiceMechanical;
+        const auto& runs = mNoteCouplingRuns[noteNumber];
+        for (int k = 0; k < runs.firstCount; ++k) {
+            mDrive[runs.firstStart + k] += runs.weights[k] * voiceMechanical;
+        }
+        for (int k = 0; k < runs.secondCount; ++k) {
+            mDrive[runs.secondStart + k] += runs.weights[runs.firstCount + k] * voiceMechanical;
         }
     }
 
@@ -194,6 +197,15 @@ public:
 private:
     static constexpr double kMaxState = 1.0e3;
 
+    // The sorted coupling list contains at most two contiguous runs: keys
+    // below and above the driven note. Each independent receiver still gets
+    // one identical multiply-add, in the same voice and receiver order.
+    struct CouplingRuns {
+        uint8_t firstStart = 0, firstCount = 0;
+        uint8_t secondStart = 0, secondCount = 0;
+        float weights[VoiceCouplingList::kCapacity] = {};
+    };
+
     // A local support transmits most strongly to nearby keys. The spectral
     // filters decide what rings: no fifth/third whitelist and no arbitrary
     // prohibition on adjacent keys. The finite bank is a reduced approximation
@@ -213,6 +225,20 @@ private:
                 const float weight = static_cast<float>(1.0 / (1.0 + 0.12 * distance * distance));
                 list.entries[list.count++] = {static_cast<uint8_t>(key - kFirstNote), weight};
             }
+            auto& runs = mNoteCouplingRuns[n];
+            runs = CouplingRuns{};
+            if (list.count == 0) continue;
+            runs.firstStart = list.entries[0].resonatorIdx;
+            for (int k = 0; k < list.count; ++k) {
+                const auto& entry = list.entries[k];
+                runs.weights[k] = entry.weight;
+                if (entry.resonatorIdx == runs.firstStart + k) {
+                    ++runs.firstCount;
+                } else {
+                    if (runs.secondCount == 0) runs.secondStart = entry.resonatorIdx;
+                    ++runs.secondCount;
+                }
+            }
         }
     }
 
@@ -230,6 +256,7 @@ private:
     std::array<double, kNumResonators> mPanL{};
     std::array<double, kNumResonators> mPanR{};
     std::array<VoiceCouplingList, 128> mNoteCoupling{};
+    std::array<CouplingRuns, 128> mNoteCouplingRuns{};
 };
 
 } // namespace maremba
