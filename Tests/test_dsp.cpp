@@ -9,6 +9,7 @@
 #include "../DSP/MarembaEngine.h"
 #include "../DSP/ModalExcitation.h"
 #include "../DSP/ContactExcitation.h"
+#include "../DSP/BarModes.h"
 
 #include <algorithm>
 #include <array>
@@ -809,7 +810,10 @@ RepeatMetrics MeasureRepeats(const std::vector<std::vector<float>>& hits, int mo
     const size_t attackEnd = static_cast<size_t>(0.008 * sampleRate);
     const size_t ringStart = static_cast<size_t>(0.040 * sampleRate);
     const size_t ringEnd = static_cast<size_t>(0.160 * sampleRate);
-    const auto material = maremba::GetModelParams(static_cast<maremba::EMarimbaModel>(model));
+    const auto instrument = static_cast<maremba::EMarimbaModel>(model);
+    const auto barGeometry = maremba::GetBarModeGeometry(instrument, 60.0);
+    const auto mount = maremba::GetKalimbaMount(NoteHz(60));
+    const auto keyVariation = maremba::GetKeyVariation(instrument, 60);
     std::vector<std::array<double, 4>> spectra;
     std::vector<double> levels, pitch, attack, ring, spectral;
     for (const auto& hit : hits) {
@@ -819,11 +823,13 @@ RepeatMetrics MeasureRepeats(const std::vector<std::vector<float>>& hits, int mo
                                     hit.begin() + static_cast<size_t>(0.045 * sampleRate));
         segment = HannWindowed(segment);
         std::array<double, 4> powers{};
-        // A mounted tine sounds at its bridge/bar-dependent ratios.
-        const auto mount = maremba::GetKalimbaMount(NoteHz(60));
+        // Measure the actual solved partial frequencies, including the fixed
+        // per-key tuning scatter. A nominal-frequency bin can miss a weak
+        // partial and mistake spectral leakage for the varying pitched mode.
         for (size_t mode = 0; mode < powers.size(); ++mode)
             powers[mode] = GoertzelPower(segment, sampleRate, NoteHz(60)
-                * (model == 3 ? mount.ratio[mode] : material.overtoneRatio[mode]));
+                * (model == 3 ? mount.ratio[mode] : maremba::BarModeRatio(barGeometry, static_cast<int>(mode)))
+                * keyVariation.partial[mode]);
         spectra.push_back(powers);
     }
     for (size_t h = 1; h < hits.size(); ++h) {
@@ -2685,7 +2691,8 @@ void TestPhysicalStrikePositions()
         const Render centre = RenderNote(44100.0, p, 48, 0.9f, 0.12);
         p.strikePosition = 0.35f;
         const Render offCentre = RenderNote(44100.0, p, 48, 0.9f, 0.12);
-        p.strikePosition = 0.2242f;
+        p.strikePosition = static_cast<float>(maremba::BarModeFundamentalNode(
+            maremba::GetBarModeGeometry(static_cast<maremba::EMarimbaModel>(model), 48)));
         const Render node = RenderNote(44100.0, p, 48, 0.9f, 0.12);
         const double symmetryRatio = partial(centre, 4.0 * NoteHz(48)) / partial(offCentre, 4.0 * NoteHz(48));
         const double nodalRatio = partial(node, NoteHz(48)) / partial(centre, NoteHz(48));

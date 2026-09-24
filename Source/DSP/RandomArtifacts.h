@@ -62,11 +62,10 @@ struct StrikeCharacter {
 
 inline StrikeCharacter GenerateStrikeCharacter(FastPRNG& prng, float variance) {
     const double amount = std::isfinite(variance) ? std::clamp(variance, 0.0f, 100.0f) * 0.01 : 0.0;
-    // Keep the existing natural floor and 0..25% response exactly. Above it,
-    // widen contact duration, release shape and partial balance progressively
-    // so the high range is clearly expressive without detuning/moving the hit.
-    const double upper = std::max(0.0, (amount - 0.25) / 0.75);
-    const double expressive = upper * upper;
+    // Widen contact duration, release shape and partial balance from the first
+    // movement of the control. This smooth concave curve gives low settings
+    // useful expression while retaining the natural floor and maximum spread.
+    const double expressive = amount * (2.0 - amount);
     StrikeCharacter strike;
     // Fixed draw count at note-on, independent of amount and sample rate. The
     // engine's strike PRNG survives voice reuse/silence; explicit Reset reseeds it.

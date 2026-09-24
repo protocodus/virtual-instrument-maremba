@@ -29,7 +29,9 @@ public:
         switch (model) {
             case EMarimbaModel::MayanPadauk:
                 mount = {235.0, 1.05, 920.0, 1.55, 100.0, 4900.0,
-                         0.58, 0.72, 0.69, 0.26, 0.78};
+                         // Output calibration reserves headroom for the
+                         // undercut bar's stronger upper-mode strain.
+                         0.58, 0.72, 0.69, 0.26, 0.62};
                 break;
             case EMarimbaModel::BalafonAncestral:
                 mount = {310.0, 0.85, 1540.0, 2.10, 125.0, 6800.0,
@@ -70,7 +72,7 @@ public:
     }
 
     // strain: signed sum of the modal motions at the mounting patch, using
-    // ModalStrainWeight below. impactForce: the contact-force density (remove
+    // the instrument's solved modal geometry. impactForce: the contact-force density (remove
     // the integrated excitation's dt before feeding it here), including any
     // physical knocks. structuralBody: rail/bridge motion, never cavity air.
     // All three inputs are nominal audio-scale quantities, with peaks < 1.
@@ -94,9 +96,9 @@ public:
     // free bar (three mallet instruments) or clamped tine (Kalimba). Curvature
     // is the second derivative of displacement: higher modes can produce much
     // more contact voltage than radiated sound, and its sign changes at nodes.
-    // Use once per mode at trigger, never inside the sample loop. Frequency
-    // ratios stay independently voiced in MarimbaModel; this uniform-beam
-    // geometry approximates the mounting response, not an undercut-bar FEM.
+    // Retained as a uniform/clamped analytical reference for contracts. The
+    // production voice uses BarModes/KalimbaMountShapes for the same curvature
+    // readout on its actual reduced geometry.
     static double ModalStrainWeight(EMarimbaModel model, int mode) {
         struct BeamMode { double root, sigma; };
         static constexpr BeamMode bar[8] = {

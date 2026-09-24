@@ -10,8 +10,8 @@ namespace maremba {
 // oscillator with weak tension. Pressure that drives it past either limit
 // pulls it taut: a much stiffer one-sided spring snaps it back. These snaps,
 // not a smooth distortion of the note, make the buzz: short accelerations
-// ringing at the taut membrane's resonance (a fixed formant, independent of
-// the note and of how hard it is pushed), and only while the resonator
+// ringing around the taut membrane's reference resonance, with positive
+// stretching raising its frequency at large excursions, and only while the resonator
 // pressure is large enough to reach a limit. A membrane is fixed bulging
 // (wax ring, glue), so its two limits differ and the buzz carries even as
 // well as odd products.
@@ -52,6 +52,19 @@ public:
         mGapIn = std::max(gapIn, 1.0e-9);
         mStiffness = std::max(stiffness, 0.0);
         mSlapLoss = std::max(slapLoss, 0.0) / std::min(mGapOut, mGapIn);
+        UpdateMaterial();
+    }
+
+    // Geometric stretching once the wrinkles have pulled taut. At an
+    // overshoot equal to one gap, stretch is the cubic/linear spring-force
+    // ratio. Strain loss is additional positive Kelvin--Voigt-type damping
+    // per squared overshoot/gap. Both are dimensionless voicing parameters,
+    // not measured spider-silk or intestinal-membrane material constants.
+    // Zero keeps the original slack/taut response bit for bit.
+    void SetMaterial(double stretch, double strainLoss) {
+        mStretch = std::max(stretch, 0.0);
+        mStrainLoss = std::max(strainLoss, 0.0);
+        UpdateMaterial();
     }
 
     void Reset() { mX = mV = mLinearX = mLinearV = mAcceleration = 0.0; }
@@ -93,21 +106,31 @@ public:
         // It is a damping ratio (a multiple of the slack loss, so the same at
         // every rate), capped at 12x where the midpoint rule still damps
         // every frequency instead of ringing at Nyquist.
-        const double loss = mLoss * (1.0 + std::min(mSlapLoss * Overshoot(oldX), 11.0));
+        double extraLoss = mSlapLoss * Overshoot(oldX);
+        if (mStrainLoss > 0.0) {
+            const double out = std::max(oldX - mGapOut, 0.0);
+            const double in = std::max(-oldX - mGapIn, 0.0);
+            extraLoss += mStrainOut * out * out + mStrainIn * in * in;
+        }
+        const double loss = mLoss * (1.0 + std::min(extraLoss, 11.0));
         const double k = loss == mLoss ? mForceStep : mStep * mStep / (2.0 * (1.0 + loss));
         const double velocityStep = loss == mLoss ? mVelocityStep : mStep / (1.0 + loss);
         const double target = velocityStep * mV + k * force;
         // Inside the slack range the update is linear and solved directly.
         double x = (target + oldX - 0.5 * k * oldX) / (1.0 + 0.5 * k);
         if (Overshoot(x) > 0.0 || Overshoot(oldX) > 0.0) {
-            // Newton on x - oldX + k*G(x) - target, increasing in x because
-            // the discrete gradient G of a convex potential is monotone.
-            for (int iteration = 0; iteration < 8; ++iteration) {
-                double gradient, slope;
-                DiscreteGradient(x, oldX, gradient, slope);
-                const double step = (x - oldX + k * gradient - target) / (1.0 + k * slope);
-                x -= step;
-                if (std::abs(step) <= 1.0e-15 * (1.0 + std::abs(x))) break;
+            if (mStretch > 0.0) {
+                x = SolveStretched(x, oldX, k, target);
+            } else {
+                // Newton on x - oldX + k*G(x) - target, increasing in x because
+                // the discrete gradient G of a convex potential is monotone.
+                for (int iteration = 0; iteration < 8; ++iteration) {
+                    double gradient, slope;
+                    DiscreteGradient(x, oldX, gradient, slope);
+                    const double step = (x - oldX + k * gradient - target) / (1.0 + k * slope);
+                    x -= step;
+                    if (std::abs(step) <= 1.0e-15 * (1.0 + std::abs(x))) break;
+                }
             }
         }
         const double velocity = (x - oldX) * mInverseHalfStep - mV;
@@ -119,12 +142,21 @@ public:
     }
 
 private:
+    void UpdateMaterial() {
+        mCubicOut = mStiffness * mStretch / (mGapOut * mGapOut);
+        mCubicIn = mStiffness * mStretch / (mGapIn * mGapIn);
+        mStrainOut = mStrainLoss / (mGapOut * mGapOut);
+        mStrainIn = mStrainLoss / (mGapIn * mGapIn);
+    }
     double Overshoot(double x) const {
         return std::max(x - mGapOut, 0.0) + std::max(-x - mGapIn, 0.0);
     }
     double Potential(double x) const {
         const double out = std::max(x - mGapOut, 0.0), in = std::max(-x - mGapIn, 0.0);
-        return 0.5 * (x * x + mStiffness * (out * out + in * in));
+        const double linear = 0.5 * (x * x + mStiffness * (out * out + in * in));
+        if (mStretch == 0.0) return linear;
+        return linear + 0.25 * (mCubicOut * out * out * out * out
+                              + mCubicIn * in * in * in * in);
     }
     double Force(double x) const {
         return x + mStiffness * (std::max(x - mGapOut, 0.0) - std::max(-x - mGapIn, 0.0));
@@ -145,10 +177,63 @@ private:
         }
     }
 
+    // Factor the divided differences of each unilateral quadratic/quartic
+    // potential. Unlike subtracting two total energies, these formulas stay
+    // accurate at almost-equal states and at either slack/taut transition.
+    void StretchGradient(double x, double old, double& gradient, double& slope) const {
+        gradient = 0.5 * (x + old);
+        slope = 0.5;
+        for (int side = 0; side < 2; ++side) {
+            const double sign = side == 0 ? 1.0 : -1.0;
+            const double gap = side == 0 ? mGapOut : mGapIn;
+            const double cubic = side == 0 ? mCubicOut : mCubicIn;
+            const double a = sign * x - gap, b = sign * old - gap;
+            if (a <= 0.0 && b <= 0.0) continue;
+            if (a >= 0.0 && b >= 0.0) {
+                gradient += sign * (a + b) * (0.5 * mStiffness + 0.25 * cubic * (a * a + b * b));
+                slope += 0.5 * mStiffness + 0.25 * cubic * (3.0 * a * a + 2.0 * a * b + b * b);
+            } else {
+                // A transition always has x != old. Its potential difference
+                // is one nonzero endpoint, so there is no cancellation.
+                const double q = std::max(a, b);
+                const double potential = q * q * (0.5 * mStiffness + 0.25 * cubic * q * q);
+                const double dx = x - old;
+                const double g = (a > 0.0 ? potential : -potential) / dx;
+                gradient += g;
+                const double force = a > 0.0 ? sign * a * (mStiffness + cubic * a * a) : 0.0;
+                slope += (force - g) / dx;
+            }
+        }
+    }
+
+    double SolveStretched(double x, double old, double k, double target) const {
+        double gradient, slope;
+        StretchGradient(x, old, gradient, slope);
+        double residual = x - old + k * gradient - target;
+        // The full residual derivative is >= 1 + k/2. A step made with that
+        // lower bound brackets its unique root, even on a large limit crossing.
+        const double bound = x - residual / (1.0 + 0.5 * k);
+        double lo = std::min(x, bound), hi = std::max(x, bound);
+        // Normally 3--5 Newton steps. Bracketing guarantees progress for
+        // extreme impulses; a fixed cap keeps realtime work bounded.
+        for (int iteration = 0; iteration < 48; ++iteration) {
+            const double correction = residual / (1.0 + k * slope);
+            if (std::abs(correction) <= 2.0e-15 * std::max({mGapOut, mGapIn, std::abs(x)})) break;
+            if (residual > 0.0) hi = x; else lo = x;
+            const double next = x - correction;
+            x = next > lo && next < hi ? next : lo + 0.5 * (hi - lo);
+            StretchGradient(x, old, gradient, slope);
+            residual = x - old + k * gradient - target;
+        }
+        return x;
+    }
+
     double mX = 0.0, mV = 0.0, mLinearX = 0.0, mLinearV = 0.0, mAcceleration = 0.0;
     double mStep = 0.0, mLoss = 0.0, mForceStep = 0.0, mVelocityStep = 0.0;
     double mInverseHalfStep = 0.0, mInverseStep = 0.0;
     double mGapOut = 1.0, mGapIn = 1.0, mStiffness = 0.0, mSlapLoss = 0.0;
+    double mStretch = 0.0, mStrainLoss = 0.0, mCubicOut = 0.0, mCubicIn = 0.0;
+    double mStrainOut = 0.0, mStrainIn = 0.0;
 };
 
 } // namespace maremba

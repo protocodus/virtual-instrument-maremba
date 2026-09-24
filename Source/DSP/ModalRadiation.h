@@ -174,9 +174,11 @@ static constexpr ModalRadiationNode kModalRadiationNodes[32] = {
 // Gaussian quadrature across the width. Other point counts use midpoint
 // quadrature solely for numerical convergence checks. All of this runs at setup/note-on, never in ProcessSample. The
 // optional sample count exists to compare against a denser numerical reference.
+// modeShape, when supplied, contains one spatial sample per quadrature point;
+// production supplies the generated geometry shared with contact and tuning.
 inline ModalRadiationCoefficient ProjectModalSurface(int mode, double frequencyHz,
         const ModalRadiationGeometry& geometry, const ModalRadiationPoint& microphone,
-        bool tine, int points = 32) {
+        bool tine, int points = 32, const double* modeShape = nullptr) {
     const double length = std::max(geometry.length, .001);
     const double width = std::max(geometry.width, .0001);
     const double z = std::max(std::abs(microphone.z), .002);
@@ -190,7 +192,7 @@ inline ModalRadiationCoefficient ProjectModalSurface(int mode, double frequencyH
         const double x = cached ? kModalRadiationNodes[point].x
                                 : (static_cast<double>(point) + .5) / points;
         const int index = std::clamp(mode, 0, 7);
-        const double shape = cached ? (tine ? kModalRadiationNodes[point].tine[index]
+        const double shape = modeShape ? modeShape[point] : cached ? (tine ? kModalRadiationNodes[point].tine[index]
                                            : kModalRadiationNodes[point].bar[index])
                                     : ModalContactWeight(index, x, 0.0, tine);
         const double spatialWeight = cached ? kModalRadiationNodes[point].weight : 1.0 / points;
@@ -233,13 +235,13 @@ inline double BarDirectRadiationScale(double frequencyHz, double width) {
 }
 
 inline ModalRadiationReadout ComputeModalRadiation(int mode, double frequencyHz,
-        const ModalRadiationGeometry& geometry, bool tine) {
+        const ModalRadiationGeometry& geometry, bool tine, const double* modeShape = nullptr) {
     // Existing excitation/readout weights already include a voiced radiation
     // balance. Preserve that fundamental and blend only a bounded spatial
     // correction into upper modes. Applying another omega^2 radiation factor
     // would double-count that voicing and make the attack excessively bright.
-    // The blend also acknowledges that a uniform beam shape is only a surrogate
-    // for an undercut bar. It is a disclosed voicing choice, not extra physics.
+    // The voice supplies the same mounted/undercut mode shapes as its contact
+    // model. The blend remains a disclosed radiation voicing choice.
     if (mode == 0) return {};
     // Fixed quadrature keeps trigger work bounded; cached shapes avoid beam
     // exponentials and trigonometry on every strike. Tested against 2048 points
@@ -249,8 +251,8 @@ inline ModalRadiationReadout ComputeModalRadiation(int mode, double frequencyHz,
         return ModalRadiationCoefficient{1.0 - strength + strength * field.real,
                                          strength * field.imag};
     };
-    return {blend(ProjectModalSurface(mode, frequencyHz, geometry, geometry.close, tine), geometry.closeStrength),
-            blend(ProjectModalSurface(mode, frequencyHz, geometry, geometry.far, tine), geometry.farStrength)};
+    return {blend(ProjectModalSurface(mode, frequencyHz, geometry, geometry.close, tine, 32, modeShape), geometry.closeStrength),
+            blend(ProjectModalSurface(mode, frequencyHz, geometry, geometry.far, tine, 32, modeShape), geometry.farStrength)};
 }
 
 } // namespace maremba

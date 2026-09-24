@@ -17,19 +17,33 @@ public:
     static constexpr int kCapacity = 8;
 
     void Configure(int count, double position, double width, double loss, const double* mobility = nullptr) {
-        mCount = std::clamp(count, 0, kCapacity);
-        mLoss = std::max(loss, 0.0);
-        mHeadVelocity = 0.0;
+        count = std::clamp(count, 0, kCapacity);
         const double halfWidth = 0.5 * std::clamp(width, 0.0, 0.25);
         const double lo = std::max(0.0, position - halfWidth);
         const double hi = std::min(1.0, position + halfWidth);
         const double centre = 0.5 * (lo + hi);
         const double offset = (hi - lo) * 0.288675134594813;
+        double left[kCapacity]{}, right[kCapacity]{};
+        for (int m = 0; m < count; ++m) {
+            left[m] = ModalContactWeight(m, centre - offset, 0.0, false);
+            right[m] = ModalContactWeight(m, centre + offset, 0.0, false);
+        }
+        ConfigureProjection(count, loss, left, right, mobility);
+    }
+
+    // Two footprint quadrature samples from the voice's actual bar geometry.
+    // Keeping the projection shared with excitation makes the same physical
+    // nodes protect a ringing bar and suppress a new strike.
+    void ConfigureProjection(int count, double loss, const double* leftShape,
+                             const double* rightShape, const double* mobility = nullptr) {
+        mCount = std::clamp(count, 0, kCapacity);
+        mLoss = std::max(loss, 0.0);
+        mHeadVelocity = 0.0;
         mCoherentNorm = kHeadMobility * kHeadMobility;
         mShearNorm = 0.0;
         for (int m = 0; m < mCount; ++m) {
-            const double left = ModalContactWeight(m, centre - offset, 0.0, false);
-            const double right = ModalContactWeight(m, centre + offset, 0.0, false);
+            const double left = leftShape[m];
+            const double right = rightShape[m];
             // The voice's modal amplitudes already contain its calibrated
             // strike/readout mobility. Reuse that force map here: bare unit
             // mobilities would inject excessive audible upper-mode motion.

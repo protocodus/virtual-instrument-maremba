@@ -1,7 +1,9 @@
-// Independent public-audio touch-response probe. No DSP internals or exact
-// implementation constants are used. Compile with -I DSP and DSP/*.cpp.
+// Public-audio touch-response probe. Acceptance gates measure the rendered
+// sound; nodal positions come from each family's generated bar geometry.
+// Compile with -I DSP and DSP/*.cpp.
 // --measure records the complete matrix without enforcing acceptance gates.
 #include "MarembaVoice.h"
+#include "BarModes.h"
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -250,7 +252,9 @@ int main(int argc, char **argv) {
             }
     double minNodeProtection = 100, minOddProtection = 100;
     for (int model = 0; model < 3; ++model) {
-        const auto node = restrike(model, .2242), center = restrike(model, .5),
+        const double nodePosition = maremba::BarModeFundamentalNode(
+            maremba::GetBarModeGeometry(static_cast<maremba::EMarimbaModel>(model), 48));
+        const auto node = restrike(model, nodePosition), center = restrike(model, .5),
                    off = restrike(model, .35);
         const double nodeProtection =
             db(partial(node, hz(48)) / std::max(partial(center, hz(48)), 1e-30));
@@ -278,8 +282,10 @@ int main(int argc, char **argv) {
     // Mode parity and a fundamental null measured in audible output. These are
     // wide relative gates for an ideal controlled strike, not precise node fits.
     for (int model = 0; model < 3; ++model) {
+        const double nodePosition = maremba::BarModeFundamentalNode(
+            maremba::GetBarModeGeometry(static_cast<maremba::EMarimbaModel>(model), 48));
         const auto center = render(model, 3, 96, .5, 48), off = render(model, 3, 96, .35, 48),
-                   node = render(model, 3, 96, .2242, 48);
+                   node = render(model, 3, 96, nodePosition, 48);
         const double parity =
             db(partial(center, 4 * hz(48)) / std::max(partial(off, 4 * hz(48)), 1e-30));
         const double null = db(partial(node, hz(48)) / std::max(partial(center, hz(48)), 1e-30));

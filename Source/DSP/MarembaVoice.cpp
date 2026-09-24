@@ -1,4 +1,6 @@
 #include "MarembaVoice.h"
+#include "BarModes.h"
+#include "KalimbaMountShapes.h"
 #include "DspMath.h"
 #include "ModalExcitation.h"
 #include "ContactExcitation.h"
@@ -337,8 +339,6 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     const auto response = GetInstrumentResponseProfile(model);
     const KeyVariation variation = GetKeyVariation(model, noteNumber);
     mPickup.Configure(fs, model);
-    for (int m = 0; m < kNumPitchedModes; ++m)
-        mStrainWeights[m] = PiezoPickup::ModalStrainWeight(model, m);
     const StrikeCharacter character = GenerateStrikeCharacter(prng, strikeJitter);
     StrikeArtifacts art = GenerateStrikeArtifacts(prng, mVelocity, malletHardness, artifactsAmount, model);
     static constexpr double kPhysicalImpulseScale = 0.018;
@@ -350,6 +350,23 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     const double totalPitchCents = static_cast<double>(noteNumber - 69) * 100.0
                                  + globalCents + keyOffsetCents + art.pitchJitterCents;
     const double f0 = 440.0 * std::exp2(totalPitchCents / 1200.0);
+    // Each instrument uses one boundary problem for tuning, excitation,
+    // contact loss, microphone radiation and pickup curvature. The solved
+    // geometries are generated offline; these handles only interpolate them.
+    const auto barGeometry = GetBarModeGeometry(model, static_cast<double>(noteNumber));
+    const auto tineGeometry = GetKalimbaMountShape(f0);
+    const bool mountedTine = model == EMarimbaModel::KalimbaArtisan;
+    const auto contactWeight = [&](int mode, double position, double width) {
+        return mountedTine ? KalimbaMountedContactWeight(tineGeometry, mode, position, width)
+                           : BarContactWeight(barGeometry, mode, position, width);
+    };
+    // The bar helper reports curvature relative to its fundamental. Keep the
+    // pickup's existing voltage reference while changing the relative modal
+    // strain; the mounted-tine table already carries this calibration.
+    const double pickupReference = mountedTine ? 1.0 : PiezoPickup::ModalStrainWeight(model, 0);
+    for (int m = 0; m < kNumPitchedModes; ++m)
+        mStrainWeights[m] = mountedTine ? KalimbaMountedStrainWeight(tineGeometry, m)
+                                       : pickupReference * BarModeStrainWeight(barGeometry, m);
 
     // Register-dependent decay time: lower register sustains longer, treble is shorter
     const double noteFactor = std::clamp(130.81 / f0, 0.25, 3.5); // C3 as reference
@@ -368,7 +385,13 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         + response.velocityCoreCompression * (mVelocity - 0.70f) * (1.0f - baseHardness), 0.02f, 0.98f);
     // The public velocity curve maps controller touch, then this common drive
     // feeds the tone AND release/impact noises. Quiet touches have no noise floor.
-    const double impactStrength = std::pow(static_cast<double>(mVelocity), 1.25) * character.impulseScale * art.impulseScale;
+    // MIDI force calibration across separately sized keys: retain the legacy
+    // centre-fundamental reference as the undercut shallows toward the treble.
+    // One scalar applies to the entire strike budget, never to individual
+    // modes or the actual strike position; modal balance and nodes survive.
+    const double keyDrive = tine ? 1.0 : 1.0 / BarContactWeight(barGeometry, 0, 0.5, 0.0);
+    const double impactStrength = keyDrive * std::pow(static_cast<double>(mVelocity), 1.25)
+                                * character.impulseScale * art.impulseScale;
 
     // ────────────────────────────────────────────────────────
     // Striker Physics: Marimba Mallets vs Kalimba Thumbs
@@ -541,10 +564,8 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     // ────────────────────────────────────────────────────────
     // Configure 8 Pitched Bar Modes with physics-based damping
     // ────────────────────────────────────────────────────────
-    // Keep the tuned undercut ratios through C5. Only the high register moves
-    // smoothly toward a uniform beam; the old C4 onset made the entire middle
-    // octave prematurely inharmonic. This transition is an instrument-voicing
-    // choice, not a claim that all real treble bars share one geometry.
+    // Retain the voiced rise in damping toward the treble. Frequencies and
+    // spatial shapes follow the generated cutaway geometry, separately.
     float trebleMorph = 0.0f;
     if (model != EMarimbaModel::KalimbaArtisan) {
         trebleMorph = std::clamp((static_cast<float>(noteNumber) - 72.0f) / 24.0f, 0.0f, 1.0f);
@@ -563,9 +584,6 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     const double contactLoss = (tine ? 2.0 - 0.85 * effectiveHardness - 0.12 * mt
         : 0.35 + 1.9 * (1.0 - effectiveHardness) * (1.20 - 0.15 * mt))
                              * (0.55 + 0.45 * std::sqrt(mVelocity));
-    static constexpr float kUniformBarRatios[kNumPitchedModes] = {
-        1.0f, 2.75654f, 5.40392f, 8.93295f, 13.3443f, 18.6382f, 24.8146f, 31.8735f
-    };
 
     double contactMobility[kNumPitchedModes]{};
     // A mounted tine: yielding bridge and pinning bar (see KalimbaModes.h).
@@ -574,20 +592,9 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     mNumModes = kNumPitchedModes;
     const auto radiationGeometry = GetModalRadiationGeometry(model, f0);
     for (int m = 0; m < kNumPitchedModes; ++m) {
-        float ratio = tine ? static_cast<float>(mount.ratio[m]) : params.overtoneRatio[m];
-        if (trebleMorph > 0.0f) {
-            ratio = (1.0f - trebleMorph) * ratio + trebleMorph * kUniformBarRatios[m];
-        }
+        const double ratio = tine ? mount.ratio[m] : BarModeRatio(barGeometry, m);
 
         double fm = f0 * ratio * variation.partial[m];
-
-        // Register-dependent overtone stretching: subtle (+/- 1.5% across range)
-        // Higher register bars are shorter/stiffer, slightly stretching upper partials
-        if (m >= 2) {
-            double registerStretch = 1.0 + 0.0003 * static_cast<double>(m - 1)
-                                   * std::clamp(static_cast<double>(noteNumber - 60) / 36.0, -1.0, 1.0);
-            fm *= registerStretch;
-        }
 
         // Modes near or above Nyquist are dropped rather than stacked at one
         // frequency (ratios increase with m, so all higher modes go too).
@@ -627,7 +634,12 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         mode.omega = omega_m;
         const double radius = (m == 0) ? r_0 : std::exp(-1.0 / (tau_m * fs));
         ReconfigureMode(mode, radius, omega_m);
-        mRadiation[m] = ComputeModalRadiation(m, fm, radiationGeometry, tine);
+        double radiationShape[32]{};
+        if (m != 0) for (int point = 0; point < 32; ++point) {
+            radiationShape[point] = tine ? KalimbaMountedRadiationNode(tineGeometry, m, point)
+                : BarContactWeight(barGeometry, m, kModalRadiationNodes[point].x, 0.0);
+        }
+        mRadiation[m] = ComputeModalRadiation(m, fm, radiationGeometry, tine, radiationShape);
         if (!tine) {
             const double direct = BarDirectRadiationScale(fm, radiationGeometry.width);
             for (auto* coefficient : {&mRadiation[m].close, &mRadiation[m].far}) {
@@ -636,7 +648,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
             }
             if (m == 0) mTwinRadiation = direct;
         }
-        const double posWeight = ModalContactWeight(m, spatialPosition, footprint, tine);
+        const double posWeight = contactWeight(m, spatialPosition, footprint);
 
         // Mallet hardness scaling: hard mallets excite more high overtones
         float overtoneScaling = (m == 0) ? 1.0f : (0.40f + 0.60f * effectiveHardness);
@@ -651,8 +663,12 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         };
         const double modalWeight = tine ? kTineReadout[m] / ratio : params.modeWeights[m];
         const double weight = modalWeight * posWeight * overtoneScaling * modeWeightMult[m];
-        contactMobility[m] = modalWeight * overtoneScaling * modeWeightMult[m];
-        const double participation = ModalContactParticipation(m, spatialPosition, footprint, tine);
+        // The residual's reaction must use the same calibrated force map as
+        // the new impulse, including its common per-key normalization.
+        contactMobility[m] = keyDrive * modalWeight * overtoneScaling * modeWeightMult[m];
+        const double participation = tine
+            ? KalimbaMountedContactParticipation(tineGeometry, m, spatialPosition, footprint)
+            : BarContactParticipation(barGeometry, m, spatialPosition, footprint);
         mode.contactPole = (m >= 2) ? std::exp(contactDampLog * participation) : 1.0;
         mode.restrikePole = std::exp(-contactLoss * participation / contactSamples);
 
@@ -796,8 +812,19 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     mRestrikePole = mNumModes > 0 ? mModes[0].restrikePole : 1.0;
     mLocalContactActive = isRestrike && !tine && mNumModes > 0;
     mMalletContact.Reset();
-    if (mLocalContactActive)
-        mMalletContact.Configure(mNumModes, spatialPosition, footprint, contactLoss, contactMobility);
+    if (mLocalContactActive) {
+        const double halfWidth = 0.5 * std::clamp(footprint, 0.0, 0.25);
+        const double lo = std::max(0.0, spatialPosition - halfWidth);
+        const double hi = std::min(1.0, spatialPosition + halfWidth);
+        const double centre = 0.5 * (lo + hi);
+        const double offset = (hi - lo) * 0.288675134594813;
+        double left[kNumPitchedModes]{}, right[kNumPitchedModes]{};
+        for (int m = 0; m < mNumModes; ++m) {
+            left[m] = contactWeight(m, centre - offset, 0.0);
+            right[m] = contactWeight(m, centre + offset, 0.0);
+        }
+        mMalletContact.ConfigureProjection(mNumModes, contactLoss, left, right, contactMobility);
+    }
 
     // ────────────────────────────────────────────────────────
     // Strike Clack Noise Burst (replaces artificial tonal clack mode)
@@ -907,6 +934,13 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     // Time runs at the slack resonance; the taut spring lifts it to the formant.
     mMembrane.Configure(fs, membrane.formantHz * std::pow(f0 / 261.625565, 0.15)
         / std::sqrt(1.0 + membrane.stiffness), membrane.quality);
+    // Positive geometric stretching and strain loss once the membrane pulls
+    // taut. Material spreads are voiced reduced-model parameters, not measured
+    // constants for the silk/gut of a particular instrument.
+    mMembrane.SetMaterial(model == EMarimbaModel::BalafonAncestral ? 0.30
+                         : model == EMarimbaModel::MayanPadauk ? 0.12 : 0.0,
+                         model == EMarimbaModel::BalafonAncestral ? 0.15
+                         : model == EMarimbaModel::MayanPadauk ? 0.08 : 0.0);
     // A short treble tine shakes the board faster for the same bridge motion;
     // the buzzers' sensitivity is referred to the middle of the instrument.
     mBuzzer.Configure(fs, std::sqrt(f0 / 261.625565));
@@ -936,7 +970,8 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     for (int m = 0; m < 2 && mBrushImpulse > 0.0; ++m) {
         auto& mode = mBrushModes[m];
         const double frequency = brushF0 * (m == 0 ? 1.0
-            : tine ? GetKalimbaMount(brushF0).ratio[1] : params.overtoneRatio[1]);
+            : tine ? GetKalimbaMount(brushF0).ratio[1]
+                   : BarModeRatio(GetBarModeGeometry(model, noteNumber + art.brushSemitones), 1));
         if (frequency >= fs * kModeDropFraction) { mode = ModeState{}; continue; }
         mode.omega = kTwoPiD * frequency / fs;
         ReconfigureMode(mode, std::exp(-6.907755 / (std::max(0.025, t60_f0 * (m == 0 ? 0.4 : 0.06)) * fs)), mode.omega);

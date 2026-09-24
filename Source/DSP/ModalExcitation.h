@@ -6,10 +6,9 @@
 
 namespace maremba {
 
-// Signed Euler-Bernoulli mode shapes, averaged over the contact footprint.
-// Tine shapes/ratios share the derived clamped-supported-free geometry. Bar
-// frequencies remain individually voiced: their uniform beam is a spatial
-// approximation, not a measured undercut geometry.
+// Analytical reference shapes, averaged over the contact footprint: a uniform
+// free/free bar and the earlier rigidly supported tine. Production voices use
+// BarModes/KalimbaMountShapes so tuning and spatial response share a geometry.
 // All work is at note-on; nothing here runs in the per-sample modal bank.
 inline double ModalContactWeight(int mode, double position, double width, bool tine) {
     if (tine) return KalimbaContactWeight(mode, position, width);
