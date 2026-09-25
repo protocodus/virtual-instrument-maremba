@@ -112,6 +112,10 @@ public:
 
     int GetActiveVoiceCount() const;             // voices that are still sounding (including fading ones)
 
+    // Mod-wheel roll strokes struck since the last call (the wrapper lights
+    // its Note lamp for them as for any strike).
+    int TakeRollStrokes() { const int strokes = mRollStrokes; mRollStrokes = 0; return strokes; }
+
     // True when no voice is sounding and every tail (mesh, body, room, filters,
     // decimators) has decayed below audibility and been flushed to zero. The
     // caller may then skip RenderBatch and leave the outputs unwritten.
@@ -151,6 +155,7 @@ private:
     void ConfigureForRate();           // rate-dependent coefficients (no allocation)
     void ConfigureModel();             // model-dependent coefficients
     void ApplyGlobalTuning();          // retune ringing voices + mesh when tune/bend changed
+    void ConfigureSympathetic(float globalCents);
     void FlushTails();                 // clear every shared tail (mesh, body, room, dynamics, decimators)
     void ApplyFactorSwitch();          // end of the oversampling fade: reset and switch the rate
     void CancelFactorSwitch();         // oversampling set back to the active factor during the fade
@@ -210,6 +215,7 @@ private:
     };
     std::array<StrikeRoute, kVoicePoolSize> mRoutes{};
     std::array<RadiationCacheEntry, 128> mRadiationCache{};
+    std::array<float, 128> mKeyDetune{};   // each key's Detune offset (cents), for the sympathetic keys
     MicMixer mMicMixer;
     AnalogPreamp mPreamp;
     AnalogLimiter mLimiter;
@@ -235,6 +241,7 @@ private:
     };
     std::array<KeyState, 128> mKeys{};
     int mHeldKeys = 0;                 // keys down (a held key can start a roll while silent)
+    int mRollStrokes = 0;              // roll strokes since the wrapper last asked (its Note lamp)
     bool mMeshDamping = false;         // transport stop: hands damp the ringing-along keys too
     double mMeshDampPole = 1.0;
     double mClock = 0.0;               // output frames since reset

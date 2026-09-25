@@ -297,6 +297,7 @@ private:
     // air's own motion (3 f0, 5 f0), growing with the mouth's velocity.
     double mRimHarmonic3 = 0.0, mRimHarmonic5 = 0.0;
     double mRimGain3 = 0.0, mRimGain5 = 0.0;   // per unit cubed / fifth-power state (control rate)
+    double mRimLevel3 = 0.0, mRimLevel5 = 0.0; // each harmonic's level per unit squared swing
 
     // Buzzing membranes over holes in the resonator (Buzz): up to three
     // mirlitons on a gourd, one charleo at a box's bottom, one add-on on a tube.

@@ -158,6 +158,10 @@ void MarembaEngine::Reset() {
         mVoices[i].SetSeed(VoiceSeed(i));
     }
     mRoutes.fill(StrikeRoute{});
+    // A fresh engine projects every key's radiation anew; a readout cached
+    // before the reset would make the replay differ.
+    for (auto& entry : mRadiationCache) entry.model = -1;
+    mRollStrokes = 0;
     mPrng = FastPRNG(kEngineSeed);
     mRollPrng = FastPRNG(kRollSeed);
     for (auto& key : mKeys) key = KeyState{};
@@ -201,7 +205,7 @@ void MarembaEngine::ConfigureModel() {
     mConfiguredScale = mParams.tuningScale;
     ModelParams mp = GetModelParams(static_cast<EMarimbaModel>(mParams.model));
     mFrameBody.Configure(InternalRate(), mp.frameBodyFreq, mp.frameBodyQ, static_cast<EMarimbaModel>(mParams.model));
-    mSympathetic.Configure(InternalRate(), GlobalCents(), static_cast<EMarimbaModel>(mParams.model), mParams.tuningScale);
+    ConfigureSympathetic(GlobalCents());
     mKalimbaBody.Configure(InternalRate());
     mKalimbaBody.SetCover(mCover);
     ApplyKalimbaAir();
@@ -233,7 +237,11 @@ void MarembaEngine::SetParameters(const EngineParameters& params) {
     const EngineParameters p = Sanitize(params);
     const int previousPolyphony = mParams.polyphony;
     const float previousBuzz = mParams.buzzAmount, previousTension = mParams.membraneTension;
+    const float previousDetune = mParams.detune;
     mParams = p;
+    if (p.detune != previousDetune)
+        for (int note = 0; note < 128; ++note)
+            mKeyDetune[static_cast<std::size_t>(note)] = GetKeyDetuneOffset(note, p.detune);
     mMicMixer.SetRoomType(p.roomType);
 
     if (p.buzzAmount != previousBuzz || p.membraneTension != previousTension) {
@@ -262,6 +270,8 @@ void MarembaEngine::SetParameters(const EngineParameters& params) {
 
     if (p.model != mConfiguredModel || p.tuningScale != mConfiguredScale) {
         ConfigureModel();
+    } else if (p.detune != previousDetune) {
+        ConfigureSympathetic(mAppliedGlobalCents);
     }
     ApplyGlobalTuning();
     ApplyKalimbaAir();
@@ -279,6 +289,9 @@ void MarembaEngine::SetParameters(const EngineParameters& params) {
 }
 
 void MarembaEngine::SnapLiveControls() {
+    mCover = mParams.model == static_cast<int>(EMarimbaModel::KalimbaArtisan) ? mParams.modWheel : 0.0f;
+    mKalimbaBody.SetCover(mCover);
+    mPreamp.SnapTone(mParams.warmth);
     mBodyGain = mParams.bodyBloom;
     mSympatheticGain = mParams.sympathetic;
     mCloseGain = mParams.closeLevel;
@@ -325,7 +338,13 @@ void MarembaEngine::ApplyGlobalTuning() {
     for (auto& voice : mVoices) {
         if (voice.IsActive()) voice.Retune(total);
     }
-    mSympathetic.Configure(InternalRate(), total, static_cast<EMarimbaModel>(mParams.model), mParams.tuningScale);
+    ConfigureSympathetic(total);
+}
+
+// The ringing-along keys are the instrument's keys, Detune included.
+void MarembaEngine::ConfigureSympathetic(float globalCents) {
+    mSympathetic.Configure(InternalRate(), globalCents, static_cast<EMarimbaModel>(mParams.model),
+                           mParams.tuningScale, mKeyDetune.data());
 }
 
 void MarembaEngine::ApplyFactorSwitch() {
@@ -444,10 +463,14 @@ void MarembaEngine::NoteOn(int noteNumber, float velocity) {
     key.hand = 1;
 
     if (mSwitchPending) {
-        // Rate change in progress: start the note right after the switch
-        if (mPendingCount < kMaxPendingNotes) {
-            mPendingNotes[mPendingCount++] = { noteNumber, velocity, false };
+        // Rate change in progress: start the note right after the switch. A
+        // full queue drops its oldest note, as stealing keeps the newest.
+        if (mPendingCount == kMaxPendingNotes) {
+            std::copy(mPendingNotes.begin() + 1, mPendingNotes.end(), mPendingNotes.begin());
+            --mPendingCount;
+            if (mDampedPendingCount > 0) --mDampedPendingCount;
         }
+        mPendingNotes[mPendingCount++] = { noteNumber, velocity, false };
         return;
     }
     TriggerNote(noteNumber, velocity);
@@ -650,6 +673,7 @@ void MarembaEngine::AdvanceRolls() {
         const float velocity = std::clamp(key.velocity * hand * (0.78f + 0.22f * wheel)
                                           * (1.0f + 0.05f * mRollPrng.NextGaussian()), 0.01f, 1.0f);
         TriggerNote(note, velocity, key.hand ? kRollHandOffset : -kRollHandOffset);
+        ++mRollStrokes;
         key.hand ^= 1;
         key.next += interval * (1.0 + 0.07 * jitter);
     }
@@ -735,7 +759,7 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
                         if (tine) box.Add(bridge, route.boxAir, route.body,
                                           mTineSide[static_cast<std::size_t>(std::clamp(noteNum, 0, 127))]);
 
-                        if (meshOn) {
+                        if (meshOn && tine == mSympathetic.IsTine()) {
                             mSympathetic.AccumulateVoice(noteNum, (tine ? bridge * 1.0e-2
                                                                         : mVoices[v].GetMechanicalSample())
                                                                   * route.sympathetic);

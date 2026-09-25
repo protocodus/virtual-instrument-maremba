@@ -44,12 +44,17 @@ public:
     }
 
     // Coefficients only (cheap, realtime safe): rate, engine-wide tuning,
-    // model and traditional scale. A ringing receiver keeps its amplitude and
-    // phase across the change.
+    // model, traditional scale and each key's Detune offset (cents, by MIDI
+    // note; null for none). A ringing receiver keeps its amplitude and phase
+    // across the change, except between the bar and tine banks, which are
+    // different keys: a switch between them starts from rest.
     void Configure(double sampleRate, double tuneOffsetCents = 0.0,
-                   EMarimbaModel model = EMarimbaModel::ImperialRosewood, int tuningScale = 0) {
+                   EMarimbaModel model = EMarimbaModel::ImperialRosewood, int tuningScale = 0,
+                   const float* keyDetuneCents = nullptr) {
         mSampleRate = sampleRate > 8000.0 ? sampleRate : 44100.0;
-        mTine = model == EMarimbaModel::KalimbaArtisan;
+        const bool tine = model == EMarimbaModel::KalimbaArtisan;
+        if (tine != mTine) Reset();
+        mTine = tine;
         const MaterialLoss loss = GetMaterialLoss(model);
         mCount = mTine ? kTines : kNumResonators;
         const bool degreesOnly = model == EMarimbaModel::BalafonAncestral && tuningScale != 0;
@@ -59,7 +64,8 @@ public:
             const bool present = !degreesOnly || detail::IsDegreeKey(tuningScale, note);
             if (!present) { mY1[i] = mY2[i] = mInput1[i] = mInput2[i] = 0.0; mSounding[i] = 0; }
             mPresent[i] = present;
-            const double cents = (note - 69) * 100.0 + tuneOffsetCents + TuningOffsetCents(tuningScale, note);
+            const double cents = (note - 69) * 100.0 + tuneOffsetCents + TuningOffsetCents(tuningScale, note)
+                               + (keyDetuneCents ? keyDetuneCents[note] : 0.0f);
             const double f = 440.0 * std::exp2(cents / 1200.0);
             // Q = 1 / eta; a bar's tube halves its fundamental's Q.
             const double eta = mTine ? TineFundamentalLossFactor(f) : 2.0 * LossFactor(loss, f);
@@ -160,6 +166,7 @@ public:
         return index >= 0 && index < kNumResonators ? static_cast<float>(mY1[index]) : 0.0f;
     }
     int ReceiverCount() const { return mCount; }
+    bool IsTine() const { return mTine; }
     int ReceiverNote(int index) const { return index >= 0 && index < mCount ? mNote[index] : -1; }
 
 private:

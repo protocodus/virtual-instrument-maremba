@@ -244,6 +244,7 @@ void MarembaVoice::FastKill() {
     mFadeGain = 1.0f;
     mFadeStep = 0.0f;
     for (auto& membrane : mMembranes) membrane.Reset();
+    for (auto& taut : mMembraneTaut) taut = false;
     mNumMembranes = 0;
     mHasMirliton = false;
     mSlapNoise = mSlapY1 = mSlapY2 = 0.0;
@@ -277,7 +278,7 @@ void MarembaVoice::FastKill() {
     mNumCavityModes = 0;
     mCavityAngleRamp = false;
     mResReadoutGain = 0.0;
-    mRimHarmonic3 = mRimHarmonic5 = mRimGain3 = mRimGain5 = 0.0;
+    mRimHarmonic3 = mRimHarmonic5 = mRimGain3 = mRimGain5 = mRimLevel3 = mRimLevel5 = 0.0;
     mDeadStroke = false;
     mSupportLoad = 0.0;
     mFingerOn = mFingerPending = false;
@@ -1132,6 +1133,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     SetBuzz(buzzAmount, mMembraneTension);
     if (!isRestrike) {
         for (auto& membrane : mMembranes) membrane.Reset();
+        for (auto& taut : mMembraneTaut) taut = false;
         mBuzzer.Reset();
         mSlapNoise = mSlapY1 = mSlapY2 = 0.0;
     }
@@ -1677,10 +1679,16 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
         // The air's swing as a phasor x + i q: Re (x + i q)^3 = A^3 cos 3 phi
         // and Re (x + i q)^5 = A^5 cos 5 phi, scaled at control rate by 1/A
         // and 1/A^3 so each harmonic grows as the square of the air's swing.
+        // Between control ticks a tube ringing up from near silence outgrows
+        // the A it was scaled by, so each harmonic is held to its own level at
+        // the swing it has now, level * A^2 (A^2 = x^2 + q^2, no root needed).
         const double x = mTube.y1;
         const double q = (mTube.r * mTube.y2 - x * mTube.cosW) * mTube.invSin;
-        const double x2 = x * x, q2 = q * q;
-        rim = x * ((x2 - 3.0 * q2) * mRimGain3 + ((x2 - 10.0 * q2) * x2 + 5.0 * q2 * q2) * mRimGain5);
+        const double x2 = x * x, q2 = q * q, swing = x2 + q2;
+        const double third = x * (x2 - 3.0 * q2) * mRimGain3;
+        const double fifth = x * ((x2 - 10.0 * q2) * x2 + 5.0 * q2 * q2) * mRimGain5;
+        rim = std::clamp(third, -mRimLevel3 * swing, mRimLevel3 * swing)
+            + std::clamp(fifth, -mRimLevel5 * swing, mRimLevel5 * swing);
     }
     const double air = (airSum + rim) * mResReadoutGain;
     double close = barClose + air + buzz * 0.35 + slapSound * 0.35
@@ -1746,6 +1754,8 @@ void MarembaVoice::UpdateEnvelope() {
     // The rim's harmonics follow the air's swing A = sqrt(tube energy).
     if (mRimHarmonic3 != 0.0 && tubeEnergy > 1.0e-24) {
         const double inverse = 1.0 / std::sqrt(tubeEnergy);
+        mRimLevel3 = mRimHarmonic3 * std::abs(mCavityReadout[0]);
+        mRimLevel5 = mRimHarmonic5 * std::abs(mCavityReadout[0]);
         mRimGain3 = mRimHarmonic3 * mCavityReadout[0] * inverse;
         mRimGain5 = mRimHarmonic5 * mCavityReadout[0] * inverse * inverse * inverse;
     } else {

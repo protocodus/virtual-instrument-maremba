@@ -27,3 +27,4 @@ StrikeVarianceTest         # the Variance control's smooth spread
 RoomQualityTest            # the three rooms' density, roughness and T60
 BarModesTest               # the carved bars' generated modes
 VelocityRoutesTest         # the ten velocity routes
+EngineFuzzTest             # hostile and extreme parameters, MIDI determinism, state machines
