@@ -46,6 +46,9 @@ import scipy.sparse as sp
 from scipy.optimize import least_squares, brentq
 from scipy.linalg import eigh
 
+# NumPy 2.0 renamed trapz to trapezoid and later releases drop the old name.
+trapezoid = getattr(np, "trapezoid", None) or np.trapz
+
 PROJECT = Path(__file__).resolve().parent.parent
 HEADER = PROJECT / "DSP" / "BarModes.h"
 
@@ -274,7 +277,7 @@ class Bar:
 
     def mass(self, samples=4001):
         x = np.linspace(0.0, self.length, samples)
-        return float(np.trapz(self.material.rho * self.width * self.height(x), x))
+        return float(trapezoid(self.material.rho * self.width * self.height(x), x))
 
 
 # ---------------------------------------------------------------------------
