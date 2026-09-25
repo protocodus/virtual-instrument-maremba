@@ -14,37 +14,34 @@ void check(bool condition, const char* message) {
     if (!condition) { ++failures; std::cerr << "FAIL " << message << '\n'; }
 }
 
-// Frozen shipping character generator. The response curve may change between
-// its endpoints, but the natural floor, maximum and draw sequence must not.
+// Frozen shipping character generator (1.4.0b1's physical stroke: head
+// stiffness, stick speed, landing point, lateral offset, head loss). The
+// response curve may change between its endpoints, but the natural floor,
+// maximum and draw sequence must not.
 maremba::StrikeCharacter shipping(maremba::FastPRNG& prng, float variance) {
     const double amount = std::isfinite(variance) ? std::clamp(variance, 0.0f, 100.0f) * .01 : 0;
-    const double upper = std::max(0., (amount - .25) / .75);
-    const double expressive = upper * upper;
     maremba::StrikeCharacter s;
-    s.contactTimeScale = 1 + prng.NextGaussianDouble() * (.0075 + .04 * amount + .30 * expressive);
-    s.pulseSkewOffset = prng.NextGaussianDouble() * (.006 + .025 * amount + .10 * expressive);
-    s.impulseScale = 1 + prng.NextGaussianDouble() * (.0035 + .01 * amount + .10 * expressive);
-    s.shockScale = 1 + prng.NextGaussianDouble() * (.06 * amount + .35 * expressive);
-    for (double& mode : s.modalScale) mode = 1 + prng.NextGaussianDouble() * (.004 + .035 * amount + .40 * expressive);
+    s.stiffnessScale = 1 + prng.NextGaussianDouble() * (.03 + .35 * amount);
+    s.velocityScale = 1 + prng.NextGaussianDouble() * (.004 + .08 * amount);
+    s.positionOffset = prng.NextGaussianDouble() * (.0012 + .07 * amount);
+    s.lateralOffset = prng.NextGaussianDouble() * (.25 + .30 * amount);
+    s.hysteresisScale = 1 + prng.NextGaussianDouble() * (.02 + .15 * amount);
     return s;
 }
 
-using CharacterSpread = std::array<double, 4 + maremba::kNumPitchedModes>;
+using CharacterSpread = std::array<double, 5>;
 CharacterSpread characterSpread(float amount) {
     CharacterSpread squared{};
     maremba::FastPRNG before(0x2468ace1), after(0x2468ace1);
     for (int n = 0; n < 1024; ++n) {
         shipping(before, amount);
         const auto s = maremba::GenerateStrikeCharacter(after, amount);
-        check(s.contactTimeScale > .65 && s.contactTimeScale < 1.35
-            && std::abs(s.pulseSkewOffset) < .132 && s.impulseScale > .886 && s.impulseScale < 1.114
-            && s.shockScale > .589 && s.shockScale < 1.411, "strike contact exceeded physical bounds");
-        CharacterSpread offsets{s.contactTimeScale - 1, s.pulseSkewOffset,
-            s.impulseScale - 1, s.shockScale - 1};
-        for (int mode = 0; mode < maremba::kNumPitchedModes; ++mode) {
-            check(s.modalScale[mode] > .56 && s.modalScale[mode] < 1.44, "strike partial exceeded physical bounds");
-            offsets[4 + mode] = s.modalScale[mode] - 1;
-        }
+        // Each draw is the mean of three uniforms, so the maximum spreads bound it.
+        check(s.stiffnessScale > .619 && s.stiffnessScale < 1.381 && s.velocityScale > .915 && s.velocityScale < 1.085
+            && std::abs(s.positionOffset) < .0713 && std::abs(s.lateralOffset) < .551
+            && s.hysteresisScale > .829 && s.hysteresisScale < 1.171, "strike contact exceeded physical bounds");
+        const CharacterSpread offsets{s.stiffnessScale - 1, s.velocityScale - 1, s.positionOffset,
+                                      s.lateralOffset, s.hysteresisScale - 1};
         for (size_t i = 0; i < squared.size(); ++i) squared[i] += offsets[i] * offsets[i];
     }
     check(before.Next() == after.Next(), "strike random draw count changed");
@@ -53,9 +50,9 @@ CharacterSpread characterSpread(float amount) {
 }
 
 bool same(const maremba::StrikeCharacter& a, const maremba::StrikeCharacter& b) {
-    return a.contactTimeScale == b.contactTimeScale && a.pulseSkewOffset == b.pulseSkewOffset
-        && a.impulseScale == b.impulseScale && a.shockScale == b.shockScale
-        && std::equal(std::begin(a.modalScale), std::end(a.modalScale), std::begin(b.modalScale));
+    return a.stiffnessScale == b.stiffnessScale && a.velocityScale == b.velocityScale
+        && a.positionOffset == b.positionOffset && a.lateralOffset == b.lateralOffset
+        && a.hysteresisScale == b.hysteresisScale;
 }
 
 using Hits = std::vector<std::vector<float>>;
@@ -163,10 +160,14 @@ int main() {
             for (float& value : gainOnly) value *= 1.2f;
             check(residual(hits.front(), gainOnly) < 1.e-6, "timbre metric mistakes scalar gain for timbre");
         }
-        check(timbre[1] > .005 && timbre[1] > 2 * timbre[0], "5% Variance lacks meaningful pitched-timbre variation");
-        check(timbre[2] > .015 && timbre[2] > 4 * timbre[0] && timbre[2] > 1.5 * timbre[1],
+        // Rosewood's tube carries its ring's fundamental (the bloom), a scalar
+        // this metric removes, so the same physical stroke-to-stroke change
+        // reaches its pitched window about three quarters as strongly.
+        const double reach = model == 0 ? .75 : 1.;
+        check(timbre[1] > .005 * reach && timbre[1] > 2 * reach * timbre[0], "5% Variance lacks meaningful pitched-timbre variation");
+        check(timbre[2] > .015 * reach && timbre[2] > 4 * reach * timbre[0] && timbre[2] > 1.5 * timbre[1],
             "15% Variance lacks a substantial increase in pitched-timbre variation");
-        check(timbre.back() > .04 && timbre.back() > 8 * timbre[0], "maximum Variance lacks substantial pitched-timbre variation");
+        check(timbre.back() > .04 * reach && timbre.back() > 8 * timbre[0], "maximum Variance lacks substantial pitched-timbre variation");
     }
     std::cout << "StrikeVarianceTest " << (failures ? "FAILED" : "PASSED") << " failures=" << failures << '\n';
     return failures ? 1 : 0;

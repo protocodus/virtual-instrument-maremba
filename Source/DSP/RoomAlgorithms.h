@@ -23,8 +23,7 @@ public:
     void Reset() { std::fill(mData.begin(), mData.begin() + mLength, 0.0f); mIndex = 0; }
     float Read() const { return mData[mIndex]; }
     void Write(float x) {
-        // Silence subnormal feedback states before they become expensive.
-        mData[mIndex] = std::abs(x) < 1.0e-20f ? 0.0f : x;
+        mData[mIndex] = FlushTiny(x);
         if (++mIndex == mLength) mIndex = 0;
     }
     float Process(float x) { const float y = Read(); Write(x); return y; }
@@ -43,50 +42,61 @@ private:
     int mLength = 0, mIndex = 0;
 };
 
-// Compact chamber: eight mutually coupled delays with a Householder matrix.
-// The matrix is lossless, each loop gain is below one, and the lowpass filters
-// have unity DC gain. This gives a stable, dense, short tail (0.85 s LF T60).
+// Compact chamber: a hard-walled echo chamber, denser and darker than the wood
+// room. The band-limited (6.5 kHz) input is diffused by three short allpasses
+// and fed to the 12-line feedback network: T60 0.85 s through the mids, 0.40 s
+// at 4 kHz and 0.20 s at 10 kHz (plaster and air absorb the highs). Like the
+// Wood room it runs on the room tick.
 class ChamberRoom {
 public:
     void Allocate(double maxRate) {
-        for (size_t i=0;i<mLines.size();++i) mLines[i].Allocate(maxRate,kTimes[i]);
-        mDiffuse.Allocate(maxRate,.0047);
+        mTail.memory.assign(mTail.Layout(kVoicing, RoomTick::MaxRate(std::max(maxRate, 8000.0))), 0.0f);
     }
     void SetSampleRate(double rate) {
-        for (size_t i=0;i<mLines.size();++i) {
-            mLines[i].Configure(rate,kTimes[i]);
-            mGain[i] = static_cast<float>(std::pow(10.0,-3.0*kTimes[i]/.85));
-        }
-        mDiffuse.Configure(rate,.0047);
-        mAlpha = static_cast<float>(1.0-std::exp(-kTwoPiD*4500.0/rate));
+        mBand.SetSampleRate(kBandwidthHz, rate);
+        mTick.SetSampleRate(rate);
+        mTail.SetSampleRate(kVoicing, mTick.Rate());
         Reset();
     }
-    void Reset() { for (auto& d:mLines) d.Reset(); mDiffuse.Reset(); mDamp.fill(0); }
+    void Reset() { mTail.Reset(); mBand.Reset(); mTick.Reset(); mSum = 0.0f; mFlushTicks = 0; }
     void Process(float in, float& left, float& right) {
-        const float x = mDiffuse.Allpass(in,.6f);
-        float sum=0;
-        for (size_t i=0;i<mLines.size();++i) {
-            mDamp[i] += mAlpha*(mLines[i].Read()-mDamp[i]);
-            if (std::abs(mDamp[i])<1.0e-20f) mDamp[i]=0;
-            sum += mDamp[i];
+        if (!mTail.IsAllocated()) { left = right = 0.0f; return; }
+        mSum += mBand.Process(RoomExcitation(in));
+        if (mTick.Advance()) {
+            float l = 0.0f, r = 0.0f;
+            mTail.Process(mSum * mTick.Mean(), l, r);
+            mSum = 0.0f;
+            mTick.Emit(kGain * l, kGain * r);
+            if (++mFlushTicks == FeedbackNetwork::kFlushPeriod) {
+                mFlushTicks = 0;
+                mTail.FlushStates();
+                mBand.FlushStates();
+            }
         }
-        left = .45f*(mDamp[0]+mDamp[2]-mDamp[5]-mDamp[7]);
-        right = .45f*(mDamp[1]-mDamp[3]+mDamp[4]-mDamp[6]);
-        for (size_t i=0;i<mLines.size();++i)
-            mLines[i].Write(.45f*kInput[i]*x+mGain[i]*(.25f*sum-mDamp[i]));
+        mTick.Output(left, right);
     }
 private:
-    static constexpr double kTimes[8]={.0137,.0179,.0221,.0269,.0313,.0371,.0437,.0511};
-    static constexpr float kInput[8]={1,-1,1,1,-1,1,-1,-1};
-    std::array<RoomDelay,8> mLines;
-    RoomDelay mDiffuse;
-    std::array<float,8> mDamp{},mGain{};
-    float mAlpha=0;
+    static constexpr double kBandwidthHz = 6500.0;
+    // Loops of 12-64 ms and diffusers of 1.9-4.8 ms (whole primes at kVoicingRate)
+    static constexpr NetworkVoicing kVoicing = {
+        { 523 / kVoicingRate, 691 / kVoicingRate, 877 / kVoicingRate, 1063 / kVoicingRate,
+          1259 / kVoicingRate, 1471 / kVoicingRate, 1693 / kVoicingRate, 1901 / kVoicingRate,
+          2113 / kVoicingRate, 2351 / kVoicingRate, 2591 / kVoicingRate, 2833 / kVoicingRate },
+        { 83 / kVoicingRate, 137 / kVoicingRate, 211 / kVoicingRate }, 0.65,
+        { 0.85, 0.85, 0.40, 0.20 } };
+    static constexpr float kGain = 0.526f; // the 1.3.0f5 Chamber's loudness
+    RoomBandLimit mBand;
+    RoomTick mTick;
+    FeedbackNetwork mTail;
+    float mSum = 0.0f;
+    int mFlushTicks = 0;
 };
 
 // Spacious hall: input diffusers feeding a two-branch cross-coupled allpass
 // tank, inspired by the published Dattorro/Griesinger topology. Our lengths,
 // fixed taps, damping and gain are voiced for mallets, not a hardware clone.
+// The band-limited input (air absorption) keeps its early response the same
+// at every internal rate.
 class HallRoom {
 public:
     void Allocate(double maxRate) {
@@ -97,33 +107,39 @@ public:
         for (size_t i=0;i<mInput.size();++i) mInput[i].Configure(rate,kInputTimes[i]);
         for (size_t i=0;i<mTank.size();++i) mTank[i].Configure(rate,kTankTimes[i]);
         mAlpha = static_cast<float>(1.0-std::exp(-kTwoPiD*3600.0/rate));
+        mBand.SetSampleRate(kBandwidthHz, rate);
         Reset();
     }
     void Reset() {
         for (auto& d:mInput) d.Reset();
         for (auto& d:mTank) d.Reset();
+        mBand.Reset();
         mLastL=mLastR=mDampL=mDampR=0;
+        mFlushCount=0;
     }
     void Process(float in, float& left, float& right) {
-        float x=in;
+        float x=mBand.Process(RoomExcitation(in));
+        if (++mFlushCount==FeedbackNetwork::kFlushPeriod) { mFlushCount=0; mBand.FlushStates(); }
         for (size_t i=0;i<mInput.size();++i) x=mInput[i].Allpass(x,i<2?.65f:.55f);
         float l=mTank[0].Allpass(x+.55f*mLastR,-.62f);
         float r=mTank[4].Allpass(x+.55f*mLastL,-.62f);
         l=mTank[1].Process(l); r=mTank[5].Process(r);
-        mDampL+=mAlpha*(l-mDampL); mDampR+=mAlpha*(r-mDampR);
-        if (std::abs(mDampL)<1e-20f) mDampL=0;
-        if (std::abs(mDampR)<1e-20f) mDampR=0;
+        mDampL=FlushTiny(mDampL+mAlpha*(l-mDampL));
+        mDampR=FlushTiny(mDampR+mAlpha*(r-mDampR));
         mLastL=mTank[3].Process(mTank[2].Allpass(mDampL,.5f));
         mLastR=mTank[7].Process(mTank[6].Allpass(mDampR,.5f));
         left=.42f*(mTank[1].Tap(.27f)+mTank[3].Tap(.63f)-mTank[5].Tap(.41f)+mLastR);
         right=.42f*(mTank[5].Tap(.31f)+mTank[7].Tap(.71f)-mTank[1].Tap(.53f)+mLastL);
     }
 private:
+    static constexpr double kBandwidthHz=12000.0;
     static constexpr double kInputTimes[4]={.00477,.00360,.01273,.00930};
     static constexpr double kTankTimes[8]={.0271,.0727,.0433,.0893,.0331,.0877,.0667,.1061};
     std::array<RoomDelay,4> mInput;
     std::array<RoomDelay,8> mTank;
+    RoomBandLimit mBand;
     float mAlpha=0,mLastL=0,mLastR=0,mDampL=0,mDampR=0;
+    int mFlushCount=0;
 };
 
 class RoomBank {

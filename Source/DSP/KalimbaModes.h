@@ -138,6 +138,22 @@ inline KalimbaMount GetKalimbaMount(double fundamentalHz) {
     return mount;
 }
 
+// Reaction the bridge takes per unit modal displacement: the jump of the
+// third derivative (shear force / EI) across the support, in free-length
+// units. Rigid-bridge shapes, consistent with contact and radiation.
+inline double KalimbaBridgeShearJump(int mode) {
+    const auto& data = kKalimbaBeamModes[std::clamp(mode, 0, 7)];
+    const double b = data.beta;
+    const auto third = [b](const KalimbaBeamSegment& s, double span, double u) {
+        return b * b * b * (s.ep * std::exp(b * (u - span)) - s.em * std::exp(-b * u)
+                            + s.cosine * std::sin(b * u) - s.sine * std::cos(b * u));
+    };
+    // Rear span: x = u - span (x rises with u). Playing span: x = 1 - u.
+    const double behind = third(data.rear, kKalimbaRearSpan, kKalimbaRearSpan);
+    const double beyond = -third(data.playing, 1.0, 1.0);
+    return beyond - behind;
+}
+
 inline double KalimbaModeRatio(int mode) {
     return kKalimbaBeamModes[std::clamp(mode, 0, 7)].ratio;
 }

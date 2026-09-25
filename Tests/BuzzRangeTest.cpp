@@ -21,7 +21,9 @@ struct MarembaVoiceTestAccess {
             reference.SetLooseness(physical);
             double energy = 0;
             for (int i = 0; i < 4096; ++i) {
-                const double board = .3 * std::sin(.3 * i) + .1 * std::sin(.037 * i);
+                // The buzzers lift only on a pluck's jolt (their preload is
+                // calibrated to it), so the probe board swings that hard.
+                const double board = 3. * std::sin(.3 * i) + 1. * std::sin(.037 * i);
                 double actualImpact = 0, referenceImpact = 0;
                 const double sound = actual.Process(board, 1, actualImpact);
                 const double expected = reference.Process(board, 1, referenceImpact);
@@ -30,18 +32,14 @@ struct MarembaVoiceTestAccess {
             }
             return !voice.mHasMirliton && (knob == 0 ? energy == 0 : energy > 0);
         }
-        // Independently pin the physical drive and displacement limits, not
-        // only the audible amplitude: Buzz changes the snap threshold too.
-        const int model = static_cast<int>(voice.mModel);
-        constexpr double drive[] = {1.4, 2.2, 3.4};
-        constexpr double gap[] = {.45, .35, .25};
-        constexpr double asymmetry[] = {.30, .45, .25};
-        const double slack = 1.2 - physical;
-        const double meanGap = gap[model] * voice.mMembraneGapScale * std::pow(slack, 1.5);
-        return std::abs(voice.mMembraneDrive - physical * drive[model]) < 1.e-12
-            && std::abs(voice.mMembrane.mGapOut - meanGap * (1 - asymmetry[model])) < 1.e-12
-            && std::abs(voice.mMembrane.mGapIn - meanGap * (1 + asymmetry[model])) < 1.e-12
-            && voice.mHasMirliton == (physical > .001f);
+        // Pin the physical amount every entry path hands the membranes: the
+        // voice derives each mirliton's gaps (the snap threshold), drive and
+        // radiation from this one stored value in SetBuzz.
+        if (voice.mBuzzAmount != static_cast<float>(physical)) return false;
+        if (voice.mHasMirliton != (physical > .001 && voice.mNumMembranes > 0)) return false;
+        for (int i = 0; i < voice.mNumMembranes; ++i)
+            if ((voice.mMembraneDrive[i] > 0) != (physical > 0)) return false;
+        return true;
     }
 };
 

@@ -9,6 +9,8 @@
 #include "RandomArtifacts.h"
 #include "SympatheticMesh.h"
 #include "FrameBody.h"
+#include "KalimbaBody.h"
+#include "Tunings.h"
 
 #include <array>
 #include <cstdint>
@@ -20,7 +22,8 @@ namespace maremba {
 // again, so any finite value is safe.
 struct EngineParameters {
     int model = 0;                  // 0: Rosewood, 1: Padauk, 2: Balafon, 3: Kalimba
-    int malletType = 1;             // 0: Soft Yarn/Thumb Flesh, 1: Medium Cord/Natural Thumb, 2: Hard Rubber/Thumb Nail, 3: Wood Baton/Thumb Pick
+    int malletType = 1;             // 0: Soft Yarn/Thumb Flesh, 1: Medium Cord/Natural Thumb, 2: Hard Rubber/Thumb Nail, 3: Wood Baton/Thumb Pick,
+                                    // 4: Mallet Shaft/Nail Tap, 5: Bow
     float malletHardness = 0.40f;   // 0..1
     float strikePosition = 0.50f;   // 0..1
     float resonatorTune = 0.0f;     // cents, -50..+50
@@ -54,8 +57,15 @@ struct EngineParameters {
     float detune = 0.0f;            // 0..100: per-key drift (0 = exact, 100 = up to +/-100 cents per key)
     float strikeJitter = 15.0f;     // 0..100: stochastic strike variance
     float velocityToHardness = 0.20f; // 0..1 depth: softer strikes reduce the base value
-    float velocityToPosition = 0.20f; // 0..1 depth, applied per strike after the velocity curve
+    float velocityToPosition = 0.0f;  // 0..1 depth, applied per strike after the velocity curve
     float velocityToDecay = 0.20f;    // 0..1 depth; full velocity retains the base decay
+
+    int tuningScale = 0;            // ETuningScale: Equal, Bala, Timbila, Pentatonic, Sambla, Gyil, Valimba
+    int noteOffMode = 0;            // 0: Ring (bars ring freely), 1: Damp (hand/finger stops the key),
+                                    // 2: Dead (the mallet, thumb or bow stays on the key while it is held)
+    float modWheel = 0.0f;          // 0..1: roll speed on mallet models (bow speed with the bow), hole cover on Kalimba
+    float carving = 1.0f;           // 0..1: 0 uncarved bars .. 1 the keys as built
+    float membraneTension = 0.5f;   // 0..1: buzz membranes slack .. tight (0.5 as voiced)
 };
 
 class MarembaEngine {
@@ -89,7 +99,7 @@ public:
     void SetPitchBendCents(float cents);
 
     void NoteOn(int noteNumber, float velocity); // velocity 0..1; <= 0 is a note-off
-    void NoteOff(int noteNumber);                // bars ring freely by design: no damping
+    void NoteOff(int noteNumber);                // Ring: bars ring freely; Damp: the key is stopped; Dead: the mallet lifts
     void DampAll();                              // transport stop: gentle per-model hand damping of every sounding voice
 
     int GetActiveVoiceCount() const;             // voices that are still sounding (including fading ones)
@@ -137,7 +147,12 @@ private:
     void ApplyFactorSwitch();          // end of the oversampling fade: reset and switch the rate
     void CancelFactorSwitch();         // oversampling set back to the active factor during the fade
     void StartPendingNotes();          // notes queued during the fade start now
-    int TriggerNote(int noteNumber, float velocity);   // returns the slot used
+    int TriggerNote(int noteNumber, float velocity, float positionOffset = 0.0f);   // returns the slot used
+    void AdvanceRolls();               // mod-wheel rolls on held keys (mallet models)
+    bool RollsPending() const;
+    bool Bowing() const { return mParams.malletType == kStrikerBow; }
+    float BowSpeedScale() const;
+    void ApplyKalimbaAir();
     int CountLiveVoices() const;
     int FindStealVictim() const;
     void EnforcePolyphony();
@@ -151,6 +166,7 @@ private:
     float mAppliedGlobalCents = 0.0f;
     int mActiveFactor = 2;
     int mConfiguredModel = -1;
+    int mConfiguredScale = -1;
     bool mMeshRunning = false;
     bool mBodyRunning = false;
     bool mRoomRunning = false;
@@ -179,6 +195,7 @@ private:
     bool mTailsSilent = true;
 
     std::array<MarembaVoice, kVoicePoolSize> mVoices;
+    std::array<RadiationCacheEntry, 128> mRadiationCache{};
     MicMixer mMicMixer;
     AnalogPreamp mPreamp;
     AnalogLimiter mLimiter;
@@ -187,7 +204,25 @@ private:
     std::array<bool, kNumDirectOuts> mDirectRunning{};
     SympatheticMesh mSympathetic;
     FrameBody mFrameBody;
+    KalimbaBody mKalimbaBody;
+    bool mKalimbaBodyRunning = false;
+    float mCover = 0.0f;               // smoothed kalimba hole cover
     FastPRNG mPrng;
+    FastPRNG mRollPrng;
+
+    // Held keys and their roll clocks (output frames).
+    struct KeyState {
+        float velocity = 0.0f;
+        bool held = false;
+        bool rolling = false;
+        int hand = 0;
+        double next = 0.0;
+    };
+    std::array<KeyState, 128> mKeys{};
+    int mHeldKeys = 0;                 // keys down (a held key can start a roll while silent)
+    bool mMeshDamping = false;         // transport stop: hands damp the ringing-along keys too
+    double mMeshDampPole = 1.0;
+    double mClock = 0.0;               // output frames since reset
 
     // Sub-sample buffers for oversampling decimation
     float mSubBufMainL[kMaxOversample] = {};

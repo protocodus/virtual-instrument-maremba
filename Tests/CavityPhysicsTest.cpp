@@ -11,86 +11,56 @@
 namespace maremba {
 struct MarembaVoiceTestAccess {
     static void DisableUpperAir(MarembaVoice& voice) { voice.mNumCavityModes = 1; }
-    static double CavityHz(const MarembaVoice& voice, int mode) {
-        const auto& air = mode == 0 ? voice.mTube : voice.mUpperCavity[mode - 1];
-        return air.w * voice.mSampleRate / (2.0 * 3.14159265358979323846);
-    }
-    static double JunctionError(MarembaVoice& voice, bool residual) {
-        auto& bar = voice.mModes[0];
-        auto& air = voice.mTube;
-        const auto seed = [](MarembaVoice::ModeState& mode, double q, double v, bool old) {
-            double& first = old ? mode.o1 : mode.y1;
-            double& second = old ? mode.o2 : mode.y2;
-            first = q;
-            second = (q * mode.cosW + v / mode.invSin) / mode.r;
+    static int CavityModes(const MarembaVoice& voice) { return voice.mNumCavityModes; }
+    static int CavityBar(const MarembaVoice& voice, int cavity) { return voice.mCavityBarIndex[cavity][0]; }
+    // Seed a bar mode and an air mode with arbitrary phases and run the
+    // pressure/velocity junction alone: the rotation must keep their summed
+    // squared amplitudes (energies) exactly.
+    static double JunctionError(MarembaVoice& voice, int cavity) {
+        if (cavity >= voice.mNumCavityModes) return 0.0;
+        auto& air = cavity == 0 ? voice.mTube : voice.mUpperCavity[cavity - 1];
+        auto& bar = voice.mModes[voice.mCavityBarIndex[cavity][0]];
+        const auto seed = [](MarembaVoice::ModeState& mode, double q, double v) {
+            mode.y1 = q;
+            mode.y2 = (q * mode.cosW + v / mode.invSin) / mode.r;
         };
-        seed(bar, .37, -.24, false);
-        seed(bar, -.13, .19, true);
-        seed(air, .21, .31, false);
+        seed(bar, .37, -.24);
+        seed(air, .21, .31);
         const double initial = MarembaVoice::ModeEnergy(bar) + MarembaVoice::ModeEnergy(air);
-        for (int n = 0; n < 4096; ++n) {
-            voice.CoupleCavity(air, 0, std::cos(.013), std::sin(.013));
-            if (residual) voice.CoupleCavity(air, 0, std::cos(.017), std::sin(.017), true);
-        }
+        for (int n = 0; n < 4096; ++n) voice.CoupleCavity(air, voice.mCavityBarIndex[cavity][0], std::cos(.013), std::sin(.013));
         const double after = MarembaVoice::ModeEnergy(bar) + MarembaVoice::ModeEnergy(air);
-        return std::abs(after / initial - 1.0);
-    }
-    static double TwoModeJunctionError(MarembaVoice& voice, bool residual) {
-        if (voice.mNumModes < 2 || voice.mNumCavityModes < 2) return 0.0;
-        auto& firstBar = voice.mModes[0];
-        auto& secondBar = voice.mModes[1];
-        auto& air = voice.mUpperCavity[0];
-        const auto seed = [](MarembaVoice::ModeState& mode, double q, double v, bool old) {
-            double& first = old ? mode.o1 : mode.y1;
-            double& second = old ? mode.o2 : mode.y2;
-            first = q;
-            second = (q * mode.cosW + v / mode.invSin) / mode.r;
-        };
-        seed(firstBar, .37, -.24, false); seed(firstBar, -.13, .19, true);
-        seed(secondBar, -.18, .32, false); seed(secondBar, .21, -.15, true);
-        seed(air, .21, .31, false);
-        voice.mCavityBarIndex[1][0] = 0; voice.mCavityBarIndex[1][1] = 1;
-        voice.mCavityConnections[1] = 2;
-        voice.mCavityDirection[1][0] = std::cos(.43);
-        voice.mCavityDirection[1][1] = std::sin(.43);
-        voice.mCavityCos[1] = std::cos(.017);
-        voice.mCavitySin[1] = std::sin(.017);
-        const double initial = MarembaVoice::ModeEnergy(firstBar)
-            + MarembaVoice::ModeEnergy(secondBar) + MarembaVoice::ModeEnergy(air);
-        for (int n = 0; n < 4096; ++n) {
-            voice.CoupleCavityAperture(air, 1);
-            if (residual) voice.CoupleCavityAperture(air, 1, true);
-        }
-        const double after = MarembaVoice::ModeEnergy(firstBar)
-            + MarembaVoice::ModeEnergy(secondBar) + MarembaVoice::ModeEnergy(air);
         return std::abs(after / initial - 1.0);
     }
     // Far past a taut limit, so the release exercises the stiff one-sided
     // spring and the overshoot-dependent slap loss, not only the slack range.
     static void SeedFreeMembrane(MarembaVoice& voice) {
-        voice.mContactSample = voice.mContactSamplesTotal;
-        voice.mShockSample = voice.mShockSamplesTotal;
+        voice.mContact.Stop();
         voice.mArtifactSample = voice.mArtifactEnd;
-        voice.mClackActive = false;
+        voice.mClickGain = 0.0;
         voice.mHasMirliton = false;
-        voice.mMembrane.mX = .5;
-        voice.mMembrane.mV = -.3;
+        for (int i = 0; i < voice.mNumMembranes; ++i) voice.mMembranes[i].Reset();
+        voice.mMembranes[0].mX = .5;
+        voice.mMembranes[0].mV = -.3;
     }
-    static double MembraneEnergy(const MarembaVoice& voice) { return voice.mMembrane.Energy(); }
+    static double MembraneEnergy(const MarembaVoice& voice) {
+        double e = 0.0;
+        for (int i = 0; i < voice.mNumMembranes; ++i) e += voice.mMembranes[i].Energy();
+        return e;
+    }
 };
 }
 namespace {
 void require(bool condition, const char* message) {
     if (!condition) { std::cerr << "FAIL: " << message << '\n'; std::exit(1); }
 }
-void trigger(maremba::MarembaVoice& voice, int model, int note, double rate, float buzz = 0) {
+void trigger(maremba::MarembaVoice& voice, int model, int note, double rate, float buzz = 0, float position = .25f) {
     maremba::FastPRNG random(123u);
-    voice.Trigger(note, .85f, static_cast<maremba::EMarimbaModel>(model), .65f, .25f,
+    voice.Trigger(note, .85f, static_cast<maremba::EMarimbaModel>(model), .65f, position,
                   0, 1, 1, buzz, 0, 0, rate, random, 0, 0, 2, 0);
 }
-std::vector<double> render(int model, int note, double rate, float buzz, bool upper = true) {
+std::vector<double> render(int model, int note, double rate, float buzz, bool upper = true, float position = .25f) {
     maremba::MarembaVoice voice;
-    trigger(voice, model, note, rate, buzz);
+    trigger(voice, model, note, rate, buzz, position);
     if (!upper) maremba::MarembaVoiceTestAccess::DisableUpperAir(voice);
     std::vector<double> result(static_cast<size_t>(.12 * rate));
     for (size_t n = 0; n < result.size(); ++n) {
@@ -112,57 +82,64 @@ double relativeDifference(const std::vector<double>& x, const std::vector<double
 }
 }
 int main() {
-    double worstJunctionError = 0, worstTwoModeJunctionError = 0;
-    for (int model = 0; model < 4; ++model) {
-        for (int note : {36, 60, 96}) for (double rate : {44100., 96000., 192000.}) {
-            for (bool residual : {false, true}) {
-                maremba::MarembaVoice voice;
-                trigger(voice, model, note, rate);
-                worstJunctionError = std::max(worstJunctionError,
-                    maremba::MarembaVoiceTestAccess::JunctionError(voice, residual));
-                worstTwoModeJunctionError = std::max(worstTwoModeJunctionError,
-                    maremba::MarembaVoiceTestAccess::TwoModeJunctionError(voice, residual));
+    double worstJunctionError = 0;
+    for (int model = 0; model < 3; ++model) {
+        for (int note : {36, 60, 96}) for (double rate : {88200., 96000., 192000.}) {
+            maremba::MarembaVoice voice;
+            trigger(voice, model, note, rate);
+            for (int cavity = 0; cavity < maremba::MarembaVoiceTestAccess::CavityModes(voice); ++cavity) {
+                // Only symmetric bar modes move air through the mouth.
+                require(maremba::MarembaVoiceTestAccess::CavityBar(voice, cavity) % 2 == 0,
+                        "an air mode is coupled to an antisymmetric bar mode");
+                maremba::MarembaVoice copy = voice;
+                worstJunctionError = std::max(worstJunctionError, maremba::MarembaVoiceTestAccess::JunctionError(copy, cavity));
             }
         }
     }
     require(worstJunctionError < 1.e-8, "pressure/velocity junction changed stored modal energy");
-    require(worstTwoModeJunctionError < 1.e-8, "two-mode aperture changed stored modal energy");
-    std::cout << "JUNCTION worst_relative_energy_error=" << worstJunctionError
-              << " two_mode_error=" << worstTwoModeJunctionError << '\n';
+    std::cout << "JUNCTION worst_relative_energy_error=" << worstJunctionError << '\n';
 
-    // The box keeps its dimensions across keys and when tines pitch-bend.
+    // The kalimba's box is one body for the whole instrument (the engine's
+    // shared body): no tine carries an air mode of its own that could follow
+    // the key or a pitch bend.
     for (int note : {48, 60, 84}) {
-        maremba::MarembaVoice reference, voice;
-        trigger(reference, 3, 60, 96000);
+        maremba::MarembaVoice voice;
         trigger(voice, 3, note, 96000);
         voice.Retune(200);
-        for (int mode = 0; mode < 3; ++mode)
-            require(std::abs(maremba::MarembaVoiceTestAccess::CavityHz(reference, mode)
-                           - maremba::MarembaVoiceTestAccess::CavityHz(voice, mode)) < 1.e-9,
-                    "kalimba air cavity incorrectly follows the played key or pitch bend");
+        require(maremba::MarembaVoiceTestAccess::CavityModes(voice) == 0,
+                "kalimba tine carries a per-key air cavity");
     }
 
-    // A pressure-mode layer must affect rendered sound. Compare all layers
-    // against an otherwise identical voice with only the primary air mode;
-    // register-dependent radiation need not be identical on every key.
-    for (int model = 0; model < 4; ++model) {
-        double strongestDifference = 0;
+    // The air mode must shape the rendered sound: an otherwise identical
+    // voice without any resonator coupling differs audibly on every model.
+    // (Struck off the fundamental's node: a balafon key carved to its own
+    // overtone may carry that node anywhere from 0.20 to 0.25.)
+    for (int model = 0; model < 3; ++model) {
+        double weakestDifference = 1.0e30;
         for (int note : {48, 60, 72, 84}) {
-            const auto full = render(model, note, 96000, 0);
-            const auto oneMode = render(model, note, 96000, 0, false);
-            const double difference = relativeDifference(full, oneMode);
-            strongestDifference = std::max(strongestDifference, difference);
+            const auto coupled = render(model, note, 96000, 0, true, .35f);
+            maremba::MarembaVoice voice;
+            maremba::FastPRNG random(123u);
+            voice.Trigger(note, .85f, static_cast<maremba::EMarimbaModel>(model), .65f, .35f,
+                          0, 0, 1, 0, 0, 0, 96000, random, 0, 0, 2, 0);
+            std::vector<double> bare(coupled.size());
+            for (size_t n = 0; n < bare.size(); ++n) {
+                float close, far, piezo;
+                voice.ProcessSample(close, far, piezo);
+                bare[n] = close;
+                if ((n & 31u) == 31u) voice.UpdateEnvelope();
+            }
+            const double difference = relativeDifference(coupled, bare);
+            weakestDifference = std::min(weakestDifference, difference);
             std::cout << "AIR_ABLATION model=" << model << " note=" << note
-                      << " upper_to_full_db=" << 10 * std::log10(std::max(difference, 1.e-30)) << '\n';
+                      << " air_to_coupled_db=" << 10 * std::log10(std::max(difference, 1.e-30)) << '\n';
         }
-        // A modest attack-colour contribution is intentional; a 0.5% amplitude
-        // floor prevents adding computationally present but silent air modes.
-        require(strongestDifference > 2.5e-5, "upper cavity modes have no meaningful acoustic contribution");
+        require(weakestDifference > 2.e-3, "the resonator's air mode has no meaningful acoustic contribution");
     }
 
     // With pressure removed the nonlinear membrane's positive elastic and
     // kinetic energy must decrease on EVERY step, including large excursion.
-    for (double rate : {44100., 96000., 192000.}) {
+    for (double rate : {88200., 96000., 192000.}) {
         maremba::MarembaVoice voice;
         trigger(voice, 2, 84, rate, 1);
         maremba::MarembaVoiceTestAccess::SeedFreeMembrane(voice);

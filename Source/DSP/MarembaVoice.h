@@ -7,21 +7,55 @@
 #include "MalletContact.h"
 #include "SlackMembrane.h"
 #include "BuzzerRattle.h"
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 
 namespace maremba {
 
+// A key's spatial radiation readouts, kept by the engine per MIDI note: a
+// fresh strike of a key reuses them while its modes sit within a stroke's
+// pitch scatter of the frequencies they were projected at.
+struct RadiationCacheEntry {
+    int model = -1;
+    float carving = -1.0f;
+    double hz[kNumPitchedModes]{};
+    ModalRadiationReadout readout[kNumPitchedModes];
+};
+
+// Strikers beyond the four heads (malletType 0-3): the mallet's shaft on the
+// bar's edge (a fingernail tap on a tine) and a bow drawn across the bar's
+// end (or a tine's tip).
+static constexpr int kStrikerShaft = 4;
+static constexpr int kStrikerBow = 5;
+static constexpr int kStrikerCount = 6;
+
+// Per-strike settings beyond the positional contract; the defaults are the
+// instrument as built.
+struct StrikeOptions {
+    float carving = 1.0f;             // 0 uncarved (rectangular) bars .. 1 as built
+    float membraneTension = 0.5f;     // 0 slack .. 1 tight; 0.5 as voiced
+    bool deadStroke = false;          // the mallet (thumb, bow) stays on the key until Release()
+    float bowSpeed = 1.0f;            // bow speed relative to the stroke's own (mod wheel swell)
+    RadiationCacheEntry* radiationCache = nullptr;
+};
+
+// One struck bar (or plucked tine) with its resonator, membranes and mounting.
+// Modal states are mass-normalized displacements (scaled by kStateScale), so
+// a physical mallet can be solved against the bar's driving-point response
+// and the bar-air junction exchanges energy in consistent units.
 class MarembaVoice {
 public:
     MarembaVoice();
 
     // Deterministic per-slot noise seed (the engine gives every slot its own,
-    // so the clack/friction/rattle noise of a chord is decorrelated).
+    // so the clack/texture/rattle noise of a chord is decorrelated).
     void SetSeed(uint32_t seed) { mLocalPrng = FastPRNG(seed); }
 
     // globalCents: engine-wide tuning (tune + pitch bend) at trigger time; the
-    // voice can later be retuned by the difference. keyOffsetCents: per-key drift.
+    // voice can later be retuned by the difference. keyOffsetCents: per-key
+    // drift and traditional tuning. positionOffset moves the contact (roll
+    // strokes alternate two mallets).
     void Trigger(int noteNumber, float velocity, EMarimbaModel model,
                  float malletHardness, float strikePosition,
                  float resonatorTuneCents, float resonatorCoupling,
@@ -29,14 +63,19 @@ public:
                  float legacyPitchGlideIgnored, // retained call contract; no pitch sweep
                  double sampleRate, FastPRNG& prng,
                  float globalCents, float keyOffsetCents,
-                 int malletType, float strikeJitter);
+                 int malletType, float strikeJitter,
+                 float positionOffset = 0.0f,
+                 const StrikeOptions& options = StrikeOptions{});
 
-    // Key released: sound-neutral by design (bars ring freely); only marks the
-    // voice as the preferred steal victim.
-    void Release() { mReleased = true; }
+    // Key released: marks the voice as the preferred steal victim. A dead
+    // stroke's mallet (or thumb) lifts off; a bow leaves the bar, or in a
+    // dead stroke stops on it. Otherwise sound-neutral (bars ring freely).
+    void Release();
 
     // Transport stop: gentle per-model hand damping (symmetric, no energy injection).
     void StartDamping();
+    // Note-off in Damp mode: a hand, finger or held mallet stops the key.
+    void StartReleaseDamping();
 
     // Fade the voice out over the given time, then free it (steal / polyphony / rate change).
     void StartFade(double seconds);
@@ -44,9 +83,14 @@ public:
     // Engine-wide tuning changed (master tune, pitch bend): recompute the
     // resonator coefficients from the stored trigger-time frequencies.
     void Retune(float globalCents);
-    // Normalized 0..1 knob; maps to 0..0.7 of the physical membrane/buzzer
-    // response and follows automation while the bar is ringing.
-    void SetBuzz(float amount);
+    // Normalized 0..1 Buzz knob (mapped to 0..kBuzzRange of the physical
+    // membrane/buzzer response) and membrane tension; both follow automation
+    // while the bar is ringing.
+    static constexpr float kBuzzRange = 0.7f;
+    void SetBuzz(float amount, float tension = 0.5f);
+    // Bow speed relative to the stroke's own (mod wheel), while bowing.
+    void SetBowSpeed(float scale) { mBowSpeedScale = std::clamp(static_cast<double>(scale), 0.0, 4.0); }
+    inline bool IsBowing() const { return mBowing; }
 
     void FastKill();
 
@@ -55,7 +99,7 @@ public:
     bool ProcessSample(float& outClose, float& outFar, float& outPiezo);
 
     // Control-rate update (every few output frames): phase-independent energy
-    // estimate, deactivation below -120 dB and the non-finite guard.
+    // estimate, idle-mode skipping, deactivation below -120 dB and the non-finite guard.
     void UpdateEnvelope();
 
     inline bool IsActive() const { return mActive; }
@@ -64,7 +108,8 @@ public:
     inline bool IsLive() const { return mActive && !mFading; }
     inline int GetNoteNumber() const { return mNoteNumber; }
     inline EMarimbaModel GetModel() const { return mModel; }   // model of the last strike
-    inline float GetMechanicalSample() const { return mMechanicalSample; } // before pickup electronics
+    inline float GetMechanicalSample() const { return mMechanicalSample; } // support drive
+    inline float GetBridgeForce() const { return mBridgeSample; }          // kalimba bridge (N)
     inline float GetFadeGain() const { return mFadeGain; }     // 1 unless fading out
 
     // Sum over the resonators of their squared amplitude (phase independent),
@@ -73,15 +118,25 @@ public:
 
     // The same sum, evaluated now (voice stealing). Not cached; 0 when inactive.
     double ComputeEnergy() const;
+    // Mean square of the voice's sound over the last ~30 ms.
+    inline double GetLoudness() const { return mLoudness; }
 
-    // True when no resonator state (modes, twin, torsion, tube, restrike residuals) is
-    // subnormal (unit testing).
+    // True when no resonator state is subnormal (unit testing).
     bool HasNoSubnormalState() const;
 
     // True while the strike is still being delivered (never steal such a voice
     // if anything else can go).
-    inline bool IsStriking() const { return mContactSample < mContactSamplesTotal || mShockSample < mShockSamplesTotal
-        || mArtifactSample < mArtifactEnd; }
+    inline bool IsStriking() const {
+        return mContact.Active() || mReleaseSample < mReleaseSamples || mArtifactSample < mArtifactEnd
+            || mBowing || mThumbPending || mHandPulseSample < mHandPulseSamples;
+    }
+
+    // Diagnostics for tests and calibration.
+    inline double GetContactForce() const { return mContactForce; }
+    inline int GetModeCount() const { return mNumModes; }
+
+    // Scale of the modal states: y = kStateScale * sqrt(modal mass) * displacement.
+    static constexpr double kStateScale = 2500.0;
 
 private:
     friend struct MarembaVoiceTestAccess; // isolated mechanical-response tests
@@ -89,145 +144,204 @@ private:
     struct ModeState {
         double y1 = 0.0;
         double y2 = 0.0;
-        double o1 = 0.0;      // residual of the previous strike during a restrike (damped separately)
-        double o2 = 0.0;
         double c = 0.0;       // 2 * r * cos(w)
         double s = 0.0;       // r^2
-        double b0 = 0.0;      // input gain
         double omega = 0.0;   // pole angle at the trigger-time tuning
         double w = 0.0;       // pole angle currently in c (tuning and bend applied)
         double r = 0.0;
-        double cosW = 1.0, invSin = 0.0; // quadrature displacement of a tine
+        double cosW = 1.0, invSin = 0.0;
         double cosOverR = 0.0, sinOverR = 0.0; // cached state-junction coordinate maps
         double invSin2 = 0.0; // 1 / sin^2(w): converts the quadratic invariant to squared amplitude
-        double contactPole = 1.0; // loss at this mode's contact footprint
-        double restrikePole = 1.0;
+        double force = 0.0;   // state per newton-second at the contact point
+        double contact = 0.0; // mode shape at the contact (footprint-averaged)
+        double toDisplacement = 0.0; // physical displacement per unit state
+        bool idle = false;    // decayed below -300 dB and not driven: skipped
     };
 
     void SetModeCoefficients(ModeState& mode, double omega) const;
-    void UpdateTineStrainScales();
-    void UpdateCavityCoupling();
-    // New pole angle for a ringing resonator, keeping its amplitude and phase.
     void RetuneMode(ModeState& mode, double omega) const;
-    // Also preserve a ringing state when a restrike changes its decay radius.
     void ReconfigureMode(ModeState& mode, double radius, double omega) const;
     static double ModeEnergy(const ModeState& mode);
-    // ModeEnergy, and a mode that has decayed below -300 dB is zeroed so it
-    // never cycles on subnormal values while the rest of the voice rings on.
     static double FlushedModeEnergy(ModeState& mode);
     double MembraneEnergy() const;
-    // Lossless exchange of normalized bar velocity and cavity pressure. The
-    // oscillator propagators supply all losses; this junction cannot add energy.
-    void CoupleCavity(ModeState& cavity, int barIndex, double cosine, double sine, bool residual = false);
-    void CoupleCavityAperture(ModeState& cavity, int cavityIndex, bool residual = false);
+    void UpdateContactCompliance();
+    void UpdateCavityCoupling();
+    void TuneOnResonator();
+    void CoupleCavity(ModeState& cavity, int barIndex, double cosine, double sine);
+    void CoupleCavityAperture(ModeState& cavity, int cavityIndex);
+    void ConfigureMembranes(float buzzAmount, bool reshuffle);
+    void StartMallet(double velocity, double positionOffset);
+    double ContactDisplacement() const;
+    void Damp(double pole);
+    void StartHand(double strength);
+    double BowForce(const double* predicted);
+    double FingerForce(const double* predicted, double otherForce);
 
     bool mActive = false;
     bool mReleased = false;
-    bool mDamping = false;     // hand damping (DampAll)
+    bool mDamping = false;     // hand damping (transport stop or Damp mode)
     bool mFading = false;
+    bool mTine = false;
     int mNoteNumber = -1;
     EMarimbaModel mModel = EMarimbaModel::ImperialRosewood;
     float mVelocity = 0.0f;
     double mSampleRate = 88200.0;
-    double mRefStep = 1.0;     // kReferenceRate / mSampleRate: one internal sample in reference samples
+    double mDt = 1.0 / 88200.0;
     double mEnergy = 0.0;
+    double mF0 = 261.625565;
 
     // Engine-wide tuning at trigger and the current ratio applied to all resonators
     float mTriggerGlobalCents = 0.0f;
     double mPitchRatio = 1.0;
 
-    // Mallet contact state & viscoelastic damping
-    int mContactSamplesTotal = 0;
-    int mContactSample = 0;
-    double mContactStep = 0.0;       // one sample as a fraction of the contact duration
-    double mContactImpulse = 0.0;    // integral of the main contact pulse
-    double mContactSkew = 0.0;
-    float mMalletShockImpulse = 0.8f;
-    double mShockGain = 0.0;         // integral of the initial hard-contact component / 1.7
-    int mShockSamplesTotal = 0;
-    int mShockSample = 0;
-    double mFrictionGain = 0.0;
-    double mFrictionAlpha = 0.05;
-    double mFrictionNoiseScale = 1.0;
-    double mFrictionFilterState = 0.0;
-
-    // Gradual restrike damping of the previous ring (applied to the residual states)
-    int mRestrikeSamplesLeft = 0;
-    double mRestrikePole = 1.0;
-    MalletContact mMalletContact;
-    bool mLocalContactActive = false;
-
-    // Hand damping (transport stop) and fade-out
+    // Hand damping (transport stop, note-off Damp) and fade-out
     double mHandDampPole = 1.0;
     double mHandDampRate = 15.0;
+    double mReleaseDampRate = 24.0;
     float mFadeGain = 1.0f;
     float mFadeStep = 0.0f;
 
-    // 8 pitched bar resonators plus a weak voiced split mode
+    // Bending modes of the bar or tine, plus two torsional and one lateral mode
     ModeState mModes[kNumPitchedModes];
-    // Directional surface readouts, latched with the instrument geometry at
-    // each strike. They color only the microphones, not mechanical feedback.
     ModalRadiationReadout mRadiation[kNumPitchedModes];
-    int mNumModes = 0;                 // modes below 0.45 * fs; higher ones are dropped
-    ModeState mMode0b; // voiced weak split: not a measured torsional eigenmode
-    bool mHasTwin = false;
-    double mTwinRadiation = 1.0; // the fundamental's direct bar radiation
-
-    // First two torsional modes of a wooden bar, driven by the off-axis part
-    // of each contact. They carry no net volume velocity, so they never
-    // exchange with the cavity; only the surface near-field reaches the mics.
+    double mRadiationHz[kNumPitchedModes]{};   // mode frequency the readout was projected at
+    double mRadiationGain[kNumPitchedModes]{};   // acceleration x dipole efficiency x calibration
+    double mStrainGain[kNumPitchedModes]{};      // pickup strain per unit state
+    double mSupportGain[kNumPitchedModes]{};     // force into the rails/frame per unit state
+    double mBridgeGain[kNumPitchedModes]{};      // kalimba: bridge reaction (N) per unit state
+    int mNumModes = 0;
     static constexpr int kNumTorsionModes = 2;
     ModeState mTorsion[kNumTorsionModes];
-    double mTorsionClose[kNumTorsionModes] = {};
-    double mTorsionFar[kNumTorsionModes] = {};
+    double mTorsionDrive[kNumTorsionModes]{};
+    double mTorsionClose[kNumTorsionModes]{};
+    double mTorsionFar[kNumTorsionModes]{};
     int mNumTorsionModes = 0;
+    ModeState mLateral;
+    bool mHasLateral = false;
+    double mLateralDrive = 0.0, mLateralRadiation = 0.0;
 
-    // Strike clack noise burst (band-passed noise, not a tonal mode)
-    bool mClackActive = false;
-    double mClackBpY1 = 0.0;
-    double mClackBpY2 = 0.0;
-    double mClackBpC = 0.0;
-    double mClackBpS = 0.0;
-    double mClackBpB = 0.0;
-    double mClackEnvelope = 0.0;
-    double mClackDecayRate = 0.0;
-    double mNoiseScale = 1.0;          // sqrt(fs / reference): keeps output noise density rate-invariant
+    // Mallet contact (bars) and its per-sample force
+    MalletContact mContact;
+    MalletContact::Setup mMalletSetup;
+    MalletSpec mMallet{};
+    double mContactCompliance = 0.0;
+    double mContactForce = 0.0;
+    double mPreviousForce = 0.0;
+    double mTextureState = 0.0, mTextureAlpha = 0.05, mTextureDepth = 1.0;
+    double mLoudness = 0.0, mLoudnessAlpha = 0.0;
+    double mStrokePosition = 0.5;
 
-    // Air pressure modes: a closed tube, broad wooden cavity, gourd, or the
-    // fixed kalimba soundbox. mTube is the lowest (dominant) air resonance.
+    // Striker (malletType): heads 0-3, shaft/tap, bow.
+    int mStriker = 1;
+    bool mDeadStroke = false;
+    double mSupportLoad = 0.0, mSupportAlpha = 0.0;   // steady contact force carried by the supports
+
+    // Bow: a friction contact where the stroke would land (the bar's end),
+    // with Smith & Woodhouse's rosin law, driven while the key is held. The
+    // contact shapes (mode.contact, mode.force) are then the bow's.
+    bool mBowing = false;           // the bow is on the key
+    bool mBowLifting = false;       // leaving the bar (normal force ramping out)
+    bool mBowStopping = false;      // dead stroke: the bow stops on the bar
+    double mBowSpeed = 0.0, mBowTargetSpeed = 0.0, mBowSpeedScale = 1.0;
+    double mBowNormal = 0.0, mBowTargetNormal = 0.0;
+    double mBowRamp = 0.0;          // per-sample smoothing of speed (and of the force as the bow leaves)
+    double mBowLandingRamp = 0.0;   // the normal force as the hair lands
+    double mBowSlip = 0.0;          // last relative velocity (m/s)
+    double mBowNoise = 0.0;         // hair/rosin grain
+
+    // A palm (bars) or fingertip (tines) damping the key. The palm lands
+    // where the stroke did and takes each mode by its mean square under the
+    // palm; the fingertip is a one-sided spring and damper on the tine, which
+    // chatters while the tine still swings further than it presses.
+    bool mFingerOn = false;          // fingertip on the tine
+    bool mFingerPending = false;     // dead stroke: the thumb comes back to rest after the pluck ...
+    int mFingerDelay = 0;            // ... this many samples after it let go
+    double mFingerPreload = 0.0, mFingerTarget = 0.0;   // compression at rest (m), landing toward the target
+    double mFingerRamp = 1.0;
+    double mFingerStiffness = 0.0, mFingerDamping = 0.0;
+    double mFingerCompression = 0.0; // dynamic compression last sample (m)
+    double mHandShape[kNumPitchedModes]{};   // mean square of each mode under the palm
+    double mHandPole[kNumPitchedModes]{};
+    double mHandTorsionPole = 1.0, mHandAirPole = 1.0;
+    int mHandPulseSample = 0, mHandPulseSamples = 0;
+    double mHandPulseImpulse = 0.0, mHandPulseStep = 1.0;
+    bool mHandModes = false;         // per-mode palm damping active
+
+    // The mallet shaft's own bending modes, knocked by the contact.
+    ModeState mShaftModes[3];
+    double mShaftDrive = 0.0, mShaftRadiation = 0.0;
+    bool mShaftActive = false;
+
+    // Thumb release (tines): static deflection held by the thumb, then released.
+    double mReleaseForce = 0.0;      // thumb force at the start of the release (N)
+    bool mThumbPending = false;      // the thumb touches the tine on the next sample
+    double mThumbResidual = 0.0;     // fraction of the old ring the thumb leaves
+    double mThumbHold[kNumPitchedModes] = {};   // held deflection per mode
+    int mReleaseSample = 0, mReleaseSamples = 0;
+    double mReleaseShape = 2.0;
+    double mBridgeSample = 0.0;
+    double mBridgeNonlinear = 0.0;   // bridge-rod slip: quadratic force coefficient (1/N)
+
+    // Unmodelled high-frequency impact noise (click), shaped by the force rate
+    double mClickGain = 0.0;
+    double mClackBpY1 = 0.0, mClackBpY2 = 0.0, mClackBpC = 0.0, mClackBpS = 0.0, mClackBpB = 0.0;
+    double mNoiseScale = 1.0;
+
+    // Air pressure modes: tube, box or gourd (bars only).
     ModeState mTube;
     ModeState mUpperCavity[2];
     int mNumCavityModes = 0;
     double mCavityCos[3] = {1.0, 1.0, 1.0};
     double mCavitySin[3] = {};
-    double mCavityReadout[3] = {1.0, 0.0, 0.0};
+    double mCavityReadout[3] = {};
     int mCavityBarIndex[3][2] = {};
     int mCavityConnections[3] = {};
     double mCavityDirection[3][2] = {};
-    double mCavityExchangeScale[3] = {};
+    double mCavityRate[3] = {};
     double mCavityAngle[3] = {}, mCavityAngleTarget[3] = {};
     bool mCavityAngleRamp = false;
     double mResCoupling = 0.5;
     double mResReadoutGain = 0.0;
     double mResReadoutStep = 1.0;
-    double mFarAirWeight = 0.5;   // cavity pressure in the far microphone
+    double mFarAirWeight = 0.22;
+    double mMembranePressure[3] = {3.8, 1.6, 0.8};
 
-    // Buzzing membrane over a hole in the resonator (Buzz). Its slap loss is
-    // drained from the air modes, so buzzing shortens the resonator ring.
+    // Buzzing membranes over holes in the resonator (Buzz): up to three
+    // mirlitons on a gourd, one charleo at a box's bottom, one add-on on a tube.
+    static constexpr int kMaxMembranes = 3;
+    SlackMembrane mMembranes[kMaxMembranes];
+    int mNumMembranes = 0;
     bool mHasMirliton = false;
-    SlackMembrane mMembrane;
-    double mMembraneDrive = 0.0;
-    double mMembraneGapScale = 1.0;   // register: smaller treble membranes
-    double mMembraneDrain = 0.0;      // air energy removed per unit slap loss
-    double mMembraneRadiation = 0.0;  // radiated pressure per membrane acceleration
+    double mMembraneDrive[kMaxMembranes]{};
+    double mMembraneRadiation[kMaxMembranes]{};
+    double mMembraneThreshold[kMaxMembranes]{};   // per-strike gap scale
+    double mMembraneGapScale = 1.0;
+    float mMembraneTension = 0.5f;
+    double mMembraneDrain = 0.0;
+    double mSlapJitter = 0.0;
+    bool mMembraneTaut[kMaxMembranes]{};
+    FastPRNG mSlapPrng;              // one draw per slap: the same sequence at every rate
+    double mSlapNoise = 0.0, mSlapY1 = 0.0, mSlapY2 = 0.0, mSlapC = 0.0, mSlapS = 0.0, mSlapB = 0.0;
+    double mSlapNoiseGain = 0.0;
+    // The buzz's own share of the note's fundamental belongs to the air's
+    // radiation: a fourth-order high-pass at 1.5 f0 (at least 350 Hz; two
+    // Butterworth sections) and a notch on f0 keep the membranes to their
+    // snaps. A clipped membrane passes less of the fundamental than its slack
+    // shadow; that flow stays in the resonator and must not radiate as an
+    // out-of-phase fundamental. Both are set at the strike: bent 2 semitones
+    // up, the fundamental still lies about 20 dB down.
+    struct BuzzSection { double b0 = 0.0, b1 = 0.0, b2 = 0.0, a1 = 0.0, a2 = 0.0, x1 = 0.0, x2 = 0.0, y1 = 0.0, y2 = 0.0; };
+    BuzzSection mBuzzFilter[3];
+    float mBuzzAmount = 0.0f;
     // Kalimba Buzz: loose buzzers on the board, driven by the bridge motion.
     BuzzerRattle mBuzzer;
 
-    // Secondary physical contacts share the initial stroke's impulse budget.
+    // Secondary physical contacts share the initial stroke's budget.
     int mArtifactSample = 0, mArtifactEnd = 0;
-    int mReboundStart = 0, mBrushStart = 0;
+    int mReboundStart = -1, mBrushStart = 0;
+    double mReboundVelocity = 0.0;
     double mSecondaryStep = 1.0;
-    double mReboundImpulse = 0.0, mBrushImpulse = 0.0;
+    double mBrushImpulse = 0.0;
     ModeState mBrushModes[2];       // incidental adjacent bar / tine
     ModeState mCollisionModes[2];   // mount/rail/bridge knock
     bool mBrushActive = false, mCollisionActive = false;
@@ -236,14 +350,16 @@ private:
     double mCollisionPulseStep = 1.0, mCollisionAmplitudeRatio = 0.0;
     int mCollisionSide = 0, mCollisionSample = 0, mCollisionSamplesTotal = 0;
     double mCollisionEnvelope = 0.0, mCollisionDecay = 0.0;
+    double mCollisionGapFactor = 0.3, mCollisionOutput = 0.0, mCollisionOut = 0.0;
+    double mCollisionPickup = 0.0, mCollisionFrame = 0.0;
+    bool mCollisionCalibrated = false, mCollisionSawContact = false;
+    int mCollisionClock = 0, mCollisionCalibrationSample = 0;
     double mBrushPickupWeight = 1.0;
-    double mStrainWeights[kNumPitchedModes]{};
-    double mTineStrainScales[kNumPitchedModes]{};
-    double mPickupContactGain = 0.060;
+    double mPickupContactGain = 0.0;
     float mMechanicalSample = 0.0f;
     PiezoPickup mPickup;
 
-    // Per-voice noise source for yarn friction and the brief primary clack
+    // Per-voice noise source for texture, click and slap noise
     FastPRNG mLocalPrng;
 };
 

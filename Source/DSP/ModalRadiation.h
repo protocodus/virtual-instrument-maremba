@@ -37,126 +37,46 @@ struct ModalRadiationReadout {
 // scaling at fixed thickness; actual undercuts/tine supports modify that law.
 // Rosewood's mid-register scale is consistent with the 0.373--0.423 m F#3 bars
 // measured by Beaton & Scavone (ISMA 2019). Other families are not calibrated.
-inline ModalRadiationGeometry GetModalRadiationGeometry(EMarimbaModel model, double fundamentalHz) {
+// Bars take their length and width from the generated carved-bar geometry.
+inline ModalRadiationGeometry GetModalRadiationGeometry(EMarimbaModel model, double fundamentalHz,
+                                                        double barLength = 0.0, double barWidth = 0.0) {
     const double scale = std::sqrt(261.625565 / std::clamp(fundamentalHz, 16.0, 20000.0));
-    double lengthAtC4 = .350, widthAtC4 = .055, closeStrength = .16, farStrength = .34;
+    double closeStrength = .16, farStrength = .34;
     if (model == EMarimbaModel::MayanPadauk) {
-        lengthAtC4 = .320; widthAtC4 = .050; closeStrength = .18; farStrength = .36;
-    } else if (model == EMarimbaModel::BalafonAncestral) {
-        lengthAtC4 = .330; widthAtC4 = .057; closeStrength = .16; farStrength = .34;
+        closeStrength = .18; farStrength = .36;
     } else if (model == EMarimbaModel::KalimbaArtisan) {
-        const double length = std::clamp(.055 * scale, .018, .120);
-        return {length, .007, {.88 * length, .008, .028},
+        const double length = std::clamp(.061 * std::pow(261.625565 / std::clamp(fundamentalHz, 16.0, 20000.0), .55),
+                                         .018, .120);
+        return {length, .0045, {.88 * length, .008, .028},
                 {.55 * length, .12, .60}, .12, .28};
     }
-    const double length = std::clamp(lengthAtC4 * scale, .115, .720);
-    const double width = std::clamp(widthAtC4 * std::sqrt(scale), .030, .080);
+    const double length = barLength > 0.0 ? barLength : std::clamp(.350 * scale, .115, .720);
+    const double width = barWidth > 0.0 ? barWidth : std::clamp(.055 * std::sqrt(scale), .030, .080);
     return {length, width, {.33 * length, .020, .080},
             {.55 * length, .25, .90}, closeStrength, farStrength};
 }
 
-// Generated from the 32-point Gauss-Legendre rule on [0,1] and the exact
-// ModalContactWeight(mode,x,0,tine) formula (bridge-supported tine geometry).
-// ModalRadiationTest checks every
-// frozen value against that function; see the round-2 references for generation.
-struct ModalRadiationNode { double x, weight; double bar[8], tine[8]; };
-static constexpr ModalRadiationNode kModalRadiationNodes[32] = {
-    {0.0013680690752592151, 0.0035093050047345703,
-     {-1.6347579244051116, -1.3990078291705959, 1.3929406165641394, 1.3868617653469095, -1.3807836435183232, -1.3747054880696041, 1.3686273449409436, 1.3625492151650394},
-     {0.00037475523632681494, 0.0016653969159185753, 0.004072279087966162, 0.0074633375542028212, 0.013314732179567454, 0.00897349811370181, -0.0057926975875907194, -0.012366087319152178}},
-    {0.0071942442273658647, 0.0081371973654531422,
-     {-1.5902123577115075, -1.3342519918316529, 1.3023480979295008, 1.2703852132643967, -1.2384297758514415, -1.2064795005070112, 1.174536676774127, 1.1426036703898279},
-     {0.0020462552411302771, 0.0090865418160499065, 0.022160674734957964, 0.040262029360931019, 0.069600998914926923, 0.042476617401622341, -0.035153595646240654, -0.069364518514825155}},
-    {0.017618872206246805, 0.012696032654630965,
-     {-1.510511098849691, -1.2184053534698229, 1.1403266517773896, 1.0621749608936677, -0.98415668166290826, -0.90631905611411789, 0.82872897815847812, 0.75146126488808795},
-     {0.0053397902698166409, 0.023645344503757184, 0.057320757949067824, 0.10248160035408628, 0.16787835626126393, 0.084345416045130378, -0.1040394853552903, -0.18483155533130224}},
-    {0.032546962031130167, 0.017136931456510782,
-     {-1.3964082843121068, -1.0527011275515679, 0.90901817715198086, 0.7659003221018893, -0.62413196047261676, -0.48426866422547604, 0.34695351405179992, 0.2128814888410647},
-     {0.010722518937021239, 0.047162836010018319, 0.11304824757469376, 0.19724465064387084, 0.30026890363195402, 0.10778858504867818, -0.22897892753624191, -0.36463176529298763}},
-    {0.051839422116973954, 0.021417949011113449,
-     {-1.2491008911893002, -0.83951850019246332, 0.61364214865413014, 0.39229708904397215, -0.178621968576477, 0.02446637927020924, -0.2138934594522503, -0.38660211896769103},
-     {0.018816378753678014, 0.081735596407076866, 0.1923014444592108, 0.32412293049312729, 0.44995774207189915, 0.084334573507593061, -0.41149642548839366, -0.58545336290117067}},
-    {0.075316193133715015, 0.025499029631188132,
-     {-1.0703936395732738, -0.58345207988136372, 0.26620848498221461, -0.03192354663322057, 0.3009354566307047, 0.53163155698246689, -0.71569424289177175, -0.84645044580068507},
-     {0.030346507963529445, 0.12923052876022542, 0.2955900188602148, 0.4749285077715783, 0.58778956336593746, -0.0056301822352975584, -0.6206139141481879, -0.7752852591225543}},
-    {0.10275810201602881, 0.02934204673926781,
-     {-0.86301259256513485, -0.29304264205035335, -0.10921735917908482, -0.45346081976553165, 0.71632044450702193, 0.88021138860107595, -0.93508625516757615, -0.88026368050700976},
-     {0.04607999399447827, 0.19072718579962292, 0.41904747346350174, 0.6302575159154804, 0.67241080510232265, -0.1607879401199287, -0.78396735506464699, -0.81779237151182504}},
-    {0.13390894062985514, 0.032911111388180848,
-     {-0.63104063405885091, 0.017206353370620566, -0.47196679832450672, -0.78818150318998093, 0.92917693784909128, 0.88339233154468622, -0.66730673123546747, -0.32418313293611734},
-     {0.066760108950763591, 0.26598734282917108, 0.55298716962287908, 0.75869442715598012, 0.65764495093932895, -0.34903605243194874, -0.80139916475477391, -0.60309133793665837}},
-    {0.16847786653489238, 0.036172897054424218,
-     {-0.38039653142041008, 0.32533733799129605, -0.76481275618468725, -0.93435293449788548, 0.81147758770971834, 0.4449705467218561, 0.056012429427009999, 0.54914814418560931},
-     {0.093041181295083486, 0.35303851977934592, 0.68151956376107503, 0.82067101842070111, 0.50904761668233023, -0.50694283566144094, -0.59088347072000025, -0.12332008581607634}},
-    {0.20614212137961885, 0.039096947893535135,
-     {-0.11922182569775167, 0.60206303150306395, -0.9225655707561391, -0.80993174607135343, 0.33698037558841909, -0.28926439074310983, 0.80718706206969404, 1.0028521055017223},
-     {0.12542919644318337, 0.44795721461827043, 0.78375786614754572, 0.77804678477402955, 0.22646568103559278, -0.55641005258510001, -0.15666555913196673, 0.44474671842814095}},
-    {0.24655004553388532, 0.04165596211347343,
-     {0.14199112676665246, 0.81347322300443103, -0.89053464110322944, -0.40562294875753391, -0.33694972753999675, -0.89925244066532473, 0.95402326418793937, 0.46703127137991379},
-     {0.16423277133080633, 0.54492269028541085, 0.83687143868619407, 0.60820560330782703, -0.13779299395084024, -0.44013672397446701, 0.36218028511115391, 0.7745390791680713}},
-    {0.28932436193468236, 0.043826046502201947,
-     {0.39068128330039359, 0.92662766907006577, -0.64882995210538807, 0.17431556583932581, -0.88301450526919856, -0.91891501398519682, 0.24966891003764782, -0.61074921296251217},
-     {0.20952829867080419, 0.63657979475440496, 0.82073594750350176, 0.31834056509631209, -0.48005966086824264, -0.16325119930506488, 0.72093640736829778, 0.59895515457963344}},
-    {0.33406569885893617, 0.045586939347881959,
-     {0.61299337544445009, 0.91722980140948462, -0.23261068219873018, 0.72061958779330659, -0.96478153787853083, -0.24511480687975071, -0.71893279153450418, -0.96058532932717133},
-     {0.26114184577448368, 0.71470003041656338, 0.72327745721230097, -0.046790003202041359, -0.67592428550473038, 0.18557031071404503, 0.69938765821859383, -0.021454217843525195}},
-    {0.38035631887393145, 0.046922199540402242,
-     {0.79501364456286616, 0.77739788114963593, 0.26404498164226597, 0.99589075451351905, -0.47735436087726069, 0.64271626000037052, -0.94833768422852993, -0.05326422569055949},
-     {0.31864890377447291, 0.77107064285612603, 0.54505543523676603, -0.40990352810748271, -0.63467366380585155, 0.45902422078388655, 0.2694082104451026, -0.64077583842787855}},
-    {0.42776401920860174, 0.047819360039637424,
-     {0.92430605248764863, 0.52087094194207162, 0.7085052232965976, 0.85419715595671741, 0.31660723567884924, 0.99531530842176308, -0.13081693906933975, 0.93655103335172096},
-     {0.38139144483191323, 0.79848492367252333, 0.30148112044631015, -0.68086338647040934, -0.35210120172665621, 0.52241913218414193, -0.33398539175281061, -0.74327896551333661}},
-    {0.47584616715613082, 0.048270044257363927,
-     {0.99148088925415656, 0.18330155975770335, 0.97092030907965721, 0.33528894732047282, 0.91389454090981381, 0.47344644729155, 0.84239284155362071, 0.60119422355160668},
-     {0.44851012716053867, 0.79166972000519886, 0.021531032015649858, -0.78567692509615683, 0.071873659963398798, 0.33436749779513431, -0.73362123475164531, -0.21555548961677648}},
-    {0.52415383284386918, 0.048270044257363927,
-     {0.99148088925415656, -0.18330155975770335, 0.97092030907965721, -0.33528894732047282, 0.91389454090981381, -0.47344644729155, 0.84239284155362071, -0.60119422355160668},
-     {0.51898808403782037, 0.74798275629824929, -0.25715746937467099, -0.6934631463546157, 0.46933119315291039, -0.018082889955676751, -0.66544054152234955, 0.49944277744052146}},
-    {0.57223598079139826, 0.047819360039637424,
-     {0.92430605248764863, -0.52087094194207162, 0.7085052232965976, -0.85419715595671741, 0.31660723567884924, -0.99531530842176308, -0.13081693906933975, -0.93655103335172096},
-     {0.59170173221491285, 0.66774904521894241, -0.49568226484615768, -0.42920609074319838, 0.68025743289911389, -0.36095846534147819, -0.17317612066109642, 0.78321938990089912}},
-    {0.61964368112606849, 0.046922199540402242,
-     {0.79501364456286638, -0.77739788114963582, 0.26404498164226681, -0.99589075451351905, -0.47735436087725985, -0.64271626000037119, -0.94833768422852938, 0.053264225690557762},
-     {0.66547358580194982, 0.5541765058178032, -0.66170939043464183, -0.065951859635418469, 0.62681020749598304, -0.52909967044751283, 0.42228301220928621, 0.4051747112798435}},
-    {0.66593430114106389, 0.045586939347881959,
-     {0.61299337544444987, -0.91722980140948485, -0.23261068219873063, -0.72061958779330593, -0.96478153787853116, 0.24511480687975243, -0.71893279153450351, 0.96058532932717178},
-     {0.73912223803440369, 0.412878411846125, -0.73550246003070063, 0.30024408108445705, 0.34409439145413612, -0.45381280515505673, 0.75458998228168994, -0.29520163556543172}},
-    {0.71067563806531764, 0.043826046502201947,
-     {0.39068128330039359, -0.92662766907006577, -0.64882995210538807, -0.17431556583932581, -0.88301450526919856, 0.91891501398519682, 0.24966891003764782, 0.61074921296251217},
-     {0.8115054524769395, 0.25111064661443694, -0.71256593226395004, 0.58141024086785698, -0.046459036332130464, -0.18802869759663154, 0.65360622717253947, -0.75441747233708334}},
-    {0.75344995446611462, 0.04165596211347343,
-     {0.14199112676665268, -0.81347322300443137, -0.89053464110322911, 0.40562294875753313, -0.33694972753999758, 0.89925244066532495, 0.95402326418793926, -0.46703127137991224},
-     {0.88155356334203405, 0.076882962366462276, -0.60252538927662347, 0.72187673757490023, -0.39995720104849181, 0.13799435941434088, 0.21924225890030377, -0.66794082631532581}},
-    {0.79385787862038115, 0.039096947893535135,
-     {-0.11922182569775167, -0.60206303150306395, -0.9225655707561391, 0.80993174607135343, 0.33698037558841909, 0.28926439074310983, 0.80718706206969404, -1.0028521055017223},
-     {0.94829191490548959, -0.10188703465433739, -0.42509131669154571, 0.70755636807898392, -0.60898043124228107, 0.39178944844432567, -0.29061035274600805, -0.16339934669894479}},
-    {0.83152213346510762, 0.036172897054424218,
-     {-0.38039653142041008, -0.32533733799129605, -0.76481275618468725, 0.93435293449788548, 0.81147758770971834, -0.4449705467218561, 0.056012429427009999, -0.54914814418560931},
-     {1.0108526201076753, -0.27803991503666264, -0.20470717668126914, 0.56008452285927668, -0.63375388895053197, 0.49591974005914108, -0.63686425863017015, 0.39558076923597907}},
-    {0.86609105937014486, 0.032911111388180848,
-     {-0.63104063405885091, -0.017206353370620566, -0.47196679832450672, 0.78818150318998093, 0.92917693784909128, -0.88339233154468622, -0.66730673123546747, 0.32418313293611734},
-     {1.0684772389612687, -0.44558288675957808, 0.034447249901553879, 0.32183085086288921, -0.49642834611624254, 0.44275257663031886, -0.71082717219703961, 0.70702978894801738}},
-    {0.89724189798397114, 0.02934204673926781,
-     {-0.86301259256513452, 0.29304264205035274, -0.10921735917908537, 0.45346081976553249, 0.7163204445070227, -0.88021138860107651, -0.93508625516757626, 0.88026368050700932},
-     {1.1205128707570644, -0.59983149614172404, 0.27193032436525333, 0.039695870046010238, -0.25381747663584314, 0.27394893793877051, -0.53836302276934933, 0.6796347588898225}},
-    {0.92468380686628504, 0.025499029631188132,
-     {-1.0703936395732743, 0.58345207988136427, 0.26620848498221522, 0.031923546633219786, 0.30093545663070376, -0.53163155698246589, -0.71569424289177075, 0.8464504458006844},
-     {1.1664045123087727, -0.73733326352833073, 0.4925845949323191, -0.24647310077068132, 0.031900469584620172, 0.047940461978896558, -0.21747321571043177, 0.39601908885049708}},
-    {0.94816057788302599, 0.021417949011113449,
-     {-1.2491008911893, 0.83951850019246277, 0.61364214865412925, -0.3922970890439712, -0.17862196857647566, -0.024466379270210573, -0.21389345945225183, 0.38660211896769253},
-     {1.20568635794738, -0.85565612291900894, 0.6864279213878024, -0.5088172875227801, 0.3117871192292313, -0.18482636543594536, 0.14854643568141809, -0.00109345312259883}},
-    {0.96745303796886983, 0.017136931456510782,
-     {-1.3964082843121068, 1.0527011275515679, 0.90901817715198086, -0.7659003221018893, -0.62413196047261676, 0.48426866422547604, 0.34695351405179992, -0.2128814888410647},
-     {1.2379741111559202, -0.95313071962550222, 0.84754888383559734, -0.7309476945269654, 0.55554515571499474, -0.39175472851563092, 0.48706644693445761, -0.39483780625519593}},
-    {0.98238112779375319, 0.012696032654630965,
-     {-1.510511098849691, 1.2184053534698229, 1.1403266517773896, -1.0621749608936677, -0.98415668166290826, 0.90631905611411789, 0.82872897815847812, -0.75146126488808795},
-     {1.2629595372411424, -1.0286181157278089, 0.97271526801928687, -0.90464542976867002, 0.74808293531974357, -0.55640240535944241, 0.76020444926748587, -0.72022147249416968}},
-    {0.99280575577263419, 0.0081371973654531422,
-     {-1.5902123577115082, 1.3342519918316535, 1.3023480979295015, -1.2703852132643978, -1.2384297758514431, 1.206479500507013, 1.174536676774129, -1.1426036703898297},
-     {1.2804077494355244, -1.0813436839989508, 1.0602086039114738, -1.0262674338827356, 0.8832500493086386, -0.67221204489789821, 0.95303287328981279, -0.95139413256432281}},
-    {0.99863193092474078, 0.0035093050047345703,
-     {-1.6347579244051116, 1.3990078291705959, 1.3929406165641394, -1.3868617653469095, -1.3807836435183232, 1.3747054880696041, 1.3686273449409436, -1.3625492151650394},
-     {1.2901593304093431, -1.1108121396361514, 1.1091144956048518, -1.0942672078065261, 0.95885294306224311, -0.73700674357771867, 1.0609802734745748, -1.080934726340244}},
+// 32-point Gauss-Legendre rule on [0, 1]; the voice samples each mode's shape
+// at these abscissae once per strike.
+static constexpr int kRadiationNodes = 32;
+struct ModalRadiationNode { double x, weight; };
+static constexpr ModalRadiationNode kModalRadiationNodes[kRadiationNodes] = {
+    {0.0013680690752592151, 0.0035093050047345703}, {0.0071942442273658647, 0.0081371973654531422},
+    {0.017618872206246805, 0.012696032654630965}, {0.032546962031130167, 0.017136931456510782},
+    {0.051839422116973954, 0.021417949011113449}, {0.075316193133715015, 0.025499029631188132},
+    {0.10275810201602881, 0.02934204673926781}, {0.13390894062985514, 0.032911111388180848},
+    {0.16847786653489238, 0.036172897054424218}, {0.20614212137961885, 0.039096947893535135},
+    {0.24655004553388532, 0.04165596211347343}, {0.28932436193468236, 0.043826046502201947},
+    {0.33406569885893617, 0.045586939347881959}, {0.38035631887393145, 0.046922199540402242},
+    {0.42776401920860174, 0.047819360039637424}, {0.47584616715613082, 0.048270044257363927},
+    {0.52415383284386918, 0.048270044257363927}, {0.57223598079139826, 0.047819360039637424},
+    {0.61964368112606849, 0.046922199540402242}, {0.66593430114106389, 0.045586939347881959},
+    {0.71067563806531764, 0.043826046502201947}, {0.75344995446611462, 0.04165596211347343},
+    {0.79385787862038115, 0.039096947893535135}, {0.83152213346510762, 0.036172897054424218},
+    {0.86609105937014486, 0.032911111388180848}, {0.89724189798397114, 0.02934204673926781},
+    {0.92468380686628504, 0.025499029631188132}, {0.94816057788302599, 0.021417949011113449},
+    {0.96745303796886983, 0.017136931456510782}, {0.98238112779375319, 0.012696032654630965},
+    {0.99280575577263419, 0.0081371973654531422}, {0.99863193092474078, 0.0035093050047345703},
 };
 
 // Bounded directional coherence of signed surface motion. This is the spatial
@@ -170,50 +90,69 @@ static constexpr ModalRadiationNode kModalRadiationNodes[32] = {
 // removed, so this readout introduces no device latency. Finite arrival fronts,
 // edge diffraction, the underside, and frame scattering are not simulated.
 //
-// Cached 32-point Gauss-Legendre quadrature along the length and two-point
-// Gaussian quadrature across the width. Other point counts use midpoint
-// quadrature solely for numerical convergence checks. All of this runs at setup/note-on, never in ProcessSample. The
-// optional sample count exists to compare against a denser numerical reference.
-// modeShape, when supplied, contains one spatial sample per quadrature point;
-// production supplies the generated geometry shared with contact and tuning.
-inline ModalRadiationCoefficient ProjectModalSurface(int mode, double frequencyHz,
-        const ModalRadiationGeometry& geometry, const ModalRadiationPoint& microphone,
-        bool tine, int points = 32, const double* modeShape = nullptr) {
+// 32-point Gauss-Legendre quadrature along the length (shape sampled at the
+// nodes by the caller) and two-point Gaussian quadrature across the width. All
+// of this runs at note-on, never in ProcessSample.
+// The path from every quadrature point to one microphone: the distance
+// weighting and the path difference to the bar's centre. It depends on the
+// geometry only, so a strike computes it once for all of its modes.
+struct ModalRadiationPaths {
+    double weight[kRadiationNodes][2];   // quadrature weight / distance, per side
+    double delta[kRadiationNodes][2];    // distance - centre distance (m)
+};
+
+inline ModalRadiationPaths PrepareModalRadiationPaths(const ModalRadiationGeometry& geometry,
+                                                      const ModalRadiationPoint& microphone) {
+    ModalRadiationPaths paths{};
     const double length = std::max(geometry.length, .001);
     const double width = std::max(geometry.width, .0001);
     const double z = std::max(std::abs(microphone.z), .002);
     const double dxCentre = microphone.x - .5 * length;
     const double centreDistance = std::sqrt(dxCentre * dxCentre + microphone.y * microphone.y + z * z);
-    const double k = 2.0 * 3.14159265358979323846 * std::max(frequencyHz, 0.0) / 343.0;
-    points = std::clamp(points, 16, 2048);
-    double real = 0.0, imag = 0.0, normalization = 0.0;
-    for (int point = 0; point < points; ++point) {
-        const bool cached = points == 32;
-        const double x = cached ? kModalRadiationNodes[point].x
-                                : (static_cast<double>(point) + .5) / points;
-        const int index = std::clamp(mode, 0, 7);
-        const double shape = modeShape ? modeShape[point] : cached ? (tine ? kModalRadiationNodes[point].tine[index]
-                                           : kModalRadiationNodes[point].bar[index])
-                                    : ModalContactWeight(index, x, 0.0, tine);
-        const double spatialWeight = cached ? kModalRadiationNodes[point].weight : 1.0 / points;
-        const double dx = microphone.x - x * length;
-        for (int side : {-1, 1}) {
-            const double dy = microphone.y - side * width * .288675134594813;
+    for (int point = 0; point < kRadiationNodes; ++point) {
+        const double dx = microphone.x - kModalRadiationNodes[point].x * length;
+        for (int side = 0; side < 2; ++side) {
+            const double dy = microphone.y - (side ? 1.0 : -1.0) * width * .288675134594813;
             const double distance = std::sqrt(dx * dx + dy * dy + z * z);
-            const double weight = shape * spatialWeight / distance;
-            const double phase = k * (distance - centreDistance);
-            real += weight * std::cos(phase);
-            imag -= weight * std::sin(phase);
-            normalization += std::abs(weight);
+            paths.weight[point][side] = kModalRadiationNodes[point].weight / distance;
+            paths.delta[point][side] = distance - centreDistance;
         }
     }
+    return paths;
+}
+
+inline ModalRadiationCoefficient ProjectModalSurface(const double* shapeAtNodes, double frequencyHz,
+                                                     const ModalRadiationPaths& paths) {
+    const double k = 2.0 * 3.14159265358979323846 * std::max(frequencyHz, 0.0) / 343.0;
+    // The phases first (independent, so they vectorize), then the sums, one
+    // chain per side of the bar.
+    double sine[kRadiationNodes][2], cosine[kRadiationNodes][2];
+    for (int point = 0; point < kRadiationNodes; ++point)
+        for (int side = 0; side < 2; ++side)
+            FastSinCos(k * paths.delta[point][side], sine[point][side], cosine[point][side]);
+    double sumReal[2] = {}, sumImag[2] = {}, sumWeight[2] = {};
+    for (int point = 0; point < kRadiationNodes; ++point) {
+        const double shape = shapeAtNodes[point];
+        for (int side = 0; side < 2; ++side) {
+            const double weight = shape * paths.weight[point][side];
+            sumReal[side] += weight * cosine[point][side];
+            sumImag[side] -= weight * sine[point][side];
+            sumWeight[side] += std::abs(weight);
+        }
+    }
+    const double normalization = sumWeight[0] + sumWeight[1];
     if (normalization < 1.e-20) return {0.0, 0.0};
-    real /= normalization;
-    imag /= normalization;
+    double real = (sumReal[0] + sumReal[1]) / normalization;
+    double imag = (sumImag[0] + sumImag[1]) / normalization;
     // Only guards floating-point roundoff; the triangle inequality sets the bound.
     const double magnitude = std::sqrt(real * real + imag * imag);
     if (magnitude > 1.0) { real /= magnitude; imag /= magnitude; }
     return {real, imag};
+}
+
+inline ModalRadiationCoefficient ProjectModalSurface(const double* shapeAtNodes, double frequencyHz,
+        const ModalRadiationGeometry& geometry, const ModalRadiationPoint& microphone) {
+    return ProjectModalSurface(shapeAtNodes, frequencyHz, PrepareModalRadiationPaths(geometry, microphone));
 }
 
 // A bare bar is an acoustically short-circuited source: air pushed by one face
@@ -234,25 +173,37 @@ inline double BarDirectRadiationScale(double frequencyHz, double width) {
     return efficiency(frequencyHz, width) / efficiency(1046.502261, .055);
 }
 
+// Both microphones' paths for one strike.
+struct ModalRadiationSetup {
+    ModalRadiationPaths close, far;
+    double closeStrength, farStrength;
+};
+
+inline ModalRadiationSetup PrepareModalRadiation(const ModalRadiationGeometry& geometry) {
+    return {PrepareModalRadiationPaths(geometry, geometry.close), PrepareModalRadiationPaths(geometry, geometry.far),
+            geometry.closeStrength, geometry.farStrength};
+}
+
 inline ModalRadiationReadout ComputeModalRadiation(int mode, double frequencyHz,
-        const ModalRadiationGeometry& geometry, bool tine, const double* modeShape = nullptr) {
-    // Existing excitation/readout weights already include a voiced radiation
-    // balance. Preserve that fundamental and blend only a bounded spatial
-    // correction into upper modes. Applying another omega^2 radiation factor
-    // would double-count that voicing and make the attack excessively bright.
-    // The voice supplies the same mounted/undercut mode shapes as its contact
-    // model. The blend remains a disclosed radiation voicing choice.
+        const ModalRadiationSetup& setup, const double* shapeAtNodes) {
+    // The fundamental's direct field is carried by the dipole efficiency;
+    // upper modes blend a bounded spatial correction (lobe cancellation and
+    // path differences to each microphone). Fixed quadrature keeps trigger
+    // work bounded.
     if (mode == 0) return {};
-    // Fixed quadrature keeps trigger work bounded; cached shapes avoid beam
-    // exponentials and trigonometry on every strike. Tested against 2048 points
-    // for active audible modes; ultrasonic fields are only a bounded surrogate.
     const auto blend = [](ModalRadiationCoefficient field, double strength) {
         strength = std::clamp(strength, 0.0, .4);
         return ModalRadiationCoefficient{1.0 - strength + strength * field.real,
                                          strength * field.imag};
     };
-    return {blend(ProjectModalSurface(mode, frequencyHz, geometry, geometry.close, tine, 32, modeShape), geometry.closeStrength),
-            blend(ProjectModalSurface(mode, frequencyHz, geometry, geometry.far, tine, 32, modeShape), geometry.farStrength)};
+    return {blend(ProjectModalSurface(shapeAtNodes, frequencyHz, setup.close), setup.closeStrength),
+            blend(ProjectModalSurface(shapeAtNodes, frequencyHz, setup.far), setup.farStrength)};
+}
+
+inline ModalRadiationReadout ComputeModalRadiation(int mode, double frequencyHz,
+        const ModalRadiationGeometry& geometry, const double* shapeAtNodes) {
+    if (mode == 0) return {};
+    return ComputeModalRadiation(mode, frequencyHz, PrepareModalRadiation(geometry), shapeAtNodes);
 }
 
 } // namespace maremba

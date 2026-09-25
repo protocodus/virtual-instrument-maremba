@@ -1,70 +1,118 @@
 #pragma once
 
-#include "KalimbaModes.h"
+#include "MarimbaModel.h"
 #include <algorithm>
 #include <cmath>
 
 namespace maremba {
 
-// Analytical reference shapes, averaged over the contact footprint: a uniform
-// free/free bar and the earlier rigidly supported tine. Production voices use
-// BarModes/KalimbaMountShapes so tuning and spatial response share a geometry.
-// All work is at note-on; nothing here runs in the per-sample modal bank.
-inline double ModalContactWeight(int mode, double position, double width, bool tine) {
-    if (tine) return KalimbaContactWeight(mode, position, width);
-    struct BeamMode { double root, sigma; };
-    // Non-rigid roots of cosh(b)*cos(b)=1 (free/free).
-    static constexpr BeamMode bar[8] = {
-        {4.7300407448627, 0.982502214576238}, {7.85320462409584, 1.00077731190727},
-        {10.9956078380017, 0.999966450125409}, {14.137165491257, 1.00000144989766},
-        {17.278759657399, 0.999999937344383}, {20.420352245626, 1.0000000027076},
-        {23.56194490204, 0.999999999882994}, {26.7035375555, 1.00000000000506}
-    };
-    mode = std::clamp(mode, 0, 7);
-    const BeamMode& b = bar[mode];
-    const double x = std::clamp(position, 0.0, 1.0);
-    const double halfWidth = 0.5 * std::clamp(width, 0.0, 0.25);
-    const double lo = std::max(0.0, x - halfWidth);
-    const double hi = std::min(1.0, x + halfWidth);
-    double centre = 0.5 * (lo + hi);
-    double sign = 1.0;
-    // Enforce parity exactly, and keep exponentials small at the right end.
-    if (centre > 0.5) {
-        centre = 1.0 - centre;
-        if (mode % 2) sign = -1.0;
-    }
-    if (mode % 2 && centre == 0.5) return 0.0;
-    const double z = b.root * centre;
-    const double h = b.root * 0.5 * (hi - lo);
-    // SDK 5's target math surface has exp, but no sinh. Small h uses the
-    // even Taylor series to avoid cancellation in exp(h)-exp(-h).
-    const double hyperbolicAverage = h > 1.0e-3 ? (std::exp(h) - std::exp(-h)) / (2.0 * h)
-                                              : 1.0 + h * h / 6.0 + h * h * h * h / 120.0;
-    const double circularAverage = h > 1.0e-8 ? std::sin(h) / h : 1.0;
-    // This form avoids cancellation between cosh(z) and sigma*sinh(z).
-    const double hyperbolic = 0.5 * ((1.0 - b.sigma) * std::exp(z)
-                                  + (1.0 + b.sigma) * std::exp(-z));
-    const double circular = std::cos(z) - b.sigma * std::sin(z);
-    const double shape = hyperbolic * hyperbolicAverage + circular * circularAverage;
-    // Fundamental gain stays close to the existing centre/default voicing.
-    // Other modes use a fixed normalization, never a local nodal denominator.
-    const double orientation = (mode / 2) % 2 == 0 ? -1.0 : 1.0;
-    return sign * orientation * shape * (mode == 0 ? 0.82260894024917 : 0.70710678118655);
+// sin and cos of one angle to 1 ulp for |x| < 1e5: reduction by quarter
+// turns (Cody-Waite, pi/2 in three parts) and Cephes' minimax polynomials on
+// [-pi/4, pi/4], branch-free so loops over it vectorize; about five times
+// faster than libm. A fresh strike takes some 2000 (mode shapes, radiation).
+inline void FastSinCos(double x, double& s, double& c) {
+    constexpr double kTwoOverPi = 0.63661977236758134308;
+    constexpr double kP1 = 1.5707963267341256e+00, kP2 = 6.0771005065061922e-11, kP3 = 2.0222662487959506e-21;
+    const double n = std::nearbyint(x * kTwoOverPi);
+    const double r = ((x - n * kP1) - n * kP2) - n * kP3;
+    const double z = r * r;
+    const double sr = r + r * z * (-1.66666666666666307295e-1 + z * (8.33333333332211858878e-3
+                    + z * (-1.98412698295895385996e-4 + z * (2.75573136213857245213e-6
+                    + z * (-2.50507477628578072866e-8 + z * 1.58962301576546568060e-10)))));
+    const double cr = 1.0 - 0.5 * z + z * z * (4.16666666666665929218e-2 + z * (-1.38888888888730564116e-3
+                    + z * (2.48015872888517045348e-5 + z * (-2.75573141792967388112e-7
+                    + z * (2.08757008419747316778e-9 + z * -1.13585365213876817300e-11)))));
+    const long q = std::abs(n) < 1.0e15 ? static_cast<long>(n) & 3 : 0;   // NaN stays NaN, no UB
+    const double ss = (q & 1) ? cr : sr, cc = (q & 1) ? sr : cr;
+    s = (q & 2) ? -ss : ss;
+    c = ((q + 1) & 2) ? -cc : cc;
 }
 
-// Contact loss depends on the mean of squared displacement, not the square
-// of its mean: a wide mallet spanning a node still touches moving material.
-// Two-point Gaussian quadrature is a bounded spatial approximation. The force
-// projection above remains signed, so opposite lobes still cancel excitation.
-inline double ModalContactParticipation(int mode, double position, double width, bool tine) {
-    const double halfWidth = 0.5 * std::clamp(width, 0.0, 0.25);
-    const double lo = std::max(0.0, position - halfWidth);
-    const double hi = std::min(1.0, position + halfWidth);
-    const double centre = 0.5 * (lo + hi);
-    const double offset = (hi - lo) * 0.288675134594813;
-    const double left = ModalContactWeight(mode, centre - offset, 0.0, tine);
-    const double right = ModalContactWeight(mode, centre + offset, 0.0, tine);
-    return 0.5 * (left * left + right * right);
+// Mode shapes along the bar (x = 0..1) or tine (x = 0 at the bridge, 1 at the
+// free end). Bars use the generated carved-bar shapes for their first modes
+// and uniform free-free shapes above; both are normalized to max |phi| = 1 and
+// positive at x = 0, the convention of the generated modal masses. Everything
+// here runs at note-on only.
+
+// Free-free Euler-Bernoulli bar, mode m (0 = fundamental). Parity is enforced
+// by mirroring, which also keeps the exponentials small.
+inline double UniformBarShape(int mode, double x) {
+    static constexpr double kRoot[8] = {4.7300407448627, 7.85320462409584, 10.9956078380017,
+        14.137165491257, 17.278759657399, 20.420352245626, 23.56194490204, 26.7035375555};
+    static constexpr double kSigma[4] = {0.982502214576238, 1.00077731190727,
+        0.999966450125409, 1.00000144989766};
+    mode = std::max(mode, 0);
+    const double beta = mode < 8 ? kRoot[mode] : (mode + 1.5) * 3.14159265358979323846;
+    const double sigma = mode < 4 ? kSigma[mode] : 1.0;
+    x = std::clamp(x, 0.0, 1.0);
+    double sign = 1.0;
+    if (x > 0.5) {
+        x = 1.0 - x;
+        if (mode % 2) sign = -1.0;
+    }
+    const double z = beta * x;
+    // From the fifth mode on sigma is 1 and the growing exponential drops out.
+    const double growing = sigma == 1.0 ? 0.0 : (1.0 - sigma) * std::exp(z);
+    const double hyperbolic = 0.5 * (growing + (1.0 + sigma) * std::exp(-z));
+    double sine, cosine;
+    FastSinCos(z, sine, cosine);
+    return sign * 0.5 * (hyperbolic + cosine - sigma * sine);
+}
+
+// Carved bar shape: Catmull-Rom interpolation of the half-bar samples.
+inline double BarShape(const BarKey& key, int mode, double x) {
+    if (mode >= kBarShapedModes) return UniformBarShape(mode, x);
+    x = std::clamp(x, 0.0, 1.0);
+    double sign = 1.0;
+    if (x > 0.5) {
+        x = 1.0 - x;
+        if (mode % 2) sign = -1.0;
+    }
+    const double* s = key.shape[mode];
+    const double u = x / 0.5 * (kBarShapePoints - 1);
+    const int i = std::clamp(static_cast<int>(u), 0, kBarShapePoints - 2);
+    const double t = u - i;
+    // Mirror samples across x = 0.5 by parity; extrapolate linearly at x = 0.
+    const auto at = [&](int k) {
+        if (k < 0) return 2.0 * s[0] - s[1];
+        if (k >= kBarShapePoints) {
+            const int mirrored = 2 * (kBarShapePoints - 1) - k;
+            return (mode % 2 ? -1.0 : 1.0) * s[std::max(mirrored, 0)];
+        }
+        return s[k];
+    };
+    const double p0 = at(i - 1), p1 = at(i), p2 = at(i + 1), p3 = at(i + 2);
+    const double value = p1 + 0.5 * t * (p2 - p0 + t * (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3
+                       + t * (3.0 * (p1 - p2) + p3 - p0)));
+    return sign * value;
+}
+
+// Displacement shape of a mounted tine (rigid-bridge solution, integral of
+// phi^2 over the whole two-span beam = 1 in free-length units).
+inline double TineShape(int mode, double position) {
+    return KalimbaFullModeShape(mode, std::clamp(position, 0.0, 1.0));
+}
+
+// Force projection averaged over a contact patch of the given width
+// (fraction of the length), five-point Gauss-Legendre.
+template <typename Shape>
+inline double FootprintAverage(Shape&& shape, double x, double width) {
+    static constexpr double kNode[5] = {-0.906179845938664, -0.538469310105683, 0.0,
+                                        0.538469310105683, 0.906179845938664};
+    static constexpr double kWeight[5] = {0.236926885056189, 0.478628670499366, 0.568888888888889,
+                                          0.478628670499366, 0.236926885056189};
+    const double half = 0.5 * std::clamp(width, 0.0, 0.3);
+    if (half < 1.0e-9) return shape(x);
+    double sum = 0.0;
+    for (int i = 0; i < 5; ++i) sum += kWeight[i] * shape(std::clamp(x + half * kNode[i], 0.0, 1.0));
+    return 0.5 * sum;
+}
+
+// Mean square over the patch: the part of a mode the contact can damp even
+// where opposite lobes cancel its force projection.
+template <typename Shape>
+inline double FootprintMeanSquare(Shape&& shape, double x, double width) {
+    return FootprintAverage([&shape](double y) { const double v = shape(y); return v * v; }, x, width);
 }
 
 } // namespace maremba

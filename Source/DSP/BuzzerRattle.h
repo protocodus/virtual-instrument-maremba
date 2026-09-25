@@ -44,8 +44,11 @@ public:
         mActive = amount > 0.001;
         if (!mActive) mHeight = mVelocity = 0.0;   // taken off: no late landing
         // Tightens quickly toward low settings, so the default Buzz only
-        // rattles on the hardest treble strokes.
-        mPreload = 60.0 * std::exp(3.76 * (1.0 - amount));
+        // rattles on the hardest treble strokes; a pluck's release jolts the
+        // board far harder than its ring does.
+        mPreload = 3000.0 * std::exp(2.79 * (1.0 - amount));
+        // A looser ring also rings more freely once it has landed.
+        mLevel = 0.3 + 0.7 * amount;
     }
 
     void Reset() {
@@ -113,7 +116,7 @@ public:
             ring.y1 = y * pole;
             sound += y;
         }
-        return sound;
+        return sound * mLevel;
     }
 
 private:
@@ -122,7 +125,7 @@ private:
     struct Ring { double y1 = 0.0, y2 = 0.0, c = 0.0, s = 0.0, b = 0.0; };
     Ring mRing[kModes];
     bool mActive = false;
-    double mStep = 1.0 / 88200.0, mPreload = 1.0e9, mDriveScale = 1.0;
+    double mStep = 1.0 / 88200.0, mPreload = 1.0e9, mDriveScale = 1.0, mLevel = 1.0;
     double mHeight = 0.0, mVelocity = 0.0, mPreviousDrive = 0.0;
 };
 

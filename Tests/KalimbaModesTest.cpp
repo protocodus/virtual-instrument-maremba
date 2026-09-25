@@ -98,7 +98,12 @@ int main() {
             const double reference=width>0 ? integrate([&](double u){return KalimbaFullModeShape(mode,u);},lo,hi)/(hi-lo)*m.contactScale
                                            : KalimbaFullModeShape(mode,x)*m.contactScale;
             worstFootprint=std::max(worstFootprint,std::abs(actual-reference));
-            require(actual==ModalContactWeight(mode,x,width,true),"tine excitation bypasses the derived geometry");
+            // The voice averages the same shape over the thumb's footprint
+            // with five Gauss points (a thumb-sized footprint on the tine).
+            if (width<=.065 && x-width/2>=0 && x+width/2<=1) {
+                const double voice=FootprintAverage([mode](double u){return TineShape(mode,u);},x,width)*m.contactScale;
+                require(std::abs(voice-actual)<1.e-3*(1+std::abs(actual)),"tine excitation bypasses the derived geometry");
+            }
         }
     }
     require(worstBoundary<2.e-13,"clamp/free/bridge boundary conditions are not satisfied");
@@ -130,7 +135,7 @@ int main() {
     for(int i=0;i<60;++i){const double mid=.5*(lo+hi);if(KalimbaContactWeight(1,lo,0)*KalimbaContactWeight(1,mid,0)>0)lo=mid;else hi=mid;}
     const double node=.5*(lo+hi);
     require(std::abs(KalimbaContactWeight(1,node,0))<1.e-12
-         && ModalContactParticipation(1,node,.1,true)>.001,"node cancellation erased physical contact participation");
+         && FootprintMeanSquare([](double u){return TineShape(1,u);},node,.1)>.001,"node cancellation erased physical contact participation");
 
     // Isolate the new derived geometry in a short velocity-after-release bank:
     // same f0, durations and readout weights as the cantilever reference. This

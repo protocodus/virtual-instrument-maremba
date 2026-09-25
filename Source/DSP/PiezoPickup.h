@@ -29,9 +29,7 @@ public:
         switch (model) {
             case EMarimbaModel::MayanPadauk:
                 mount = {235.0, 1.05, 920.0, 1.55, 100.0, 4900.0,
-                         // Output calibration reserves headroom for the
-                         // undercut bar's stronger upper-mode strain.
-                         0.58, 0.72, 0.69, 0.26, 0.62};
+                         0.58, 0.72, 0.69, 0.26, 0.78};
                 break;
             case EMarimbaModel::BalafonAncestral:
                 mount = {310.0, 0.85, 1540.0, 2.10, 125.0, 6800.0,
@@ -72,7 +70,7 @@ public:
     }
 
     // strain: signed sum of the modal motions at the mounting patch, using
-    // the instrument's solved modal geometry. impactForce: the contact-force density (remove
+    // ModalStrainWeight below. impactForce: the contact-force density (remove
     // the integrated excitation's dt before feeding it here), including any
     // physical knocks. structuralBody: rail/bridge motion, never cavity air.
     // All three inputs are nominal audio-scale quantities, with peaks < 1.
@@ -96,9 +94,9 @@ public:
     // free bar (three mallet instruments) or clamped tine (Kalimba). Curvature
     // is the second derivative of displacement: higher modes can produce much
     // more contact voltage than radiated sound, and its sign changes at nodes.
-    // Retained as a uniform/clamped analytical reference for contracts. The
-    // production voice uses BarModes/KalimbaMountShapes for the same curvature
-    // readout on its actual reduced geometry.
+    // Use once per mode at trigger, never inside the sample loop. Frequency
+    // ratios stay independently voiced in MarimbaModel; this uniform-beam
+    // geometry approximates the mounting response, not an undercut-bar FEM.
     static double ModalStrainWeight(EMarimbaModel model, int mode) {
         struct BeamMode { double root, sigma; };
         static constexpr BeamMode bar[8] = {
@@ -118,8 +116,11 @@ public:
         if (model == EMarimbaModel::MayanPadauk) { position = 0.29; width = 0.13; }
         if (model == EMarimbaModel::BalafonAncestral) { position = 0.20; width = 0.09; }
         if (tine) { position = 0.06; width = 0.075; }
-        mode = std::clamp(mode, 0, kNumPitchedModes - 1);
-        const BeamMode& b = tine ? cantilever[mode] : bar[mode];
+        mode = std::max(mode, 0);
+        // Above the tabulated roots both families approach sigma = 1 and
+        // roots spaced by pi: free-free (m + 1.5) pi, cantilever (m + 0.5) pi.
+        const BeamMode b = mode < 8 ? (tine ? cantilever[mode] : bar[mode])
+            : BeamMode{(mode + (tine ? 0.5 : 1.5)) * kPiD, 1.0};
         const double beta0 = tine ? cantilever[0].root : bar[0].root;
         const double z = b.root * position;
         const double h = b.root * width * 0.5;

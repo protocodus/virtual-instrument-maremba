@@ -1,95 +1,115 @@
-#include "BarModes.h"
+// The carved-bar tables (DSP/BarModes.h, written by Tests/generate_bar_modes.py)
+// as the voice reads them: the per-key interpolation is continuous and keeps
+// the modes ordered, the shapes keep their parity about the centre and their
+// node counts, and the tuning targets hold where makers tune them. The table
+// itself is compared with a fresh generator run by `generate_bar_modes.py --check`.
+#include "MarimbaModel.h"
+#include "ModalExcitation.h"
 #include <algorithm>
 #include <cmath>
-#include <cstdlib>
 #include <iostream>
+#include <string>
 
 namespace {
-void Require(bool value, const char* text) {
-    if (!value) { std::cerr << text << '\n'; std::exit(1); }
+using maremba::EMarimbaModel;
+int failures = 0;
+void check(bool ok, const std::string& message) {
+    if (!ok) { ++failures; std::cerr << "FAIL " << message << '\n'; }
 }
-double UniformShape(int mode, double x) {
-    constexpr double root[8] = {4.7300407448627,7.85320462409584,10.9956078380017,
-        14.137165491257,17.278759657399,20.420352245626,23.56194490204,26.7035375555};
-    constexpr double sigma[8] = {.982502214576238,1.00077731190727,.999966450125409,
-        1.00000144989766,.999999937344383,1.0000000027076,.999999999882994,1.00000000000506};
-    double sign=1.;
-    if (x>.5) { x=1-x; sign=mode%2?-1.:1.; }
-    const double z=root[mode]*x;
-    const double raw=.5*((1-sigma[mode])*std::exp(z)+(1+sigma[mode])*std::exp(-z))
-                     +std::cos(z)-sigma[mode]*std::sin(z);
-    return sign*((mode/2)%2?-1.:1.)*-raw*(mode==0?.82260894024917:.70710678118655);
+// Sign changes of a mode shape along the whole bar (its interior nodes).
+int nodes(const maremba::BarKey& key, int mode) {
+    int count = 0;
+    double previous = maremba::BarShape(key, mode, 0.0);
+    for (int i = 1; i <= 2000; ++i) {
+        const double value = maremba::BarShape(key, mode, i / 2000.0);
+        if ((value > 0.0) != (previous > 0.0) && std::abs(value - previous) > 0.0) ++count;
+        previous = value;
+    }
+    return count;
 }
-}
+} // namespace
 
 int main() {
-    using namespace maremba;
-    double maxUniform=0.,maxIntegralError=0.,maxParticipationError=0.,maxStrain=0.;
-    for (int family=0;family<3;++family) {
-        const auto model=static_cast<EMarimbaModel>(family);
-        const auto cut=GetBarModeGeometry(model,60.);
-        Require(std::abs(BarModeRatio(cut,1)-4.)<1e-7,"undercut second mode target");
-        Require(std::abs(BarModeRatio(cut,2)-(10.-.2*family))<1e-7,"undercut third mode target");
-        const auto uniform=GetBarModeGeometry(model,96.);
-        Require(BarModeFundamentalNode(cut)<.21,"undercut must move fundamental nodes");
-        Require(std::abs(BarModeFundamentalNode(uniform)-.2241575)<1e-6,"uniform node");
-        for (int note=12;note<=120;++note) {
-            const auto g=GetBarModeGeometry(model,note);
-            Require(BarModeRatio(g,0)==1.,"fundamental stays exact");
-            Require(std::abs(BarContactWeight(g,0,BarModeFundamentalNode(g),0.))<1e-10,"geometry node null");
-            for (int mode=0;mode<8;++mode) {
-                if (mode) Require(BarModeRatio(g,mode)>BarModeRatio(g,mode-1),"mode ordering");
-                const double strain=BarModeStrainWeight(g,mode);
-                Require(std::isfinite(strain),"finite strain");
-                maxStrain=std::max(maxStrain,std::abs(strain));
-                Require(mode!=0 || strain==1.,"pickup fundamental normalization");
-                for (int j=0;j<=50;++j) {
-                    const double x=j/50.;
-                    const double a=BarContactWeight(g,mode,x,0.);
-                    const double b=BarContactWeight(g,mode,1.-x,0.);
-                    Require(std::isfinite(a)&&std::abs(a)<2.5,"finite bounded mass-normalized shape");
-                    Require(std::abs(a-(mode%2?-b:b))<1e-12,"mode parity");
-                    if (note==96) maxUniform=std::max(maxUniform,std::abs(a-UniformShape(mode,x)));
-                }
+    const char* names[] = {"rosewood", "hormigo", "balafon"};
+    for (int model = 0; model < 3; ++model) {
+        const auto type = static_cast<EMarimbaModel>(model);
+        double worstJump = 0.0;
+        for (double midi = 24.0; midi < 108.0; midi += 0.25) {
+            const auto key = maremba::GetBarKey(type, midi);
+            const auto next = maremba::GetBarKey(type, midi + 0.25);
+            check(key.ratio[0] == 1.0, std::string("fundamental ratio is not 1: ") + names[model]);
+            for (int m = 1; m < maremba::kBarModes; ++m)
+                check(key.ratio[m] > key.ratio[m - 1], std::string("bending modes out of order: ") + names[model]);
+            for (int m = 0; m < maremba::kBarModes; ++m) {
+                // Relative to the shape's normalization, not to the bar's mass:
+                // short treble bars' high modes exceed 1.
+                check(std::isfinite(key.massFraction[m]) && key.massFraction[m] > 0.0 && key.massFraction[m] < 10.0,
+                      std::string("modal mass fraction invalid: ") + names[model]);
+                worstJump = std::max(worstJump, std::abs(std::log(next.ratio[m] / key.ratio[m])));
             }
+            // Tuned bars shorten and lighten up the keyboard. A balafon key's
+            // length and carving are chosen together to reach its own
+            // overtone, so neighbours may differ either way (by up to ~20 %).
+            if (model != 2)
+                check(key.lengthM > next.lengthM && key.massKg > next.massKg,
+                      std::string("bars do not shorten and lighten up the keyboard: ") + names[model]);
+            check(key.torsion[0] > 0.0 && key.torsion[1] > key.torsion[0] && key.lateral > 1.0,
+                  std::string("torsional or lateral ratios invalid: ") + names[model]);
         }
-        for (double note:{60.,76.125,80.25,86.75,92.875,96.}) {
-            const auto g=GetBarModeGeometry(model,note);
-            for (int mode=0;mode<8;++mode) {
-                int zeroCount=0;
-                double previous=BarContactWeight(g,mode,0.,0.);
-                for (int i=1;i<=8192;++i) {
-                    const double value=BarContactWeight(g,mode,(i-.13)/8192.,0.);
-                    if (value*previous<0.) ++zeroCount;
-                    previous=value;
+        // Linear interpolation between anchors three semitones apart: a quarter
+        // semitone never moves a ratio by more than a few percent.
+        check(worstJump < 0.05, std::string("mode ratios jump between keys: ") + names[model]);
+
+        for (int note : {36, 60, 84}) {
+            const auto key = maremba::GetBarKey(type, note);
+            for (int m = 0; m < maremba::kBarShapedModes; ++m) {
+                double worstParity = 0.0, peak = 0.0;
+                for (int i = 0; i <= 100; ++i) {
+                    const double x = i / 200.0;
+                    const double left = maremba::BarShape(key, m, x), right = maremba::BarShape(key, m, 1.0 - x);
+                    worstParity = std::max(worstParity, std::abs(left - (m % 2 ? -right : right)));
+                    peak = std::max(peak, std::abs(left));
                 }
-                Require(zeroCount==mode+2,"flexural mode node count prevents mode swaps");
-                if (mode%2) Require(BarContactWeight(g,mode,.5,.15)==0.,"odd footprint centre null");
-                for (double x:{0.,.02,.175,.2241575,.35,.5,.73,.99,1.}) {
-                    for (double width:{.0001,.025,.10,.25}) {
-                        const double lo=std::max(0.,x-width/2),hi=std::min(1.,x+width/2);
-                        double sum=0.,square=0.;
-                        constexpr int count=1024;
-                        for (int i=0;i<count;++i) {
-                            const double v=BarContactWeight(g,mode,lo+(hi-lo)*(i+.5)/count,0.);
-                            sum+=v; square+=v*v;
-                        }
-                        const double average=BarContactWeight(g,mode,x,width);
-                        const double participation=BarContactParticipation(g,mode,x,width);
-                        maxIntegralError=std::max(maxIntegralError,std::abs(average-sum/count));
-                        maxParticipationError=std::max(maxParticipationError,std::abs(participation-square/count));
-                        Require(participation+1e-9>=average*average,"finite footprint obeys Jensen bound");
-                    }
-                }
+                check(worstParity <= 1e-12 * peak, std::string("mode shape breaks its parity: ") + names[model]);
+                // A free bar's n-th bending mode has n + 1 interior nodes.
+                check(nodes(key, m) == m + 2, std::string("mode shape has the wrong node count: ") + names[model]
+                      + " note " + std::to_string(note) + " mode " + std::to_string(m));
+                // Continuous through the stored samples (Catmull-Rom): no step
+                // larger than the shape's own slope allows.
+                double worstStep = 0.0;
+                for (int i = 1; i <= 4000; ++i)
+                    worstStep = std::max(worstStep, std::abs(maremba::BarShape(key, m, i / 4000.0)
+                                                            - maremba::BarShape(key, m, (i - 1) / 4000.0)));
+                check(worstStep < 0.02 * peak, std::string("mode shape is discontinuous: ") + names[model]);
             }
         }
     }
-    Require(maxUniform<3e-5,"uniform limit matches analytical beam");
-    Require(maxIntegralError<3e-6,"footprint integral agrees with dense integration");
-    Require(maxParticipationError<3e-6,"contact loss integral agrees with dense integration");
-    Require(maxStrain<150.,"pickup weights stay bounded across register");
-    std::cout << "Bar modes PASS; uniform max error=" << maxUniform
-              << ", footprint max error=" << maxIntegralError
-              << ", participation max error=" << maxParticipationError
-              << ", max strain=" << maxStrain << '\n';
+    // Tuning practice: concert rosewood 1:4:10 in the bass, 1:4 through C5;
+    // traditional hormigo bars tuned in their fundamental only (the first
+    // overtone falls where the arch puts it, between a flat bar's 2.76 and 4,
+    // lower up the keyboard); balafon keys untuned (first overtone 2.3-3.7
+    // across a balafon's range).
+    const auto rosewoodBass = maremba::GetBarKey(EMarimbaModel::ImperialRosewood, 48);
+    check(std::abs(rosewoodBass.ratio[1] - 4.0) < 0.06 && std::abs(rosewoodBass.ratio[2] - 10.0) < 0.1,
+          "rosewood bass bars are not tuned 1:4:10");
+    check(std::abs(maremba::GetBarKey(EMarimbaModel::ImperialRosewood, 72).ratio[1] - 4.0) < 0.06,
+          "rosewood C5 is not tuned 1:4");
+    check(maremba::GetBarKey(EMarimbaModel::ImperialRosewood, 96).ratio[1] < 3.0,
+          "rosewood top octave is still overtone tuned");
+    const double hormigoC4 = maremba::GetBarKey(EMarimbaModel::MayanPadauk, 60).ratio[1];
+    check(hormigoC4 > 3.0 && hormigoC4 < 3.85
+          && maremba::GetBarKey(EMarimbaModel::MayanPadauk, 72).ratio[1] < hormigoC4 - 0.15
+          && maremba::GetBarKey(EMarimbaModel::MayanPadauk, 84).ratio[1] > 2.76,
+          "hormigo bars are not carved to their fundamental alone");
+    double lowest = 1e9, highest = 0.0;
+    for (int note = 36; note <= 96; ++note) {
+        const double r = maremba::GetBarKey(EMarimbaModel::BalafonAncestral, note).ratio[1];
+        lowest = std::min(lowest, r);
+        highest = std::max(highest, r);
+    }
+    check(lowest >= 2.3 && highest <= 3.75 && highest - lowest > 0.8,
+          "balafon first overtones are not the untuned 2.3-3.7 spread");
+    std::cout << "BARMODES balafon_first_overtone=[" << lowest << ',' << highest << "]\n";
+    std::cout << "BarModesTest " << (failures ? "FAILED" : "PASSED") << " failures=" << failures << '\n';
+    return failures ? 1 : 0;
 }

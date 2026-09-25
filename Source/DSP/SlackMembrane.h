@@ -26,9 +26,10 @@ namespace maremba {
 // Within the slack range the membrane simply follows the air, mostly part of
 // the resonator's own calibrated radiation. A shadow membrane that never goes
 // taut is driven identically; the radiated buzz is the difference of their
-// accelerations plus a tenth of the slack motion (the opening's own small,
-// formant-coloured radiation), so Buzz colours even below the snap threshold
-// and adds texture above it without re-leveling the note.
+// accelerations plus a small share of the slack motion (the opening's own
+// formant-coloured radiation, set by SetSlackRadiation: a membrane is a few
+// percent of the mouth's area), so Buzz colours slightly below the snap
+// threshold and adds texture above it without re-leveling the note.
 // Formants, gaps and stiffness are voiced, not measured membrane constants.
 class SlackMembrane {
     friend struct MarembaVoiceTestAccess; // seeds an unforced release in tests
@@ -48,19 +49,38 @@ public:
     // beyond a limit (taut resonance = sqrt(1 + tautStiffness) x slack
     // resonance) and slapLoss the extra loss per unit overshoot / gap.
     void SetLimits(double gapOut, double gapIn, double stiffness, double slapLoss) {
-        mGapOut = std::max(gapOut, 1.0e-9);
-        mGapIn = std::max(gapIn, 1.0e-9);
+        mBaseGapOut = std::max(gapOut, 1.0e-9);
+        mBaseGapIn = std::max(gapIn, 1.0e-9);
         mStiffness = std::max(stiffness, 0.0);
-        mSlapLoss = std::max(slapLoss, 0.0) / std::min(mGapOut, mGapIn);
-        UpdateMaterial();
+        mBaseSlapLoss = std::max(slapLoss, 0.0);
+        mLimitScale = 1.0;
+        ApplyLimits();
     }
+
+    // A real membrane never meets its limit twice the same way (it is a
+    // surface, not a point: its own higher modes and the wax ring change
+    // where it goes taut), so each slap may find its limits moved. Applied
+    // only while the membrane is slack and inside the new limits, so the
+    // stored energy is unchanged.
+    void SetLimitScale(double scale) {
+        scale = std::clamp(scale, 0.5, 1.5);
+        if (Overshoot(mX) > 0.0) return;
+        const double reach = std::max(mX / mBaseGapOut, -mX / mBaseGapIn);
+        mLimitScale = std::max(scale, reach * 1.0001);
+        ApplyLimits();
+    }
+    bool Taut() const { return Overshoot(mX) > 0.0; }
+
+    // Share of the slack (linear) motion that radiates, 0..1.
+    void SetSlackRadiation(double share) { mSlackShare = std::clamp(share, 0.0, 1.0); }
 
     // Geometric stretching once the wrinkles have pulled taut. At an
     // overshoot equal to one gap, stretch is the cubic/linear spring-force
     // ratio. Strain loss is additional positive Kelvin--Voigt-type damping
     // per squared overshoot/gap. Both are dimensionless voicing parameters,
     // not measured spider-silk or intestinal-membrane material constants.
-    // Zero keeps the original slack/taut response bit for bit.
+    // Zero keeps the original slack/taut response bit for bit. Both scale
+    // with the gaps, so a slap's moved limits (SetLimitScale) carry them.
     void SetMaterial(double stretch, double strainLoss) {
         mStretch = std::max(stretch, 0.0);
         mStrainLoss = std::max(strainLoss, 0.0);
@@ -134,7 +154,7 @@ public:
             }
         }
         const double velocity = (x - oldX) * mInverseHalfStep - mV;
-        mAcceleration = (velocity - mV) * mInverseStep - 0.9 * linearAcceleration;
+        mAcceleration = (velocity - mV) * mInverseStep - (1.0 - mSlackShare) * linearAcceleration;
         const double sum = velocity + mV;
         mX = x * pole;
         mV = velocity * pole;
@@ -175,6 +195,13 @@ private:
             gradient = Force(0.5 * (x + old));
             slope = 0.5 * Curvature(0.5 * (x + old));
         }
+    }
+
+    void ApplyLimits() {
+        mGapOut = mBaseGapOut * mLimitScale;
+        mGapIn = mBaseGapIn * mLimitScale;
+        mSlapLoss = mBaseSlapLoss / std::min(mGapOut, mGapIn);
+        UpdateMaterial();
     }
 
     // Factor the divided differences of each unilateral quadratic/quartic
@@ -232,6 +259,8 @@ private:
     double mStep = 0.0, mLoss = 0.0, mForceStep = 0.0, mVelocityStep = 0.0;
     double mInverseHalfStep = 0.0, mInverseStep = 0.0;
     double mGapOut = 1.0, mGapIn = 1.0, mStiffness = 0.0, mSlapLoss = 0.0;
+    double mBaseGapOut = 1.0, mBaseGapIn = 1.0, mBaseSlapLoss = 0.0, mLimitScale = 1.0;
+    double mSlackShare = 0.1;
     double mStretch = 0.0, mStrainLoss = 0.0, mCubicOut = 0.0, mCubicIn = 0.0;
     double mStrainOut = 0.0, mStrainIn = 0.0;
 };

@@ -49,32 +49,34 @@ private:
     uint32_t mState;
 };
 
-// A new contact/release character for every strike, including Variance = 0.
-// It changes the pitched excitation itself, not just the separate clack noise.
-// No position/pitch offsets: exact strike nodes and settled tuning are retained.
+// A new physical stroke for every strike, including Variance = 0: where the
+// mallet lands along and across the bar, how fast, and how the felt happens
+// to compress. Variance widens the spread; zero keeps a player's restrained
+// consistency rather than identical waveforms. No pitch offsets.
 struct StrikeCharacter {
-    double contactTimeScale;
-    double pulseSkewOffset;
-    double impulseScale;
-    double shockScale;
-    double modalScale[kNumPitchedModes];
+    double stiffnessScale;   // felt/yarn compression varies stroke to stroke
+    double velocityScale;    // stick speed
+    double positionOffset;   // along the bar, fraction of its length
+    double lateralOffset;    // across the bar, fraction of the half width (twist)
+    double hysteresisScale;  // felt loss
 };
 
 inline StrikeCharacter GenerateStrikeCharacter(FastPRNG& prng, float variance) {
     const double amount = std::isfinite(variance) ? std::clamp(variance, 0.0f, 100.0f) * 0.01 : 0.0;
-    // Widen contact duration, release shape and partial balance from the first
-    // movement of the control. This smooth concave curve gives low settings
-    // useful expression while retaining the natural floor and maximum spread.
+    // Widen contact duration (the head's stiffness), release shape (its loss),
+    // partial balance (where it lands) and speed from the first movement of
+    // the control. This smooth concave curve gives low settings useful
+    // expression while retaining the natural floor and maximum spread.
     const double expressive = amount * (2.0 - amount);
     StrikeCharacter strike;
     // Fixed draw count at note-on, independent of amount and sample rate. The
     // engine's strike PRNG survives voice reuse/silence; explicit Reset reseeds it.
-    strike.contactTimeScale = 1.0 + prng.NextGaussianDouble() * (0.0075 + 0.04 * amount + 0.30 * expressive);
-    strike.pulseSkewOffset = prng.NextGaussianDouble() * (0.006 + 0.025 * amount + 0.10 * expressive);
-    strike.impulseScale = 1.0 + prng.NextGaussianDouble() * (0.0035 + 0.01 * amount + 0.10 * expressive);
-    strike.shockScale = 1.0 + prng.NextGaussianDouble() * (0.06 * amount + 0.35 * expressive);
-    for (int mode = 0; mode < kNumPitchedModes; ++mode)
-        strike.modalScale[mode] = 1.0 + prng.NextGaussianDouble() * (0.004 + 0.035 * amount + 0.40 * expressive);
+    strike.stiffnessScale = 1.0 + prng.NextGaussianDouble() * (0.03 + 0.35 * expressive);
+    strike.velocityScale = 1.0 + prng.NextGaussianDouble() * (0.004 + 0.08 * expressive);
+    // At Variance 0 a player still lands within about half a millimetre.
+    strike.positionOffset = prng.NextGaussianDouble() * (0.0012 + 0.07 * expressive);
+    strike.lateralOffset = prng.NextGaussianDouble() * (0.25 + 0.30 * expressive);
+    strike.hysteresisScale = 1.0 + prng.NextGaussianDouble() * (0.02 + 0.15 * expressive);
     return strike;
 }
 

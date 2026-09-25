@@ -185,6 +185,23 @@ inline double KalimbaMountedContactWeight(const KalimbaMountShape& shape,
     return lo+shape.fraction*(hi-lo);
 }
 
+// The mass-normalized displacement itself, without the contact
+// calibration above: for a voice that solves its own thumb contact against
+// the tine's modal mass. Same normalization as KalimbaFullModeShape (both
+// spans' integral of phi^2 = 1 in free-length units) and the same polarity.
+inline double KalimbaMountedShape(const KalimbaMountShape& shape, int mode, double position) {
+    mode = std::clamp(mode, 0, 7);
+    position = std::clamp(position, 0.0, 1.0);
+    const auto value = [position](const KalimbaMountedMode& d) {
+        const double z = d.beta * position;
+        return d.ep * std::exp(d.beta * (position - 1.0)) + d.em * std::exp(-z)
+             + d.cosine * std::cos(z) + d.sine * std::sin(z);
+    };
+    const double lo = value(kKalimbaMountShapes[shape.lower].modes[mode]);
+    const double hi = value(kKalimbaMountShapes[shape.upper].modes[mode]);
+    return lo + shape.fraction * (hi - lo);
+}
+
 inline double KalimbaMountedRadiationSample(const KalimbaMountShape& shape, int mode, double position) {
     return KalimbaMountedContactWeight(shape, mode, position, 0.0);
 }

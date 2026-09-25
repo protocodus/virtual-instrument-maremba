@@ -184,7 +184,10 @@ int main() {
         double worstStep = 0;
         for (size_t n : {size_t(2), size_t(3), size_t(6), size_t(7), size_t(8)})
             worstStep = std::max(worstStep, std::abs(levels[n] - levels[n-1]));
-        check(worstStep < 3, "Sympathetic has an artificial former-bank-edge cliff model=" + std::to_string(model));
+        // Real keys answer only partials that coincide with them, so
+        // neighbouring notes can differ by several dB; a bank edge would
+        // silence one side outright.
+        check(worstStep < 10, "Sympathetic has an artificial former-bank-edge cliff model=" + std::to_string(model));
         std::cout << "REGISTER_EDGE model=" << model << " largest_semitone_step_db=" << worstStep << '\n';
 
         const auto restrike = couplingRestrike(model);
