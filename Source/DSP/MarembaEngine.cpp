@@ -136,6 +136,13 @@ EngineParameters MarembaEngine::Sanitize(const EngineParameters& in) {
     p.velocityToHardness = FiniteClamp(in.velocityToHardness, 0.0f, 1.0f, d.velocityToHardness);
     p.velocityToPosition = FiniteClamp(in.velocityToPosition, 0.0f, 1.0f, d.velocityToPosition);
     p.velocityToDecay = FiniteClamp(in.velocityToDecay, 0.0f, 1.0f, d.velocityToDecay);
+    p.velocityToCarving = FiniteClamp(in.velocityToCarving, 0.0f, 1.0f, d.velocityToCarving);
+    p.velocityToCoupling = FiniteClamp(in.velocityToCoupling, 0.0f, 1.0f, d.velocityToCoupling);
+    p.velocityToBloom = FiniteClamp(in.velocityToBloom, 0.0f, 1.0f, d.velocityToBloom);
+    p.velocityToSympathetic = FiniteClamp(in.velocityToSympathetic, 0.0f, 1.0f, d.velocityToSympathetic);
+    p.velocityToBuzz = FiniteClamp(in.velocityToBuzz, 0.0f, 1.0f, d.velocityToBuzz);
+    p.velocityToTension = FiniteClamp(in.velocityToTension, 0.0f, 1.0f, d.velocityToTension);
+    p.velocityToArtifacts = FiniteClamp(in.velocityToArtifacts, 0.0f, 1.0f, d.velocityToArtifacts);
     p.tuningScale = std::clamp(in.tuningScale, 0, static_cast<int>(ETuningScale::Count) - 1);
     p.noteOffMode = std::clamp(in.noteOffMode, 0, 2);
     p.modWheel = FiniteClamp(in.modWheel, 0.0f, 1.0f, d.modWheel);
@@ -149,6 +156,7 @@ void MarembaEngine::Reset() {
         mVoices[i].FastKill();
         mVoices[i].SetSeed(VoiceSeed(i));
     }
+    mRoutes.fill(StrikeRoute{});
     mPrng = FastPRNG(kEngineSeed);
     mRollPrng = FastPRNG(kRollSeed);
     for (auto& key : mKeys) key = KeyState{};
@@ -228,12 +236,10 @@ void MarembaEngine::SetParameters(const EngineParameters& params) {
     mMicMixer.SetRoomType(p.roomType);
 
     if (p.buzzAmount != previousBuzz || p.membraneTension != previousTension) {
-        for (auto& voice : mVoices)
-            if (voice.IsActive()) voice.SetBuzz(p.buzzAmount, p.membraneTension);
+        for (int i = 0; i < kVoicePoolSize; ++i)
+            if (mVoices[i].IsActive())
+                mVoices[i].SetBuzz(p.buzzAmount * mRoutes[i].buzz, p.membraneTension * mRoutes[i].tension);
     }
-    // With the bow, the wheel draws it faster (the voice eases to the new speed).
-    for (auto& voice : mVoices)
-        if (voice.IsBowing()) voice.SetBowSpeed(BowSpeedScale());
 
     mLimiter.SetTimes(p.compAttack, p.compRelease);
     mLimiter.SetAmount(p.compAmount);
@@ -258,8 +264,8 @@ void MarembaEngine::SetParameters(const EngineParameters& params) {
     }
     ApplyGlobalTuning();
     ApplyKalimbaAir();
-    // Wheel down (or the bow taken up): rolls end; the notes they struck ring on.
-    if (p.modWheel <= kRollThreshold || Bowing()) for (auto& key : mKeys) key.rolling = false;
+    // Wheel down: rolls end; the notes they struck ring on.
+    if (p.modWheel <= kRollThreshold) for (auto& key : mKeys) key.rolling = false;
 
     if (p.polyphony != previousPolyphony) {
         EnforcePolyphony();
@@ -521,29 +527,33 @@ int MarembaEngine::TriggerNote(int noteNumber, float velocity, float positionOff
     const float hardness = mParams.malletHardness * velocityScale(mParams.velocityToHardness);
     const float position = mParams.strikePosition * velocityScale(mParams.velocityToPosition);
     const float decay = std::max(0.10f, mParams.decay * velocityScale(mParams.velocityToDecay));
+    const float carving = mParams.carving * velocityScale(mParams.velocityToCarving);
+    const float couplingScale = velocityScale(mParams.velocityToCoupling);
+    const float artifacts = mParams.artifacts * velocityScale(mParams.velocityToArtifacts);
+    // Bloom and Sympathetic are shared resonances: a strike's velocity sets
+    // how hard it drives them, which is its own Bloom or Sympathetic level.
+    // The kalimba box's air coupling follows Coupling as the voice's loading
+    // by that box does (KalimbaBody's 0.75 law).
+    StrikeRoute& route = mRoutes[static_cast<std::size_t>(slot)];
+    route.body = velocityScale(mParams.velocityToBloom);
+    route.sympathetic = velocityScale(mParams.velocityToSympathetic);
+    route.boxAir = std::pow(couplingScale, 0.75f);
+    route.buzz = velocityScale(mParams.velocityToBuzz);
+    route.tension = velocityScale(mParams.velocityToTension);
 
     mVoices[slot].Trigger(noteNumber, mappedVel, model,
                           hardness, position,
-                          mParams.resonatorTune, mParams.resonatorCoupling,
-                          decay, mParams.buzzAmount, mParams.artifacts,
+                          mParams.resonatorTune, mParams.resonatorCoupling * couplingScale,
+                          decay, mParams.buzzAmount * route.buzz, artifacts,
                           mParams.pitchGlide,
                           InternalRate(), mPrng,
                           mAppliedGlobalCents, keyDetuneCents,
                           mParams.malletType,
                           mParams.strikeJitter,
                           positionOffset,
-                          StrikeOptions{mParams.carving, mParams.membraneTension, mParams.noteOffMode == 2,
-                                        BowSpeedScale(),
+                          StrikeOptions{carving, mParams.membraneTension * route.tension, mParams.noteOffMode == 2,
                                         &mRadiationCache[static_cast<std::size_t>(std::clamp(noteNumber, 0, 127))]});
     return slot;
-}
-
-// Bow speed relative to the stroke's own: the mod wheel draws the bow up to
-// twice as fast, pressing harder with it, on the mallet models (a crescendo:
-// the level follows the speed); the kalimba keeps its wheel for the hole cover.
-float MarembaEngine::BowSpeedScale() const {
-    if (mParams.model == static_cast<int>(EMarimbaModel::KalimbaArtisan)) return 1.0f;
-    return 1.0f + mParams.modWheel;
 }
 
 void MarembaEngine::NoteOff(int noteNumber) {
@@ -551,7 +561,6 @@ void MarembaEngine::NoteOff(int noteNumber) {
     // only preferred when a voice has to be stolen (also a key still queued
     // during an oversampling fade). Damp mode: the hand stops the key. Dead
     // mode: the mallet (thumb) pressed on the key since the stroke lifts off.
-    // A bow leaves the bar (in Dead mode it stops on it).
     if (noteNumber >= 0 && noteNumber < 128) {
         auto& key = mKeys[static_cast<std::size_t>(noteNumber)];
         if (key.held) --mHeldKeys;
@@ -599,7 +608,7 @@ bool MarembaEngine::IsSilent() const {
 // A held key with the wheel up rolls even after its bar has died away.
 bool MarembaEngine::RollsPending() const {
     return mHeldKeys > 0 && mParams.modWheel > kRollThreshold
-        && mParams.model != static_cast<int>(EMarimbaModel::KalimbaArtisan) && !Bowing();
+        && mParams.model != static_cast<int>(EMarimbaModel::KalimbaArtisan);
 }
 
 void MarembaEngine::ControlTick() {
@@ -623,7 +632,7 @@ void MarembaEngine::ControlTick() {
 // ringing bar through the physical contact, so the ring builds and breathes.
 void MarembaEngine::AdvanceRolls() {
     const float wheel = mParams.modWheel;
-    if (wheel <= kRollThreshold || mParams.model == static_cast<int>(EMarimbaModel::KalimbaArtisan) || Bowing()) return;
+    if (wheel <= kRollThreshold || mParams.model == static_cast<int>(EMarimbaModel::KalimbaArtisan)) return;
     const double rate = kRollMinRate + (kRollMaxRate - kRollMinRate) * wheel;
     const double interval = mBaseSampleRate / rate;
     for (int note = 0; note < 128; ++note) {
@@ -697,7 +706,7 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
             float accPiezo = 0.0f;
 
             float totalMechanical = 0.0f;
-            double bridgeForce = 0.0;
+            KalimbaBoxDrive box;
 
             if (meshOn) {
                 mSympathetic.BeginSample();
@@ -718,14 +727,16 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
                                                  accFarL, accFarR,
                                                  accPiezo);
 
-                        totalMechanical += mVoices[v].GetMechanicalSample();
+                        const StrikeRoute& route = mRoutes[static_cast<std::size_t>(v)];
+                        totalMechanical += mVoices[v].GetMechanicalSample() * route.body;
                         const bool tine = mVoices[v].GetModel() == EMarimbaModel::KalimbaArtisan;
                         const double bridge = tine ? mVoices[v].GetBridgeForce() : 0.0;
-                        bridgeForce += bridge;
+                        if (tine) box.Add(bridge, route.boxAir, route.body);
 
                         if (meshOn) {
-                            mSympathetic.AccumulateVoice(noteNum, tine ? bridge * 1.0e-2
-                                                                       : mVoices[v].GetMechanicalSample());
+                            mSympathetic.AccumulateVoice(noteNum, (tine ? bridge * 1.0e-2
+                                                                        : mVoices[v].GetMechanicalSample())
+                                                                  * route.sympathetic);
                         }
                     }
                 }
@@ -739,15 +750,15 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
             }
             // The kalimba's box radiates what every tine's bridge pushes into it.
             float boxClose = 0.0f, boxFar = 0.0f, boxPickup = 0.0f;
-            if (bridgeForce != 0.0 || mKalimbaBodyRunning) {
+            if (box.board != 0.0 || mKalimbaBodyRunning) {
                 double close = 0.0, far = 0.0, plate = 0.0;
                 // Body weights the box's resonances against its board.
-                mKalimbaBody.Process(bridgeForce, 0.6 + 0.8 * mBodyGain, close, far, plate);
+                mKalimbaBody.Process(box, 0.6, 0.8 * mBodyGain, close, far, plate);
                 boxClose = static_cast<float>(close * kKalimbaBodyGain);
                 boxFar = static_cast<float>(far * kKalimbaBodyGain);
                 // The transducer on the board also feels the plate the box moves.
                 boxPickup = static_cast<float>(plate * kKalimbaPlatePickup);
-                mKalimbaBodyRunning = bridgeForce != 0.0 || mKalimbaBody.Energy() > 1.0e-20;
+                mKalimbaBodyRunning = box.board != 0.0 || mKalimbaBody.Energy() > 1.0e-20;
             }
 
             // Inter-Bar Sympathetic Resonance Halo ("Singing Rack")

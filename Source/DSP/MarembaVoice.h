@@ -23,20 +23,17 @@ struct RadiationCacheEntry {
     ModalRadiationReadout readout[kNumPitchedModes];
 };
 
-// Strikers beyond the four heads (malletType 0-3): the mallet's shaft on the
-// bar's edge (a fingernail tap on a tine) and a bow drawn across the bar's
-// end (or a tine's tip).
+// Striker beyond the four heads (malletType 0-3): the mallet's shaft on the
+// bar's edge (a fingernail tap on a tine).
 static constexpr int kStrikerShaft = 4;
-static constexpr int kStrikerBow = 5;
-static constexpr int kStrikerCount = 6;
+static constexpr int kStrikerCount = 5;
 
 // Per-strike settings beyond the positional contract; the defaults are the
 // instrument as built.
 struct StrikeOptions {
     float carving = 1.0f;             // 0 uncarved (rectangular) bars .. 1 as built
     float membraneTension = 0.5f;     // 0 slack .. 1 tight; 0.5 as voiced
-    bool deadStroke = false;          // the mallet (thumb, bow) stays on the key until Release()
-    float bowSpeed = 1.0f;            // bow speed relative to the stroke's own (mod wheel swell)
+    bool deadStroke = false;          // the mallet (thumb) stays on the key until Release()
     RadiationCacheEntry* radiationCache = nullptr;
 };
 
@@ -68,8 +65,8 @@ public:
                  const StrikeOptions& options = StrikeOptions{});
 
     // Key released: marks the voice as the preferred steal victim. A dead
-    // stroke's mallet (or thumb) lifts off; a bow leaves the bar, or in a
-    // dead stroke stops on it. Otherwise sound-neutral (bars ring freely).
+    // stroke's mallet (or thumb) lifts off. Otherwise sound-neutral (bars
+    // ring freely).
     void Release();
 
     // Transport stop: gentle per-model hand damping (symmetric, no energy injection).
@@ -88,9 +85,6 @@ public:
     // while the bar is ringing.
     static constexpr float kBuzzRange = 0.7f;
     void SetBuzz(float amount, float tension = 0.5f);
-    // Bow speed relative to the stroke's own (mod wheel), while bowing.
-    void SetBowSpeed(float scale) { mBowSpeedScale = std::clamp(static_cast<double>(scale), 0.0, 4.0); }
-    inline bool IsBowing() const { return mBowing; }
 
     void FastKill();
 
@@ -128,7 +122,7 @@ public:
     // if anything else can go).
     inline bool IsStriking() const {
         return mContact.Active() || mReleaseSample < mReleaseSamples || mArtifactSample < mArtifactEnd
-            || mBowing || mThumbPending || mHandPulseSample < mHandPulseSamples;
+            || mThumbPending || mHandPulseSample < mHandPulseSamples;
     }
 
     // Diagnostics for tests and calibration.
@@ -174,7 +168,6 @@ private:
     double ContactDisplacement() const;
     void Damp(double pole);
     void StartHand(double strength);
-    double BowForce(const double* predicted);
     double FingerForce(const double* predicted, double otherForce);
 
     bool mActive = false;
@@ -231,23 +224,10 @@ private:
     double mLoudness = 0.0, mLoudnessAlpha = 0.0;
     double mStrokePosition = 0.5;
 
-    // Striker (malletType): heads 0-3, shaft/tap, bow.
+    // Striker (malletType): heads 0-3, shaft/tap.
     int mStriker = 1;
     bool mDeadStroke = false;
-    double mSupportLoad = 0.0, mSupportAlpha = 0.0;   // steady contact force carried by the supports
-
-    // Bow: a friction contact where the stroke would land (the bar's end),
-    // with Smith & Woodhouse's rosin law, driven while the key is held. The
-    // contact shapes (mode.contact, mode.force) are then the bow's.
-    bool mBowing = false;           // the bow is on the key
-    bool mBowLifting = false;       // leaving the bar (normal force ramping out)
-    bool mBowStopping = false;      // dead stroke: the bow stops on the bar
-    double mBowSpeed = 0.0, mBowTargetSpeed = 0.0, mBowSpeedScale = 1.0;
-    double mBowNormal = 0.0, mBowTargetNormal = 0.0;
-    double mBowRamp = 0.0;          // per-sample smoothing of speed (and of the force as the bow leaves)
-    double mBowLandingRamp = 0.0;   // the normal force as the hair lands
-    double mBowSlip = 0.0;          // last relative velocity (m/s)
-    double mBowNoise = 0.0;         // hair/rosin grain
+    double mSupportLoad = 0.0;      // a held head's steady push, carried by the supports
 
     // A palm (bars) or fingertip (tines) damping the key. The palm lands
     // where the stroke did and takes each mode by its mean square under the

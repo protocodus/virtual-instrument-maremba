@@ -80,6 +80,20 @@ inline double KalimbaBodyLoading(double hz, double airCents = 0.0, double airCou
     return 0.8 + 0.8 * sum;
 }
 
+// What the sounding tines push into the box in one sample: the summed bridge
+// forces (N), and the same sum with each tine weighted by its own strike's air
+// coupling (the air mode's drive), by its Bloom (the resonances' weight
+// against the board), and by both. Without velocity routes every weight is 1.
+struct KalimbaBoxDrive {
+    double board = 0.0, air = 0.0, bloom = 0.0, bloomAir = 0.0;
+    void Add(double force, double airWeight, double bloomWeight) {
+        board += force;
+        air += force * airWeight;
+        bloom += force * bloomWeight;
+        bloomAir += force * airWeight * bloomWeight;
+    }
+};
+
 // One shared body for every sounding tine, driven by the summed bridge
 // reaction (N). The board radiates the force broadly above its first modes
 // (mass-like), less below them (stiffness-like); the air and plate modes add
@@ -103,8 +117,9 @@ public:
     }
 
     void Reset() {
-        for (auto& mode : mModes) mode.y1 = mode.y2 = 0.0;
-        mDcIn = mDcOut = mDirect = 0.0;
+        for (auto& mode : mModes) mode.y1 = mode.y2 = mode.z1 = mode.z2 = 0.0;
+        for (auto& dc : mDc) dc = DcBlocker{};
+        mDirect = 0.0;
     }
 
     // Air mode tuning (cents) and coupling to the board (1 = as built).
@@ -136,8 +151,12 @@ public:
             const double w = kTwoPiD * std::min(hz, 0.45 * mRate) / mRate;
             const double r = std::exp(-kPiD * hz / (q * mRate));
             if (mode.r > 0.0 && mode.w > 1.0e-12) {
-                const double quadrature = (mode.r * mode.y2 - mode.y1 * std::cos(mode.w)) / std::sin(mode.w);
-                mode.y2 = (mode.y1 * std::cos(w) + quadrature * std::sin(w)) / r;
+                const auto reexpress = [&](double y1, double& y2) {
+                    const double quadrature = (mode.r * y2 - y1 * std::cos(mode.w)) / std::sin(mode.w);
+                    y2 = (y1 * std::cos(w) + quadrature * std::sin(w)) / r;
+                };
+                reexpress(mode.y1, mode.y2);
+                reexpress(mode.z1, mode.z2);
             }
             mode.r = r;
             mode.w = w;
@@ -149,47 +168,65 @@ public:
     }
 
     // Returns radiated pressure (close mic); far receives more of the air
-    // mode. `resonance` weights the air and plate modes against the board.
+    // mode. The air and plate modes are weighted against the board by
+    // `fixedResonance` plus `bloomResonance` (the Body knob's share), which
+    // applies to each tine's drive in proportion to its own Bloom: the modes
+    // run twice, on the plain and on the Bloom-weighted drive (states y and z).
     // `plate` is the top plate's own motion under the bridge, where a contact
     // pickup sits: the plate modes and the air pushing on the plate.
-    void Process(double bridgeForce, double resonance, double& close, double& far, double& plate) {
+    void Process(const KalimbaBoxDrive& drive, double fixedResonance, double bloomResonance,
+                 double& close, double& far, double& plate) {
         // The thumb's static hold is not sound: remove it.
-        const double hp = mDcAlpha * (mDcOut + bridgeForce - mDcIn);
-        mDcIn = bridgeForce;
-        mDcOut = hp;
-        double airSum = 0.0, plateSum = 0.0;
+        const double hp = mDc[0].Process(drive.board, mDcAlpha);
+        const double hpAir = mDc[1].Process(drive.air, mDcAlpha);
+        const double hpBloom = mDc[2].Process(drive.bloom, mDcAlpha);
+        const double hpBloomAir = mDc[3].Process(drive.bloomAir, mDcAlpha);
+        double airSum = 0.0, plateSum = 0.0, bloomAirSum = 0.0, bloomPlateSum = 0.0;
         for (int k = 0; k < kKalimbaBodyModes; ++k) {
             auto& mode = mModes[k];
-            const double y = mode.c * mode.y1 - mode.s * mode.y2 + mode.b * hp;
+            const double y = mode.c * mode.y1 - mode.s * mode.y2 + mode.b * (k == 0 ? hpAir : hp);
             mode.y2 = mode.y1;
             mode.y1 = y;
+            const double z = mode.c * mode.z1 - mode.s * mode.z2 + mode.b * (k == 0 ? hpBloomAir : hpBloom);
+            mode.z2 = mode.z1;
+            mode.z1 = z;
             (k == 0 ? airSum : plateSum) += y;
+            (k == 0 ? bloomAirSum : bloomPlateSum) += z;
         }
         // The board itself: stiffness-controlled below ~260 Hz, broad above.
         mDirect = mDirectAlpha * mDirect + (1.0 - mDirectAlpha) * hp;
         const double board = hp - mDirect;
-        close = board + resonance * (plateSum - kHoleClose * airSum);
-        far = 0.8 * board + resonance * (0.7 * plateSum - kHoleFar * airSum);
+        close = board + fixedResonance * (plateSum - kHoleClose * airSum)
+                      + bloomResonance * (bloomPlateSum - kHoleClose * bloomAirSum);
+        far = 0.8 * board + fixedResonance * (0.7 * plateSum - kHoleFar * airSum)
+                          + bloomResonance * (0.7 * bloomPlateSum - kHoleFar * bloomAirSum);
         plate = plateSum + 0.35 * airSum;
     }
 
     void FlushTiny() {
-        for (auto& mode : mModes)
+        for (auto& mode : mModes) {
             if (std::abs(mode.y1) + std::abs(mode.y2) < 1.0e-15) mode.y1 = mode.y2 = 0.0;
-        if (std::abs(mDcIn) + std::abs(mDcOut) < 1.0e-15) mDcIn = mDcOut = 0.0;
+            if (std::abs(mode.z1) + std::abs(mode.z2) < 1.0e-15) mode.z1 = mode.z2 = 0.0;
+        }
+        for (auto& dc : mDc)
+            if (std::abs(dc.in) + std::abs(dc.out) < 1.0e-15) dc = DcBlocker{};
         if (std::abs(mDirect) < 1.0e-15) mDirect = 0.0;
     }
 
     bool HasNoSubnormalState() const {
+        const auto subnormal = [](double x) { return std::fpclassify(x) == FP_SUBNORMAL; };
         for (const auto& mode : mModes)
-            if (std::fpclassify(mode.y1) == FP_SUBNORMAL || std::fpclassify(mode.y2) == FP_SUBNORMAL) return false;
-        return std::fpclassify(mDcIn) != FP_SUBNORMAL && std::fpclassify(mDcOut) != FP_SUBNORMAL
-            && std::fpclassify(mDirect) != FP_SUBNORMAL;
+            if (subnormal(mode.y1) || subnormal(mode.y2) || subnormal(mode.z1) || subnormal(mode.z2)) return false;
+        for (const auto& dc : mDc)
+            if (subnormal(dc.in) || subnormal(dc.out)) return false;
+        return !subnormal(mDirect);
     }
 
     double Energy() const {
-        double e = mDcOut * mDcOut + mDirect * mDirect;
-        for (const auto& mode : mModes) e += mode.y1 * mode.y1 + mode.y2 * mode.y2;
+        double e = mDirect * mDirect;
+        for (const auto& dc : mDc) e += dc.out * dc.out;
+        for (const auto& mode : mModes)
+            e += mode.y1 * mode.y1 + mode.y2 * mode.y2 + mode.z1 * mode.z1 + mode.z2 * mode.z2;
         return e;
     }
 
@@ -197,12 +234,21 @@ private:
     // Hole radiation per unit air-mode response: at the resonance the holes
     // radiate a little more than the board (voiced), more toward the far mic.
     static constexpr double kHoleClose = 1.0, kHoleFar = 1.36;
-    struct Mode { double y1 = 0.0, y2 = 0.0, c = 0.0, s = 0.0, b = 0.0, r = 0.0, w = 0.0; };
+    struct Mode { double y1 = 0.0, y2 = 0.0, z1 = 0.0, z2 = 0.0, c = 0.0, s = 0.0, b = 0.0, r = 0.0, w = 0.0; };
+    struct DcBlocker {
+        double in = 0.0, out = 0.0;
+        double Process(double x, double alpha) {
+            out = alpha * (out + x - in);
+            in = x;
+            return out;
+        }
+    };
     std::array<Mode, kKalimbaBodyModes> mModes{};
+    std::array<DcBlocker, 4> mDc{};   // board, air, bloom and bloom-air drives
     double mRate = 44100.0;
     double mCover = 0.0, mAppliedCover = -1.0;
     double mAirCents = 0.0, mAirCoupling = 1.0;
-    double mDcAlpha = 0.99, mDcIn = 0.0, mDcOut = 0.0;
+    double mDcAlpha = 0.99;
     double mDirectAlpha = 0.9, mDirect = 0.0;
 };
 

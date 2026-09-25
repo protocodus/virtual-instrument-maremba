@@ -1,8 +1,8 @@
 // Sixth physical-model pass: research-based fixes. Tube Q and tuning from the
 // tube bank's losses and makers' practice, Hill's C2 decay ratio and the
-// reference blooms; carving; membrane tension; the shaft, the bow and the dead
-// stroke; the hand and thumb that stop a key; measured traditional keyboards;
-// the kalimba's hole cover; the balafon's overtone at its playing position and
+// reference blooms; carving; membrane tension; the shaft and the dead stroke;
+// the hand and thumb that stop a key; measured traditional keyboards; the
+// kalimba's hole cover; the balafon's overtone at its playing position and
 // its membrane-free top keys. Rendered checks use the engine's dry close output.
 #include "MarembaEngine.h"
 #include "KalimbaBody.h"
@@ -26,7 +26,6 @@ void check(bool ok, const std::string& message) {
 }
 double db(double ratio) { return 10 * std::log10(std::max(ratio, 1.e-30)); }
 double hz(int note) { return 440.0 * std::exp2((note - 69) / 12.0); }
-double cents(double a, double b) { return 1200 * std::log2(a / b); }
 
 maremba::EngineParameters clean(int model) {
     maremba::EngineParameters p;
@@ -249,32 +248,6 @@ int main() {
         const double drop = db(energy(muted, .33, .36) / energy(ring, .33, .36));
         std::cout << "THUMB kalimba E4 drop_30ms_db=" << drop << '\n';
         check(drop < -40, "a thumb on the tine does not stop it within 30 ms");
-    }
-
-    // 9. Bow (Essl & Cook 2000): a sustained, harmonic tone near the key's
-    //    pitch, louder as the bow draws faster; it dies once the bow leaves.
-    {
-        auto p = clean(0);
-        p.malletType = maremba::kStrikerBow;
-        p.malletHardness = .7f;
-        p.strikePosition = .2f;
-        const auto bowed = play(p, {on(0, 60, .8f), off(2.0, 60)}, 3.0);
-        const double f = peakHz(bowed, hz(60), 1.0, 1.9);
-        const double a = line(bowed, f, 1.0, 1.5), b = line(bowed, f, 1.4, 1.9), after = line(bowed, f, 2.6, 2.9);
-        const double second = line(bowed, peakHz(bowed, 2 * f, 1.0, 1.9, 10), 1.0, 1.9);
-        std::cout << "BOW rosewood C4 pitch_cents=" << cents(f, hz(60)) << " sustain_db=" << 20 * std::log10(b / a)
-                  << " harmonic_2f_db=" << 20 * std::log10(second / b) << " after_lift_db=" << 20 * std::log10(after / b) << '\n';
-        check(std::abs(cents(f, hz(60))) < 10, "the bowed pitch strays from the key");
-        check(std::abs(20 * std::log10(b / a)) < 3, "the bowed tone does not sustain");
-        check(second > 1e-4 * b, "the bowed tone is not periodic (no harmonic at 2 f0)");
-        check(after < .3 * b, "the bar keeps sounding after the bow leaves");
-        auto faster = p;
-        faster.modWheel = 1;
-        const auto swell = play(faster, {on(0, 60, .8f)}, 1.9);
-        const double louder = 20 * std::log10(line(swell, peakHz(swell, hz(60), 1.0, 1.9), 1.0, 1.9)
-                                              / line(bowed, f, 1.0, 1.9));
-        std::cout << "BOW mod_wheel_swell_db=" << louder << '\n';
-        check(louder > 3, "the mod wheel does not draw the bow faster");
     }
 
     // 10. Shaft: a hard, light line contact of 0.2-0.6 ms (Hertz, K 5e7-8e8,
