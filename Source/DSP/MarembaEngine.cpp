@@ -93,6 +93,7 @@ MarembaEngine::MarembaEngine(double sampleRate)
     : mBaseSampleRate((std::isfinite(sampleRate) && sampleRate > 8000.0) ? sampleRate : 44100.0)
     , mPrng(kEngineSeed)
 {
+    for (int note = 0; note < 128; ++note) mTineSide[static_cast<std::size_t>(note)] = KalimbaTineSide(note);
     // The only allocation: room delay lines for the highest internal rate this
     // instance can run at (8x the host rate; a host-rate change re-creates the engine).
     mMicMixer.Allocate(mBaseSampleRate * kMaxOversample);
@@ -721,7 +722,7 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
                     if (mVoices[v].ProcessSample(voiceClose, voiceFar, voicePiezo)) {
                         anyVoice = true;
                         int noteNum = mVoices[v].GetNoteNumber();
-                        mMicMixer.MixVoiceSample(noteNum,
+                        mMicMixer.MixVoiceSample(noteNum, mVoices[v].GetModel() == EMarimbaModel::KalimbaArtisan,
                                                  voiceClose, voiceFar, voicePiezo,
                                                  accCloseL, accCloseR,
                                                  accFarL, accFarR,
@@ -731,7 +732,8 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
                         totalMechanical += mVoices[v].GetMechanicalSample() * route.body;
                         const bool tine = mVoices[v].GetModel() == EMarimbaModel::KalimbaArtisan;
                         const double bridge = tine ? mVoices[v].GetBridgeForce() : 0.0;
-                        if (tine) box.Add(bridge, route.boxAir, route.body);
+                        if (tine) box.Add(bridge, route.boxAir, route.body,
+                                          mTineSide[static_cast<std::size_t>(std::clamp(noteNum, 0, 127))]);
 
                         if (meshOn) {
                             mSympathetic.AccumulateVoice(noteNum, (tine ? bridge * 1.0e-2
@@ -749,13 +751,14 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
                 bodySound = mFrameBody.Process(totalMechanical) * mBodyGain * kBodyBloomGain;
             }
             // The kalimba's box radiates what every tine's bridge pushes into it.
-            float boxClose = 0.0f, boxFar = 0.0f, boxPickup = 0.0f;
+            float boxClose = 0.0f, boxFar = 0.0f, boxPickup = 0.0f, boxSide = 0.0f;
             if (box.board != 0.0 || mKalimbaBodyRunning) {
-                double close = 0.0, far = 0.0, plate = 0.0;
+                double close = 0.0, far = 0.0, plate = 0.0, side = 0.0;
                 // Body weights the box's resonances against its board.
-                mKalimbaBody.Process(box, 0.6, 0.8 * mBodyGain, close, far, plate);
+                mKalimbaBody.Process(box, 0.6, 0.8 * mBodyGain, close, far, plate, side);
                 boxClose = static_cast<float>(close * kKalimbaBodyGain);
                 boxFar = static_cast<float>(far * kKalimbaBodyGain);
+                boxSide = static_cast<float>(side * kKalimbaBodyGain);
                 // The transducer on the board also feels the plate the box moves.
                 boxPickup = static_cast<float>(plate * kKalimbaPlatePickup);
                 mKalimbaBodyRunning = box.board != 0.0 || mKalimbaBody.Energy() > 1.0e-20;
@@ -770,10 +773,12 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
 
             // Route acoustic emissions (frame body bloom & sympathetic halo) into acoustic mic accumulators
             // so they are properly controlled by the mixer and completely silent when mixer volumes are at 0
-            accCloseL += (bodySound * 0.5f + haloL * 0.7f + boxClose * 0.5f);
-            accCloseR += (bodySound * 0.5f + haloR * 0.7f + boxClose * 0.5f);
-            accFarL += (bodySound * 0.8f + haloL * 1.0f + boxFar * 0.5f);
-            accFarR += (bodySound * 0.8f + haloR * 1.0f + boxFar * 0.5f);
+            // The board's drive-point sound leans toward the tine's side; the
+            // far pair, farther off, hears half the difference.
+            accCloseL += (bodySound * 0.5f + haloL * 0.7f + (boxClose - boxSide) * 0.5f);
+            accCloseR += (bodySound * 0.5f + haloR * 0.7f + (boxClose + boxSide) * 0.5f);
+            accFarL += (bodySound * 0.8f + haloL * 1.0f + (boxFar - 0.4f * boxSide) * 0.5f);
+            accFarR += (bodySound * 0.8f + haloR * 1.0f + (boxFar + 0.4f * boxSide) * 0.5f);
             accPiezo += boxPickup;
 
             float frameMainL = 0.0f;

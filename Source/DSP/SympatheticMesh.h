@@ -17,7 +17,10 @@ namespace maremba {
 // share cords and frame, so they are driven by the summed support force; a
 // kalimba's tines share one bridge, so each tine hears the others' bridge
 // reaction weighted by how close they sit on it (physical neighbours are a
-// third apart on the 17-key layout, and they ring most; Holdaway).
+// third apart on the 17-key layout, and they ring most; Holdaway). A balafon
+// in a traditional tuning is built with only the keys that carry its degrees
+// (a gyil's 14 pentatonic keys, a bala's heptatonic ones): the keyboard's
+// keys between them are not on the instrument and do not ring along.
 class SympatheticMesh {
 public:
     static constexpr int kFirstNote = 36; // C2
@@ -49,9 +52,13 @@ public:
         mTine = model == EMarimbaModel::KalimbaArtisan;
         const MaterialLoss loss = GetMaterialLoss(model);
         mCount = mTine ? kTines : kNumResonators;
+        const bool degreesOnly = model == EMarimbaModel::BalafonAncestral && tuningScale != 0;
         for (int i = 0; i < mCount; ++i) {
             const int note = mTine ? kTineNotes[i] : kFirstNote + i;
             mNote[i] = note;
+            const bool present = !degreesOnly || detail::IsDegreeKey(tuningScale, note);
+            if (!present) { mY1[i] = mY2[i] = mInput1[i] = mInput2[i] = 0.0; mSounding[i] = 0; }
+            mPresent[i] = present;
             const double cents = (note - 69) * 100.0 + tuneOffsetCents + TuningOffsetCents(tuningScale, note);
             const double f = 440.0 * std::exp2(cents / 1200.0);
             // Q = 1 / eta; a bar's tube halves its fundamental's Q.
@@ -104,6 +111,7 @@ public:
         if (amount <= 0.001f) { outL = outR = 0.0f; return; }
         double sumL = 0.0, sumR = 0.0;
         for (int i = 0; i < mCount; ++i) {
+            if (!mPresent[i]) continue;
             const double input = mTine ? mDrive[i] : mSharedDrive;
             const double drive = mSounding[i] ? 0.0 : input - mInput2[i];
             mInput2[i] = mInput1[i];
@@ -190,6 +198,7 @@ private:
     std::array<double, kNumResonators> mDrive{}, mInput1{}, mInput2{};
     std::array<double, kNumResonators> mPanL{}, mPanR{};
     std::array<uint8_t, kNumResonators> mSounding{};
+    std::array<bool, kNumResonators> mPresent{};
 };
 
 } // namespace maremba

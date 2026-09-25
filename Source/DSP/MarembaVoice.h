@@ -261,6 +261,14 @@ private:
     double mReleaseShape = 2.0;
     double mBridgeSample = 0.0;
     double mBridgeNonlinear = 0.0;   // bridge-rod slip: quadratic force coefficient (1/N)
+    // A thumb presses a tine down over tens of milliseconds before it plucks,
+    // so the board has settled under the static load by the release; the
+    // voice sets that deflection in one sample. What the board, pickup and
+    // buzzers read of the bridge carries the jump at the thumb's touch as an
+    // offset that bleeds off well below audio (the board's quasi-static
+    // return), so the pluck starts from the tine's continuous motion.
+    double mPreloadOffset = 0.0;     // N
+    double mPreloadBleed = 1.0;      // per-sample decay of the offset
 
     // Unmodelled high-frequency impact noise (click), shaped by the force rate
     double mClickGain = 0.0;
@@ -285,6 +293,10 @@ private:
     double mResReadoutStep = 1.0;
     double mFarAirWeight = 0.22;
     double mMembranePressure[3] = {3.8, 1.6, 0.8};
+    // Flow separation at the tube's rim under the bar: odd harmonics of the
+    // air's own motion (3 f0, 5 f0), growing with the mouth's velocity.
+    double mRimHarmonic3 = 0.0, mRimHarmonic5 = 0.0;
+    double mRimGain3 = 0.0, mRimGain5 = 0.0;   // per unit cubed / fifth-power state (control rate)
 
     // Buzzing membranes over holes in the resonator (Buzz): up to three
     // mirlitons on a gourd, one charleo at a box's bottom, one add-on on a tube.

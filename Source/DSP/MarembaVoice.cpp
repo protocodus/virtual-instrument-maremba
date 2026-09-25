@@ -89,14 +89,53 @@ inline MembraneVoicing GetMembraneVoicing(EMarimbaModel model, int noteNumber) {
     }
 }
 
+// Odd harmonics from the flow through the gap between a bar and its tube's
+// rim. An open end driven hard loses energy to flow separation, a pressure
+// drop of 1/2 rho K u|u| whose odd harmonics radiate (Ingard & Ising 1967;
+// Atig, Dalmont & Gilbert 2004); under a bar the gap concentrates it. In
+// anechoic recordings of a concert marimba (University of Iowa MIS, 2013,
+// cord mallets, 1.5 m) the keys from B2 to Eb4 carry lines at 3 f0 and 5 f0
+// (median 2 cents off, at most 5, while the key a twelfth up sits up to 9
+// cents away): the third 28-55 dB below the fundamental at mf and ff (median
+// -33), 45-65 at pp, the fifth about 11 dB below the third, both dying 2-3
+// times faster than the fundamental in dB (a quadratic law). Below B2 they
+// fall to about -52 dB and from E4 up below -60. Level of the third harmonic
+// re the fundamental at a mouth velocity of 1 m/s, by MIDI note (fitted to
+// those recordings), and the fifth's level re the third.
+struct RimHarmonicAnchor { double midi, db; };
+constexpr RimHarmonicAnchor kRimHarmonic3[] = {{36, -48}, {45, -36}, {48, -28}, {57, -31}, {60, -31}, {62, -35}, {64, -55}, {66, -70}};
+constexpr double kRimHarmonic5Db = -11.0;
+inline double RimHarmonic3Db(double midi) {
+    constexpr int n = static_cast<int>(sizeof(kRimHarmonic3) / sizeof(kRimHarmonic3[0]));
+    if (midi <= kRimHarmonic3[0].midi) return kRimHarmonic3[0].db;
+    for (int i = 1; i < n; ++i)
+        if (midi <= kRimHarmonic3[i].midi) {
+            const double t = (midi - kRimHarmonic3[i - 1].midi) / (kRimHarmonic3[i].midi - kRimHarmonic3[i - 1].midi);
+            return kRimHarmonic3[i - 1].db + t * (kRimHarmonic3[i].db - kRimHarmonic3[i - 1].db);
+        }
+    return -200.0;
+}
+
 // Resonator pressure reaching the membranes, in the voice's air-state units.
 constexpr double kMembraneDrive = 2.5;
+// Charleo above C4: the extra fall of its gap with frequency (the box's
+// taper; see Trigger) and the rise of its formant (a membrane's resonance
+// goes as 1 / its radius; the treble holes are smaller).
+constexpr double kCharleoTrebleGapExponent = 1.0;
+constexpr double kCharleoTrebleFormantExponent = 0.35;
+inline double MembraneFormantScale(EMarimbaModel model, double f0) {
+    const double r = f0 / 261.625565;
+    return std::pow(r, 0.15) * (model == EMarimbaModel::MayanPadauk ? std::pow(std::max(1.0, r), kCharleoTrebleFormantExponent) : 1.0);
+}
 
 // Radiated sizzle per unit buzzer ring amplitude (and its knock into the pickup).
 constexpr double kBuzzerRadiation = 0.5;
-// Board motion reaching the buzzers per newton of bridge force: the default
-// Buzz rattles only on the hardest treble plucks.
-constexpr double kBuzzerDrive = 0.05;
+// Board motion reaching the buzzers per newton of bridge force. The board
+// moves continuously under a pluck (the thumb's press has settled before the
+// release), so the buzzers answer the ring and its tink: the default Buzz
+// stays clean, loose buzzers sizzle on firm plucks while the note is loud,
+// more with a nail or pick and toward the treble.
+constexpr double kBuzzerDrive = 0.19;
 // A loose mounting's knock relative to the bar's own radiation per unit of
 // fundamental swing, and a tine's knock into the bridge per unit of its
 // fundamental's bridge force.
@@ -146,6 +185,9 @@ constexpr double kFingerLandingSeconds = 0.006;
 // After a dead pluck the thumb, which slipped off the tip, is back on the
 // tine this long after it let go: a short pitched tick.
 constexpr double kThumbReturnSeconds = 0.03;
+// The board's quasi-static return from the thumb's press: slow against every
+// tine period (C3: 7.6 ms), fast against a note.
+constexpr double kPreloadBleedSeconds = 0.04;
 
 // sin and cos of an angle, by their series below 0.01 rad (a bar-air
 // rotation per sample; exact to double precision there), else by libm.
@@ -198,6 +240,7 @@ void MarembaVoice::FastKill() {
     mLoudness = 0.0;
     mReleaseForce = 0.0;
     mBridgeSample = 0.0;
+    mPreloadOffset = 0.0;
     mFadeGain = 1.0f;
     mFadeStep = 0.0f;
     for (auto& membrane : mMembranes) membrane.Reset();
@@ -234,6 +277,7 @@ void MarembaVoice::FastKill() {
     mNumCavityModes = 0;
     mCavityAngleRamp = false;
     mResReadoutGain = 0.0;
+    mRimHarmonic3 = mRimHarmonic5 = mRimGain3 = mRimGain5 = 0.0;
     mDeadStroke = false;
     mSupportLoad = 0.0;
     mFingerOn = mFingerPending = false;
@@ -905,6 +949,8 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     // Bridge-rod slip: the tine rocks on the rod twice per cycle, adding a
     // force at 2 f1 that grows with amplitude (Holdaway: -35..-41 dB at 0.1 s).
     mBridgeNonlinear = mTine ? 0.004 : 0.0;
+    mPreloadBleed = std::exp(-1.0 / (kPreloadBleedSeconds * fs));
+    if (!isRestrike) mPreloadOffset = 0.0;
     if (pluck) {
         mContact.Reset();
         const ThumbSpec thumb = GetThumbSpec(mt);
@@ -981,6 +1027,8 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     // ----------------------------------------------------------------------
     const ResonatorProfile resonator = GetResonatorProfile(model);
     mNumCavityModes = 0;
+    mRimHarmonic3 = mRimHarmonic5 = 0.0;
+    if (!isRestrike) mRimGain3 = mRimGain5 = 0.0;
     mResCoupling = couplingShape;
     mResReadoutStep = 1.0 - std::exp(-1.0 / (0.005 * fs));
     if (!isRestrike) mResReadoutGain = 1.0;
@@ -1018,7 +1066,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
             // loss and the bar-air exchange with the bar's own loss (below),
             // so a key whose tube carries its ring lengthens too, and the
             // bloom keeps its shape.
-            const double q = std::max(1.5, ResonatorQ(resonator, frequency) * (i > 0 ? resonator.upperQ[i - 1] : 1.0)
+            const double q = std::max(1.5, InSituResonatorQ(resonator, frequency) * (i > 0 ? resonator.upperQ[i - 1] : 1.0)
                                            * decayScale);
             const double airLoss = kPiD * frequency / q;
             mode.omega = kTwoPiD * frequency / fs;
@@ -1040,6 +1088,16 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
             mCavityReadout[i] = params.airGain * kAirUnit * resonator.readout[i]
                               * (kTwoPiD * frequency) * (kTwoPiD * frequency) / kStateScale
                               / std::sqrt(std::max(key.massFraction[0] * key.massKg, 1.0e-4));
+            // The rim's harmonics (tubes): the mouth's velocity per unit air
+            // state from the mode's energy, E = 1/2 w^2 (y / S)^2 = 1/4 rho A L U^2.
+            if (i == 0 && resonator.tubeRadiusM > 0.0) {
+                const double a = TubeRadius(resonator, frequency);
+                const double area = kPiD * a * a, length = 343.0 / (4.0 * frequency);
+                const double mouth = kTwoPiD * frequency / kStateScale * std::sqrt(2.0 / (1.2 * area * length));
+                const double third = std::pow(10.0, RimHarmonic3Db(midi) / 20.0) * mouth;
+                mRimHarmonic3 = third;
+                mRimHarmonic5 = third * std::pow(10.0, kRimHarmonic5Db / 20.0);
+            }
         }
     } else {
         mTube = ModeState{};
@@ -1055,9 +1113,16 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     // Smaller treble resonators carry smaller membranes that need less
     // pressure to go taut, so the buzz threshold follows the register.
     // A gourd's membrane shrinks faster than its pressure up the keyboard, so
-    // treble balafon keys still buzz on moderate strokes.
-    mMembraneGapScale = std::clamp(std::pow(261.625565 / f0, model == EMarimbaModel::BalafonAncestral ? 1.8 : 1.1),
-                                   0.08, 1.6);
+    // treble balafon keys still buzz on moderate strokes. Every Guatemalan
+    // box carries its charleo, up to the treble the melody is played in:
+    // above C4 a box's volume falls faster than its length (it tapers too),
+    // so the same air energy presses harder on its bottom (p^2 ~ E / V), and
+    // its smaller hole takes a smaller membrane. Its gap follows 1/f^2.1
+    // there, so the charleo keeps buzzing up to C6 as the bass does.
+    const double trebleGap = model == EMarimbaModel::MayanPadauk
+        ? std::pow(std::min(1.0, 261.625565 / f0), kCharleoTrebleGapExponent) : 1.0;
+    mMembraneGapScale = std::clamp(std::pow(261.625565 / f0, model == EMarimbaModel::BalafonAncestral ? 1.8 : 1.1)
+                                   * trebleGap, model == EMarimbaModel::MayanPadauk ? 0.02 : 0.08, 1.6);
     mMembraneTension = std::clamp(options.membraneTension, 0.0f, 1.0f);
     ConfigureMembranes(buzzAmount, true);
     mSlapPrng = FastPRNG(mLocalPrng.Next() | 1u);
@@ -1172,7 +1237,7 @@ void MarembaVoice::ConfigureMembranes(float buzzAmount, bool reshuffle) {
     const double tension = TensionFormantRatio(mMembraneTension);
     for (int i = 0; i < mNumMembranes; ++i) {
         // Time runs at the slack resonance; the taut spring lifts it to the formant.
-        mMembranes[i].Configure(mSampleRate, voicing.formantHz[i] * tension * std::pow(mF0 / 261.625565, 0.15)
+        mMembranes[i].Configure(mSampleRate, voicing.formantHz[i] * tension * MembraneFormantScale(mModel, mF0)
             / std::sqrt(1.0 + voicing.stiffness), voicing.quality);
         mMembranes[i].SetSlackRadiation(voicing.slackShare);
         // Positive geometric stretching and strain loss once the membrane
@@ -1207,7 +1272,7 @@ void MarembaVoice::SetBuzz(float amount, float tension) {
         mMembraneTension = tension;
         const double formant = TensionFormantRatio(tension);
         for (int i = 0; i < mNumMembranes; ++i)
-            mMembranes[i].Configure(mSampleRate, voicing.formantHz[i] * formant * std::pow(mF0 / 261.625565, 0.15)
+            mMembranes[i].Configure(mSampleRate, voicing.formantHz[i] * formant * MembraneFormantScale(mModel, mF0)
                 / std::sqrt(1.0 + voicing.stiffness), voicing.quality);
     }
     // A tighter membrane needs more pressure to reach its limits.
@@ -1223,7 +1288,7 @@ void MarembaVoice::SetBuzz(float amount, float tension) {
     // at their bottoms than the treble ones; their charleos sit a little
     // tighter so the buzz stays even across the keyboard.
     const double register_ = mModel == EMarimbaModel::MayanPadauk
-        ? std::clamp(261.625565 / mF0, 0.6, 3.0) : 1.0;
+        ? std::clamp(261.625565 / mF0, 0.25, 3.0) : 1.0;
     // Buzz loosens the membranes toward their free travel; a charleo (one
     // large gut membrane) less steeply than the small silk mirlitons. Both
     // keep growing up to the top of the range.
@@ -1286,12 +1351,16 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
     // 0. A thumb's touch: the tine is stopped and held deflected.
     if (mThumbPending) {
         mThumbPending = false;
+        double before = 0.0, after = 0.0;
         for (int m = 0; m < mNumModes; ++m) {
             auto& mode = mModes[m];
+            before += mode.y1 * mBridgeGain[m];
             mode.y1 = mode.y1 * mThumbResidual + mThumbHold[m];
             mode.y2 = mode.y2 * mThumbResidual + mThumbHold[m];
+            after += mode.y1 * mBridgeGain[m];
             mode.idle = false;
         }
+        mPreloadOffset += (after + mBridgeNonlinear * after * after) - (before + mBridgeNonlinear * before * before);
     }
 
     // 1. Prediction of the bending modes without this sample's force.
@@ -1582,7 +1651,8 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
     // 8. Mechanical outputs: support force into the frame (bars) or the
     // bridge reaction into the board (tines, plus the rod-slip 2 f1 term).
     if (mTine) {
-        bridge += mBridgeNonlinear * bridge * bridge + knockBridge;
+        bridge += mBridgeNonlinear * bridge * bridge + knockBridge - mPreloadOffset;
+        mPreloadOffset *= mPreloadBleed;
         mBridgeSample = bridge;
         mMechanicalSample = static_cast<float>(bridge * 0.02);
     } else {
@@ -1602,7 +1672,17 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
         mResReadoutGain += mResReadoutStep * (1.0 - mResReadoutGain);
         if (std::abs(mResReadoutGain - 1.0) < 1.0e-12) mResReadoutGain = 1.0;
     }
-    const double air = airSum * mResReadoutGain;
+    double rim = 0.0;
+    if (mRimGain3 != 0.0) {
+        // The air's swing as a phasor x + i q: Re (x + i q)^3 = A^3 cos 3 phi
+        // and Re (x + i q)^5 = A^5 cos 5 phi, scaled at control rate by 1/A
+        // and 1/A^3 so each harmonic grows as the square of the air's swing.
+        const double x = mTube.y1;
+        const double q = (mTube.r * mTube.y2 - x * mTube.cosW) * mTube.invSin;
+        const double x2 = x * x, q2 = q * q;
+        rim = x * ((x2 - 3.0 * q2) * mRimGain3 + ((x2 - 10.0 * q2) * x2 + 5.0 * q2 * q2) * mRimGain5);
+    }
+    const double air = (airSum + rim) * mResReadoutGain;
     double close = barClose + air + buzz * 0.35 + slapSound * 0.35
                  + brushAir * 0.6 + knockAir * 0.65 + clickSound * 0.5;
     double far = barFar * 0.60 + air * mFarAirWeight + buzz * 0.50 + slapSound * 0.45
@@ -1660,8 +1740,17 @@ void MarembaVoice::UpdateEnvelope() {
     }
     for (int n = 0; n < mNumTorsionModes; ++n) energy += FlushedModeEnergy(mTorsion[n]);
     if (mHasLateral) energy += FlushedModeEnergy(mLateral);
-    energy += FlushedModeEnergy(mTube);
+    const double tubeEnergy = FlushedModeEnergy(mTube);
+    energy += tubeEnergy;
     for (auto& mode : mUpperCavity) energy += FlushedModeEnergy(mode);
+    // The rim's harmonics follow the air's swing A = sqrt(tube energy).
+    if (mRimHarmonic3 != 0.0 && tubeEnergy > 1.0e-24) {
+        const double inverse = 1.0 / std::sqrt(tubeEnergy);
+        mRimGain3 = mRimHarmonic3 * mCavityReadout[0] * inverse;
+        mRimGain5 = mRimHarmonic5 * mCavityReadout[0] * inverse * inverse * inverse;
+    } else {
+        mRimGain3 = mRimGain5 = 0.0;
+    }
     if (mShaftActive) {
         double knock = 0.0;
         for (auto& mode : mShaftModes) knock += FlushedModeEnergy(mode);
@@ -1690,6 +1779,8 @@ void MarembaVoice::UpdateEnvelope() {
     mEnergy = energy;
 
     if (IsStriking() || std::abs(mClackBpY1) + std::abs(mSlapY1) > 1.0e-10) return;
+    // The board is still settling (below 1 uN the rest is some -150 dB).
+    if (std::abs(mPreloadOffset) > 1.0e-6) return;
 
     // -120 dB and nothing left to excite the bar: free the voice (state flushed)
     if (energy < kSilenceEnergy) FastKill();

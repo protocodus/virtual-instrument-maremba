@@ -89,7 +89,9 @@ int main() {
         {"Artifacts", &EngineParameters::velocityToArtifacts, &EngineParameters::artifacts, .8f, true},
     };
     const char* models[] = {"Rosewood", "Padauk", "Balafon", "Kalimba"};
-    const float velocity = .35f;
+    // A firm-enough stroke with Buzz up, so the membranes the Buzz and
+    // Tension routes act on slap on every model that has them.
+    const float velocity = .6f;
     EngineParameters linear;
     linear.velocityCurve = 1;
     const auto probe = std::make_unique<maremba::MarembaEngine>(48000.0);
@@ -105,7 +107,7 @@ int main() {
             p.model = model;
             p.velocityCurve = 1;
             p.velocityToHardness = p.velocityToPosition = p.velocityToDecay = 0.0f;
-            p.buzzAmount = .3f;
+            p.buzzAmount = 1.0f;
             p.*(route.knob) = route.value;
 
             EngineParameters routed = p;

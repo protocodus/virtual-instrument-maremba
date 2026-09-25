@@ -1,5 +1,6 @@
 #pragma once
 
+#include "KalimbaBody.h"
 #include "RoomAlgorithms.h"
 #include <algorithm>
 #include <array>
@@ -22,6 +23,13 @@ public:
             const float farAngle = (bipolar * 0.25f + 0.5f) * 1.57079632679f;
             mPan[note] = {std::cos(closeAngle), std::sin(closeAngle),
                           std::cos(farAngle), std::sin(farAngle)};
+            // A kalimba's tines lie across its bridge low in the middle,
+            // rising outward to either side (KalimbaTineSide).
+            const float side = static_cast<float>(KalimbaTineSide(note));
+            const float tineClose = (side * 0.40f + 0.5f) * 1.57079632679f;
+            const float tineFar = (side * 0.25f + 0.5f) * 1.57079632679f;
+            mTinePan[note] = {std::cos(tineClose), std::sin(tineClose),
+                              std::cos(tineFar), std::sin(tineFar)};
         }
     }
 
@@ -40,13 +48,14 @@ public:
     }
     void SetRoomType(int type) { mRoom.SetType(type); }
 
-    // Process a sample from a voice at a specific MIDI note (for keyboard panning)
-    void MixVoiceSample(int noteNumber, float closeIn, float farIn, float piezoIn,
+    // Process a sample from a voice at a specific MIDI note: placed by the
+    // keyboard for a bar, by the bridge layout for a tine.
+    void MixVoiceSample(int noteNumber, bool tine, float closeIn, float farIn, float piezoIn,
                         float& accCloseL, float& accCloseR,
                         float& accFarL, float& accFarR,
                         float& accPiezo)
     {
-        const auto& pan = mPan[std::clamp(noteNumber, 0, 127)];
+        const auto& pan = (tine ? mTinePan : mPan)[std::clamp(noteNumber, 0, 127)];
         accCloseL += closeIn * pan.closeL;
         accCloseR += closeIn * pan.closeR;
         // Far microphones use the same softer keyboard panning as before.
@@ -103,7 +112,7 @@ public:
 
 private:
     struct Pan { float closeL, closeR, farL, farR; };
-    std::array<Pan, 128> mPan{};
+    std::array<Pan, 128> mPan{}, mTinePan{};
     RoomBank mRoom;
 };
 

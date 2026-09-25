@@ -1,0 +1,29 @@
+# Physics and behaviour contracts: each is Tests/<name>.cpp, compiled with every
+# DSP/*.cpp and run. Tests/run_all_tests.sh and the CI maremba-dsp job both read
+# this list, so a contract added here runs everywhere.
+PiezoPickupTest            # attached-transducer pickup: strain, mounting, loading
+MechanicalArtifactsTest    # rebounds, grazes, neighbour brushes, rattles
+CollisionResponseTest      # mounting collisions driven by vibration
+EngineRealismTest          # earlier engine realism contracts
+PhysicalResponseTest       # coupled air, membranes, body and halo layers
+CavityPhysicsTest          # bar-air junction energy and tuning
+Round2ResponseTest         # directional radiation, multimode air coupling
+ModalRadiationTest         # radiation geometry and projections
+KalimbaModesTest           # the supported-beam tine
+KalimbaMountShapesTest     # the yielding bridge's mode shapes
+MalletContactTest          # Hertzian head: passivity, contact times
+SlackMembraneStretchTest   # the stretched membrane
+Round3ResponseTest         # restrikes, clamp-bridge tine, neighbour halo
+Round4ResponseTest         # resonator bloom, wood damping, torsion, buzzers
+Round5ResponseTest         # tunings, Note Off, rolls, hole cover, decay
+MaterialGeometryTest       # one geometry for tuning, contact and radiation
+Round6ResponseTest         # tube law, Carving, Tension, dead stroke, hand, shaft
+TubeInSituTest             # the tube under its bar against recordings
+RimHarmonicsTest           # the rim's odd harmonics
+CharleoRegisterTest        # the charleo through the treble
+Round7BalafonKalimbaTest   # continuous pluck, tink, bridge stereo, degree-key halo
+BuzzRangeTest              # the Buzz knob's physical range on every path
+StrikeVarianceTest         # the Variance control's smooth spread
+RoomQualityTest            # the three rooms' density, roughness and T60
+BarModesTest               # the carved bars' generated modes
+VelocityRoutesTest         # the ten velocity routes

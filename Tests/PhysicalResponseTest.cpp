@@ -167,7 +167,9 @@ int main(int argc, char** argv) {
               + std::to_string(model));
         // Only air tuning changes here, so a changed isolated strain pickup
         // establishes feedback onto the bar, beyond a wet-output coloration.
-        check(reaction > .00001, "cavity pressure does not audibly react on bar strain model="
+        // The kalimba's pluck no longer steps the board (the thumb's press
+        // settles quasi-statically), which made up part of its reaction.
+        check(reaction > (model == 3 ? .000005 : .00001), "cavity pressure does not audibly react on bar strain model="
               + std::to_string(model));
         std::cout << "TUNE model=" << model << " note=60 gain_fit_residual=" << tuning
                   << " pickup_feedback_residual=" << reaction << '\n';
@@ -181,13 +183,22 @@ int main(int argc, char** argv) {
             &maremba::EngineParameters::sympathetic, &maremba::EngineParameters::buzzAmount};
         const std::array<const char*, 3> names = {"body", "sympathetic", "buzz"};
         for (size_t f = 0; f < fields.size(); ++f) {
-            auto q = p;
+            // Kalimba buzzers lift only when the board swings hard: a forte
+            // pick on a treble tine (a flesh or natural-thumb C4 leaves them
+            // still, as on the instrument).
+            const bool buzzers = model == 3 && fields[f] == &maremba::EngineParameters::buzzAmount;
+            auto base = p;
+            if (buzzers) base.malletType = 3;
+            const int note = buzzers ? 84 : 60;
+            const float velocity = buzzers ? 1.f : .85f;
+            const auto reference = buzzers ? render(base, note, velocity) : dry;
+            auto q = base;
             q.*fields[f] = .35f;
-            const auto mild = render(q);
+            const auto mild = render(q, note, velocity);
             q.*fields[f] = 1;
-            const auto full = render(q);
-            const auto smallDelta = difference(mild, dry), delta = difference(full, dry);
-            const double contribution = db(energy(delta) / energy(dry.close));
+            const auto full = render(q, note, velocity);
+            const auto smallDelta = difference(mild, reference), delta = difference(full, reference);
+            const double contribution = db(energy(delta) / energy(reference.close));
             const double growth = db(energy(delta) / std::max(energy(smallDelta), 1e-30));
             const double rumble = db(bandFraction(delta, 25, false));
             const double late = db(energy(delta, .7, 1) / std::max(energy(delta, .04, .3), 1e-30));
@@ -197,7 +208,7 @@ int main(int argc, char** argv) {
             // the bar-mounted pickup may change slightly and only indirectly.
             // Kalimba buzzers sit on the board itself and may knock the pickup.
             if (fields[f] != &maremba::EngineParameters::buzzAmount) {
-                check(full.piezo == dry.piezo,
+                check(full.piezo == reference.piezo,
                       std::string(names[f]) + " acoustic layer leaks into isolated contact pickup");
             } else if (model != 3) {
                 // The drain shortens the bar's ring (low frequencies), but the
@@ -207,12 +218,12 @@ int main(int argc, char** argv) {
                 std::vector<double> pickupDelta(full.piezo.size());
                 double x1 = 0, x2 = 0, y1 = 0, y2 = 0;
                 for (size_t i = 0; i < pickupDelta.size(); ++i) {
-                    const double d = full.piezo[i] - dry.piezo[i];
+                    const double d = full.piezo[i] - reference.piezo[i];
                     const double y = b0 * d + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
                     x2 = x1; x1 = d; y2 = y1; y1 = y;
                     pickupDelta[i] = y;
                 }
-                check(db(energy(pickupDelta) / std::max(energy(dry.piezo), 1e-30)) < -40,
+                check(db(energy(pickupDelta) / std::max(energy(reference.piezo), 1e-30)) < -40,
                       "buzz acoustic layer leaks into isolated contact pickup");
             }
             check(contribution > -45 && contribution < 6,

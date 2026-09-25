@@ -23,6 +23,20 @@ inline TineGeometry GetTineGeometry(double fundamentalHz) {
     return {length, 7850.0 * width * thickness, 200.0e9 * width * thickness * thickness * thickness / 12.0};
 }
 
+// Where each tine sits on the bridge, -1 (player's left) .. +1 (right): the
+// 17-key C layout D6 B5 G5 E5 C5 A4 F4 D4 C4 E4 G4 B4 D5 F5 A5 C6 E6 (the
+// sympathetic halo's layout). A note between tines sits where the nearest
+// tine in pitch does.
+inline double KalimbaTineSide(int noteNumber) {
+    static constexpr int kNotes[17] = {86, 83, 79, 76, 72, 69, 65, 62, 60, 64, 67, 71, 74, 77, 81, 84, 88};
+    int best = 8, distance = 1000;
+    for (int i = 0; i < 17; ++i) {
+        const int d = std::abs(kNotes[i] - noteNumber);
+        if (d < distance) { distance = d; best = i; }
+    }
+    return (best - 8) / 8.0;
+}
+
 // The box: a Helmholtz air mode through the sound holes and the top/back plate
 // modes the bridge drives. A 17-key box (~0.8 L) sits near 400 Hz, a little
 // below the smaller Hugh Tracey boxes' 440-520 Hz (Holdaway). Voiced Q/levels.
@@ -83,14 +97,16 @@ inline double KalimbaBodyLoading(double hz, double airCents = 0.0, double airCou
 // What the sounding tines push into the box in one sample: the summed bridge
 // forces (N), and the same sum with each tine weighted by its own strike's air
 // coupling (the air mode's drive), by its Bloom (the resonances' weight
-// against the board), and by both. Without velocity routes every weight is 1.
+// against the board), by both, and by where it sits across the bridge
+// (KalimbaTineSide). Without velocity routes the first three weights are 1.
 struct KalimbaBoxDrive {
-    double board = 0.0, air = 0.0, bloom = 0.0, bloomAir = 0.0;
-    void Add(double force, double airWeight, double bloomWeight) {
+    double board = 0.0, air = 0.0, bloom = 0.0, bloomAir = 0.0, side = 0.0;
+    void Add(double force, double airWeight, double bloomWeight, double tineSide) {
         board += force;
         air += force * airWeight;
         bloom += force * bloomWeight;
         bloomAir += force * airWeight * bloomWeight;
+        side += force * tineSide;
     }
 };
 
@@ -119,7 +135,7 @@ public:
     void Reset() {
         for (auto& mode : mModes) mode.y1 = mode.y2 = mode.z1 = mode.z2 = 0.0;
         for (auto& dc : mDc) dc = DcBlocker{};
-        mDirect = 0.0;
+        mDirect = mSideDirect = 0.0;
     }
 
     // Air mode tuning (cents) and coupling to the board (1 = as built).
@@ -174,13 +190,21 @@ public:
     // run twice, on the plain and on the Bloom-weighted drive (states y and z).
     // `plate` is the top plate's own motion under the bridge, where a contact
     // pickup sits: the plate modes and the air pushing on the plate.
+    // Below coincidence a point-driven board radiates its broadband sound from
+    // around the drive point (Cremer & Heckl), so a stereo pair over the box
+    // hears each tine's board sound from the tine's side: `side` is the right
+    // microphone minus the left, half of each; the plates' resonances and the
+    // holes stay in the middle.
     void Process(const KalimbaBoxDrive& drive, double fixedResonance, double bloomResonance,
-                 double& close, double& far, double& plate) {
+                 double& close, double& far, double& plate, double& side) {
         // The thumb's static hold is not sound: remove it.
         const double hp = mDc[0].Process(drive.board, mDcAlpha);
         const double hpAir = mDc[1].Process(drive.air, mDcAlpha);
         const double hpBloom = mDc[2].Process(drive.bloom, mDcAlpha);
         const double hpBloomAir = mDc[3].Process(drive.bloomAir, mDcAlpha);
+        const double hpSide = mDc[4].Process(drive.side, mDcAlpha);
+        mSideDirect = mDirectAlpha * mSideDirect + (1.0 - mDirectAlpha) * hpSide;
+        side = kSideSpread * (hpSide - mSideDirect);
         double airSum = 0.0, plateSum = 0.0, bloomAirSum = 0.0, bloomPlateSum = 0.0;
         for (int k = 0; k < kKalimbaBodyModes; ++k) {
             auto& mode = mModes[k];
@@ -211,6 +235,7 @@ public:
         for (auto& dc : mDc)
             if (std::abs(dc.in) + std::abs(dc.out) < 1.0e-15) dc = DcBlocker{};
         if (std::abs(mDirect) < 1.0e-15) mDirect = 0.0;
+        if (std::abs(mSideDirect) < 1.0e-15) mSideDirect = 0.0;
     }
 
     bool HasNoSubnormalState() const {
@@ -219,11 +244,11 @@ public:
             if (subnormal(mode.y1) || subnormal(mode.y2) || subnormal(mode.z1) || subnormal(mode.z2)) return false;
         for (const auto& dc : mDc)
             if (subnormal(dc.in) || subnormal(dc.out)) return false;
-        return !subnormal(mDirect);
+        return !subnormal(mDirect) && !subnormal(mSideDirect);
     }
 
     double Energy() const {
-        double e = mDirect * mDirect;
+        double e = mDirect * mDirect + mSideDirect * mSideDirect;
         for (const auto& dc : mDc) e += dc.out * dc.out;
         for (const auto& mode : mModes)
             e += mode.y1 * mode.y1 + mode.y2 * mode.y2 + mode.z1 * mode.z1 + mode.z2 * mode.z2;
@@ -244,7 +269,12 @@ private:
         }
     };
     std::array<Mode, kKalimbaBodyModes> mModes{};
-    std::array<DcBlocker, 4> mDc{};   // board, air, bloom and bloom-air drives
+    // A spaced pair 20 cm apart, 15 cm over the board: a tine 6.5 cm off the
+    // centre is 3.2 dB louder in the nearer microphone (inverse distance),
+    // (1 + s) / (1 - s) with s = 0.18 at the outermost tines.
+    static constexpr double kSideSpread = 0.18;
+    std::array<DcBlocker, 5> mDc{};   // board, air, bloom, bloom-air and side drives
+    double mSideDirect = 0.0;
     double mRate = 44100.0;
     double mCover = 0.0, mAppliedCover = -1.0;
     double mAirCents = 0.0, mAirCoupling = 1.0;

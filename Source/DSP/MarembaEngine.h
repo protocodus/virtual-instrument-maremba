@@ -219,6 +219,7 @@ private:
     SympatheticMesh mSympathetic;
     FrameBody mFrameBody;
     KalimbaBody mKalimbaBody;
+    std::array<double, 128> mTineSide{};   // each note's tine across the bridge (KalimbaTineSide)
     bool mKalimbaBodyRunning = false;
     float mCover = 0.0f;               // smoothed kalimba hole cover
     FastPRNG mPrng;

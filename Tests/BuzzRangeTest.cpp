@@ -21,8 +21,8 @@ struct MarembaVoiceTestAccess {
             reference.SetLooseness(physical);
             double energy = 0;
             for (int i = 0; i < 4096; ++i) {
-                // The buzzers lift only on a pluck's jolt (their preload is
-                // calibrated to it), so the probe board swings that hard.
+                // The buzzers lift only when the board swings hard (a firm
+                // treble nail or pick pluck), so the probe board swings that hard.
                 const double board = 3. * std::sin(.3 * i) + 1. * std::sin(.037 * i);
                 double actualImpact = 0, referenceImpact = 0;
                 const double sound = actual.Process(board, 1, actualImpact);
