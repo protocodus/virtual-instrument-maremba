@@ -22,6 +22,16 @@ public:
         mLowGain = mHighGain = mSmoothLow = mSmoothHigh = 1.0f;
     }
 
+    // Idle or reset: the tilt starts at its setting instead of ramping from
+    // flat under the next attack.
+    void SnapTone(float warmth) {
+        mCachedWarmth = warmth;
+        mLowGain = std::exp2(warmth);
+        mHighGain = 1.0f / mLowGain;
+        mSmoothLow = mLowGain;
+        mSmoothHigh = mHighGain;
+    }
+
     // Control rate: with a silent input (all mic levels at 0) the DC blocker and
     // the tilt low-pass decay into float subnormals and stay there (a subnormal
     // times a pole close to 1 rounds back to itself). Zero them first.

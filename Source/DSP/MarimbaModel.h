@@ -192,7 +192,7 @@ inline ResonatorProfile GetResonatorProfile(EMarimbaModel model) {
             // them, growing to more than a half step in the top octave; Yamaha
             // and La Favre set them for the loudest resonance under the bar.
             return {{1.0, 2.97, 4.93}, 45.0, 0.18, 2000.0, 0.027, {0.7, 0.5}, {1.0, 0.45, 0.25},
-                    {1.0, 0.40, 0.22}, 3.0, 8.0, 100.0, 0.0084, 0.14};
+                    {1.0, 0.40, 0.22}, 3.0, 8.0, 100.0, 0.0071, 0.14};
     }
 }
 
@@ -217,6 +217,24 @@ inline double ResonatorQ(const ResonatorProfile& r, double hz) {
         return 0.8 / (1.0 / wall + ka * ka / 3.141592653589793);
     }
     return r.qAtC4 * std::pow(261.625565 / f, r.qSlope) / (1.0 + (f / r.qCornerHz) * (f / r.qCornerHz));
+}
+
+// A tube under its bar. ResonatorQ is the free tube (Soares et al. measured
+// 0.8 of the wall and mouth theory on a tube alone). Under the bar the air
+// that fills and empties the tube is pumped through the narrow gap between
+// the bar and the rim, and flow separation at the rim (the loss behind the
+// odd harmonics an open end makes at high amplitude: Ingard & Ising 1967,
+// Disselhorst & van Wijngaarden 1980) adds to its loss. Fitted to anechoic
+// recordings of a concert marimba (University of Iowa MIS, 2013: cord
+// mallets, mf and ff, A2-C5): the bloom peaks at 70-170 ms, rises 5-10 dB,
+// decays smoothly and the fundamental rings 1.4-2.9 s, which the free-tube Q
+// and coupling (past critical, twin lines beating 5-11 dB) could not give.
+// Boxes and gourds keep their voiced Q (it is already their in-situ value).
+// The mouth readout (airGain) was raised with it so the bank's loudness stays
+// where it was: the gap takes energy that no longer radiates as a bloom.
+constexpr double kTubeGapQ = 0.45;
+inline double InSituResonatorQ(const ResonatorProfile& r, double hz) {
+    return ResonatorQ(r, hz) * (r.tubeRadiusM > 0.0 ? kTubeGapQ : 1.0);
 }
 
 // Tuning of the lowest air mode re its bar, by register.
@@ -273,6 +291,10 @@ inline MalletSpec GetShaftSpec(bool tine) {
 // released as the thumb slips off. A player presses with a force (about the
 // same whatever touches the tine), so short stiff treble tines deflect less
 // than long bass ones. Flesh lets go gradually, a nail or pick snaps free.
+// The usual pluck, where the thumb's nail meets its flesh, snaps nearly as
+// fast as a nail: 0.1 s after it a box alto's first overtone sits 17-26 dB
+// under the fundamental (Holdaway's spectra of F#4 and C5); with 0.2 ms here
+// 27 dB at F#4 and 36 at C5 (a 0.4 ms roll-off left 33 and 44).
 // The thumb pad stops whatever the tine was still doing.
 struct ThumbSpec {
     double releaseSeconds;   // slip time at Hardness 0.5
@@ -285,10 +307,10 @@ struct ThumbSpec {
 inline ThumbSpec GetThumbSpec(int type) {
     switch (std::clamp(type, 0, 3)) {
         case 0:  return {1.6e-3, 1.6, 3.1, 0.004, 0.0};
-        case 2:  return {0.2e-3, 3.0, 3.0, 0.015, 0.45};
-        case 3:  return {0.1e-3, 4.0, 3.0, 0.025, 0.80};
+        case 2:  return {0.12e-3, 3.0, 3.0, 0.015, 0.45};
+        case 3:  return {0.07e-3, 4.0, 3.0, 0.025, 0.80};
         case 1:
-        default: return {0.4e-3, 2.2, 3.0, 0.008, 0.15};
+        default: return {0.2e-3, 2.2, 3.0, 0.008, 0.15};
     }
 }
 
@@ -356,7 +378,7 @@ inline ModelParams GetModelParams(EMarimbaModel model) {
         default:
             return {"Imperial Rosewood 5.0", "Honduran rosewood (Dalbergia stevensonii) bars",
                     "Drawn brass tubes, matched to their bars",
-                    4200.0, 2800.0, 86.0, 1.2, 15.0, 24.0, 1.0, 5.78, 1.0};
+                    4200.0, 2800.0, 86.0, 1.2, 15.0, 24.0, 1.0, 10.4, 1.0};
     }
 }
 

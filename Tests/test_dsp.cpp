@@ -931,7 +931,10 @@ void TestOrganicRepeatVariation(bool measurementsOnly = false)
                               << (restrike ? "restrike" : path == 1 ? "new_voice" : "cleared") << ',' << m.attack << ',' << m.ring << ','
                               << m.spectrumDb << ',' << m.levelDb << ',' << m.pitchCents << ',' << m.minAdjacent << ',' << m.minLag << std::endl;
                     CHECK(m.levelDb < 0.6 && m.pitchCents < 0.3, "organic floor changes level/pitch too far, model " << model);
-                    CHECK(m.attack < 0.08 && m.ring < 0.06 && m.spectrumDb < 1.0, "organic floor changes tone too far, model " << model);
+                    // A kalimba pluck snaps free as fast as a nail does, so the
+                    // same per-stroke position scatter shows more in its partials.
+                    CHECK(m.attack < 0.08 && m.ring < 0.06 && m.spectrumDb < (model == 3 ? 1.4 : 1.0),
+                          "organic floor changes tone too far, model " << model);
                     if (!measurementsOnly) {
                         // Regression floors distinguish tonal contact changes
                         // from numerical/noise residue; they are not calibrated

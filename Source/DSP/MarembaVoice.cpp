@@ -89,14 +89,53 @@ inline MembraneVoicing GetMembraneVoicing(EMarimbaModel model, int noteNumber) {
     }
 }
 
+// Odd harmonics from the flow through the gap between a bar and its tube's
+// rim. An open end driven hard loses energy to flow separation, a pressure
+// drop of 1/2 rho K u|u| whose odd harmonics radiate (Ingard & Ising 1967;
+// Atig, Dalmont & Gilbert 2004); under a bar the gap concentrates it. In
+// anechoic recordings of a concert marimba (University of Iowa MIS, 2013,
+// cord mallets, 1.5 m) the keys from B2 to Eb4 carry lines at 3 f0 and 5 f0
+// (median 2 cents off, at most 5, while the key a twelfth up sits up to 9
+// cents away): the third 28-55 dB below the fundamental at mf and ff (median
+// -33), 45-65 at pp, the fifth about 11 dB below the third, both dying 2-3
+// times faster than the fundamental in dB (a quadratic law). Below B2 they
+// fall to about -52 dB and from E4 up below -60. Level of the third harmonic
+// re the fundamental at a mouth velocity of 1 m/s, by MIDI note (fitted to
+// those recordings), and the fifth's level re the third.
+struct RimHarmonicAnchor { double midi, db; };
+constexpr RimHarmonicAnchor kRimHarmonic3[] = {{36, -48}, {45, -36}, {48, -28}, {57, -31}, {60, -31}, {62, -35}, {64, -55}, {66, -70}};
+constexpr double kRimHarmonic5Db = -11.0;
+inline double RimHarmonic3Db(double midi) {
+    constexpr int n = static_cast<int>(sizeof(kRimHarmonic3) / sizeof(kRimHarmonic3[0]));
+    if (midi <= kRimHarmonic3[0].midi) return kRimHarmonic3[0].db;
+    for (int i = 1; i < n; ++i)
+        if (midi <= kRimHarmonic3[i].midi) {
+            const double t = (midi - kRimHarmonic3[i - 1].midi) / (kRimHarmonic3[i].midi - kRimHarmonic3[i - 1].midi);
+            return kRimHarmonic3[i - 1].db + t * (kRimHarmonic3[i].db - kRimHarmonic3[i - 1].db);
+        }
+    return -200.0;
+}
+
 // Resonator pressure reaching the membranes, in the voice's air-state units.
 constexpr double kMembraneDrive = 2.5;
+// Charleo above C4: the extra fall of its gap with frequency (the box's
+// taper; see Trigger) and the rise of its formant (a membrane's resonance
+// goes as 1 / its radius; the treble holes are smaller).
+constexpr double kCharleoTrebleGapExponent = 1.0;
+constexpr double kCharleoTrebleFormantExponent = 0.35;
+inline double MembraneFormantScale(EMarimbaModel model, double f0) {
+    const double r = f0 / 261.625565;
+    return std::pow(r, 0.15) * (model == EMarimbaModel::MayanPadauk ? std::pow(std::max(1.0, r), kCharleoTrebleFormantExponent) : 1.0);
+}
 
 // Radiated sizzle per unit buzzer ring amplitude (and its knock into the pickup).
 constexpr double kBuzzerRadiation = 0.5;
-// Board motion reaching the buzzers per newton of bridge force: the default
-// Buzz rattles only on the hardest treble plucks.
-constexpr double kBuzzerDrive = 0.05;
+// Board motion reaching the buzzers per newton of bridge force. The board
+// moves continuously under a pluck (the thumb's press has settled before the
+// release), so the buzzers answer the ring and its tink: the default Buzz
+// stays clean, loose buzzers sizzle on firm plucks while the note is loud,
+// more with a nail or pick and toward the treble.
+constexpr double kBuzzerDrive = 0.19;
 // A loose mounting's knock relative to the bar's own radiation per unit of
 // fundamental swing, and a tine's knock into the bridge per unit of its
 // fundamental's bridge force.
@@ -146,35 +185,9 @@ constexpr double kFingerLandingSeconds = 0.006;
 // After a dead pluck the thumb, which slipped off the tip, is back on the
 // tine this long after it let go: a short pitched tick.
 constexpr double kThumbReturnSeconds = 0.03;
-// Bow (Essl & Cook 2000): on the bar's end, 0.05-0.25 m/s from the stroke's
-// velocity (the level grows with speed), 2-20 N from Hardness (the least
-// force that still speaks rises with speed); Position moves it from the end
-// toward the quarter point, where the second mode takes over. It reaches
-// speed in about 40 ms. A bow stopped on the bar grips it through its hair:
-// a damper, limited by static friction.
-constexpr double kBowSpeedMin = 0.05, kBowSpeedRange = 0.20;
-constexpr double kBowForceMin = 2.0, kBowForceMax = 20.0;
-constexpr double kBowSettleSeconds = 0.04;
-constexpr double kBowLandingSeconds = 0.004;   // the hair settles on the bar before the stroke draws
-constexpr double kBowHairWidth = 0.03;
-constexpr double kBowStopDamping = 20.0;
-// A bar lies on its cords: a steady push is carried by the supports, not by
-// bending (the modal readouts would take a static bend for sound). A held
-// mallet's push is known; a bow's mean friction follows its force with this
-// time constant, well below any bar's fundamental.
-constexpr double kSupportLoadSeconds = 0.03;
-
-// Rosin on bow hair (Smith & Woodhouse 2000, steady sliding):
-// mu = 0.35 + 0.40 exp(-v / 0.01) + 0.45 exp(-v / 0.1), and d mu / d v.
-inline double RosinFriction(double slip, double& slope) {
-    const double a = 0.40 * std::exp(-slip / 0.01), b = 0.45 * std::exp(-slip / 0.1);
-    slope = -a / 0.01 - b / 0.1;
-    return 0.35 + a + b;
-}
-inline double RosinFriction(double slip) {
-    double slope;
-    return RosinFriction(slip, slope);
-}
+// The board's quasi-static return from the thumb's press: slow against every
+// tine period (C3: 7.6 ms), fast against a note.
+constexpr double kPreloadBleedSeconds = 0.04;
 
 // sin and cos of an angle, by their series below 0.01 rad (a bar-air
 // rotation per sample; exact to double precision there), else by libm.
@@ -227,9 +240,11 @@ void MarembaVoice::FastKill() {
     mLoudness = 0.0;
     mReleaseForce = 0.0;
     mBridgeSample = 0.0;
+    mPreloadOffset = 0.0;
     mFadeGain = 1.0f;
     mFadeStep = 0.0f;
     for (auto& membrane : mMembranes) membrane.Reset();
+    for (auto& taut : mMembraneTaut) taut = false;
     mNumMembranes = 0;
     mHasMirliton = false;
     mSlapNoise = mSlapY1 = mSlapY2 = 0.0;
@@ -263,10 +278,9 @@ void MarembaVoice::FastKill() {
     mNumCavityModes = 0;
     mCavityAngleRamp = false;
     mResReadoutGain = 0.0;
+    mRimHarmonic3 = mRimHarmonic5 = mRimGain3 = mRimGain5 = mRimLevel3 = mRimLevel5 = 0.0;
     mDeadStroke = false;
     mSupportLoad = 0.0;
-    mBowing = mBowLifting = mBowStopping = false;
-    mBowSpeed = mBowNormal = mBowSlip = mBowNoise = 0.0;
     mFingerOn = mFingerPending = false;
     mFingerPreload = mFingerCompression = 0.0;
     mHandModes = false;
@@ -281,11 +295,6 @@ void MarembaVoice::Release() {
     // A dead stroke's head (or a resting thumb) lifts off with the key.
     if (mContact.Holding()) mContact.Lift();
     if (mDeadStroke && mTine && !mDamping) mFingerOn = mFingerPending = false;
-    // The bow leaves the bar, or in a dead stroke stops on it.
-    if (mBowing) {
-        if (mDeadStroke) mBowStopping = true;
-        else mBowLifting = true;
-    }
 }
 
 void MarembaVoice::SetModeCoefficients(ModeState& mode, double omega) const {
@@ -608,69 +617,6 @@ double MarembaVoice::ContactDisplacement() const {
     return u;
 }
 
-// The bow's friction on the key this sample. The surface velocity at the
-// bow without this sample's force is v_free; the force F moves it by
-// Y F (Y: the contact compliance per sample). The hair sticks while the
-// force that keeps the surface at bow speed stays within static friction,
-// else it slides at the slip x solving x + Y N mu(x) = |v_bow - v_free|.
-// A bow stopped on the bar in a dead stroke grips it: a damper on the
-// surface, limited by static friction.
-double MarembaVoice::BowForce(const double* predicted) {
-    const double speedTarget = mBowStopping ? 0.0 : mBowTargetSpeed * mBowSpeedScale;
-    mBowSpeed += mBowRamp * (speedTarget - mBowSpeed);
-    // A faster bow must press harder to keep speaking (Schelleng's least
-    // force grows with speed): the swell draws and presses together.
-    const double normalTarget = mBowLifting ? 0.0 : mBowTargetNormal * std::max(mBowSpeedScale, 0.25);
-    mBowNormal += (mBowLifting ? mBowRamp : mBowLandingRamp) * (normalTarget - mBowNormal);
-    if (mBowLifting && mBowNormal < 1.0e-3 * mBowTargetNormal * std::max(mBowSpeedScale, 0.25)) {
-        mBowing = mBowLifting = false;
-        mBowNormal = mBowSpeed = mBowSlip = 0.0;
-        return 0.0;
-    }
-    double now = 0.0, next = 0.0;
-    for (int m = 0; m < mNumModes; ++m) {
-        const double weight = mModes[m].contact * mModes[m].toDisplacement;
-        now += weight * mModes[m].y1;
-        next += weight * predicted[m];
-    }
-    const double admittance = mContactCompliance * mSampleRate;
-    // The supports carry the friction's steady part (applied force F - load).
-    const double freeVelocity = (next - now) * mSampleRate - admittance * mSupportLoad;
-    // Hair and rosin grain: a slight roughness of the normal force.
-    mBowNoise += mTextureAlpha * (mLocalPrng.NextBipolar() * mNoiseScale - mBowNoise);
-    const double normal = mBowNormal * (1.0 + 0.3 * mBowNoise);
-    if (!(admittance > 0.0) || !(normal > 0.0)) return 0.0;
-    const double staticLimit = normal * RosinFriction(0.0);
-    if (mBowStopping && mBowSpeed < 1.0e-3 * mBowTargetSpeed) {
-        const double grip = -kBowStopDamping * freeVelocity / (1.0 + kBowStopDamping * admittance);
-        mBowSlip = 0.0;
-        return std::clamp(grip, -staticLimit, staticLimit);
-    }
-    const double relative = mBowSpeed - freeVelocity;
-    const double stick = relative / admittance;
-    if (std::abs(stick) <= staticLimit) {
-        mBowSlip = 0.0;
-        return stick;
-    }
-    const double target = std::abs(relative);
-    const double yn = admittance * normal;
-    double lo = 0.0, hi = target;
-    double x = std::clamp(std::abs(mBowSlip), 0.0, target);
-    for (int iteration = 0; iteration < 40; ++iteration) {
-        double slope;
-        const double g = x + yn * RosinFriction(x, slope) - target;
-        if (g > 0.0) hi = x; else lo = x;
-        const double derivative = 1.0 + yn * slope;
-        double step = derivative > 0.0 ? x - g / derivative : 0.5 * (lo + hi);
-        if (!(step > lo && step < hi)) step = 0.5 * (lo + hi);
-        const bool done = std::abs(step - x) <= 1.0e-13 * (1.0 + target);
-        x = step;
-        if (done || hi - lo <= 1.0e-13 * (1.0 + target)) break;
-    }
-    mBowSlip = std::copysign(x, relative);
-    return std::copysign(normal * RosinFriction(x), relative);
-}
-
 // A fingertip resting where the thumb plucks, about the tine's pressed rest
 // position (so a resting finger leaves no static deflection): a spring and
 // damper on the compression d = -u. It pushes back as the tine comes up into
@@ -728,7 +674,6 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     mModel = model;
     mTine = model == EMarimbaModel::KalimbaArtisan;
     mStriker = std::clamp(malletType, 0, kStrikerCount - 1);
-    const bool bow = mStriker == kStrikerBow;
     const bool shaft = mStriker == kStrikerShaft;
     const bool pluck = mTine && mStriker < kStrikerShaft;   // a thumb on a tine
     mDeadStroke = options.deadStroke;
@@ -759,13 +704,8 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     const double decayScale = std::pow(std::clamp(static_cast<double>(decayMultiplier), 0.10, 8.0),
                                        response.decayExponent) * variation.decayScale;
     const double hardness = std::clamp(static_cast<double>(malletHardness + art.malletHardnessJitter), 0.0, 1.0);
-    // A bow sits on the bar's end; the upper half of Position moves it toward
-    // the quarter point.
-    const double bowPlace = std::clamp(static_cast<double>(strikePosition + positionOffset), 0.0, 1.0);
-    const double position = bow
-        ? 0.01 + 0.24 * bowPlace * bowPlace * bowPlace
-        : std::clamp(static_cast<double>(strikePosition + positionOffset + art.strikePositionOffset)
-                     + character.positionOffset, 0.03, 0.97);
+    const double position = std::clamp(static_cast<double>(strikePosition + positionOffset + art.strikePositionOffset)
+                                       + character.positionOffset, 0.03, 0.97);
     const int mt = std::min(mStriker, 3);   // head (or thumb technique) of strikers 0-3
     // Coupling 0.7 is the instrument as built.
     const double couplingShape = std::pow(std::clamp(static_cast<double>(resonatorCoupling), 0.0, 1.0) / 0.7, 0.75);
@@ -802,7 +742,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     const auto geometry = mTine ? GetModalRadiationGeometry(model, f0)
                                 : GetModalRadiationGeometry(model, f0, key.lengthM, key.widthM);
     const ModalRadiationSetup radiation = PrepareModalRadiation(geometry);
-    const double footprint = mTine ? 0.02 : bow ? kBowHairWidth : shaft ? GetShaftSpec(false).footprint
+    const double footprint = mTine ? 0.02 : shaft ? GetShaftSpec(false).footprint
         : GetMalletSpec(mt).footprint * (0.8 + 0.4 * std::pow(static_cast<double>(mVelocity), 0.4));
     // A thumb presses within the last fifth of a tine: Position runs from
     // there (0) to the very tip (1), where the overtones are fully excited.
@@ -810,8 +750,8 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     // several times the spread of a mallet on a bar in relative terms.)
     const double spatialPosition = mTine
         ? std::clamp(0.80 + 0.20 * std::clamp(static_cast<double>(strikePosition + positionOffset
-                                                                   + (bow ? 0.0f : art.strikePositionOffset)), 0.0, 1.0)
-                     + (bow ? 0.0 : 10.0 * character.positionOffset), 0.76, 1.0)
+                                                                   + art.strikePositionOffset), 0.0, 1.0)
+                     + 10.0 * character.positionOffset, 0.76, 1.0)
         : position;
     mStrokePosition = spatialPosition;
     // Supports sit at the fundamental's nodes (wherever the carving put
@@ -937,11 +877,10 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     mNumTorsionModes = 0;
     mHasLateral = false;
     if (!mTine && mNumModes > 0) {
-        // A shaft strikes the bar's edge; a bow's hair spans the end's width.
+        // A shaft strikes the bar's edge.
         const double lateral = shaft ? std::copysign(0.9, character.lateralOffset)
             : std::clamp(character.lateralOffset
-                         + std::copysign(1.5 * (1.0 - std::min(1.0f, art.impulseScale)), character.lateralOffset), -0.9, 0.9)
-              * (bow ? 0.3 : 1.0);
+                         + std::copysign(1.5 * (1.0 - std::min(1.0f, art.impulseScale)), character.lateralOffset), -0.9, 0.9);
         for (int n = 0; n < kNumTorsionModes; ++n) {
             const double ratio = key.torsion[n] * variation.torsion;
             const double frequency = f0 * ratio;
@@ -981,8 +920,8 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
             mLateral.omega = kTwoPiD * lateralHz / fs;
             ReconfigureMode(mLateral, std::exp(-6.907755 / (t60 * fs)), mLateral.omega);
             // Glancing strokes push along the width: a friction share of the
-            // force (a bow draws square to the bar).
-            const double glance = bow ? 0.01 : 0.04 + 0.25 * (1.0 - std::min(1.0f, art.impulseScale));
+            // force.
+            const double glance = 0.04 + 0.25 * (1.0 - std::min(1.0f, art.impulseScale));
             const double mass = 0.25 * key.massKg;
             mLateralDrive = kStateScale * glance * std::copysign(1.0, character.lateralOffset)
                           * std::sin(mLateral.omega) / (std::sqrt(mass) * kTwoPiD * lateralHz);
@@ -1001,11 +940,9 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     mReboundStart = -1;
     mTextureAlpha = SmootherAtRate(0.05, fs);
     mLoudnessAlpha = 1.0 - std::exp(-1.0 / (0.03 * fs));
-    mSupportAlpha = 1.0 - std::exp(-1.0 / (kSupportLoadSeconds * fs));
     if (!isRestrike) mSupportLoad = 0.0;
     // Fibre slip noise grows with how fast the head is compressed.
     mTextureDepth = std::min(1.0, 1.5 * touch);
-    mBowing = mBowLifting = mBowStopping = false;
     mFingerOn = mFingerPending = false;
     mFingerPreload = mFingerCompression = 0.0;
     mHandModes = false;
@@ -1013,6 +950,8 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     // Bridge-rod slip: the tine rocks on the rod twice per cycle, adding a
     // force at 2 f1 that grows with amplitude (Holdaway: -35..-41 dB at 0.1 s).
     mBridgeNonlinear = mTine ? 0.004 : 0.0;
+    mPreloadBleed = std::exp(-1.0 / (kPreloadBleedSeconds * fs));
+    if (!isRestrike) mPreloadOffset = 0.0;
     if (pluck) {
         mContact.Reset();
         const ThumbSpec thumb = GetThumbSpec(mt);
@@ -1034,21 +973,6 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         // A dead pluck: the thumb comes back to rest on the tine.
         mFingerPending = mDeadStroke;
         mFingerDelay = static_cast<int>(std::lround(kThumbReturnSeconds * fs));
-    } else if (bow) {
-        mContact.Reset();
-        mReleaseSamples = mReleaseSample = 0;
-        mReleaseForce = 0.0;
-        mBowing = true;
-        mBowTargetSpeed = kBowSpeedMin + kBowSpeedRange * std::min(1.0, touch);
-        // A firmer stroke draws faster and presses harder.
-        mBowTargetNormal = kBowForceMin * std::pow(kBowForceMax / kBowForceMin, hardness)
-                         * (0.5 + 0.8 * std::min(1.0, touch));
-        mBowSpeedScale = std::clamp(static_cast<double>(options.bowSpeed), 0.0, 4.0);
-        mBowSpeed = mBowNormal = mBowSlip = mBowNoise = 0.0;
-        mBowRamp = 1.0 - std::exp(-1.0 / (kBowSettleSeconds * fs));
-        mBowLandingRamp = 1.0 - std::exp(-1.0 / (kBowLandingSeconds * fs));
-        // A bowed note starts without the impact's noise.
-        mClickGain = 0.0;
     } else {
         mReleaseSamples = mReleaseSample = 0;
         mReleaseForce = 0.0;
@@ -1104,6 +1028,8 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     // ----------------------------------------------------------------------
     const ResonatorProfile resonator = GetResonatorProfile(model);
     mNumCavityModes = 0;
+    mRimHarmonic3 = mRimHarmonic5 = 0.0;
+    if (!isRestrike) mRimGain3 = mRimGain5 = 0.0;
     mResCoupling = couplingShape;
     mResReadoutStep = 1.0 - std::exp(-1.0 / (0.005 * fs));
     if (!isRestrike) mResReadoutGain = 1.0;
@@ -1141,7 +1067,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
             // loss and the bar-air exchange with the bar's own loss (below),
             // so a key whose tube carries its ring lengthens too, and the
             // bloom keeps its shape.
-            const double q = std::max(1.5, ResonatorQ(resonator, frequency) * (i > 0 ? resonator.upperQ[i - 1] : 1.0)
+            const double q = std::max(1.5, InSituResonatorQ(resonator, frequency) * (i > 0 ? resonator.upperQ[i - 1] : 1.0)
                                            * decayScale);
             const double airLoss = kPiD * frequency / q;
             mode.omega = kTwoPiD * frequency / fs;
@@ -1163,6 +1089,16 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
             mCavityReadout[i] = params.airGain * kAirUnit * resonator.readout[i]
                               * (kTwoPiD * frequency) * (kTwoPiD * frequency) / kStateScale
                               / std::sqrt(std::max(key.massFraction[0] * key.massKg, 1.0e-4));
+            // The rim's harmonics (tubes): the mouth's velocity per unit air
+            // state from the mode's energy, E = 1/2 w^2 (y / S)^2 = 1/4 rho A L U^2.
+            if (i == 0 && resonator.tubeRadiusM > 0.0) {
+                const double a = TubeRadius(resonator, frequency);
+                const double area = kPiD * a * a, length = 343.0 / (4.0 * frequency);
+                const double mouth = kTwoPiD * frequency / kStateScale * std::sqrt(2.0 / (1.2 * area * length));
+                const double third = std::pow(10.0, RimHarmonic3Db(midi) / 20.0) * mouth;
+                mRimHarmonic3 = third;
+                mRimHarmonic5 = third * std::pow(10.0, kRimHarmonic5Db / 20.0);
+            }
         }
     } else {
         mTube = ModeState{};
@@ -1178,9 +1114,16 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     // Smaller treble resonators carry smaller membranes that need less
     // pressure to go taut, so the buzz threshold follows the register.
     // A gourd's membrane shrinks faster than its pressure up the keyboard, so
-    // treble balafon keys still buzz on moderate strokes.
-    mMembraneGapScale = std::clamp(std::pow(261.625565 / f0, model == EMarimbaModel::BalafonAncestral ? 1.8 : 1.1),
-                                   0.08, 1.6);
+    // treble balafon keys still buzz on moderate strokes. Every Guatemalan
+    // box carries its charleo, up to the treble the melody is played in:
+    // above C4 a box's volume falls faster than its length (it tapers too),
+    // so the same air energy presses harder on its bottom (p^2 ~ E / V), and
+    // its smaller hole takes a smaller membrane. Its gap follows 1/f^2.1
+    // there, so the charleo keeps buzzing up to C6 as the bass does.
+    const double trebleGap = model == EMarimbaModel::MayanPadauk
+        ? std::pow(std::min(1.0, 261.625565 / f0), kCharleoTrebleGapExponent) : 1.0;
+    mMembraneGapScale = std::clamp(std::pow(261.625565 / f0, model == EMarimbaModel::BalafonAncestral ? 1.8 : 1.1)
+                                   * trebleGap, model == EMarimbaModel::MayanPadauk ? 0.02 : 0.08, 1.6);
     mMembraneTension = std::clamp(options.membraneTension, 0.0f, 1.0f);
     ConfigureMembranes(buzzAmount, true);
     mSlapPrng = FastPRNG(mLocalPrng.Next() | 1u);
@@ -1190,6 +1133,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     SetBuzz(buzzAmount, mMembraneTension);
     if (!isRestrike) {
         for (auto& membrane : mMembranes) membrane.Reset();
+        for (auto& taut : mMembraneTaut) taut = false;
         mBuzzer.Reset();
         mSlapNoise = mSlapY1 = mSlapY2 = 0.0;
     }
@@ -1225,7 +1169,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     // ----------------------------------------------------------------------
     // Artifacts: a brush of a neighbouring key, a loose mounting knock
     // ----------------------------------------------------------------------
-    mBrushImpulse = bow ? 0.0 : touch * art.brushGain;
+    mBrushImpulse = touch * art.brushGain;
     mBrushStart = static_cast<int>(art.brushDelaySec * fs);
     const double secondaryDuration = std::max(3.0, 0.0012 * fs);
     mSecondaryStep = 1.0 / secondaryDuration;
@@ -1295,7 +1239,7 @@ void MarembaVoice::ConfigureMembranes(float buzzAmount, bool reshuffle) {
     const double tension = TensionFormantRatio(mMembraneTension);
     for (int i = 0; i < mNumMembranes; ++i) {
         // Time runs at the slack resonance; the taut spring lifts it to the formant.
-        mMembranes[i].Configure(mSampleRate, voicing.formantHz[i] * tension * std::pow(mF0 / 261.625565, 0.15)
+        mMembranes[i].Configure(mSampleRate, voicing.formantHz[i] * tension * MembraneFormantScale(mModel, mF0)
             / std::sqrt(1.0 + voicing.stiffness), voicing.quality);
         mMembranes[i].SetSlackRadiation(voicing.slackShare);
         // Positive geometric stretching and strain loss once the membrane
@@ -1330,7 +1274,7 @@ void MarembaVoice::SetBuzz(float amount, float tension) {
         mMembraneTension = tension;
         const double formant = TensionFormantRatio(tension);
         for (int i = 0; i < mNumMembranes; ++i)
-            mMembranes[i].Configure(mSampleRate, voicing.formantHz[i] * formant * std::pow(mF0 / 261.625565, 0.15)
+            mMembranes[i].Configure(mSampleRate, voicing.formantHz[i] * formant * MembraneFormantScale(mModel, mF0)
                 / std::sqrt(1.0 + voicing.stiffness), voicing.quality);
     }
     // A tighter membrane needs more pressure to reach its limits.
@@ -1346,7 +1290,7 @@ void MarembaVoice::SetBuzz(float amount, float tension) {
     // at their bottoms than the treble ones; their charleos sit a little
     // tighter so the buzz stays even across the keyboard.
     const double register_ = mModel == EMarimbaModel::MayanPadauk
-        ? std::clamp(261.625565 / mF0, 0.6, 3.0) : 1.0;
+        ? std::clamp(261.625565 / mF0, 0.25, 3.0) : 1.0;
     // Buzz loosens the membranes toward their free travel; a charleo (one
     // large gut membrane) less steeply than the small silk mirlitons. Both
     // keep growing up to the top of the range.
@@ -1409,12 +1353,16 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
     // 0. A thumb's touch: the tine is stopped and held deflected.
     if (mThumbPending) {
         mThumbPending = false;
+        double before = 0.0, after = 0.0;
         for (int m = 0; m < mNumModes; ++m) {
             auto& mode = mModes[m];
+            before += mode.y1 * mBridgeGain[m];
             mode.y1 = mode.y1 * mThumbResidual + mThumbHold[m];
             mode.y2 = mode.y2 * mThumbResidual + mThumbHold[m];
+            after += mode.y1 * mBridgeGain[m];
             mode.idle = false;
         }
+        mPreloadOffset += (after + mBridgeNonlinear * after * after) - (before + mBridgeNonlinear * before * before);
     }
 
     // 1. Prediction of the bending modes without this sample's force.
@@ -1424,8 +1372,8 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
         predicted[m] = mode.idle ? 0.0 : mode.c * mode.y1 - mode.s * mode.y2;
     }
 
-    // 2. Excitation force at the contact: a thumb's release, a bow, or a
-    // mallet head, shaft or fingertip.
+    // 2. Excitation force at the contact: a thumb's release, or a mallet
+    // head, shaft or fingertip.
     double force = 0.0;
     if (mTine && mStriker < kStrikerShaft) {
         if (mReleaseSample < mReleaseSamples) {
@@ -1434,8 +1382,6 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
             force = mReleaseForce * (1.0 - std::pow(t, mReleaseShape));
             ++mReleaseSample;
         }
-    } else if (mBowing) {
-        force = BowForce(predicted);
     } else {
         if (mArtifactSample < mArtifactEnd && mArtifactSample == mReboundStart && !mContact.Active() && !mDamping) {
             StartMallet(mReboundVelocity, 0.0);
@@ -1476,12 +1422,9 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
         handImpulse = mHandPulseImpulse * (ContactCumulative(t + mHandPulseStep, 0.0) - ContactCumulative(t, 0.0));
         ++mHandPulseSample;
     }
-    // What the bar's supports carry: a held head's push, or a bow's steady
-    // drag (on a tine too, whose readouts would take a static bend for sound).
-    if (mBowing) {
-        mSupportLoad += mSupportAlpha * (force - mSupportLoad);
-        force -= mSupportLoad;
-    } else if (mContact.Holding() || mSupportLoad != 0.0) {
+    // What the bar's supports carry: a held head's push (on a tine too, whose
+    // readouts would take a static bend for sound).
+    if (mContact.Holding() || mSupportLoad != 0.0) {
         mSupportLoad = mContact.HoldForce();
         force -= mSupportLoad;
     }
@@ -1710,7 +1653,8 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
     // 8. Mechanical outputs: support force into the frame (bars) or the
     // bridge reaction into the board (tines, plus the rod-slip 2 f1 term).
     if (mTine) {
-        bridge += mBridgeNonlinear * bridge * bridge + knockBridge;
+        bridge += mBridgeNonlinear * bridge * bridge + knockBridge - mPreloadOffset;
+        mPreloadOffset *= mPreloadBleed;
         mBridgeSample = bridge;
         mMechanicalSample = static_cast<float>(bridge * 0.02);
     } else {
@@ -1730,7 +1674,23 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
         mResReadoutGain += mResReadoutStep * (1.0 - mResReadoutGain);
         if (std::abs(mResReadoutGain - 1.0) < 1.0e-12) mResReadoutGain = 1.0;
     }
-    const double air = airSum * mResReadoutGain;
+    double rim = 0.0;
+    if (mRimGain3 != 0.0) {
+        // The air's swing as a phasor x + i q: Re (x + i q)^3 = A^3 cos 3 phi
+        // and Re (x + i q)^5 = A^5 cos 5 phi, scaled at control rate by 1/A
+        // and 1/A^3 so each harmonic grows as the square of the air's swing.
+        // Between control ticks a tube ringing up from near silence outgrows
+        // the A it was scaled by, so each harmonic is held to its own level at
+        // the swing it has now, level * A^2 (A^2 = x^2 + q^2, no root needed).
+        const double x = mTube.y1;
+        const double q = (mTube.r * mTube.y2 - x * mTube.cosW) * mTube.invSin;
+        const double x2 = x * x, q2 = q * q, swing = x2 + q2;
+        const double third = x * (x2 - 3.0 * q2) * mRimGain3;
+        const double fifth = x * ((x2 - 10.0 * q2) * x2 + 5.0 * q2 * q2) * mRimGain5;
+        rim = std::clamp(third, -mRimLevel3 * swing, mRimLevel3 * swing)
+            + std::clamp(fifth, -mRimLevel5 * swing, mRimLevel5 * swing);
+    }
+    const double air = (airSum + rim) * mResReadoutGain;
     double close = barClose + air + buzz * 0.35 + slapSound * 0.35
                  + brushAir * 0.6 + knockAir * 0.65 + clickSound * 0.5;
     double far = barFar * 0.60 + air * mFarAirWeight + buzz * 0.50 + slapSound * 0.45
@@ -1778,7 +1738,7 @@ void MarembaVoice::UpdateEnvelope() {
     if (!mActive) return;
 
     double energy = 0.0;
-    const bool driven = mContact.Active() || mReleaseSample < mReleaseSamples || mBowing || mFingerOn
+    const bool driven = mContact.Active() || mReleaseSample < mReleaseSamples || mFingerOn
                      || mHandPulseSample < mHandPulseSamples;
     for (int m = 0; m < mNumModes; ++m) {
         const double e = FlushedModeEnergy(mModes[m]);
@@ -1788,8 +1748,19 @@ void MarembaVoice::UpdateEnvelope() {
     }
     for (int n = 0; n < mNumTorsionModes; ++n) energy += FlushedModeEnergy(mTorsion[n]);
     if (mHasLateral) energy += FlushedModeEnergy(mLateral);
-    energy += FlushedModeEnergy(mTube);
+    const double tubeEnergy = FlushedModeEnergy(mTube);
+    energy += tubeEnergy;
     for (auto& mode : mUpperCavity) energy += FlushedModeEnergy(mode);
+    // The rim's harmonics follow the air's swing A = sqrt(tube energy).
+    if (mRimHarmonic3 != 0.0 && tubeEnergy > 1.0e-24) {
+        const double inverse = 1.0 / std::sqrt(tubeEnergy);
+        mRimLevel3 = mRimHarmonic3 * std::abs(mCavityReadout[0]);
+        mRimLevel5 = mRimHarmonic5 * std::abs(mCavityReadout[0]);
+        mRimGain3 = mRimHarmonic3 * mCavityReadout[0] * inverse;
+        mRimGain5 = mRimHarmonic5 * mCavityReadout[0] * inverse * inverse * inverse;
+    } else {
+        mRimGain3 = mRimGain5 = 0.0;
+    }
     if (mShaftActive) {
         double knock = 0.0;
         for (auto& mode : mShaftModes) knock += FlushedModeEnergy(mode);
@@ -1818,6 +1789,8 @@ void MarembaVoice::UpdateEnvelope() {
     mEnergy = energy;
 
     if (IsStriking() || std::abs(mClackBpY1) + std::abs(mSlapY1) > 1.0e-10) return;
+    // The board is still settling (below 1 uN the rest is some -150 dB).
+    if (std::abs(mPreloadOffset) > 1.0e-6) return;
 
     // -120 dB and nothing left to excite the bar: free the voice (state flushed)
     if (energy < kSilenceEnergy) FastKill();

@@ -23,7 +23,7 @@ namespace maremba {
 struct EngineParameters {
     int model = 0;                  // 0: Rosewood, 1: Padauk, 2: Balafon, 3: Kalimba
     int malletType = 1;             // 0: Soft Yarn/Thumb Flesh, 1: Medium Cord/Natural Thumb, 2: Hard Rubber/Thumb Nail, 3: Wood Baton/Thumb Pick,
-                                    // 4: Mallet Shaft/Nail Tap, 5: Bow
+                                    // 4: Mallet Shaft/Nail Tap
     float malletHardness = 0.40f;   // 0..1
     float strikePosition = 0.50f;   // 0..1
     float resonatorTune = 0.0f;     // cents, -50..+50
@@ -59,11 +59,19 @@ struct EngineParameters {
     float velocityToHardness = 0.20f; // 0..1 depth: softer strikes reduce the base value
     float velocityToPosition = 0.0f;  // 0..1 depth, applied per strike after the velocity curve
     float velocityToDecay = 0.20f;    // 0..1 depth; full velocity retains the base decay
+    // The same per-strike law for seven more controls; 0 leaves them fixed.
+    float velocityToCarving = 0.0f;
+    float velocityToCoupling = 0.0f;
+    float velocityToBloom = 0.0f;       // the strike's drive into the frame (or kalimba box) resonances
+    float velocityToSympathetic = 0.0f; // the strike's drive into the ringing-along keys
+    float velocityToBuzz = 0.0f;
+    float velocityToTension = 0.0f;
+    float velocityToArtifacts = 0.0f;
 
     int tuningScale = 0;            // ETuningScale: Equal, Bala, Timbila, Pentatonic, Sambla, Gyil, Valimba
     int noteOffMode = 0;            // 0: Ring (bars ring freely), 1: Damp (hand/finger stops the key),
-                                    // 2: Dead (the mallet, thumb or bow stays on the key while it is held)
-    float modWheel = 0.0f;          // 0..1: roll speed on mallet models (bow speed with the bow), hole cover on Kalimba
+                                    // 2: Dead (the mallet or thumb stays on the key while it is held)
+    float modWheel = 0.0f;          // 0..1: roll speed on mallet models, hole cover on Kalimba
     float carving = 1.0f;           // 0..1: 0 uncarved bars .. 1 the keys as built
     float membraneTension = 0.5f;   // 0..1: buzz membranes slack .. tight (0.5 as voiced)
 };
@@ -104,6 +112,10 @@ public:
 
     int GetActiveVoiceCount() const;             // voices that are still sounding (including fading ones)
 
+    // Mod-wheel roll strokes struck since the last call (the wrapper lights
+    // its Note lamp for them as for any strike).
+    int TakeRollStrokes() { const int strokes = mRollStrokes; mRollStrokes = 0; return strokes; }
+
     // True when no voice is sounding and every tail (mesh, body, room, filters,
     // decimators) has decayed below audibility and been flushed to zero. The
     // caller may then skip RenderBatch and leave the outputs unwritten.
@@ -143,6 +155,7 @@ private:
     void ConfigureForRate();           // rate-dependent coefficients (no allocation)
     void ConfigureModel();             // model-dependent coefficients
     void ApplyGlobalTuning();          // retune ringing voices + mesh when tune/bend changed
+    void ConfigureSympathetic(float globalCents);
     void FlushTails();                 // clear every shared tail (mesh, body, room, dynamics, decimators)
     void ApplyFactorSwitch();          // end of the oversampling fade: reset and switch the rate
     void CancelFactorSwitch();         // oversampling set back to the active factor during the fade
@@ -150,8 +163,6 @@ private:
     int TriggerNote(int noteNumber, float velocity, float positionOffset = 0.0f);   // returns the slot used
     void AdvanceRolls();               // mod-wheel rolls on held keys (mallet models)
     bool RollsPending() const;
-    bool Bowing() const { return mParams.malletType == kStrikerBow; }
-    float BowSpeedScale() const;
     void ApplyKalimbaAir();
     int CountLiveVoices() const;
     int FindStealVictim() const;
@@ -195,7 +206,16 @@ private:
     bool mTailsSilent = true;
 
     std::array<MarembaVoice, kVoicePoolSize> mVoices;
+    // Each slot's latest strike, after its velocity routes: its share of the
+    // shared body and sympathetic drives, its air coupling into the kalimba
+    // box, and the factors on the live Buzz and Tension knobs (all 1 without
+    // velocity sensitivity).
+    struct StrikeRoute {
+        float body = 1.0f, sympathetic = 1.0f, boxAir = 1.0f, buzz = 1.0f, tension = 1.0f;
+    };
+    std::array<StrikeRoute, kVoicePoolSize> mRoutes{};
     std::array<RadiationCacheEntry, 128> mRadiationCache{};
+    std::array<float, 128> mKeyDetune{};   // each key's Detune offset (cents), for the sympathetic keys
     MicMixer mMicMixer;
     AnalogPreamp mPreamp;
     AnalogLimiter mLimiter;
@@ -205,6 +225,7 @@ private:
     SympatheticMesh mSympathetic;
     FrameBody mFrameBody;
     KalimbaBody mKalimbaBody;
+    std::array<double, 128> mTineSide{};   // each note's tine across the bridge (KalimbaTineSide)
     bool mKalimbaBodyRunning = false;
     float mCover = 0.0f;               // smoothed kalimba hole cover
     FastPRNG mPrng;
@@ -220,6 +241,7 @@ private:
     };
     std::array<KeyState, 128> mKeys{};
     int mHeldKeys = 0;                 // keys down (a held key can start a roll while silent)
+    int mRollStrokes = 0;              // roll strokes since the wrapper last asked (its Note lamp)
     bool mMeshDamping = false;         // transport stop: hands damp the ringing-along keys too
     double mMeshDampPole = 1.0;
     double mClock = 0.0;               // output frames since reset
