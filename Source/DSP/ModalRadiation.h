@@ -41,10 +41,7 @@ struct ModalRadiationReadout {
 inline ModalRadiationGeometry GetModalRadiationGeometry(EMarimbaModel model, double fundamentalHz,
                                                         double barLength = 0.0, double barWidth = 0.0) {
     const double scale = std::sqrt(261.625565 / std::clamp(fundamentalHz, 16.0, 20000.0));
-    double closeStrength = .16, farStrength = .34;
-    if (model == EMarimbaModel::MayanPadauk) {
-        closeStrength = .18; farStrength = .36;
-    } else if (model == EMarimbaModel::KalimbaArtisan) {
+    if (model == EMarimbaModel::KalimbaArtisan) {
         const double length = std::clamp(.061 * std::pow(261.625565 / std::clamp(fundamentalHz, 16.0, 20000.0), .55),
                                          .018, .120);
         return {length, .0045, {.88 * length, .008, .028},
@@ -53,30 +50,95 @@ inline ModalRadiationGeometry GetModalRadiationGeometry(EMarimbaModel model, dou
     const double length = barLength > 0.0 ? barLength : std::clamp(.350 * scale, .115, .720);
     const double width = barWidth > 0.0 ? barWidth : std::clamp(.055 * std::sqrt(scale), .030, .080);
     return {length, width, {.33 * length, .020, .080},
-            {.55 * length, .25, .90}, closeStrength, farStrength};
+            {.55 * length, .25, .90}, 1.0, 1.0};
 }
 
-// 32-point Gauss-Legendre rule on [0, 1]; the voice samples each mode's shape
+// Pressure from the moving bar face scales with its emitting area. The
+// existing model-specific pressure calibration is the C4 bar reference;
+// carrying its area to every key would make small treble bars unrealistically
+// strong acceleration sources. Carving changes thickness/shapes, not the
+// face's length and width. This relative conversion is not absolute SPL:
+// the geometry and microphone positions remain voiced approximations.
+inline double BarAcousticAreaScale(EMarimbaModel model, double length, double width) {
+    // C4 is an exact generated anchor. Read only its face dimensions rather
+    // than interpolating every mode and carving shape again on each strike.
+    constexpr int referenceIndex = 12;
+    static_assert(kRosewoodBars[referenceIndex].midi == 60.0
+               && kHormigoBars[referenceIndex].midi == 60.0
+               && kBalafonBars[referenceIndex].midi == 60.0, "C4 bar anchor moved");
+    const auto& reference = BarAnchors(model)[referenceIndex];
+    return length * width / (reference.lengthM * reference.widthM);
+}
+
+// 64-point Gauss-Legendre rule on [0, 1]; the voice samples each mode's shape
 // at these abscissae once per strike.
-static constexpr int kRadiationNodes = 32;
+static constexpr int kRadiationNodes = 64;
 struct ModalRadiationNode { double x, weight; };
 static constexpr ModalRadiationNode kModalRadiationNodes[kRadiationNodes] = {
-    {0.0013680690752592151, 0.0035093050047345703}, {0.0071942442273658647, 0.0081371973654531422},
-    {0.017618872206246805, 0.012696032654630965}, {0.032546962031130167, 0.017136931456510782},
-    {0.051839422116973954, 0.021417949011113449}, {0.075316193133715015, 0.025499029631188132},
-    {0.10275810201602881, 0.02934204673926781}, {0.13390894062985514, 0.032911111388180848},
-    {0.16847786653489238, 0.036172897054424218}, {0.20614212137961885, 0.039096947893535135},
-    {0.24655004553388532, 0.04165596211347343}, {0.28932436193468236, 0.043826046502201947},
-    {0.33406569885893617, 0.045586939347881959}, {0.38035631887393145, 0.046922199540402242},
-    {0.42776401920860174, 0.047819360039637424}, {0.47584616715613082, 0.048270044257363927},
-    {0.52415383284386918, 0.048270044257363927}, {0.57223598079139826, 0.047819360039637424},
-    {0.61964368112606849, 0.046922199540402242}, {0.66593430114106389, 0.045586939347881959},
-    {0.71067563806531764, 0.043826046502201947}, {0.75344995446611462, 0.04165596211347343},
-    {0.79385787862038115, 0.039096947893535135}, {0.83152213346510762, 0.036172897054424218},
-    {0.86609105937014486, 0.032911111388180848}, {0.89724189798397114, 0.02934204673926781},
-    {0.92468380686628504, 0.025499029631188132}, {0.94816057788302599, 0.021417949011113449},
-    {0.96745303796886983, 0.017136931456510782}, {0.98238112779375319, 0.012696032654630965},
-    {0.99280575577263419, 0.0081371973654531422}, {0.99863193092474078, 0.0035093050047345703},
+    {0.00034747913211391479, 0.00089164036084813389},
+    {0.0018299416140223901, 0.0020735166302812604},
+    {0.0044933142616278565, 0.003252228984489184},
+    {0.0083318730576870115, 0.0044233799131819674},
+    {0.013336586105044512, 0.0055840697300655381},
+    {0.019495600173973116, 0.0067315239483593681},
+    {0.026794312570798617, 0.0078630152380123938},
+    {0.035215413934030215, 0.0089758578878486681},
+    {0.044738931460748588, 0.01006741157676511},
+    {0.05534227700244293, 0.011135086904191606},
+    {0.06700030092295356, 0.012176351284355466},
+    {0.079685351873709787, 0.013188734857527322},
+    {0.093367342438601231, 0.01416983630712973},
+    {0.10801382052832931, 0.015117328536201213},
+    {0.12359004636973403, 0.016028964177425803},
+    {0.14005907491419456, 0.016902580918570807},
+    {0.15738184347288336, 0.017736106628441179},
+    {0.17551726437267134, 0.018527564270120034},
+    {0.19442232241380336, 0.019275076589307799},
+    {0.214052176898683, 0.019976870566360182},
+    {0.23436026799005272, 0.020631281621311774},
+    {0.25529842714647355, 0.021236757561826813},
+    {0.27681699137326798, 0.021791862264661736},
+    {0.29886492101800421, 0.02229527908187829},
+    {0.32138992083116591, 0.022745813963709061},
+    {0.34433856400489449, 0.023142398290657198},
+    {0.36765641889561629, 0.023484091408104996},
+    {0.39128817812999644, 0.023770082857415158},
+    {0.41517778978800357, 0.023999694298229166},
+    {0.43926859035193971, 0.024172381117401449},
+    {0.46350343910610048, 0.024287733720751697},
+    {0.48782485366828776, 0.024345478504569865},
+    {0.51217514633171224, 0.024345478504569865},
+    {0.53649656089389952, 0.024287733720751697},
+    {0.56073140964806023, 0.024172381117401449},
+    {0.58482221021199643, 0.023999694298229166},
+    {0.6087118218700035, 0.023770082857415158},
+    {0.63234358110438371, 0.023484091408104996},
+    {0.65566143599510551, 0.023142398290657198},
+    {0.67861007916883409, 0.022745813963709061},
+    {0.70113507898199579, 0.02229527908187829},
+    {0.72318300862673202, 0.021791862264661736},
+    {0.74470157285352645, 0.021236757561826813},
+    {0.76563973200994728, 0.020631281621311774},
+    {0.78594782310131706, 0.019976870566360182},
+    {0.80557767758619669, 0.019275076589307799},
+    {0.82448273562732866, 0.018527564270120034},
+    {0.84261815652711669, 0.017736106628441179},
+    {0.85994092508580544, 0.016902580918570807},
+    {0.87640995363026597, 0.016028964177425803},
+    {0.89198617947167069, 0.015117328536201213},
+    {0.90663265756139877, 0.01416983630712973},
+    {0.92031464812629027, 0.013188734857527322},
+    {0.93299969907704638, 0.012176351284355466},
+    {0.94465772299755701, 0.011135086904191606},
+    {0.95526106853925141, 0.01006741157676511},
+    {0.96478458606596984, 0.0089758578878486681},
+    {0.97320568742920144, 0.0078630152380123938},
+    {0.98050439982602688, 0.0067315239483593681},
+    {0.98666341389495549, 0.0055840697300655381},
+    {0.99166812694231299, 0.0044233799131819674},
+    {0.99550668573837209, 0.003252228984489184},
+    {0.99817005838597761, 0.0020735166302812604},
+    {0.99965252086788614, 0.00089164036084813389},
 };
 
 // Bounded directional coherence of signed surface motion. This is the spatial
@@ -90,8 +152,9 @@ static constexpr ModalRadiationNode kModalRadiationNodes[kRadiationNodes] = {
 // removed, so this readout introduces no device latency. Finite arrival fronts,
 // edge diffraction, the underside, and frame scattering are not simulated.
 //
-// 32-point Gauss-Legendre quadrature along the length (shape sampled at the
-// nodes by the caller) and two-point Gaussian quadrature across the width. All
+// 64-point Gauss-Legendre quadrature along the length (shape sampled at the
+// nodes by the caller), resolving the rapid propagation phase of bass bars'
+// upper modes, and two-point Gaussian quadrature across the width. All
 // of this runs at note-on, never in ProcessSample.
 // The path from every quadrature point to one microphone: the distance
 // weighting and the path difference to the bar's centre. It depends on the
@@ -187,12 +250,14 @@ inline ModalRadiationSetup PrepareModalRadiation(const ModalRadiationGeometry& g
 inline ModalRadiationReadout ComputeModalRadiation(int mode, double frequencyHz,
         const ModalRadiationSetup& setup, const double* shapeAtNodes) {
     // The fundamental's direct field is carried by the dipole efficiency;
-    // upper modes blend a bounded spatial correction (lobe cancellation and
-    // path differences to each microphone). Fixed quadrature keeps trigger
-    // work bounded.
+    // Upper bar modes use the complete signed surface field: retaining an
+    // unprojected point-source share would bypass opposite-lobe cancellation
+    // and add a coherent acceleration spike on hard strikes. Tines retain
+    // their existing small correction; most of their sound leaves through
+    // the bridge. Fixed quadrature keeps trigger work bounded.
     if (mode == 0) return {};
     const auto blend = [](ModalRadiationCoefficient field, double strength) {
-        strength = std::clamp(strength, 0.0, .4);
+        strength = std::clamp(strength, 0.0, 1.0);
         return ModalRadiationCoefficient{1.0 - strength + strength * field.real,
                                          strength * field.imag};
     };

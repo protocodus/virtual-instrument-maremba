@@ -24,7 +24,7 @@ std::array<double, maremba::kRadiationNodes> sample(Shape&& shape) {
     return values;
 }
 // The same top-face projection integrated densely (midpoint rule), as the
-// reference for the voice's 32-point quadrature.
+// reference for the voice's 64-point quadrature.
 template <typename Shape>
 maremba::ModalRadiationCoefficient dense(Shape&& shape, double hz, const maremba::ModalRadiationGeometry& g,
                                          const maremba::ModalRadiationPoint& mic, int points = 4096) {
@@ -82,8 +82,21 @@ int main() {
                 for (const auto coefficient : {readout.close, readout.far}) {
                     require(std::isfinite(coefficient.real) && std::isfinite(coefficient.imag),
                             "radiation coefficient is not finite");
-                    require(magnitude(coefficient) <= 1.0 + 1.e-12 && magnitude(coefficient) >= .2 - 1.e-12,
-                            "spatial correction amplified or excessively suppressed an upper mode");
+                    require(magnitude(coefficient) <= 1.0 + 1.e-12,
+                            "spatial projection amplified an upper mode");
+                    if (tine) require(magnitude(coefficient) >= .2 - 1.e-12,
+                                      "the existing tine correction changed");
+                }
+                const auto closeField = ProjectModalSurface(shapes.data(), hz, geometry, geometry.close);
+                const auto farField = ProjectModalSurface(shapes.data(), hz, geometry, geometry.far);
+                if (!tine) {
+                    require(difference(readout.close, closeField) < 1.e-12
+                         && difference(readout.far, farField) < 1.e-12,
+                            "bar readout retained an unprojected coherent pressure component");
+                } else {
+                    require(difference(readout.close, {.88 + .12 * closeField.real, .12 * closeField.imag}) < 1.e-12
+                         && difference(readout.far, {.72 + .28 * farField.real, .28 * farField.imag}) < 1.e-12,
+                            "bar radiation change altered the tine's existing readout");
                 }
                 if (hz < 20000.0) {
                     balanceChange = std::max(balanceChange, std::abs(magnitude(readout.close) - magnitude(readout.far)));
@@ -115,11 +128,16 @@ int main() {
     const auto leftOdd = ProjectModalSurface(odd.data(), 1046.50226, geometry, left);
     const auto rightOdd = ProjectModalSurface(odd.data(), 1046.50226, geometry, right);
     require(magnitude(centreOdd) < 1.e-12, "symmetric observation failed to cancel an antisymmetric bending mode");
+    auto centredGeometry = geometry;
+    centredGeometry.close = centredGeometry.far = centre;
+    const auto centredReadout = ComputeModalRadiation(1, 1046.50226, centredGeometry, odd.data());
+    require(magnitude(centredReadout.close) < 1.e-12 && magnitude(centredReadout.far) < 1.e-12,
+            "opposite lobes cancel geometrically but the audible readout retains a point source");
     require(magnitude(leftOdd) > .03, "off-axis observation did not reveal the antisymmetric mode");
     require(magnitude({leftOdd.real + rightOdd.real, leftOdd.imag + rightOdd.imag}) < 1.e-12,
             "mirrored microphone did not reverse antisymmetric spatial radiation");
 
-    // Isolate distance from the differently voiced Close/Far correction strengths.
+    // Isolate the microphone distance while retaining the same modal shape.
     const ModalRadiationPoint near{geometry.length * .33, .02, .06};
     const ModalRadiationPoint distant{geometry.length * .33, .02, 1.2};
     const auto nearOdd = ProjectModalSurface(odd.data(), 1046.50226, geometry, near);

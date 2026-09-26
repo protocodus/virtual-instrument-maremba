@@ -155,9 +155,9 @@ void render(MarembaEngine& engine, int count, bool mustBeZero = false) {
                 peakCases[channel] = where + " frame=" + std::to_string(static_cast<long long>(before) + i - 1);
             }
             if (mustBeZero) require(sample == 0, "reset/ignored note leaked audio");
+            require(std::abs(sample) <= .940002,
+                    "output escaped smooth headroom ceiling, including limiter bypass/automation");
             if (channel < 2) {
-                require(std::abs(sample) <= .940002,
-                        "main output escaped smooth headroom ceiling, including limiter bypass/automation");
                 const bool limited = p.compAmount > 0;
                 if (observeChord) {
                     if (havePreviousMain || i > 1) chordStep = std::max(chordStep, std::abs(sample - previousMain[channel]));
@@ -174,11 +174,6 @@ void render(MarembaEngine& engine, int count, bool mustBeZero = false) {
                 if (limited) {
                     limitedPeak = std::max(limitedPeak, std::abs(sample));
                 }
-            } else {
-                // Direct captures are uncompressed floating-point stems,
-                // independently trimmed. Extreme extrapolated keys may
-                // exceed full scale; 32 bounds instability, not audibility.
-                require(std::abs(sample) <= 32, "direct capture exceeded its independent stability bound");
             }
             if (observeChord) {
                 std::uint32_t bits;

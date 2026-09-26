@@ -24,6 +24,32 @@ struct MarembaVoiceTestAccess {
         return v.mTorsion[n].w * v.mSampleRate / (2.0 * 3.14159265358979323846);
     }
     static double TorsionDrive(const MarembaVoice& v, int n) { return v.mTorsionDrive[n]; }
+    static double SampleRate(const MarembaVoice& v) { return v.mSampleRate; }
+    static int Membranes(const MarembaVoice& v) { return v.mNumMembranes; }
+    static bool AnyTaut(const MarembaVoice& v) {
+        for (int i = 0; i < v.mNumMembranes; ++i) if (v.mMembranes[i].Taut()) return true;
+        return false;
+    }
+    static bool MatchesLinearShadow(const MarembaVoice& v) {
+        for (int i = 0; i < v.mNumMembranes; ++i) {
+            const auto& membrane = v.mMembranes[i];
+            if (membrane.mX != membrane.mLinearX || membrane.mV != membrane.mLinearV) return false;
+        }
+        return true;
+    }
+    static double MembraneEnergy(const MarembaVoice& v) { return v.MembraneEnergy(); }
+    static double SlapEnvelope(const MarembaVoice& v) { return v.mSlapNoise; }
+    static bool MembranesFinite(const MarembaVoice& v) {
+        for (int i = 0; i < v.mNumMembranes; ++i) if (!v.mMembranes[i].IsFinite()) return false;
+        return std::isfinite(v.mSlapNoise);
+    }
+};
+struct MarembaEngineTestAccess {
+    static MarembaVoice TriggeredVoice(const MarembaEngine& engine, bool& found) {
+        for (const auto& voice : engine.mVoices) if (voice.IsActive()) { found = true; return voice; }
+        found = false;
+        return {};
+    }
 };
 }
 
@@ -44,6 +70,38 @@ maremba::EngineParameters clean(int model) {
     p.farLevel = p.piezoLevel = p.preampDrive = p.compAmount = p.warmth = 0;
     p.closeLevel = p.volume = 1;
     return p;
+}
+
+struct MembraneObservation {
+    bool found = false, linear = true, finite = true;
+    int count = 0, tautSamples = 0;
+    double peakEnergy = 0, peakSlapEnvelope = 0;
+};
+MembraneObservation membraneThreshold(int model, float buzz, float velocity) {
+    auto p = clean(model);
+    p.buzzAmount = buzz;
+    maremba::MarembaEngine engine(rate);
+    engine.SetParameters(p);
+    engine.NoteOn(60, velocity);
+    MembraneObservation result;
+    // Copy the exact engine-created physical voice, including velocity curve,
+    // per-slot seed and routed controls. Inspect every internal sample: host
+    // block boundaries could miss a short crossing of the membrane limit.
+    auto voice = maremba::MarembaEngineTestAccess::TriggeredVoice(engine, result.found);
+    using Access = maremba::MarembaVoiceTestAccess;
+    result.count = Access::Membranes(voice);
+    const int samples = static_cast<int>(.4 * Access::SampleRate(voice));
+    for (int i = 0; i < samples; ++i) {
+        float close, far, piezo;
+        voice.ProcessSample(close, far, piezo);
+        result.tautSamples += Access::AnyTaut(voice);
+        result.linear = result.linear && Access::MatchesLinearShadow(voice);
+        result.finite = result.finite && Access::MembranesFinite(voice);
+        result.peakEnergy = std::max(result.peakEnergy, Access::MembraneEnergy(voice));
+        result.peakSlapEnvelope = std::max(result.peakSlapEnvelope, Access::SlapEnvelope(voice));
+        if ((i & 31) == 31) voice.UpdateEnvelope();
+    }
+    return result;
 }
 
 // Close L+R of one strike, dry; optional restrikes (seconds) of the same key.
@@ -273,9 +331,12 @@ int main() {
     }
 
     // 5. Slack membranes: gated by stroke force, formant-coloured, releasable.
-    // Below the taut limits the membrane is linear: its faint slack radiation
-    // keeps the same level relative to the note at any velocity. Snaps above
-    // the threshold add energy out of proportion to the stroke.
+    // Below the taut limits the membrane must equal its linear shadow and
+    // lose no energy through contact. The old soft-buzz/dry-note ratio was
+    // not a snap oracle: velocity changes the dry note's modal balance, and
+    // its acoustic projection changes that denominator independently of the
+    // membrane. Inspect actual limit crossings; retain the audible forte
+    // growth and formant checks below.
     {
         std::array<double, 2> buzzCentroid{};
         const auto layer = [](int model, float buzz, float velocity) {
@@ -293,7 +354,22 @@ int main() {
             const double quiet = relative(.5f, .2f), soft = relative(.5f, .3f), forte = relative(.5f, 1);
             const auto full = layer(model, 1, 1);
             buzzCentroid[model == 2 ? 0 : 1] = centroid(full.first, .005, .1);
-            check(std::abs(soft - quiet) < 1, std::string("membrane snaps on soft strokes at medium Buzz: ") + names[model]);
+            for (float velocity : {.2f, .3f, 1.f}) {
+                const auto observed = membraneThreshold(model, .5f, velocity);
+                check(observed.found && observed.finite && observed.count > 0 && observed.peakEnergy > 0,
+                      std::string("membrane threshold fixture did not excite its membrane: ") + names[model]);
+                if (velocity < 1) {
+                    check(observed.tautSamples == 0 && observed.linear && observed.peakSlapEnvelope == 0,
+                          std::string("membrane snaps on soft strokes at medium Buzz: ") + names[model]);
+                } else {
+                    check(observed.tautSamples > 0 && !observed.linear && observed.peakSlapEnvelope > 0,
+                          std::string("forte stroke never reaches its membrane's taut limits: ") + names[model]);
+                }
+                std::cout << "MEMBRANE_STATE model=" << names[model] << " velocity=" << velocity
+                          << " taut_samples=" << observed.tautSamples << " linear_shadow=" << observed.linear
+                          << " peak_energy=" << observed.peakEnergy
+                          << " peak_slap_envelope=" << observed.peakSlapEnvelope << '\n';
+            }
             check(forte - soft > 10, std::string("forte strokes do not cross the buzz threshold: ") + names[model]);
             check(db(energy(highPass(full.first)) / energy(full.second)) > -30,
                   std::string("a forte stroke at full Buzz barely buzzes: ") + names[model]);

@@ -114,9 +114,9 @@ void commonGeometry() {
                 const double readoutError = strength * error;
                 worstReadout = std::max(worstReadout, readoutError);
                 // Gate the audible coefficient, including the disclosed blend.
-                // 32 Gauss points resolve the close microphone's near-field
-                // phase through 8 kHz; the bass bars' modes above it (10-15,
-                // gone within tens of milliseconds) read up to 4 % off.
+                // 64 Gauss points resolve the close microphone's near-field
+                // phase. Require 1 % accuracy through 8 kHz, with a 4 % bound
+                // for higher, short-lived partials of the bass bars.
                 check(std::isfinite(error) && std::abs(actual) <= 1 + 1.e-12,
                       "non-finite/unbounded normalized radiation field");
                 check(readoutError < (actualHz < 8000 ? .01 : .04),

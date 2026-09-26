@@ -956,9 +956,9 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
             return;
         }
 
-        // Smooth gain anticipates overloads by 2 ms, preserving quiet signal
-        // level and avoiding the former per-sample peak rounding. Direct taps
-        // retain their independent trim and receive the same delay only.
+        // Independent Main/Close/Room/Piezo gain controllers anticipate
+        // overloads by 2 ms. Quiet audio retains its level; one hot capture
+        // cannot turn down another. Every stereo pair shares its gain.
         mOutputHeadroom.Process(frame);
         outMainL[f] = frame[0] * mSwitchGain;
         outMainR[f] = frame[1] * mSwitchGain;

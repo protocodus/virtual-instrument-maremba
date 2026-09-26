@@ -61,7 +61,11 @@ bool same(const maremba::StrikeCharacter& a, const maremba::StrikeCharacter& b) 
 using Hits = std::vector<std::vector<float>>;
 Hits render(maremba::MarembaEngine& engine) {
     Hits hits;
-    for (int hit = 0; hit < 12; ++hit) {
+    // Physical contact is nonlinear: a twelve-hit median can move down when
+    // its physical spread increases. Use forty-eight uninterrupted strikes
+    // so low-range timbre gates measure the ensemble rather than one short
+    // phrase, while retaining the same seeds, reset replay and thresholds.
+    for (int hit = 0; hit < 48; ++hit) {
         check(engine.IsSilent(), "public-engine strike did not start from silence");
         engine.NoteOn(60, 90.f / 127);
         std::vector<float> clip;

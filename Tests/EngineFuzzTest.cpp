@@ -30,7 +30,7 @@
 // Invariants (fuzz):
 //   I1  every written sample is finite; RenderBatch writes exactly
 //       min(frameCount, 64) frames of every non-null output and nothing else
-//   I2  |main| <= 0.94 for every Limit setting and during live transitions;
+//   I2  every connected output <= 0.94 for every Limit setting and live transition;
 //       volume is always <= 1 after sanitising
 //   I3  GetActiveVoiceCount() <= kVoicePoolSize
 //   I4  the last-resort output guard (Reset inside RenderBatch) never fires
@@ -408,6 +408,11 @@ int RenderChecked(MarembaEngine& e, Tracker& t, int frameCount, unsigned mask, b
             if (shouldWrite && (v == kSentinel || !std::isfinite(v))) {
                 gReport.Fail(Fmt("%s: output %d frame %d %s (frameCount %d)", t.where.c_str(), c, f,
                                  v == kSentinel ? "left unwritten" : "is not finite", frameCount));
+                return expected;
+            }
+            if (shouldWrite && std::abs(v) > kCeiling * 1.000001f) {
+                gReport.Fail(Fmt("%s: output %d frame %d escaped the 0.94 headroom ceiling: %.6f",
+                                 t.where.c_str(), c, f, v));
                 return expected;
             }
         }

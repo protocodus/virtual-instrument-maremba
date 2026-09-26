@@ -21,6 +21,8 @@ constexpr double pi = 3.14159265358979323846;
 std::uint64_t checks = 0;
 std::string context;
 double maximumPeak = 0.0;
+constexpr std::array<int, 4> kGroupStart{0, 2, 4, 6};
+constexpr std::array<int, 4> kGroupSize{2, 2, 2, 1};
 
 void require(bool condition, const char* message) {
     ++checks;
@@ -55,20 +57,21 @@ void verifyDelay(const Audio& input, const Audio& output, int delay, bool quiet)
         const Frame expected = i < static_cast<std::size_t>(delay) ? Frame{} : input[i - delay];
         for (int c = 0; c < 7; ++c) {
             require(std::isfinite(output[i][c]), "nonfinite output");
-            if (c >= 2 || quiet)
-                require(output[i][c] == expected[c], "quiet signal or independent stem changed beyond its delay");
+            if (quiet)
+                require(output[i][c] == expected[c], "quiet signal changed beyond its delay");
+            const double peak = std::abs(static_cast<double>(output[i][c]));
+            maximumPeak = std::max(maximumPeak, peak);
+            require(peak <= static_cast<double>(OutputHeadroom::kCeiling) + 1.5e-7,
+                    "lookahead failed to catch an arbitrary transient on one of seven outputs");
         }
-        const double peak = std::max(std::abs(output[i][0]), std::abs(output[i][1]));
-        maximumPeak = std::max(maximumPeak, peak);
-        require(peak <= static_cast<double>(OutputHeadroom::kCeiling) + 1.5e-7,
-                "lookahead failed to catch an arbitrary transient");
-        if (!quiet) {
-            // A common gain must preserve polarity, stereo balance and nulls.
-            const double cross = static_cast<double>(output[i][0]) * expected[1]
-                               - static_cast<double>(output[i][1]) * expected[0];
-            const double scale = std::max(1.0, std::abs(static_cast<double>(expected[0]))
-                                              + std::abs(static_cast<double>(expected[1])));
-            require(std::abs(cross) < 2e-7 * scale, "main channels received different gain or delay");
+        if (!quiet) for (int group = 0; group < 3; ++group) {
+            // Each stereo pair shares gain; none of the other captures does.
+            const int left = kGroupStart[group], right = left + 1;
+            const double cross = static_cast<double>(output[i][left]) * expected[right]
+                               - static_cast<double>(output[i][right]) * expected[left];
+            const double scale = std::max(1.0, std::abs(static_cast<double>(expected[left]))
+                                              + std::abs(static_cast<double>(expected[right])));
+            require(std::abs(cross) < 2e-7 * scale, "stereo capture received different channel gains or delays");
         }
     }
 }
@@ -81,16 +84,16 @@ void quietAndReset(double rate) {
     std::uint32_t seed = 0xdeadbeefu;
     for (std::size_t i = 0; i + delay < input.size(); ++i) {
         for (int c = 0; c < 7; ++c)
-            input[i][c] = randomSigned(seed) * (c < 2 ? 0.25f : 12.0f);
+            input[i][c] = randomSigned(seed) * 0.25f;
     }
     OutputHeadroom processor;
     processor.SetSampleRate(rate);
     const Audio first = process(processor, input, 64);
     verifyDelay(input, first, delay, true);
     // Contaminate audio, gain and minimum history, then prove Reset clears all
-    // of them. Large direct stems must never turn down a quiet main signal.
+    // of them in every group. Independent loud stems are exercised below.
     for (int i = 0; i < 3 * delay; ++i) {
-        Frame loud {100.0f, -300.0f, 1, 2, 3, 4, 5};
+        Frame loud {100.0f, -300.0f, 200, -150, 75, -100, 500};
         processor.Process(loud);
     }
     processor.Reset();
@@ -116,8 +119,8 @@ void transients(double rate) {
                           phase == 2 ? 300.0f : phase == 3 ? 2.0f :
                           phase == 4 ? static_cast<float>(i % (delay + 1)) : 0.9f;
         for (int c = 0; c < 7; ++c)
-            input[i][c] = randomSigned(seed) * (c < 2 ? amplitude : 7.0f);
-        if (i % (delay + 7) == 0) input[i][i % 2] = (i % 3 ? -1 : 1) * 1000.0f;
+            input[i][c] = randomSigned(seed) * amplitude;
+        if (i % (delay + 7) == 0) input[i][i % 7] = (i % 3 ? -1 : 1) * 1000.0f;
     }
     OutputHeadroom processor;
     processor.SetSampleRate(rate);
@@ -141,47 +144,157 @@ void steadyOverload(double rate, double frequency) {
             + " frequency=" + std::to_string(frequency);
     OutputHeadroom processor;
     processor.SetSampleRate(rate);
-    double xx = 0, xy = 0, yy = 0, peak = 0;
+    double xx = 0;
+    std::array<double, 4> xy{}, yy{}, peak{};
     // Fit a gain to the delayed sine after one second of settling. This
     // measures added components, not an apparent error caused by latency.
     for (int i = 0; i < static_cast<int>(2 * rate); ++i) {
         const float x = static_cast<float>(2.0 * std::sin(2 * pi * frequency * i / rate));
-        Frame frame {x, -0.5f * x, x, x, x, x, x};
+        Frame frame {x, -0.5f * x, x, -0.5f * x, x, -0.5f * x, x};
         processor.Process(frame);
         if (i < rate) continue;
         const float delayed = static_cast<float>(2.0 * std::sin(2 * pi * frequency * (i - delay) / rate));
-        require(frame[2] == delayed, "steady direct stem lost its exact delay");
         xx += static_cast<double>(delayed) * delayed;
-        xy += static_cast<double>(delayed) * frame[0];
-        yy += static_cast<double>(frame[0]) * frame[0];
-        peak = std::max(peak, std::abs(static_cast<double>(frame[0])));
+        for (int group = 0; group < 4; ++group) {
+            const int channel = kGroupStart[group];
+            xy[group] += static_cast<double>(delayed) * frame[channel];
+            yy[group] += static_cast<double>(frame[channel]) * frame[channel];
+            peak[group] = std::max(peak[group], std::abs(static_cast<double>(frame[channel])));
+            require(frame[channel] == frame[0], "equal overloads received unequal group protection");
+            if (group < 3) require(frame[channel + 1] == -.5f * frame[channel],
+                                   "steady stereo overload changed balance or polarity");
+        }
     }
-    const double gain = xy / xx;
-    const double residual = std::sqrt(std::max(0.0, yy - xy * xy / xx) / yy);
-    require(peak <= static_cast<double>(OutputHeadroom::kCeiling) + 1.5e-7, "steady overload exceeds ceiling");
-    require(gain > 0.45 && gain < 0.60, "steady overload lost excessive level or fails to attenuate");
-    // The gain hold must span bass half-cycles, not merely the lookahead.
-    // Otherwise recovery between successive peaks modulates even a sustained
-    // 20 Hz sine. Fractional frequencies avoid relying on repeated sample phases.
-    std::cout << "STEADY rate=" << rate << " frequency=" << frequency << " gain=" << gain
-              << " peak=" << peak << " residual=" << residual
-              << " residual_db=" << 20 * std::log10(std::max(residual, 1e-15)) << '\n';
-    require(residual < 1e-4, "held overload gain adds steady-waveform components above -80 dB");
+    for (int group = 0; group < 4; ++group) {
+        const double gain = xy[group] / xx;
+        const double residual = std::sqrt(std::max(0.0, yy[group] - xy[group] * xy[group] / xx) / yy[group]);
+        require(peak[group] <= static_cast<double>(OutputHeadroom::kCeiling) + 1.5e-7, "steady overload exceeds ceiling");
+        require(gain > 0.45 && gain < 0.60, "steady overload lost excessive level or fails to attenuate");
+        // The gain hold must span bass half-cycles, not merely the lookahead.
+        // Otherwise recovery between successive peaks modulates even a sustained
+        // 20 Hz sine. Fractional frequencies avoid relying on repeated sample phases.
+        std::cout << "STEADY rate=" << rate << " frequency=" << frequency << " gain=" << gain
+                  << " group=" << group << " peak=" << peak[group] << " residual=" << residual
+                  << " residual_db=" << 20 * std::log10(std::max(residual, 1e-15)) << '\n';
+        require(residual < 1e-4, "held overload gain adds steady-waveform components above -80 dB");
+    }
+}
+
+void independentGroups(double rate) {
+    const int delay = OutputHeadroom::LatencyFrames(rate);
+    Audio quiet(static_cast<std::size_t>(rate * .08) + 2 * delay);
+    std::uint32_t seed = 0x892fc11u;
+    for (std::size_t i = 0; i + 2 * delay < quiet.size(); ++i)
+        for (float& sample : quiet[i]) sample = .15f * randomSigned(seed);
+    OutputHeadroom processor;
+    processor.SetSampleRate(rate);
+    const Audio quietOutput = process(processor, quiet, 64);
+    for (int group = 0; group < 4; ++group) {
+        context = "independent group=" + std::to_string(group) + " rate=" + std::to_string(rate);
+        Audio overloaded = quiet;
+        const int first = kGroupStart[group], end = first + kGroupSize[group];
+        for (std::size_t i = 0; i + 2 * delay < overloaded.size(); ++i)
+            for (int c = first; c < end; ++c)
+                overloaded[i][c] = (i % (delay + 1) == 0 ? 1000.f : 8.f) * randomSigned(seed);
+        processor.Reset();
+        const Audio output = process(processor, overloaded, 17);
+        verifyDelay(overloaded, output, delay, false);
+        double audiblePeak = 0;
+        for (std::size_t i = 0; i < output.size(); ++i) for (int c = 0; c < 7; ++c) {
+            if (c < first || c >= end)
+                require(output[i][c] == quietOutput[i][c], "one capture's overload ducks another capture");
+            else audiblePeak = std::max(audiblePeak, std::abs(static_cast<double>(output[i][c])));
+        }
+        require(audiblePeak > .1, "overload protection mutes the capture");
+    }
 }
 
 void independentDirectReset() {
-    context = "independent direct reset";
-    OutputHeadroom processor;
-    processor.SetSampleRate(48000);
-    const int delay = OutputHeadroom::LatencyFrames(48000);
-    for (int i = 0; i < delay; ++i) {
-        Frame frame {.1f, -.2f, 1, 2, 3, 4, 5};
+    const Frame quiet {.1f, -.2f, .3f, -.4f, .5f, -.6f, .7f};
+    for (int direct = 0; direct < 5; ++direct) {
+        context = "independent direct reset index=" + std::to_string(direct);
+        OutputHeadroom processor;
+        processor.SetSampleRate(48000);
+        const int delay = OutputHeadroom::LatencyFrames(48000);
+        for (int i = 0; i < delay; ++i) {
+            Frame frame = quiet;
+            processor.Process(frame);
+        }
+        processor.ResetDirect(direct);
+        Frame frame{};
         processor.Process(frame);
+        Frame expected = quiet; expected[direct + 2] = 0;
+        require(frame == expected, "resetting one direct output corrupts another delay");
+
+        // Reconnecting one side must clear its queued audio, without exposing
+        // hot queued audio on its still-connected stereo sibling at unity gain.
+        // Gain/minimum history is intentionally retained, including for Piezo.
+        processor.Reset();
+        OutputHeadroom reference;
+        reference.SetSampleRate(48000);
+        const int target = direct + 2;
+        const int group = target < 4 ? 1 : target < 6 ? 2 : 3;
+        const int first = kGroupStart[group], end = first + kGroupSize[group];
+        Frame loud = quiet;
+        for (int c = first; c < end; ++c) loud[c] = c % 2 ? -100.f : 300.f;
+        for (int i = 0; i < 3 * delay; ++i) {
+            Frame a = loud, b = loud; processor.Process(a); reference.Process(b);
+        }
+        processor.ResetDirect(direct);
+        double afterDelay = 0, last = 0;
+        for (int i = 0; i < 48000; ++i) {
+            Frame a = quiet, b = quiet; processor.Process(a); reference.Process(b);
+            for (int c = 0; c < 7; ++c) {
+                require(std::isfinite(a[c]) && std::abs(a[c]) <= OutputHeadroom::kCeiling + 1.5e-7f,
+                        "reconnecting an output leaked an over-ceiling sibling or sample");
+                if (c < first || c >= end) require(a[c] == b[c], "direct reset changes another group");
+                if (i < delay && c == target) require(a[c] == 0, "old disconnected samples replay on reconnect");
+                if (i < delay && c >= first && c < end && c != target)
+                    require(std::abs(a[c]) > .1f, "direct reset erased the connected stereo sibling");
+            }
+            if (i == delay) afterDelay = a[target] / quiet[target];
+            last = a[target] / quiet[target];
+        }
+        require(afterDelay < .1, "reconnect discarded still-active overload history");
+        require(last > .9999, "reconnected quiet capture fails to recover naturally");
     }
-    processor.ResetDirect(2);
-    Frame frame{};
-    processor.Process(frame);
-    require(frame == Frame{.1f, -.2f, 1, 2, 0, 4, 5}, "resetting one direct output corrupts another delay");
+}
+
+void pendingFirReset() {
+    // A .45-amplitude alternating run with one repeated sign reconstructs
+    // above the ceiling. Its large FIR estimate arrives only after the input
+    // run, so this fixture distinguishes clearing FIR history from clearing
+    // just queued audio. The unreset reference must actually reduce gain.
+    for (int direct = 0; direct < 5; ++direct) {
+        context = "pending FIR history reset index=" + std::to_string(direct);
+        OutputHeadroom processor, reference;
+        processor.SetSampleRate(48000); reference.SetSampleRate(48000);
+        const int delay = OutputHeadroom::LatencyFrames(48000);
+        const int target = direct + 2;
+        Frame baseline{.1f, .1f, .1f, .1f, .1f, .1f, .1f};
+        baseline[target] = 0;
+        for (int i = 0; i < 2 * delay + 32; ++i) {
+            Frame a = baseline, b = baseline; processor.Process(a); reference.Process(b);
+        }
+        for (int i = 0; i < 24; ++i) {
+            Frame a = baseline, b = baseline;
+            a[target] = b[target] = .45f * ((i < 16 ? i % 2 : !(i % 2)) ? 1 : -1);
+            processor.Process(a); reference.Process(b);
+            for (int c = 0; c < 7; ++c) if (c != target)
+                require(a[c] == .1f, "pending-FIR fixture engaged protection before reset");
+        }
+        processor.ResetDirect(direct);
+        bool referenceReduced = false;
+        for (int i = 0; i < 3 * delay; ++i) {
+            Frame a{.1f, .1f, .1f, .1f, .1f, .1f, .1f}, b = a;
+            processor.Process(a); reference.Process(b);
+            for (int c = 0; c < 7; ++c)
+                require(a[c] == (c == target && i < delay ? 0.f : .1f),
+                        "reset retained stale FIR history or altered another channel");
+            if (i >= delay && b[target] < .095f) referenceReduced = true;
+        }
+        require(referenceReduced, "pending-FIR fixture did not exercise delayed overload detection");
+    }
 }
 
 void quietTones() {
@@ -195,7 +308,7 @@ void quietTones() {
             Audio input(static_cast<std::size_t>(rate * .12));
             for (std::size_t i = 0; i < input.size(); ++i) {
                 const float x = static_cast<float>(.8 * std::sin(2 * pi * frequency * i / rate));
-                input[i] = {x, -x, 1, 2, 3, 4, 5};
+                input[i] = {x, -x, x, -.5f * x, .2f * x, -.75f * x, x};
             }
             OutputHeadroom processor;
             processor.SetSampleRate(rate);
@@ -204,8 +317,9 @@ void quietTones() {
     }
 }
 
-void smoothAttackAndRecovery() {
-    context = "smooth attack and recovery from an exceptional peak";
+void smoothAttackAndRecovery(int group) {
+    context = "smooth attack and recovery group=" + std::to_string(group);
+    const int channel = kGroupStart[group];
     OutputHeadroom processor;
     processor.SetSampleRate(48000);
     const int delay = OutputHeadroom::LatencyFrames(48000);
@@ -213,11 +327,13 @@ void smoothAttackAndRecovery() {
     input[960] = 100.0f;
     double previousGain = 1;
     for (std::size_t i = 0; i < input.size(); ++i) {
-        Frame frame {input[i], -input[i] * .5f, 0, 0, 0, 0, 0};
+        Frame frame{};
+        frame[channel] = input[i];
+        if (kGroupSize[group] == 2) frame[channel + 1] = -input[i] * .5f;
         processor.Process(frame);
         if (i < static_cast<std::size_t>(delay)) continue;
-        const double gain = frame[0] / static_cast<double>(input[i - delay]);
-        require(std::abs(gain - previousGain) <= 1.0 / (delay + 1) + 2e-7,
+        const double gain = frame[channel] / static_cast<double>(input[i - delay]);
+        require(std::abs(gain - previousGain) <= 1.0 / OutputHeadroom::SmoothingFrames(48000) + 2e-7,
                 "protection applies an abrupt samplewise gain step");
         previousGain = gain;
     }
@@ -228,9 +344,10 @@ void smoothAttackAndRecovery() {
     processor.Reset();
     float last = 0;
     for (int i = 0; i < 48000; ++i) {
-        Frame frame {i < 480 ? 100.0f : 1.2f, 0, 0, 0, 0, 0, 0};
+        Frame frame{};
+        frame[channel] = i < 480 ? 100.0f : 1.2f;
         processor.Process(frame);
-        last = frame[0];
+        last = frame[channel];
     }
     require(last > .935f && last <= OutputHeadroom::kCeiling + 1.5e-7f,
             "obsolete peak keeps a lesser sustained sound over-attenuated");
@@ -242,12 +359,14 @@ int main() {
     for (double rate : {22050.0, 32000.0, 44100.0, 48000.0, 88200.0, 96000.0, 176400.0, 192000.0}) {
         quietAndReset(rate);
         transients(rate);
+        independentGroups(rate);
     }
     for (double rate : {22050.0, 32000.0, 44100.0, 48000.0, 88200.0, 96000.0, 176400.0, 192000.0})
         for (double frequency : {20.0, 50.3, 100.1, 1000.0, 4000.3})
             steadyOverload(rate, frequency);
     independentDirectReset();
+    pendingFirReset();
     quietTones();
-    smoothAttackAndRecovery();
+    for (int group = 0; group < 4; ++group) smoothAttackAndRecovery(group);
     std::cout << "PASS HeadroomTest checks=" << checks << " maximum_peak=" << maximumPeak << '\n';
 }

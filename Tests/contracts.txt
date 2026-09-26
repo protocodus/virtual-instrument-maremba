@@ -5,13 +5,16 @@ PiezoPickupTest            # attached-transducer pickup: strain, mounting, loadi
 PiezoEngineTest            # complete captures, shared plate sensor, routing and tails
 CaptureRoutingTest         # independent capture coefficients and Piezo-only Drive
 HeadroomTest               # smooth overload protection, quiet unity, aligned capture latency
+HardHitOutputTest          # every hard striker, velocity 127, extreme notes and repeated 24-note chords
 MechanicalArtifactsTest    # rebounds, grazes, neighbour brushes, rattles
+ClickFilterCalibrationTest # unity-centre impact and membrane-noise filters at 32 rates
 CollisionResponseTest      # mounting collisions driven by vibration
 EngineRealismTest          # earlier engine realism contracts
 PhysicalResponseTest       # coupled air, membranes, body and halo layers
 CavityPhysicsTest          # bar-air junction energy and tuning
 Round2ResponseTest         # directional radiation, multimode air coupling
 ModalRadiationTest         # radiation geometry and projections
+AcousticReadoutTest        # finite bar area, signed surface pressure and source crest
 KalimbaModesTest           # the supported-beam tine
 KalimbaMountShapesTest     # the yielding bridge's mode shapes
 MalletContactTest          # Hertzian head: passivity, contact times

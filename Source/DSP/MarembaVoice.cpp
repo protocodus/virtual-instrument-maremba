@@ -206,17 +206,16 @@ inline void SinCosSmall(double a, double& s, double& c) {
     }
 }
 
-// Two-pole band-pass coefficients (centre gain 1 at the reference rate).
+// Two-pole resonant noise filter, with unity gain at its specified centre at
+// every rate. The all-pole response, bandwidth and ringing poles are retained.
 inline void BandPass(double hz, double bandwidth, double fs, double& c, double& s, double& b) {
     const double f = std::min(hz, fs * 0.45);
     const double q = std::max(0.3, f / std::max(bandwidth, 1.0));
     const double r = std::clamp(std::exp(-kPiD * f / (q * fs)), 0.0, 0.9999);
     const double w = kTwoPiD * f / fs;
-    const double rRef = std::clamp(std::exp(-kPiD * f / (q * kReferenceRate)), 0.0, 0.9999);
-    const double wRef = kTwoPiD * f / kReferenceRate;
     c = 2.0 * r * std::cos(w);
     s = r * r;
-    b = RateInvariantResonatorGain(1.0 - rRef * rRef, rRef, wRef, r, w);
+    b = ResonatorDenominatorAt(r, w);
 }
 
 } // namespace
@@ -782,6 +781,10 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     const auto geometry = mTine ? GetModalRadiationGeometry(model, f0)
                                 : GetModalRadiationGeometry(model, f0, key.lengthM, key.widthM);
     const ModalRadiationSetup radiation = PrepareModalRadiation(geometry);
+    // A bar's finite radiating face, relative to this model's calibrated C4
+    // key. This changes acoustic readout only, not contact energy, mounting
+    // forces, cavity exchange or pickup strain. Tines sound through the box.
+    const double acousticArea = mTine ? 1.0 : BarAcousticAreaScale(model, key.lengthM, key.widthM);
     const double footprint = mTine ? 0.02 : shaft ? GetShaftSpec(false).footprint
         : GetMalletSpec(mt).footprint * (0.8 + 0.4 * std::pow(static_cast<double>(mVelocity), 0.4));
     // A thumb presses within the last fifth of a tine: Position runs from
@@ -897,7 +900,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         } else {
             const double direct = BarDirectRadiationScale(fm, geometry.width);
             mRadiationGain[m] = params.radiationGain * kRadiationUnit * omegaSeconds * omegaSeconds
-                              * mode.toDisplacement * direct;
+                              * mode.toDisplacement * direct * acousticArea;
             mBridgeGain[m] = 0.0;
             // The cords pass the bar's motion over the felt (about 5% of the
             // length around the nodal point) to the frame, read from the
@@ -954,7 +957,8 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
             const double direct = BarDirectRadiationScale(frequency, geometry.width);
             const double edges = std::min(1.0, 0.5 * kTwoPiD * frequency / 343.0 * key.widthM);
             const double gain = params.radiationGain * kRadiationUnit * (kTwoPiD * frequency) * (kTwoPiD * frequency)
-                              * direct * edges * 0.5 * key.widthM / (kStateScale * std::sqrt(std::max(inertia, 1.0e-9)));
+                              * direct * edges * 0.5 * key.widthM * acousticArea
+                              / (kStateScale * std::sqrt(std::max(inertia, 1.0e-9)));
             mTorsionClose[n] = gain;
             mTorsionFar[n] = 0.6 * gain;
             ++mNumTorsionModes;
@@ -975,7 +979,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
                           * std::sin(mLateral.omega) / (std::sqrt(mass) * kTwoPiD * lateralHz);
             // In-plane motion radiates little.
             mLateralRadiation = 0.15 * params.radiationGain * kRadiationUnit * (kTwoPiD * lateralHz) * (kTwoPiD * lateralHz)
-                              / (kStateScale * std::sqrt(mass));
+                              * acousticArea / (kStateScale * std::sqrt(mass));
         }
     }
     for (int n = mNumTorsionModes; n < kNumTorsionModes; ++n) mTorsion[n] = ModeState{};
@@ -1540,10 +1544,12 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
         const double y = predicted[m] + mode.force * impulse;
         mode.y2 = mode.y1;
         mode.y1 = y;
-        // Read the quadrature of the free motion: this sample's force kick is
-        // a step in y, not motion yet (read as such it would be a spike whose
-        // size depends on the rate). It shows in the next sample's reading.
-        const double quadrature = (mode.r * mode.y2 - predicted[m] * mode.cosW) * mode.invSin;
+        // Both coordinates describe the same post-force oscillator state.
+        // Reading the new displacement with the old, free quadrature would
+        // give the spatial field a rate-dependent phase error during contact.
+        // The impulse's quadrature contribution is proportional to F*dt;
+        // it vanishes with the timestep rather than creating a 1/dt spike.
+        const double quadrature = (mode.r * mode.y2 - y * mode.cosW) * mode.invSin;
         barClose += mRadiation[m].close.Read(y, quadrature) * mRadiationGain[m];
         barFar += mRadiation[m].far.Read(y, quadrature) * mRadiationGain[m];
         support += y * mSupportGain[m];
