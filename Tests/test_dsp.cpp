@@ -493,6 +493,23 @@ void TestAnalogLimiterState()
         limiter.ProtectOutput(l, r);
         CHECK(l == input && r == -input * .5f, "zero amount is not an exact dry bypass");
     }
+    // Enabling on a hot signal must protect immediately, including the wet
+    // path's two-millisecond fade. Quiet bypass automation stays smooth below.
+    limiter.SetAmount(1.0f);
+    float enabledL = 32.0f, enabledR = -16.0f;
+    limiter.ProtectOutput(enabledL, enabledR);
+    CHECK(std::abs(enabledL) <= maremba::AnalogLimiter::kOutputCeiling + 1e-6f,
+          "enabling limiter left an unprotected output before its first wet sample");
+    for (int i = 0; i < 960; ++i) {
+        const float input = 32.0f * std::cos(i * .037f);
+        limiter.Process(input, -.5f * input, enabledL, enabledR);
+        limiter.ProtectOutput(enabledL, enabledR);
+        CHECK(std::max(std::abs(enabledL), std::abs(enabledR))
+              <= maremba::AnalogLimiter::kOutputCeiling + 1e-6f,
+              "live limiter engagement leaked an over-ceiling transient");
+        CHECK(std::abs(enabledR + .5f * enabledL) < 1e-6f,
+              "engagement peak protection changed stereo polarity or balance");
+    }
     auto sequence = [&]() {
         limiter.SetAmount(1.0f);
         limiter.SetTimes(12.0f, 120.0f);
@@ -1948,7 +1965,7 @@ void TestHaloRateInvariant()
 void TestDirectOutMatchesMain()
 {
     std::cout << "[Gain] Direct close out matches the main bus close path ..." << std::endl;
-    constexpr double kDirectOutTrim = 0.12; // MarembaEngine.cpp
+    constexpr double kDirectOutTrim = 0.06; // published direct-output trim
     EngineParameters p = CleanParams();
     p.farLevel = 0.0f; p.piezoLevel = 0.0f; p.closeLevel = 1.0f; p.stereoWidth = 1.0f;
     p.compAmount = 0.0f; p.preampDrive = 0.0f; p.warmth = 0.0f;

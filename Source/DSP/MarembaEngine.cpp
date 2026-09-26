@@ -66,10 +66,11 @@ constexpr float kRollThreshold = 0.02f;
 constexpr double kCoverSmoothingSeconds = 0.012;
 constexpr uint32_t kRollSeed = 0x2468ACE1u;
 
-// Fixed -18.4 dB headroom on the pre-fader direct taps (close/far/piezo are
+// Fixed -24.4 dB headroom on the pre-fader direct taps (close/far/piezo are
 // summed before the compressor and saturator, so they run hotter than main;
-// a hard stick's attack peaks some 20 dB above the ring it leaves).
-constexpr float kDirectOutTrim = 0.12f;
+// a hard stick's attack peaks some 20 dB above the ring it leaves). The full
+// factory-key sweep needs 6 dB more headroom than the mid-register chords.
+constexpr float kDirectOutTrim = 0.06f;
 
 // Steal score of a voice: how loud it sounds now (the last ~30 ms), so bass
 // and treble voices compare by what is heard; a non-finite voice is the first
@@ -838,7 +839,7 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         mLimiter.ProtectOutput(outMainL[f], outMainR[f]);
 
         // Direct outs: same half-band chain as main, pre-fader mic taps scaled
-        // by the main mix scale, a fixed -18.4 dB trim and the master volume
+        // by the main mix scale, a fixed -24.4 dB trim and the master volume
         // (unconnected outs are skipped)
         const float directGain = MicMixer::kMasterMixScale * kDirectOutTrim * gain;
         for (int k = 0; k < kNumDirectOuts; ++k) {

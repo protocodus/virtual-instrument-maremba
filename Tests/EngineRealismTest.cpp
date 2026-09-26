@@ -149,10 +149,16 @@ int main(int argc, char** argv) {
         const double lowFraction = lowEnergy / std::max(differenceEnergy, 1e-30);
         const double delayedFraction = delayedEnergy / std::max(differenceEnergy, 1e-30);
         const double audible = differenceEnergy / std::max(cleanEnergy, 1e-30);
-        check(audible > .01, "artifacts have no substantial audible effect");
+        // 1.4.0b3 deliberately makes the tine's optional board/neighbor detail
+        // subtler. Its -24 dB floor still requires >6% wet-minus-clean RMS;
+        // retain the stronger -20 dB bar floor and all mechanical/noise gates.
+        const double minimumArtifactDb = model == 3 ? -24.0 : -20.0;
+        check(db(audible) > minimumArtifactDb, "artifact detail is below its calibrated minimum model="
+              + std::to_string(model) + " delta_db=" + std::to_string(db(audible)));
         check(lowFraction > .45, "artifacts predominantly add broadband noise model=" + std::to_string(model));
         check(delayedFraction > .20, "artifacts contain only the initial impact model=" + std::to_string(model));
         std::cout << "ARTIFACT model=" << model << " delta_to_clean_db=" << db(audible)
+                  << " minimum_delta_db=" << minimumArtifactDb
                   << " low_band_fraction=" << lowFraction << " delayed_fraction=" << delayedFraction
                   << " delayed_to_impact_db=" << db(delayedEnergy / std::max(earlyEnergy, 1e-30)) << '\n';
     }

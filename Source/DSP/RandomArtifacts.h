@@ -94,6 +94,12 @@ struct StrikeArtifacts {
     float brushDelaySec = 0.0f;
     float brushSemitones = 0.0f;
     float collisionAmount = 0.0f;   // loose mounting driven by bar motion
+    float brushDurationScale = 1.0f;
+    float brushDecayScale = 1.0f;
+    float collisionPitchScale = 1.0f;
+    float collisionDecayScale = 1.0f;
+    float collisionGapScale = 1.0f;
+    float collisionPulseScale = 1.0f;
 };
 
 inline StrikeArtifacts GenerateStrikeArtifacts(FastPRNG& prng, float velocity,
@@ -112,34 +118,49 @@ inline StrikeArtifacts GenerateStrikeArtifacts(FastPRNG& prng, float velocity,
     const float rebound = prng.NextFloat();
     const float brush = prng.NextFloat();
     const float collision = prng.NextFloat();
-    const float severity = prng.NextFloat();
+    const uint32_t detailSeed = prng.Next();
+    const float severity = (detailSeed & 0x00FFFFFF) * (1.0f / 16777216.0f);
     const float timing = prng.NextFloat();
     const float direction = prng.NextFloat() < 0.5f ? -1.0f : 1.0f;
+    // Independent continuous contact details, without consuming extra draws
+    // from the stroke stream. Even at zero Artifacts, later physical strikes
+    // keep their deterministic sequence. Events are synthesized, not selected
+    // from a small bank of repeating samples.
+    FastPRNG detail(detailSeed ^ 0x9e3779b9u);
+    const float bounceStrength = detail.NextFloat();
+    const float brushStrength = detail.NextFloat();
+    const float brushTiming = detail.NextFloat();
     StrikeArtifacts art;
-    art.strikePositionOffset = position * 0.035f * amount;
-    art.malletHardnessJitter = firmness * 0.04f * amount;
-    art.pitchJitterCents = tuning * 0.65f * amount;
+    art.strikePositionOffset = position * 0.020f * amount;
+    art.malletHardnessJitter = firmness * 0.025f * amount;
+    art.pitchJitterCents = tuning * 0.25f * amount;
     // Small friction remains local to the contact pulse; no boosted clack bed.
-    art.frictionNoiseBurst = 0.018f * (1.0f - baseHardness) * amount;
+    art.frictionNoiseBurst = 0.008f * (1.0f - baseHardness) * amount;
     if (graze < response.grazingProbability * activity) {
-        art.strikePositionOffset += direction * (0.055f + 0.12f * severity) * amount;
-        art.malletHardnessJitter -= 0.16f * amount;
-        art.impulseScale -= (0.12f + 0.25f * severity) * amount;
+        art.strikePositionOffset += direction * (0.025f + 0.075f * severity) * amount;
+        art.malletHardnessJitter -= (0.06f + 0.04f * severity) * amount;
+        art.impulseScale -= (0.05f + 0.15f * severity) * amount;
     }
     if (rebound < response.reboundProbability * activity * (0.35f + 0.65f * touch)) {
-        art.reboundGain = (0.12f + 0.22f * severity) * amount;
+        art.reboundGain = (0.035f + 0.10f * bounceStrength * bounceStrength) * amount;
         art.reboundDelaySec = response.reboundDelayMs * 0.001f
             * (0.65f + 0.7f * timing) * (1.15f - 0.3f * baseHardness);
     }
     if (brush < response.neighborBrushProbability * activity) {
-        art.brushGain = (0.07f + 0.16f * severity) * amount;
-        art.brushDelaySec = 0.002f + 0.009f * timing;
+        art.brushGain = (0.025f + 0.075f * brushStrength * brushStrength) * amount;
+        art.brushDelaySec = 0.002f + 0.009f * brushTiming;
         // Adjacent physical keys need not be a chromatic semitone apart.
         art.brushSemitones = direction * (model == EMarimbaModel::KalimbaArtisan ? 3.0f : 2.0f);
     }
     if (collision < response.collisionProbability * amount) {
-        art.collisionAmount = amount * (0.35f + 0.65f * touch) * (0.55f + 0.45f * severity);
+        art.collisionAmount = 0.65f * amount * (0.35f + 0.65f * touch) * (0.55f + 0.45f * severity);
     }
+    art.brushDurationScale += 0.35f * detail.NextGaussian() * amount;
+    art.brushDecayScale += 0.30f * detail.NextGaussian() * amount;
+    art.collisionPitchScale = std::exp2(0.35f * detail.NextGaussian() * amount);
+    art.collisionDecayScale += 0.40f * detail.NextGaussian() * amount;
+    art.collisionGapScale += 0.20f * detail.NextGaussian() * amount;
+    art.collisionPulseScale += 0.35f * detail.NextGaussian() * amount;
     return art;
 }
 

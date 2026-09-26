@@ -188,6 +188,10 @@ constexpr double kThumbReturnSeconds = 0.03;
 // The board's quasi-static return from the thumb's press: slow against every
 // tine period (C3: 7.6 ms), fast against a note.
 constexpr double kPreloadBleedSeconds = 0.04;
+// Voiced engineering travel limit, not a measured specimen dimension. The
+// finite tine geometry must not turn a fixed thumb force into metre-scale
+// bends when MIDI extrapolates its fundamental below the audible register.
+constexpr double kMaxThumbTravel = 0.008;
 
 // sin and cos of an angle, by their series below 0.01 rad (a bar-air
 // rotation per sample; exact to double precision there), else by libm.
@@ -441,8 +445,11 @@ void MarembaVoice::StartHand(double strength) {
     if (!stronger) return;
     for (int m = 0; m < mNumModes; ++m) mHandPole[m] = pole[m];
     mHandTorsionPole = mNumModes > 0 ? pole[0] : 1.0;
-    // The air under the hand: at most Q kPalmAirQ.
-    const double airHz = mTube.omega * mSampleRate / kTwoPiD;
+    // The air under the hand: at most Q kPalmAirQ. Below hearing, a
+    // constant-Q loss approaches zero and can keep a stopped MIDI-0 voice's
+    // membranes alive for tens of seconds. Bound that hand-damped lifetime
+    // at the 20 Hz loss; every audible-range pole keeps its existing value.
+    const double airHz = std::max(20.0, mTube.omega * mSampleRate / kTwoPiD);
     const double airLoss = mTube.r > 0.0 ? -std::log(mTube.r) * mSampleRate : 0.0;
     mHandAirPole = std::exp(-std::max(0.0, kPiD * airHz / kPalmAirQ - airLoss) * strength / mSampleRate);
     if (!mHandModes) {
@@ -995,13 +1002,36 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         // The thumb stops what the tine was doing, then holds it deflected:
         // on contact, the first sample of the stroke (ProcessSample).
         mThumbResidual = isRestrike ? thumb.residual : 0.0;
+        double compliance = 0.0;
+        for (int m = 0; m < mNumModes; ++m) {
+            const auto& mode = mModes[m];
+            compliance += mode.force * mDt / std::max(1.0 - mode.c + mode.s, 1.0e-18)
+                        * mode.contact * mode.toDisplacement;
+        }
+        const double retained = std::abs(mThumbResidual * ContactDisplacement());
+        if (retained > kMaxThumbTravel) mThumbResidual *= kMaxThumbTravel / retained;
+        // Retain the velocity law in the extended bass, then include the
+        // strike variation and any residual motion in the absolute bound.
+        const double travel = std::min(kMaxThumbTravel * std::min(1.0, touch * primaryShare),
+                                       std::max(0.0, kMaxThumbTravel - retained));
+        const double deflection = compliance * mReleaseForce;
+        if (deflection > travel) mReleaseForce *= travel / deflection;
         for (int m = 0; m < mNumModes; ++m) {
             const auto& mode = mModes[m];
             mThumbHold[m] = mode.force * mReleaseForce * mDt / std::max(1.0 - mode.c + mode.s, 1.0e-18);
         }
         mThumbPending = true;
         // A firmer stroke (stiffer contact) snaps free a little faster.
-        const double slip = thumb.releaseSeconds * std::exp2(1.0 - 2.0 * hardness) / character.stiffnessScale;
+        // A soft thumb lets the tine slide free more slowly; a firm stroke
+        // snaps away. Velocity shapes the physical force-time history even
+        // with every optional velocity route at zero. Full-force release
+        // keeps the calibrated timing. Bound the extra drag smoothly at
+        // 0.15 ms before hardness scaling, so an already slow flesh release
+        // does not cancel the low note's ring and leave disproportionate noise.
+        const double extraSlip = 0.00015 * (1.0 - std::exp(-0.75 * (1.0 - mVelocity)
+                                                   * thumb.releaseSeconds / 0.00015));
+        const double slip = (thumb.releaseSeconds + extraSlip) * std::exp2(1.0 - 2.0 * hardness)
+                          / character.stiffnessScale;
         mReleaseSamples = std::max(2, static_cast<int>(std::ceil(slip * fs)));
         mReleaseSample = 0;
         mReleaseShape = thumb.releaseShape;
@@ -1164,7 +1194,11 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     mSlapPrng = FastPRNG(mLocalPrng.Next() | 1u);
     // A short treble tine shakes the board faster for the same bridge motion;
     // the buzzers' sensitivity is referred to the middle of the instrument.
-    mBuzzer.Configure(fs, std::sqrt(f0 / 261.625565));
+    // Stop extending that referral once the geometry reaches its longest
+    // tine: inverse-square-root gain must not amplify a returning thumb into
+    // an unbounded buzzer collision as an extrapolated MIDI pitch tends to 0.
+    mBuzzer.Configure(fs, std::sqrt(std::max(MinimumTineGeometryFrequency(), f0)
+                                    / kTineReferenceFrequency));
     SetBuzz(buzzAmount, mMembraneTension);
     if (!isRestrike) {
         for (auto& membrane : mMembranes) membrane.Reset();
@@ -1206,7 +1240,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     // ----------------------------------------------------------------------
     mBrushImpulse = touch * art.brushGain;
     mBrushStart = static_cast<int>(art.brushDelaySec * fs);
-    const double secondaryDuration = std::max(3.0, 0.0012 * fs);
+    const double secondaryDuration = std::max(3.0, 0.0012 * art.brushDurationScale * fs);
     mSecondaryStep = 1.0 / secondaryDuration;
     if (mBrushImpulse > 0.0) mArtifactEnd = std::max(mArtifactEnd, mBrushStart + static_cast<int>(std::ceil(secondaryDuration)));
     const double brushF0 = f0 * std::exp2(art.brushSemitones / 12.0);
@@ -1219,7 +1253,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         mode.omega = kTwoPiD * frequency / fs;
         const double brushT60 = mTine ? 2.2 / (TineFundamentalLossFactor(frequency) * frequency)
                                       : 2.2 / (LossFactor(material, frequency) * frequency);
-        ReconfigureMode(mode, std::exp(-6.907755 / (std::max(0.025, brushT60 * (m == 0 ? 0.5 : 0.1)) * fs)), mode.omega);
+        ReconfigureMode(mode, std::exp(-6.907755 / (std::max(0.025, brushT60 * art.brushDecayScale * (m == 0 ? 0.5 : 0.1)) * fs)), mode.omega);
     }
     mBrushPickupWeight = PiezoPickup::ModalStrainWeight(model, 0);
     mBrushActive = mBrushImpulse > 0.0 || ModeEnergy(mBrushModes[0]) + ModeEnergy(mBrushModes[1]) > kFlushEnergy;
@@ -1229,13 +1263,13 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     // fundamental, measured once the mallet or thumb has let go.
     mCollisionEnvelope = art.collisionAmount * response.collisionLevel;
     mCollisionActive = mCollisionEnvelope > 0.0 || ModeEnergy(mCollisionModes[0]) + ModeEnergy(mCollisionModes[1]) > kFlushEnergy;
-    mCollisionGapFactor = 0.08 + 0.22 * (1.0 - art.collisionAmount);
+    mCollisionGapFactor = (0.08 + 0.22 * (1.0 - art.collisionAmount)) * art.collisionGapScale;
     mCollisionGap = 1.0e30;
     mCollisionCalibrated = false;
     mCollisionSawContact = false;
     mCollisionClock = 0;
     mCollisionCalibrationSample = static_cast<int>(std::lround(0.004 * fs));
-    mCollisionDecay = std::exp(-1.0 / ((mTine ? 0.09 : 0.055) * fs));
+    mCollisionDecay = std::exp(-1.0 / ((mTine ? 0.09 : 0.055) * art.collisionDecayScale * fs));
     mCollisionPrevious = mModes[0].y1;
     mCollisionSide = 0;
     mCollisionImpulse = 0.0;
@@ -1248,16 +1282,19 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     mCollisionPickup = mTine ? 0.0 : kCollisionLevel * std::abs(mStrainGain[0]);
     mCollisionFrame = mTine ? 0.0 : kCollisionLevel * kFrameDriveUnit * kSupportUnit * kTwoPiD * f0
                                     * mModes[0].toDisplacement;
-    const double collisionDuration = std::max(1.0, std::min(mTine ? 0.00012 : 0.00025, 0.18 / f0) * fs);
+    const double collisionDuration = std::max(1.0, std::min((mTine ? 0.00012 : 0.00025) * art.collisionPulseScale, 0.18 / f0) * fs);
     mCollisionAmplitudeRatio = 0.35 * art.collisionAmount;
     mCollisionPulseStep = 1.0 / collisionDuration;
     mCollisionSamplesTotal = static_cast<int>(std::ceil(collisionDuration));
     mCollisionSample = mCollisionSamplesTotal;
-    for (int m = 0; m < 2; ++m) {
+    // A clean restrike preserves an existing knock's tuning and decay. Only a
+    // newly scheduled mounting event gets a fresh continuously varied shape.
+    for (auto& mode : mCollisionModes) mode.omega = mode.w;
+    for (int m = 0; m < 2 && mCollisionEnvelope > 0.0; ++m) {
         auto& mode = mCollisionModes[m];
-        const double frequency = std::min(fs * 0.4, params.frameBodyFreq * response.collisionRatio * (m == 0 ? 1.0 : 2.71));
+        const double frequency = std::min(fs * 0.4, params.frameBodyFreq * response.collisionRatio * art.collisionPitchScale * (m == 0 ? 1.0 : 2.71));
         mode.omega = kTwoPiD * frequency / fs;
-        ReconfigureMode(mode, std::exp(-6.907755 / (response.collisionDecaySec * (m == 0 ? 1.0 : 0.43) * fs)), mode.omega);
+        ReconfigureMode(mode, std::exp(-6.907755 / (response.collisionDecaySec * art.collisionDecayScale * (m == 0 ? 1.0 : 0.43) * fs)), mode.omega);
     }
 }
 

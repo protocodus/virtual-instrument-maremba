@@ -24,8 +24,11 @@ CharleoRegisterTest        # the charleo through the treble
 Round7BalafonKalimbaTest   # continuous pluck, tink, bridge stereo, degree-key halo
 BuzzRangeTest              # the Buzz knob's physical range on every path
 StrikeVarianceTest         # the Variance control's smooth spread
+NaturalStrikeResponseTest  # zero-Variance natural hits, physical velocity, exact Reset replay
 RoomQualityTest            # the three rooms' density, roughness and T60
 BarModesTest               # the carved bars' generated modes
 VelocityRoutesTest         # the ten velocity routes
 ParameterReachabilityTest  # every sound control on every model, including dry Tension
+KalimbaExcitationBoundsTest # bounded thumb travel, velocity, scatter and restrikes
+ExtremeRangeTest           # every MIDI/rate, endpoint plucks, dense chords and live limiter
 EngineFuzzTest             # hostile and extreme parameters, MIDI determinism, state machines

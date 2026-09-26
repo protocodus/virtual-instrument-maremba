@@ -119,13 +119,15 @@ public:
 
     // The decimator can overshoot a bounded internal waveform. This emergency
     // linked sample-peak guard belongs AFTER decimation and master attenuation.
-    // It adds no latency and is not an intersample/true-peak limiter. During
-    // live bypass fades the cap is interpolated too; fully engaged it is strict.
+    // It adds no latency and is not an intersample/true-peak limiter. Enabling
+    // the limiter protects immediately, including its wet-path crossfade;
+    // only an intentional transition back to bypass eases the cap away.
     void ProtectOutput(float& left, float& right) const {
-        if (mEngagement == 0.0f) return;
+        if (mEngagement == 0.0f && mEngagementTarget == 0.0f) return;
         const float peak = std::max(std::abs(left), std::abs(right));
         if (peak > kOutputCeiling) {
-            const float gain = (1.0f - mEngagement) + mEngagement * (kOutputCeiling / peak);
+            const float protection = mEngagementTarget > 0.0f ? 1.0f : mEngagement;
+            const float gain = (1.0f - protection) + protection * (kOutputCeiling / peak);
             left *= gain;
             right *= gain;
         }

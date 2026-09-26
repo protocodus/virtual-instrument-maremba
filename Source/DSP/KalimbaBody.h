@@ -16,9 +16,22 @@ struct TineGeometry {
     double bendingStiffness;  // EI, N m^2
 };
 
+constexpr double kTineReferenceFrequency = 261.625565;
+constexpr double kTineReferenceLength = 0.061;
+constexpr double kTineLengthExponent = 0.55;
+constexpr double kTineMaximumLength = 0.14;
+
+// Below this pitch the geometric model has reached its longest tine. Register
+// compensation derived from that geometry must stop extrapolating with it.
+inline double MinimumTineGeometryFrequency() {
+    return kTineReferenceFrequency
+         * std::pow(kTineReferenceLength / kTineMaximumLength, 1.0 / kTineLengthExponent);
+}
+
 inline TineGeometry GetTineGeometry(double fundamentalHz) {
     const double f = std::clamp(fundamentalHz, 20.0, 20000.0);
-    const double length = std::clamp(0.061 * std::pow(261.625565 / f, 0.55), 0.015, 0.14);
+    const double length = std::clamp(kTineReferenceLength * std::pow(kTineReferenceFrequency / f,
+                                      kTineLengthExponent), 0.015, kTineMaximumLength);
     constexpr double width = 0.0045, thickness = 0.0011;
     return {length, 7850.0 * width * thickness, 200.0e9 * width * thickness * thickness * thickness / 12.0};
 }

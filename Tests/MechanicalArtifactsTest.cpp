@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <set>
 
 namespace {
 
@@ -17,28 +18,27 @@ void Require(bool condition, const char* message) {
 
 struct Counts { int grazes = 0, rebounds = 0, brushes = 0, collisions = 0; };
 
-void CheckPlan(const maremba::StrikeArtifacts& a, float amount, float velocity) {
+void CheckPlan(const maremba::StrikeArtifacts& a, float amount) {
     Require(std::isfinite(a.strikePositionOffset) && std::abs(a.strikePositionOffset) <= 0.22f,
             "wrong hits must stay on a plausible part of the playing surface");
     Require(std::isfinite(a.malletHardnessJitter) && std::abs(a.malletHardnessJitter) <= 0.21f,
             "contact hardness deviation must be bounded");
     Require(std::isfinite(a.pitchJitterCents) && std::abs(a.pitchJitterCents) < 1.0f,
             "wrong-hit artifacts must not turn settled notes into detuned oscillators");
-    Require(a.frictionNoiseBurst >= 0.0f && a.frictionNoiseBurst <= 0.0181f,
+    Require(a.frictionNoiseBurst >= 0.0f && a.frictionNoiseBurst <= 0.0081f,
             "friction must remain a small contact modulation");
-    Require(a.impulseScale >= 0.62f && a.impulseScale <= 1.0f,
+    Require(a.impulseScale >= 0.799f && a.impulseScale <= 1.0f,
             "grazing contact must lose, rather than create, stroke impulse");
-    Require(a.reboundGain >= 0.0f && a.reboundGain < 0.35f && a.brushGain >= 0.0f && a.brushGain < 0.24f,
+    Require(a.reboundGain >= 0.0f && a.reboundGain < 0.14f && a.brushGain >= 0.0f && a.brushGain < 0.11f,
             "secondary hits must remain subordinate to the intended stroke");
-    const double primaryFraction = 1.0 - a.reboundGain - a.brushGain;
-    Require(primaryFraction > 0.42, "secondary contacts must leave a playable primary hit");
-    const double strokeImpulse = std::pow(static_cast<double>(velocity), 1.25) * a.impulseScale;
-    const double deliveredImpulse = strokeImpulse * primaryFraction
-                                  + strokeImpulse * a.reboundGain + strokeImpulse * a.brushGain;
-    Require(std::abs(deliveredImpulse - strokeImpulse) < 1.0e-6,
-            "secondary hits must share the original stroke impulse instead of adding unrelated sound");
+    Require(static_cast<double>(a.reboundGain) + a.brushGain < 0.25,
+            "combined planned secondary-contact gains must remain below one quarter");
     Require(a.collisionAmount >= 0.0f && a.collisionAmount <= amount + 1.0e-6f,
             "loose-mount contact must stay inside the amount budget");
+    for (float scale : {a.brushDurationScale, a.brushDecayScale, a.collisionPitchScale,
+                         a.collisionDecayScale, a.collisionGapScale, a.collisionPulseScale})
+        Require(std::isfinite(scale) && scale > .59f && scale < 1.41f,
+                "continuous contact variation must stay positive and physically bounded");
     for (float seconds : {a.reboundDelaySec, a.brushDelaySec}) {
         Require(std::isfinite(seconds) && seconds >= 0.0f && seconds < 0.050f,
                 "contacts must be local physical events, scheduled in seconds");
@@ -62,19 +62,29 @@ void CheckPlan(const maremba::StrikeArtifacts& a, float amount, float velocity) 
 Counts CountPlans(maremba::EMarimbaModel model, float amount, float velocity) {
     maremba::FastPRNG random(0x6824619u);
     Counts counts;
+    std::set<std::array<float, 6>> shapes;
     for (int i = 0; i < 30000; ++i) {
         const auto a = maremba::GenerateStrikeArtifacts(random, velocity, 0.5f, amount, model);
-        CheckPlan(a, amount, velocity);
+        CheckPlan(a, amount);
         counts.grazes += a.impulseScale < 1.0f;
         counts.rebounds += a.reboundGain > 0.0f;
         counts.brushes += a.brushGain > 0.0f;
         counts.collisions += a.collisionAmount > 0.0f;
+        if (a.collisionAmount > 0.0f) {
+            const std::array<float, 6> shape{{a.collisionAmount, a.collisionPitchScale,
+                a.collisionDecayScale, a.collisionGapScale, a.collisionPulseScale, a.brushDurationScale}};
+            Require(shapes.insert(shape).second,
+                    "mounting contacts must not reuse a small bank of identical event shapes");
+        }
         if (amount == 0.0f) {
             Require(a.strikePositionOffset == 0.0f && a.malletHardnessJitter == 0.0f
                  && a.pitchJitterCents == 0.0f && a.frictionNoiseBurst == 0.0f
                  && a.impulseScale == 1.0f && a.reboundGain == 0.0f && a.brushGain == 0.0f
                  && a.reboundDelaySec == 0.0f && a.brushDelaySec == 0.0f && a.brushSemitones == 0.0f
                  && a.collisionAmount == 0.0f, "zero Artifacts must disable every imperfection");
+            Require(a.brushDurationScale == 1 && a.brushDecayScale == 1 && a.collisionPitchScale == 1
+                 && a.collisionDecayScale == 1 && a.collisionGapScale == 1 && a.collisionPulseScale == 1,
+                    "zero Artifacts must preserve neutral contact shapes and ringing tails");
         }
     }
     return counts;

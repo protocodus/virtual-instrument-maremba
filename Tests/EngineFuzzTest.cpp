@@ -14,6 +14,7 @@
 //   ./engine_fuzz --only fuzz --seeds 200 --first 1000 --steps 400
 //   ./engine_fuzz --only fuzz|determinism|reset|denormal|scenarios [--verbose]
 //   ./engine_fuzz --only determinism --determinism-seeds 50
+//   ./engine_fuzz --only reset --seeds 12 --reset-rate 192000 --reset-os 2
 //   ./engine_fuzz --only denormal --tail-rate 96000 --tail-os 1 --tail-seconds 5
 // Exit status 0 = every invariant held; failures are listed (first 60).
 //
@@ -57,6 +58,8 @@
 //   S6  a fresh Rosewood strike at every offset against the control grid: the
 //       rim's harmonics, scaled by the tube's swing at the last tick, stay
 //       bounded while the tube rings up from rest
+//   S7  MIDI 0, maximum downward tuning/bend, long decay and loose buzz:
+//       transport damping releases the sub-audio cavity and every voice
 
 #include "MarembaEngine.h"
 
@@ -135,6 +138,8 @@ struct Options {
     double tailRate = 44100.0;
     int tailOversampling = 0;
     double tailSeconds = 12.0;
+    double resetRate = 0.0;       // 0 retains the inexpensive default rate selection
+    int resetOversampling = -1;  // -1 retains the default 2x/4x selection
 };
 
 // splitmix64; the seed is hashed first so consecutive seeds give unrelated
@@ -548,9 +553,9 @@ Capture Perform(MarembaEngine& e, double rate, const std::vector<std::pair<int, 
 
 void ResetEquivalenceSeed(uint64_t seed, const Options& o) {
     Rng r(seed ^ 0xA5A5A5A5ull);
-    const double rate = kRates[r.Int(0, 3)];   // keep it quick: host rates up to 88.2k
+    const double rate = o.resetRate > 0.0 ? o.resetRate : kRates[r.Int(0, 3)];
     EngineParameters p = PlausibleParams(r);
-    p.oversampling = r.Int(0, 1);
+    p.oversampling = o.resetOversampling >= 0 ? o.resetOversampling : r.Int(0, 1);
     const float bend = r.Chance(0.5) ? 0.0f : r.Range(-200, 200);
     std::vector<std::pair<int, float>> notes;
     const int base = r.Int(40, 80);
@@ -604,7 +609,8 @@ void ResetEquivalenceSeed(uint64_t seed, const Options& o) {
                          static_cast<unsigned long long>(seed), rate, p.model, p.malletType, p.modWheel, history,
                          worst, worstCh, firstDiff));
     else if (o.verbose)
-        std::printf("  reset seed %llu: identical\n", static_cast<unsigned long long>(seed));
+        std::printf("  reset seed %llu rate %.1f quality %dx model %d: identical\n",
+                    static_cast<unsigned long long>(seed), rate, 2 << p.oversampling, p.model);
 }
 
 // ------------------------------------------------ long tails / denormals --
@@ -822,7 +828,41 @@ void DeterminismSeed(uint64_t seed, const Options& o) {
 // Deterministic regressions for the state machines.
 void FreshStrikeOnTheControlGrid();
 
+void MinimumNoteStops(const Options& o) {
+    // A constant-Q hand loss used to approach zero below hearing: MIDI 0
+    // bent to about 3.6 Hz kept the air/membranes alive past the 30 s drain
+    // bound even after the bar was silent. Cover a head and a shaft, every
+    // model, the default rate/quality and 96 kHz at the highest quality.
+    for (double rate : {48000.0, 96000.0})
+        for (int model = 0; model < 4; ++model)
+            for (int striker : {1, 4}) {
+                auto e = std::make_unique<MarembaEngine>(rate);
+                EngineParameters p;
+                p.model = model; p.malletType = striker;
+                p.oversampling = rate == 48000.0 ? 0 : 2;
+                p.decay = 8; p.buzzAmount = 1; p.membraneTension = 0;
+                p.artifacts = p.strikeJitter = 0; p.resonatorCoupling = 1;
+                p.tuneCents = -200;
+                p.velocityToHardness = p.velocityToDecay = 0;
+                e->SetParameters(p);
+                e->SetPitchBendCents(-1200);
+                e->NoteOn(0, 1);
+                Tracker t;
+                t.rate = rate;
+                t.where = Fmt("minimum-note stop rate %.0f quality %dx model %d striker %d",
+                              rate, 2 << p.oversampling, model, striker);
+                RenderFor(*e, t, 0.05);
+                const double drained = DrainUntilSilent(*e, t, o.drainSeconds);
+                if (drained < 0)
+                    gReport.Fail(Fmt("%s: still active after %.0f s:%s", t.where.c_str(), o.drainSeconds,
+                                     Access::DescribeVoices(*e).c_str()));
+                else if (o.verbose)
+                    std::printf("  %s: silent %.2f s after stop\n", t.where.c_str(), drained);
+            }
+}
+
 void Scenarios(const Options& o) {
+    MinimumNoteStops(o);
     // S1: every striker x note-off mode, per model: strike, hold, release -> silent.
     for (int model = 0; model < 4; ++model)
         for (int mallet = 0; mallet < maremba::kStrikerCount; ++mallet)
@@ -1018,7 +1058,8 @@ void FreshStrikeOnTheControlGrid() {
 void Usage() {
     std::printf("EngineFuzzTest [--seeds N] [--determinism-seeds N] [--first S] [--steps K] [--drain SECONDS]\n"
                 "               [--only fuzz|determinism|reset|denormal|scenarios]\n"
-                "               [--tail-rate HZ] [--tail-os 0|1|2] [--tail-seconds S] [--verbose]\n");
+                "               [--tail-rate HZ] [--tail-os 0|1|2] [--tail-seconds S]\n"
+                "               [--reset-rate HZ] [--reset-os 0|1|2] [--verbose]\n");
 }
 
 } // namespace
@@ -1036,9 +1077,16 @@ int main(int argc, char** argv) {
         else if (a == "--only") o.only = value();
         else if (a == "--verbose") o.verbose = true;
         else if (a == "--tail-rate") o.tailRate = std::atof(value().c_str());
+        else if (a == "--reset-rate") o.resetRate = std::atof(value().c_str());
+        else if (a == "--reset-os") o.resetOversampling = std::atoi(value().c_str());
         else if (a == "--tail-os") o.tailOversampling = std::atoi(value().c_str());
         else if (a == "--tail-seconds") o.tailSeconds = std::atof(value().c_str());
         else { Usage(); return 2; }
+    }
+    if (!std::isfinite(o.resetRate) || (o.resetRate != 0.0 && (o.resetRate < 22050.0 || o.resetRate > 192000.0))
+        || o.resetOversampling < -1 || o.resetOversampling > 2) {
+        Usage();
+        return 2;
     }
     const auto want = [&](const char* name) { return o.only.empty() || o.only == name; };
     const auto t0 = std::chrono::steady_clock::now();
