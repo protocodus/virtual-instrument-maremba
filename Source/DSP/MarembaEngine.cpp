@@ -101,6 +101,7 @@ MarembaEngine::MarembaEngine(double sampleRate)
     // The only allocation: room delay lines for the highest internal rate this
     // instance can run at (8x the host rate; a host-rate change re-creates the engine).
     mMicMixer.Allocate(mBaseSampleRate * kMaxOversample);
+    mOutputHeadroom.SetSampleRate(mBaseSampleRate);
     mVolumeAlpha = static_cast<float>(1.0 - std::exp(-1.0 / (kVolumeSmoothingSeconds * mBaseSampleRate)));
     mQuietFramesNeeded = static_cast<int>(kTailHoldSeconds * mBaseSampleRate);
     Reset();
@@ -190,7 +191,6 @@ void MarembaEngine::Reset() {
     mTailsSilent = true;
     mMeshRunning = mSympatheticGain > 0.0f;
     mBodyRunning = mBodyGain > 0.0f;
-    mRoomRunning = mParams.farLevel > 0.001f;
 }
 
 void MarembaEngine::ConfigureForRate() {
@@ -228,6 +228,7 @@ void MarembaEngine::FlushTails() {
     mMicMixer.Reset();
     mPreamp.Reset();
     mLimiter.Reset();
+    mOutputHeadroom.Reset();
     mOversampler.Reset();
     for (int k = 0; k < kNumDirectOuts; ++k) {
         mDirectDecimators[k].Reset();
@@ -357,9 +358,6 @@ void MarembaEngine::SmoothLiveControls() {
         mKalimbaBody.ResetBloom();
     }
     mBodyVelocityRunning = velocityBodyOn;
-    const bool roomOn = mFarGain > 0.001f;
-    if (!roomOn && mRoomRunning) mMicMixer.Reset();
-    mRoomRunning = roomOn;
 }
 
 void MarembaEngine::SetPitchBendCents(float cents) {
@@ -889,6 +887,14 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
             accFarR += (bodySound * 0.8f + haloR * 1.0f + (boxFar + 0.4f * boxSide) * 0.5f);
             accPiezo += boxPickup;
 
+            // Drive is the contact pickup's amplifier, before its mix
+            // coefficient and direct tap. Calibrate its input like a mono
+            // pickup at unity in the former stereo preamp, independent of
+            // Close/Room levels. The zero setting is an exact clean bypass.
+            constexpr float piezoPreampScale = MicMixer::kMasterMixScale * 0.707f;
+            if (mDrive > 0.001f)
+                accPiezo = AnalogPreamp::ApplyDrive(accPiezo * piezoPreampScale, mDrive) / piezoPreampScale;
+
             float frameMainL = 0.0f;
             float frameMainR = 0.0f;
 
@@ -902,11 +908,11 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
                                    mSubBufDirect[2][s], mSubBufDirect[3][s],
                                    mSubBufDirect[4][s]);
 
-            // Preamp tone/drive precede limiting so they cannot recreate peaks
-            // afterward. Both nonlinear stages run at the oversampled rate.
+            // Global warmth precedes limiting; Drive has already processed
+            // Piezo alone. Both nonlinear stages run at the oversampled rate.
             float preL = 0.0f;
             float preR = 0.0f;
-            mPreamp.Process(frameMainL, frameMainR, mDrive, mParams.warmth, preL, preR);
+            mPreamp.Process(frameMainL, frameMainR, 0.0f, mParams.warmth, preL, preR);
             mLimiter.Process(preL * kMainCalibrationGain, preR * kMainCalibrationGain,
                              mSubBufMainL[s], mSubBufMainR[s]);
         }
@@ -915,12 +921,12 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         float mainL = 0.0f, mainR = 0.0f;
         mOversampler.DownsampleFrame(mSubBufMainL, mSubBufMainR, factor, mainL, mainR);
 
-        // Master volume (smoothed per frame) and the oversampling-change fade
+        // Master volume (smoothed per frame). Apply the quality-switch fade
+        // after the lookahead delay so its last samples reach zero before a
+        // factor change clears the queued audio.
         mVolumeGain += mVolumeAlpha * (volumeTarget - mVolumeGain);
-        const float gain = mVolumeGain * mSwitchGain;
-        outMainL[f] = mainL * gain;
-        outMainR[f] = mainR * gain;
-        mLimiter.ProtectOutput(outMainL[f], outMainR[f]);
+        const float gain = mVolumeGain;
+        std::array<float, 7> frame = {mainL * gain, mainR * gain, 0, 0, 0, 0, 0};
 
         // Direct outs: same half-band chain as main, pre-fader mic taps scaled
         // by the main mix scale, a fixed -24.4 dB trim and the master volume
@@ -930,13 +936,34 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
             if (direct[k]) {
                 if (!mDirectRunning[k]) {
                     mDirectDecimators[k].Reset();
+                    mOutputHeadroom.ResetDirect(k);
                     mDirectRunning[k] = true;
                 }
-                direct[k][f] = mDirectDecimators[k].DownsampleFrame(mSubBufDirect[k], factor) * directGain;
+                frame[k + 2] = mDirectDecimators[k].DownsampleFrame(mSubBufDirect[k], factor) * directGain;
             } else {
                 mDirectRunning[k] = false;
             }
         }
+
+        // Do not let headroom protection conceal an unstable model or poison
+        // its queued state. Preserve the existing +60 dB/non-finite fail-safe
+        // on the unprotected frame as well as on the final output buffers.
+        bool validFrame = true;
+        for (float value : frame) validFrame = validFrame && std::abs(value) <= kMaxOutputLevel;
+        if (!validFrame) {
+            Reset();
+            zeroFrames(0);
+            return;
+        }
+
+        // Smooth gain anticipates overloads by 2 ms, preserving quiet signal
+        // level and avoiding the former per-sample peak rounding. Direct taps
+        // retain their independent trim and receive the same delay only.
+        mOutputHeadroom.Process(frame);
+        outMainL[f] = frame[0] * mSwitchGain;
+        outMainR[f] = frame[1] * mSwitchGain;
+        for (int k = 0; k < kNumDirectOuts; ++k)
+            if (direct[k]) direct[k][f] = frame[k + 2] * mSwitchGain;
 
         // Silence detection: no voice and every tail below -180 dBFS for longer
         // than the longest room echo gap -> flush all tails and go idle.

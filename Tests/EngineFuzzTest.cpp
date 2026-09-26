@@ -30,8 +30,8 @@
 // Invariants (fuzz):
 //   I1  every written sample is finite; RenderBatch writes exactly
 //       min(frameCount, 64) frames of every non-null output and nothing else
-//   I2  |main| <= 0.98 while the limiter is fully engaged (LIMIT > 0 for 3 ms);
-//       volume is always <= 1 after sanitising (LIMIT 0 bypasses the guard by design)
+//   I2  |main| <= 0.94 for every Limit setting and during live transitions;
+//       volume is always <= 1 after sanitising
 //   I3  GetActiveVoiceCount() <= kVoicePoolSize
 //   I4  the last-resort output guard (Reset inside RenderBatch) never fires
 //   I5  after DampAll + NoteOff of every key the engine reports IsSilent()
@@ -126,7 +126,7 @@ using Access = maremba::MarembaEngineTestAccess;
 constexpr int kOuts = 7;       // main L/R, close L/R, far L/R, piezo
 constexpr int kBufFrames = 256; // room for out-of-contract frame counts
 constexpr float kSentinel = 12345.678f;
-constexpr float kCeiling = 0.98f;
+constexpr float kCeiling = 0.94f;
 const double kRates[] = { 22050.0, 44100.0, 48000.0, 88200.0, 96000.0, 176400.0, 192000.0, 44100.5 };
 
 struct Options {
@@ -373,7 +373,6 @@ struct Buffers {
 
 struct Tracker {
     double rate = 44100.0;
-    long framesLimiterEngaged = 0;   // frames since LIMIT went above 0 (sanitised)
     double peakMain = 0.0;
     double worstBatchNs = 0.0;
     std::string where;               // seed / step label for failure messages
@@ -415,12 +414,11 @@ int RenderChecked(MarembaEngine& e, Tracker& t, int frameCount, unsigned mask, b
     }
     // I2: the peak guard
     const EngineParameters& p = e.GetParameters();
-    if (p.compAmount > 0.0f) t.framesLimiterEngaged += expected; else t.framesLimiterEngaged = 0;
     for (int f = 0; f < expected; ++f) {
         const double m = std::max(std::fabs(b.ch[0][f]), std::fabs(b.ch[1][f]));
         t.peakMain = std::max(t.peakMain, m);
-        if (t.framesLimiterEngaged > static_cast<long>(0.003 * t.rate) + 64 && m > kCeiling * 1.000001) {
-            gReport.Fail(Fmt("%s: |main| %.6f above the 0.98 guard with LIMIT %.3f volume %.3f",
+        if (m > kCeiling * 1.000001) {
+            gReport.Fail(Fmt("%s: |main| %.6f above the 0.94 headroom ceiling with LIMIT %.3f volume %.3f",
                              t.where.c_str(), m, p.compAmount, p.volume));
             break;
         }

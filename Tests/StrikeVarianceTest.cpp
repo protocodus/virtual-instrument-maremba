@@ -4,12 +4,15 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <iostream>
 #include <limits>
 #include <vector>
 
 namespace {
 int failures = 0;
+int drainedHits = 0, longestVoiceDampFrames = 0, longestEngineDrainFrames = 0;
+std::uint64_t totalEngineDrainFrames = 0;
 void check(bool condition, const char* message) {
     if (!condition) { ++failures; std::cerr << "FAIL " << message << '\n'; }
 }
@@ -72,9 +75,27 @@ Hits render(maremba::MarembaEngine& engine) {
         }
         hits.push_back(std::move(clip));
         engine.DampAll();
-        for (int batch = 0; batch < 48000 * 3 / 64 && !engine.IsSilent(); ++batch)
+        // DampAll stops held/rolling keys and hand-damps every voice,
+        // independently of the Note Off mode. Preserve that three-second
+        // physical deadline, then let the continuously running Room response
+        // finish even when its mix coefficient is zero. Do not Reset here:
+        // successive hits must retain their natural random draw sequence.
+        constexpr int voiceDeadlineFrames = 48000 * 3;
+        constexpr int engineDeadlineFrames = 48000 * 12;
+        int drainFrames = 0;
+        int voiceDampFrames = engine.GetActiveVoiceCount() == 0 ? 0 : -1;
+        for (; drainFrames < engineDeadlineFrames && !engine.IsSilent(); drainFrames += 64) {
             engine.RenderBatch(left.data(), right.data(), nullptr, nullptr, nullptr, nullptr, nullptr, 64);
-        check(engine.IsSilent(), "strike failed to damp to silence");
+            if (voiceDampFrames < 0 && engine.GetActiveVoiceCount() == 0)
+                voiceDampFrames = drainFrames + 64;
+        }
+        check(voiceDampFrames >= 0 && voiceDampFrames <= voiceDeadlineFrames,
+              "strike voices failed to hand-damp within three seconds");
+        check(engine.IsSilent(), "strike and room tail failed to reach engine silence within twelve seconds");
+        ++drainedHits;
+        longestVoiceDampFrames = std::max(longestVoiceDampFrames, voiceDampFrames);
+        longestEngineDrainFrames = std::max(longestEngineDrainFrames, drainFrames);
+        totalEngineDrainFrames += drainFrames;
     }
     return hits;
 }
@@ -172,6 +193,10 @@ int main() {
             "15% Variance lacks a substantial increase in pitched-timbre variation");
         check(timbre.back() > .04 * reach && timbre.back() > 8 * timbre[0], "maximum Variance lacks substantial pitched-timbre variation");
     }
-    std::cout << "StrikeVarianceTest " << (failures ? "FAILED" : "PASSED") << " failures=" << failures << '\n';
+    std::cout << "StrikeVarianceTest " << (failures ? "FAILED" : "PASSED") << " failures=" << failures
+              << " drained_hits=" << drainedHits
+              << " longest_voice_damp_seconds=" << longestVoiceDampFrames / 48000.0
+              << " longest_engine_drain_seconds=" << longestEngineDrainFrames / 48000.0
+              << " total_engine_drain_seconds=" << totalEngineDrainFrames / 48000.0 << '\n';
     return failures ? 1 : 0;
 }

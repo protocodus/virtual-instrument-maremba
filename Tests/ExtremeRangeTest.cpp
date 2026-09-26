@@ -134,6 +134,10 @@ void render(MarembaEngine& engine, int count, bool mustBeZero = false) {
         require(voice, "low pluck was prematurely killed while its tine should still ring");
         const double energy = voice->ComputeEnergy();
         require(std::isfinite(energy), "nonfinite low-pluck mechanical energy");
+        // The verified 1.4.0f3 boundary matrix peaked at 6.3864 in this
+        // physical state. A generous 5x bound catches runaway preload even
+        // when output gain protection would hide it from the main waveform.
+        require(energy <= 32, "pathological low-register Kalimba mechanical energy");
         pluckVoiceEnergy = std::max(pluckVoiceEnergy, energy);
         ++pluckSurvivalChecks;
     }
@@ -152,6 +156,8 @@ void render(MarembaEngine& engine, int count, bool mustBeZero = false) {
             }
             if (mustBeZero) require(sample == 0, "reset/ignored note leaked audio");
             if (channel < 2) {
+                require(std::abs(sample) <= .940002,
+                        "main output escaped smooth headroom ceiling, including limiter bypass/automation");
                 const bool limited = p.compAmount > 0;
                 if (observeChord) {
                     if (havePreviousMain || i > 1) chordStep = std::max(chordStep, std::abs(sample - previousMain[channel]));
@@ -163,17 +169,16 @@ void render(MarembaEngine& engine, int count, bool mustBeZero = false) {
                 }
                 if (constrainPluck) {
                     pluckPeak = std::max(pluckPeak, std::abs(sample));
-                    // This isolates runaway sub-audio excitation; it is NOT
-                    // an audio-fullscale/headroom promise for limiter bypass.
-                    // The same all-captures/max-volume fixture on MIDI 36--127
-                    // measured 8.72 before the fix; 32 leaves >3.5x headroom.
-                    require(std::abs(sample) <= 32, "pathological low-register Kalimba excitation: " + std::to_string(sample));
                 }
                 if (p.compAmount == 0) unlimitedPeak = std::max(unlimitedPeak, std::abs(sample));
                 if (limited) {
                     limitedPeak = std::max(limitedPeak, std::abs(sample));
-                    require(std::abs(sample) <= .980002, "main output escaped fully engaged limiter ceiling");
                 }
+            } else {
+                // Direct captures are uncompressed floating-point stems,
+                // independently trimmed. Extreme extrapolated keys may
+                // exceed full scale; 32 bounds instability, not audibility.
+                require(std::abs(sample) <= 32, "direct capture exceeded its independent stability bound");
             }
             if (observeChord) {
                 std::uint32_t bits;
@@ -314,9 +319,10 @@ std::array<std::uint64_t, 7> denseChord(MarembaEngine& e, int model, double rate
     p.compAmount = 0; e.SetParameters(p);
     forSeconds(e, rate, .010);
     p.compAmount = 1; e.SetParameters(p);
-    // The tonal/attenuation ramp still spans 2 ms, but the requested ceiling
-    // applies from the first enabled output sample, throughout the transition.
-    limiterSettlesAt = Access::Clock(e) + std::ceil(.002 * rate) + 1;
+    // Observe the audible 2 ms Amount transition after the common output
+    // delay. Smooth headroom already applies during bypass and stays active.
+    limiterSettlesAt = Access::Clock(e) + maremba::OutputHeadroom::LatencyFrames(rate)
+                     + std::ceil(.002 * rate) + 1;
     forSeconds(e, rate, .040);
     p.compAttack = attack == 1 ? 50 : 1; p.compRelease = release == 20 ? 500 : 20;
     e.SetParameters(p); // change ballistics while the limiter stays engaged
@@ -351,17 +357,30 @@ void limiterEngagement() {
                 limiter.SetSampleRate(internalRate); limiter.SetTimes(attack, release);
                 limiter.SetAmount(0); limiter.Reset();
                 float left, right;
-                limiter.Process(24, -12, left, right); limiter.ProtectOutput(left, right);
+                limiter.Process(24, -12, left, right);
                 require(left == 24 && right == -12, "settled zero-amount limiter changed bypass signal");
-                limiter.SetAmount(amount);
-                for (int i = 0; i < static_cast<int>(std::ceil(.003 * internalRate)); ++i) {
-                    limiter.Process(24, -12, left, right); limiter.ProtectOutput(left, right);
+                maremba::OutputHeadroom headroom;
+                headroom.SetSampleRate(rate);
+                const int interval = static_cast<int>(std::ceil(.005 * rate));
+                const int latency = maremba::OutputHeadroom::LatencyFrames(rate);
+                double peak = 0;
+                for (int i = 0; i < 3 * interval; ++i) {
+                    if (i == interval) limiter.SetAmount(amount);
+                    if (i == 2 * interval) limiter.SetAmount(0);
+                    for (int sub = 0; sub < (2 << quality); ++sub)
+                        limiter.Process(24, -12, left, right);
+                    std::array<float, 7> frame{{left, right, 0, 0, 0, 0, 0}};
+                    headroom.Process(frame);
+                    left = frame[0]; right = frame[1];
                     require(std::isfinite(left) && std::isfinite(right), "limiter engagement produced nonfinite output");
-                    require(std::abs(left) <= .980002f && std::abs(right) <= .980002f,
-                            "limiter leaked over-ceiling output during live engagement");
-                    require(left > 0 && right < 0 && std::abs(left + 2 * right) < 1.0e-6f,
-                            "limiter engagement changed stereo balance or polarity");
+                    require(std::abs(left) <= .940002f && std::abs(right) <= .940002f,
+                            "headroom leaked over-ceiling output during live limiter bypass/engagement");
+                    if (i < latency) require(left == 0 && right == 0, "headroom latency is not exact");
+                    else require(left > 0 && right < 0 && std::abs(left + 2 * right) < 1.0e-6f,
+                                 "limiter engagement changed stereo balance or polarity");
+                    peak = std::max(peak, static_cast<double>(left));
                 }
+                require(peak > .1, "limiter engagement fixture produced no audible output");
                 ++cases; ++limiterEngagementCases;
             }
 }

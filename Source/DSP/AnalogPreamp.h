@@ -57,30 +57,25 @@ public:
         mDcPole = static_cast<float>(std::exp(-kTwoPiD * kDcBlockHz / mSampleRate));
     }
 
-    // Process stereo frame through analog saturation and warmth tilt EQ
+    // Stateless pickup amplifier transfer, shared by the mixed and direct
+    // Piezo paths. Zero Drive leaves the sensor voltage exactly unchanged.
+    static float ApplyDrive(float sample, float drive) {
+        if (drive <= 0.001f) return sample;
+        const float driveGain = 1.0f + drive * 0.8f;
+        const float driveComp = 1.0f / std::sqrt(1.0f + drive * 0.7f);
+        const float x = sample * driveGain;
+        const float ax = std::abs(x);
+        if (ax <= 0.60f) return x * driveComp;
+        const float excess = ax - 0.60f;
+        const float sat = 0.60f + 0.40f * std::tanh(excess * (1.0f + drive * 1.5f) / 0.40f);
+        return std::copysign(sat * driveComp, x);
+    }
+
+    // Stereo DC removal and warmth. The engine applies Drive to Piezo before
+    // capture mixing and passes zero here, keeping both microphones clean.
     void Process(float inL, float inR, float drive, float warmth, float& outL, float& outR) {
-        float satL = inL;
-        float satR = inR;
-
-        // 1. High-Headroom Soft-Knee Saturation (clean bypass when drive <= 0.001)
-        if (drive > 0.001f) {
-            float driveGain = 1.0f + drive * 0.8f;
-            float driveComp = 1.0f / std::sqrt(1.0f + drive * 0.7f);
-
-            auto SoftSaturate = [drive](float x) -> float {
-                float ax = std::abs(x);
-                if (ax <= 0.60f) {
-                    return x; // 100% linear, zero distortion below 0.60 (-4.4 dBFS)
-                }
-                float sign = (x > 0.0f) ? 1.0f : -1.0f;
-                float excess = ax - 0.60f;
-                float sat = 0.60f + 0.40f * std::tanh(excess * (1.0f + drive * 1.5f) / 0.40f);
-                return sign * sat;
-            };
-
-            satL = SoftSaturate(inL * driveGain) * driveComp;
-            satR = SoftSaturate(inR * driveGain) * driveComp;
-        }
+        float satL = ApplyDrive(inL, drive);
+        float satR = ApplyDrive(inR, drive);
 
         // DC Blocker (20 Hz). Runs continuously, so toggling the drive never
         // resumes from a stale state.

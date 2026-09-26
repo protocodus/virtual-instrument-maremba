@@ -66,10 +66,9 @@ public:
         accPiezo += piezoIn;
     }
 
-    // Finalize one audio frame through mic levels and acoustic room space.
-    // The close and piezo taps are raw (before their level knobs, no width). The
-    // far tap is the far mic before its knob plus the room return, whose level
-    // follows the Far (ROOM) knob (roomLevel = farLevel; the room is off at 0).
+    // Build each capture independently, then apply its coefficient once.
+    // Direct taps are before all three coefficients and stereo width; Room
+    // retains its complete acoustic response even when its mix coefficient is 0.
     void ProcessFrame(float inCloseL, float inCloseR,
                       float inFarL, float inFarR,
                       float inPiezo,
@@ -86,7 +85,12 @@ public:
 
         // 2. Far/Room Mic — through the selected Wood, Chamber or Hall algorithm
         float farDryL = 0.0f, farDryR = 0.0f, roomWetL = 0.0f, roomWetR = 0.0f;
-        mRoom.Process(inFarL, inFarR, farLevel, farDryL, farDryR, roomWetL, roomWetR);
+        // A fixed acoustic wet/dry calibration near the factory Room range.
+        // The former squared law hid an excessively hot unity reverb return;
+        // removing that square must not also turn a typical small Room blend
+        // into a reverb-dominated signal. Only farLevel below is user gain.
+        constexpr float roomCaptureCalibration = 0.25f;
+        mRoom.Process(inFarL, inFarR, roomCaptureCalibration, farDryL, farDryR, roomWetL, roomWetR);
         outDirectFarL = farDryL + roomWetL;
         outDirectFarR = farDryR + roomWetR;
 

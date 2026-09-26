@@ -1,9 +1,9 @@
 // A tube under its bar, against anechoic recordings of a concert marimba
 // (University of Iowa MIS, 2013: cord mallets, 1.5 m, mf and ff): the
 // fundamental blooms at 70-170 ms, decays without a beating twin and rings
-// 1.4-2.9 s through the lower keyboard. Rendered on the engine's dry far
-// output (the far microphone at about 1 m, room off), Concert Grand striker.
-#include "MarembaEngine.h"
+// 1.4-2.9 s through the lower keyboard. Render the engine-configured voice's
+// far microphone before Room (about 1 m), with the Concert Grand striker.
+#include "DryCaptureProbe.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -34,16 +34,7 @@ maremba::EngineParameters grand() {
 }
 // Mono sum of one direct output pair after a single strike.
 std::vector<double> strike(const maremba::EngineParameters& p, int note, float velocity, double seconds, bool far) {
-    maremba::MarembaEngine engine(rate);
-    engine.SetParameters(p);
-    engine.NoteOn(note, velocity);
-    std::vector<double> out;
-    std::array<float, 64> l{}, r{}, cl{}, cr{}, fl{}, fr{};
-    for (size_t done = 0; done < static_cast<size_t>(seconds * rate); done += 64) {
-        engine.RenderBatch(l.data(), r.data(), cl.data(), cr.data(), fl.data(), fr.data(), nullptr, 64);
-        for (int i = 0; i < 64; ++i) out.push_back(far ? fl[i] + fr[i] : cl[i] + cr[i]);
-    }
-    return out;
+    return maremba::MarembaEngineTestAccess::DryCapture(p, note, velocity, rate, seconds, far);
 }
 double line(const std::vector<double>& x, double f, double from, double to) {
     const size_t a = static_cast<size_t>(from * rate), b = std::min(x.size(), static_cast<size_t>(to * rate));

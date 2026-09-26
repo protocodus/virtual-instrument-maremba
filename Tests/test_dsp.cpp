@@ -30,6 +30,7 @@ namespace maremba {
 struct MarembaEngineTestAccess {
     static bool MeshNormal(const MarembaEngine& e) { return e.mSympathetic.HasNoSubnormalState(); }
     static bool BodyNormal(const MarembaEngine& e) { return e.mFrameBody.HasNoSubnormalState(); }
+    static void CorruptOutputGain(MarembaEngine& e, float gain) { e.mVolumeGain = gain; }
     // Float main-bus chain after the mixer, including limiter control memory.
     static bool MainBusNormal(const MarembaEngine& e) {
         bool ok = e.mPreamp.HasNoSubnormalState() && e.mLimiter.HasNoSubnormalState()
@@ -418,30 +419,37 @@ void TestAnalogLimiterCurveAndLink()
     CHECK(a > .01f && a < .5f && std::abs(rise) < 1.0,
           "limiter still behaves as gentle compression, rise=" << rise);
 
-    for (double rate : { 88200.0, 96000.0, 384000.0, 1536000.0 }) {
+    struct RatePair { double base; int factor; };
+    for (const RatePair rates : {RatePair{44100, 2}, RatePair{48000, 2},
+                                RatePair{96000, 4}, RatePair{192000, 8}}) {
+        const double rate = rates.base * rates.factor;
         maremba::AnalogLimiter limiter;
         limiter.SetSampleRate(rate);
-        limiter.SetTimes(50.0f, 500.0f); // slowest musical attack must still arrest a peak
+        limiter.SetTimes(50.0f, 500.0f); // the musical envelope may pass its attack
         limiter.SetAmount(1.0f);
         limiter.Reset();
-        double maxPeak = 0.0, maxLinkError = 0.0;
-        for (int i = 0; i < 4096; ++i) {
-            const float input = i % 97 == 0 ? 20.0f : static_cast<float>(3.0 * std::sin(i * .17));
+        maremba::OutputHeadroom headroom;
+        headroom.SetSampleRate(rates.base);
+        double maxPeak = 0.0, maxLinkError = 0.0, rawAttack = 0.0;
+        for (int i = 0; i < 4096 + maremba::OutputHeadroom::LatencyFrames(rates.base); ++i) {
+            const float input = i >= 4096 ? 0.0f
+                : i % 97 == 0 ? 20.0f : static_cast<float>(3.0 * std::sin(i * .17));
             float l = 0.0f, r = 0.0f;
-            limiter.Process(input, -.37f * input, l, r);
-            limiter.ProtectOutput(l, r);
+            for (int sub = 0; sub < rates.factor; ++sub)
+                limiter.Process(input, -.37f * input, l, r);
             CHECK(std::isfinite(l) && std::isfinite(r), "limiter produced non-finite audio at " << rate);
+            CHECK(std::abs(r + .37f * l) < 1e-6f, "musical gain changes stereo balance");
+            if (i == 0) rawAttack = std::abs(l);
+            std::array<float, 7> frame{{l, r, 0, 0, 0, 0, 0}};
+            headroom.Process(frame);
+            l = frame[0]; r = frame[1];
             maxPeak = std::max(maxPeak, static_cast<double>(std::max(std::abs(l), std::abs(r))));
             maxLinkError = std::max(maxLinkError, static_cast<double>(std::abs(r + .37f * l)));
         }
-        CHECK(maxPeak <= maremba::AnalogLimiter::kOutputCeiling + 1e-6f, "peak escaped the active limiter");
-        CHECK(maxLinkError < 1e-6, "limiter changes the stereo ratio: " << maxLinkError);
-        // Reconstruction peaks after the oversampled block also share one gain.
-        float l = 1.3f, r = -.52f;
-        limiter.ProtectOutput(l, r);
-        CHECK(std::abs(l) <= maremba::AnalogLimiter::kOutputCeiling + 1e-6f,
-              "post-decimation sample guard missed a reconstruction peak");
-        CHECK(std::abs(r + .4f * l) < 1e-6f, "output guard changes stereo balance");
+        CHECK(rawAttack > 1.0, "musical attack still has an instantaneous clipping rail");
+        CHECK(maxPeak > .1 && maxPeak <= maremba::OutputHeadroom::kCeiling + 1e-6f,
+              "post-decimation headroom failed to contain the musical attack");
+        CHECK(maxLinkError < 1e-6, "output headroom changes the stereo ratio: " << maxLinkError);
     }
 }
 
@@ -490,26 +498,31 @@ void TestAnalogLimiterState()
         const float input = static_cast<float>(2.0 * std::sin(i * .031));
         float l = 0.0f, r = 0.0f;
         limiter.Process(input, -input * .5f, l, r);
-        limiter.ProtectOutput(l, r);
         CHECK(l == input && r == -input * .5f, "zero amount is not an exact dry bypass");
     }
-    // Enabling on a hot signal must protect immediately, including the wet
-    // path's two-millisecond fade. Quiet bypass automation stays smooth below.
-    limiter.SetAmount(1.0f);
-    float enabledL = 32.0f, enabledR = -16.0f;
-    limiter.ProtectOutput(enabledL, enabledR);
-    CHECK(std::abs(enabledL) <= maremba::AnalogLimiter::kOutputCeiling + 1e-6f,
-          "enabling limiter left an unprotected output before its first wet sample");
-    for (int i = 0; i < 960; ++i) {
+    // Output protection stays active through both directions of the musical
+    // limiter's fade, including zero Amount. It runs at the native rate.
+    maremba::OutputHeadroom headroom;
+    headroom.SetSampleRate(48000);
+    float enabledL = 0.0f, enabledR = 0.0f;
+    double enabledPeak = 0;
+    for (int i = 0; i < 1440; ++i) {
+        if (i == 240) limiter.SetAmount(1.0f);
+        if (i == 960) limiter.SetAmount(0.0f);
         const float input = 32.0f * std::cos(i * .037f);
-        limiter.Process(input, -.5f * input, enabledL, enabledR);
-        limiter.ProtectOutput(enabledL, enabledR);
+        for (int sub = 0; sub < 2; ++sub)
+            limiter.Process(input, -.5f * input, enabledL, enabledR);
+        std::array<float, 7> frame{{enabledL, enabledR, 0, 0, 0, 0, 0}};
+        headroom.Process(frame);
+        enabledL = frame[0]; enabledR = frame[1];
+        enabledPeak = std::max(enabledPeak, static_cast<double>(std::abs(enabledL)));
         CHECK(std::max(std::abs(enabledL), std::abs(enabledR))
-              <= maremba::AnalogLimiter::kOutputCeiling + 1e-6f,
+              <= maremba::OutputHeadroom::kCeiling + 1e-6f,
               "live limiter engagement leaked an over-ceiling transient");
         CHECK(std::abs(enabledR + .5f * enabledL) < 1e-6f,
               "engagement peak protection changed stereo polarity or balance");
     }
+    CHECK(enabledPeak > .1, "limiter automation/headroom test rendered silence");
     auto sequence = [&]() {
         limiter.SetAmount(1.0f);
         limiter.SetTimes(12.0f, 120.0f);
@@ -552,7 +565,7 @@ void TestAnalogLimiterState()
 
 void TestPreampLimiterContainment()
 {
-    std::cout << "[Dynamics] Main limiter after drive; raw direct stems stay identical ..." << std::endl;
+    std::cout << "[Dynamics] Main limiter after Piezo Drive and Warmth; direct stems stay identical ..." << std::endl;
     for (double rate : { 44100.0, 48000.0, 96000.0 }) {
         for (int quality : { 0, 1, 2 }) {
             EngineParameters p;
@@ -573,15 +586,43 @@ void TestPreampLimiterContainment()
                 return out;
             };
             const Render dry = chord(0.0f), limited = chord(1.0f);
-            CHECK(AllFinite(limited), "limiter engine path produces non-finite audio");
-            CHECK(std::max(Peak(limited.ch[kMainL]), Peak(limited.ch[kMainR]))
-                      <= maremba::AnalogLimiter::kOutputCeiling + 1e-6f,
-                  "final main bus exceeds sample ceiling at " << rate << "/" << quality);
+            CHECK(AllFinite(dry) && AllFinite(limited), "limiter engine path produces non-finite audio");
+            for (const Render* output : {&dry, &limited})
+                CHECK(std::max(Peak(output->ch[kMainL]), Peak(output->ch[kMainR]))
+                          <= maremba::OutputHeadroom::kCeiling + 1e-6f,
+                      "final main bus exceeds sample ceiling at " << rate << "/" << quality);
             CHECK(DiffEnergy(dry.ch[kMainL], limited.ch[kMainL], 0, dry.size()) > 1e-5,
                   "limiter is not active on the main bus");
             for (int channel = kCloseL; channel < kNumChannels; ++channel)
                 CHECK(dry.ch[channel] == limited.ch[channel], "limiter leaked into direct stem " << channel);
         }
+    }
+}
+
+void TestHeadroomPreservesRunawayGuard()
+{
+    std::cout << "[Headroom] Raw finite runaway and NaN reset before protection, without direct outputs ..." << std::endl;
+    for (float corruptedGain : {1.0e8f, std::numeric_limits<float>::quiet_NaN()}) {
+        EngineParameters p = CleanParams();
+        p.compAmount = p.preampDrive = 0;
+        MarembaEngine engine(48000);
+        engine.SetParameters(p);
+        engine.NoteOn(60, 1);
+        float left[64]{}, right[64]{};
+        for (int block = 0; block < 8; ++block)
+            engine.RenderBatch(left, right, nullptr, nullptr, nullptr, nullptr, nullptr, 64);
+        CHECK(!engine.IsSilent() && engine.GetActiveVoiceCount() > 0, "runaway fixture has no active note");
+        maremba::MarembaEngineTestAccess::CorruptOutputGain(engine, corruptedGain);
+        std::fill_n(left, 64, 12345.0f);
+        std::fill_n(right, 64, 12345.0f);
+        engine.RenderBatch(left, right, nullptr, nullptr, nullptr, nullptr, nullptr, 64);
+        CHECK(engine.IsSilent() && engine.GetActiveVoiceCount() == 0,
+              "headroom hides a runaway/nonfinite raw main frame from the last-resort guard");
+        for (int frame = 0; frame < 64; ++frame)
+            CHECK(left[frame] == 0 && right[frame] == 0, "runaway guard did not silence its whole output block");
+        engine.RenderBatch(left, right, nullptr, nullptr, nullptr, nullptr, nullptr, 64);
+        for (int frame = 0; frame < 64; ++frame)
+            CHECK(left[frame] == 0 && right[frame] == 0, "runaway guard left queued audio or poisoned headroom state");
     }
 }
 
@@ -626,8 +667,9 @@ void TestLegacyPitchGlideIgnored()
                 p.tuneCents = 37.0f;
                 const Render strike = RenderNote(rate, p, note, 1.0f, .05);
                 const double target = NoteHz(note) * std::exp2(37.0 / 1200.0);
+                const size_t latency = maremba::OutputHeadroom::LatencyFrames(rate);
                 const double f = EstimateFrequency(strike.ch[kPiezo], strike.ch[kPiezo],
-                    static_cast<size_t>(rate * .004), static_cast<size_t>(rate * .024), rate, target);
+                    latency + static_cast<size_t>(rate * .004), latency + static_cast<size_t>(rate * .024), rate, target);
                 const double error = std::fabs(Cents(f, target));
                 maxOnsetError = std::max(maxOnsetError, error);
                 // The bar itself is tuned on its resonator: before the air has
@@ -726,16 +768,25 @@ void TestDetune()
 
 void TestStrikerHierarchy()
 {
-    std::cout << "[Strikers] Mallet / thumb brightness hierarchy ..." << std::endl;
+    std::cout << "[Strikers] Physical mallet / thumb brightness hierarchy below output protection ..." << std::endl;
     for (int model : { 0, 3 }) {
         double energies[4];
         for (int m = 0; m < 4; ++m) {
             EngineParameters p;
             p.model = model;
             p.malletType = m;
+            // Compare physical excitation at one quiet gain. A harder
+            // striker's higher peak must not invoke more main gain reduction
+            // and obscure its high-frequency energy in this fixture.
+            p.volume = .1f;
+            p.preampDrive = p.compAmount = 0;
             Render r = RenderNote(44100.0, p, 60, 0.85f, model == 3 ? 0.025 : 0.5);
-            CHECK(Peak(r.ch[kMainL]) > 0.05 && Peak(r.ch[kMainL]) < 1.0, "striker " << m << " peak out of range");
+            const double peak = std::max(Peak(r.ch[kMainL]), Peak(r.ch[kMainR]));
+            CHECK(peak > 1e-6 && peak < .5, "striker " << m << " is inaudible or reaches output protection");
             energies[m] = HighPassEnergy(r.ch[kMainL], 0, r.size());
+            std::cout << "  -> model " << model << ", striker " << m << ": peak " << peak
+                      << ", HF energy " << energies[m] << ", HF/full "
+                      << energies[m] / Energy(r.ch[kMainL], 0, r.size()) << std::endl;
         }
         CHECK(energies[0] < energies[1] && energies[1] < energies[2] && energies[2] < energies[3],
               "brightness hierarchy broken for model " << model);
@@ -1068,6 +1119,7 @@ void TestRestrikeContinuity()
     EngineParameters p = CleanParams();
     p.sympathetic = 0.0f;
     p.malletType = 0; // soft yarn: long contact
+    const int latency = maremba::OutputHeadroom::LatencyFrames(44100);
     auto run = [&](bool restrike) {
         MarembaEngine engine(44100.0);
         engine.SetParameters(p);
@@ -1075,12 +1127,12 @@ void TestRestrikeContinuity()
         Render r;
         RenderFrames(engine, r, 64 * 15);
         if (restrike) engine.NoteOn(45, 0.15f);
-        RenderFrames(engine, r, 64 * 4);
+        RenderFrames(engine, r, 64 * 4 + latency);
         return r;
     };
     Render cont = run(false);
     Render hit = run(true);
-    const size_t at = 64 * 15;
+    const size_t at = 64 * 15 + latency;
     const double ringPeak = Peak(cont.ch[kCloseL], at, at + 64);
     // Within the first 0.2 ms the restruck bar must still be close to the continuation
     double early = 0.0;
@@ -1151,16 +1203,15 @@ void TestFarReverbWithPerBatchParameters()
         RenderFrames(engine, r, 44100, &p);
         return r;
     };
-    Render room = run(1.0f);
-    Render dry = run(0.0005f); // room bypassed, dry path identical (0.7x)
+    const Render room = run(1.0f), quiet = run(0.0005f), muted = run(0.0f);
     const double wet = Rms(room.ch[kFarL], 44100 * 3 / 10, 44100 * 6 / 10);
-    const double dryTail = Rms(dry.ch[kFarL], 44100 * 3 / 10, 44100 * 6 / 10);
-    std::cout << "  -> far tail 0.3-0.6 s: room " << Db(wet) << " dBFS, dry " << Db(dryTail) << " dBFS" << std::endl;
-    CHECK(wet > 10.0 * dryTail && wet > 1e-5, "far room reverb tail missing");
-    // Continuous dry gain: the room on/off switch at level 0 must not jump the
-    // direct level (read before the first wall reflection, 4.15 ms).
-    const double onsetRoom = Peak(room.ch[kFarL], 0, 176), onsetDry = Peak(dry.ch[kFarL], 0, 176);
-    CHECK(std::fabs(Db(onsetRoom / onsetDry)) < 0.5, "far dry path not continuous across the room bypass");
+    std::cout << "  -> direct Room tail 0.3-0.6 s: " << Db(wet) << " dBFS at every coefficient" << std::endl;
+    CHECK(wet > 1e-5, "far room reverb tail missing");
+    CHECK(room.ch[kFarL] == quiet.ch[kFarL] && room.ch[kFarR] == quiet.ch[kFarR]
+              && room.ch[kFarL] == muted.ch[kFarL] && room.ch[kFarR] == muted.ch[kFarR],
+          "Room coefficient changes the pre-coefficient direct capture or its tail");
+    CHECK(Peak(muted.ch[kMainL]) == 0 && Peak(muted.ch[kMainR]) == 0,
+          "zero capture coefficients leave audible main output");
 }
 
 void TestNoAllocations()
@@ -1350,7 +1401,7 @@ void TestPolyphonyReduction()
     CHECK(DiffEnergy(raised.ch[kCloseL], kept.ch[kCloseL], 0, raised.size()) == 0.0, "ghost notes after raising polyphony");
     // The excess voices fade (no cut): no sample step larger than during the chord itself
     double stepChord = 0.0, stepFade = 0.0;
-    const size_t at = 44100 / 2;
+    const size_t at = 44100 / 2 + maremba::OutputHeadroom::LatencyFrames(44100);
     for (size_t i = 1000; i < at; ++i) stepChord = std::max(stepChord, static_cast<double>(std::fabs(kept.ch[kCloseL][i] - kept.ch[kCloseL][i - 1])));
     for (size_t i = at; i < at + 441; ++i) stepFade = std::max(stepFade, static_cast<double>(std::fabs(kept.ch[kCloseL][i] - kept.ch[kCloseL][i - 1])));
     CHECK(stepFade <= stepChord, "polyphony reduction clicks: " << stepFade << " vs " << stepChord);
@@ -1636,13 +1687,13 @@ void TestPitchBendRetunesRingingNotes()
     Render r;
     RenderFrames(engine, r, 4410, &p);
     engine.SetPitchBendCents(200.0f);
-    const size_t at = r.size();
+    const size_t at = r.size() + maremba::OutputHeadroom::LatencyFrames(44100);
     RenderFrames(engine, r, 44100 / 2, &p);
     const double f = EstimateFrequency(r.ch[kCloseL], r.ch[kCloseR], at + 441, r.size(), 44100.0, NoteHz(71));
     CHECK(std::fabs(Cents(f, NoteHz(71))) < 1.0, "bend did not reach the ringing note: " << Cents(f, 440.0) << " c");
     engine.SetPitchBendCents(0.0f);
     p.tuneCents = -50.0f;
-    const size_t at2 = r.size();
+    const size_t at2 = r.size() + maremba::OutputHeadroom::LatencyFrames(44100);
     RenderFrames(engine, r, 44100 / 2, &p);
     const double f2 = EstimateFrequency(r.ch[kCloseL], r.ch[kCloseR], at2 + 441, r.size(), 44100.0, 440.0 * std::exp2(-50.0 / 1200.0));
     CHECK(std::fabs(Cents(f2, 440.0) + 50.0) < 1.0, "tune did not reach the ringing note: " << Cents(f2, 440.0) << " c");
@@ -1971,9 +2022,14 @@ void TestDirectOutMatchesMain()
     p.farLevel = 0.0f; p.piezoLevel = 0.0f; p.closeLevel = 1.0f; p.stereoWidth = 1.0f;
     p.compAmount = 0.0f; p.preampDrive = 0.0f; p.warmth = 0.0f;
     p.malletType = 3; p.malletHardness = 0.9f;
+    p.volume = .25f;
     for (int os : { 0, 2 }) {
         p.oversampling = os;
-        const Render r = RenderNote(44100.0, p, 96, 1.0f, 0.1);
+        // A quiet strike isolates the aligned, linear paths. Hot strikes use
+        // independent main-bus headroom and are checked by containment tests.
+        const Render r = RenderNote(44100.0, p, 96, .1f, 0.1);
+        CHECK(Peak(r.ch[kMainL]) < .5 && Peak(r.ch[kMainR]) < .5,
+              "direct/main alignment fixture is not safely below the output ceiling");
         double err = 0.0, lvl = 0.0;
         for (size_t i = 0; i < r.size(); ++i) {
             const double close = r.ch[kCloseL][i] / kDirectOutTrim;
@@ -2024,7 +2080,7 @@ void TestVolumeSmoothing()
     e.NoteOn(69, 1.0f);
     Render r;
     RenderFrames(e, r, 4410, &p);
-    const size_t at = r.size();
+    const size_t at = r.size() + maremba::OutputHeadroom::LatencyFrames(44100);
     p.volume = 0.1f;
     RenderFrames(e, r, 4410, &p);
     double stepBefore = 0.0, stepAt = 0.0;
@@ -2184,14 +2240,15 @@ void TestWidthAndRoomImage()
     CHECK(DiffEnergy(a.ch[kFarL], b.ch[kFarL], 0, a.size()) == 0.0, "width leaks into the far direct out");
 }
 
-// SND-3: Far down to 0 and back while bars ring: the room restarts clean, no
-// stale tail bursts back.
-void TestRoomBypassNoStaleTail()
+// SND-3: Room is a coefficient on a continuously captured space. Turning it
+// down must preserve the direct room tail and smoothly fade only its main mix.
+void TestRoomCoefficientPreservesTail()
 {
-    std::cout << "[Room] Far 1 -> 0 -> 1 while ringing brings back no stale tail ..." << std::endl;
+    std::cout << "[Room] Coefficient 1 -> 0 -> 1 preserves the capture and fades the main mix ..." << std::endl;
     auto run = [](bool toggle) {
         EngineParameters p = CleanParams();
         p.decay = 4.0f;
+        p.closeLevel = p.piezoLevel = 0.0f;
         p.farLevel = 1.0f;
         MarembaEngine e(44100.0);
         e.SetParameters(p);
@@ -2205,14 +2262,22 @@ void TestRoomBypassNoStaleTail()
         return r;
     };
     const Render steady = run(false), toggled = run(true);
-    const size_t at = 44100 / 2 + 44100 / 2 * 2, win = 882;
+    const size_t at = 44100 / 2 + 44100 / 2 * 2 + maremba::OutputHeadroom::LatencyFrames(44100), win = 882;
     const double back = Rms(toggled.ch[kFarL], at, at + win), ref = Rms(steady.ch[kFarL], at, at + win);
     double step = 0.0;
     for (size_t i = at; i < at + win; ++i) step = std::max(step, static_cast<double>(std::fabs(toggled.ch[kMainL][i] - toggled.ch[kMainL][i - 1])));
     double stepRef = 0.0;
     for (size_t i = at; i < at + win; ++i) stepRef = std::max(stepRef, static_cast<double>(std::fabs(steady.ch[kMainL][i] - steady.ch[kMainL][i - 1])));
     std::cout << "  -> far L 20 ms after re-enable: " << Db(back) << " dBFS (steady " << Db(ref) << "), main step " << step << " (steady " << stepRef << ")" << std::endl;
-    CHECK(back <= ref, "stale room tail bursts back when Far returns");
+    CHECK(steady.ch[kFarL] == toggled.ch[kFarL] && steady.ch[kFarR] == toggled.ch[kFarR],
+          "Room coefficient resets, freezes or scales the direct room tail");
+    CHECK(Peak(toggled.ch[kMainL], 44100, at) < 1e-8
+              && Peak(toggled.ch[kMainR], 44100, at) < 1e-8,
+          "Room coefficient zero does not finish fading its main contribution");
+    CHECK(std::abs(toggled.ch[kMainL][at]) < std::abs(steady.ch[kMainL][at]) * .1 + 1e-8,
+          "Room coefficient jumps to full level at re-enable");
+    CHECK(Rms(toggled.ch[kMainL], at + 4410, toggled.size()) > 0,
+          "Room coefficient does not restore the still-ringing capture");
 }
 
 // ─── Review round 3: regression guards ──────────────────────────────────────
@@ -2305,7 +2370,8 @@ void TestModelChangeRestrikeNoClick()
     // HF energy (second difference) of the close out over 3 ms after the restrike
     auto hf = [&](const std::vector<float>& x) {
         double e = 0.0;
-        for (size_t i = ring + 2; i < ring + 132; ++i) {
+        const size_t at = ring + maremba::OutputHeadroom::LatencyFrames(44100);
+        for (size_t i = at + 2; i < at + 132; ++i) {
             const double d = static_cast<double>(x[i]) - 2.0 * x[i - 1] + x[i - 2];
             e += d * d;
         }
@@ -3147,6 +3213,22 @@ int main(int argc, char** argv)
         TestPreampLimiterContainment();
         return gFailures ? 1 : 0;
     }
+    if (argc == 2 && std::string(argv[1]) == "--capture-routing") {
+        TestFarReverbWithPerBatchParameters();
+        TestRoomCoefficientPreservesTail();
+        return gFailures ? 1 : 0;
+    }
+    if (argc == 2 && std::string(argv[1]) == "--output-latency") {
+        TestHeadroomPreservesRunawayGuard();
+        TestLegacyPitchGlideIgnored();
+        TestRestrikeContinuity();
+        TestPolyphonyReduction();
+        TestPitchBendRetunesRingingNotes();
+        TestModelChangeRestrikeNoClick();
+        TestVolumeSmoothing();
+        TestDirectOutMatchesMain();
+        return gFailures ? 1 : 0;
+    }
     if (argc == 2 && (std::string(argv[1]) == "--repeat-variation" || std::string(argv[1]) == "--repeat-measure")) {
         TestOrganicRepeatVariation(std::string(argv[1]) == "--repeat-measure");
         return gFailures ? 1 : 0;
@@ -3154,6 +3236,10 @@ int main(int argc, char** argv)
     if (argc == 2 && std::string(argv[1]) == "--buzz") {
         TestMirlitonBuzz();
         TestCharacterRangeAndLiveBuzz();
+        return gFailures ? 1 : 0;
+    }
+    if (argc == 2 && std::string(argv[1]) == "--striker-response") {
+        TestStrikerHierarchy();
         return gFailures ? 1 : 0;
     }
     std::cout << "=== Running Maremba DSP Verification Suite ===" << std::endl;
@@ -3166,6 +3252,7 @@ int main(int argc, char** argv)
     TestAnalogLimiterBallistics();
     TestAnalogLimiterState();
     TestPreampLimiterContainment();
+    TestHeadroomPreservesRunawayGuard();
     TestLegacyPitchGlideIgnored();
     TestSympatheticHalo();
     TestBodyBloom();
@@ -3207,7 +3294,7 @@ int main(int argc, char** argv)
     TestBendLeavesNothingBehind();
     TestNoSubnormalStates();
     TestWidthAndRoomImage();
-    TestRoomBypassNoStaleTail();
+    TestRoomCoefficientPreservesTail();
     TestMembraneRestrikeFreesVoice();
     TestModelChangeRestrikeNoClick();
     TestBendModulationStability();

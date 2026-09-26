@@ -5,6 +5,7 @@
 #include "MicMixer.h"
 #include "AnalogPreamp.h"
 #include "AnalogLimiter.h"
+#include "OutputHeadroom.h"
 #include "Oversampler.h"
 #include "RandomArtifacts.h"
 #include "SympatheticMesh.h"
@@ -37,13 +38,13 @@ struct EngineParameters {
     float pitchGlide = 0.30f;       // legacy input, ignored and sanitized to 0
     float bodyBloom = 0.50f;        // 0..1 frame & soundboard body
 
-    float closeLevel = 0.85f;       // 0..1
-    float farLevel = 0.45f;         // 0..1
+    float closeLevel = 0.85f;       // 0..1 independent capture coefficient
+    float farLevel = 0.45f;         // 0..1 coefficient on the complete Room capture
     int roomType = 0;              // 0: Wood (legacy), 1: Chamber FDN, 2: Hall tank
-    float piezoLevel = 0.30f;       // 0..1
+    float piezoLevel = 0.30f;       // 0..1 independent capture coefficient
     float stereoWidth = 1.0f;       // 0..2 (1 = natural), applied to the main bus
 
-    float preampDrive = 0.15f;      // 0..1
+    float preampDrive = 0.15f;      // 0..1 Piezo amplifier only; legacy stored name
     float warmth = 0.10f;           // -1..1 tilt
     float compAmount = 0.25f;       // 0..1 analog limiter; legacy stored name
     float compAttack = 10.0f;       // main limiter control attack, ms, 1..50
@@ -183,7 +184,6 @@ private:
     bool mBodyRunning = false;
     bool mBodyVelocityActive = false, mMeshVelocityActive = false;
     bool mBodyVelocityRunning = false, mMeshVelocityRunning = false;
-    bool mRoomRunning = false;
 
     // Oversampling change: fade out at the old rate, then reset and switch
     bool mSwitchPending = false;
@@ -222,6 +222,7 @@ private:
     MicMixer mMicMixer;
     AnalogPreamp mPreamp;
     AnalogLimiter mLimiter;
+    OutputHeadroom mOutputHeadroom;
     StereoOversampler mOversampler;
     std::array<MonoOversampler, kNumDirectOuts> mDirectDecimators;
     std::array<bool, kNumDirectOuts> mDirectRunning{};

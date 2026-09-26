@@ -14,7 +14,10 @@
 namespace {
 constexpr double rate = 48000;
 constexpr double pi = 3.14159265358979323846;
-struct Audio { std::vector<double> close, piezo, mainLeft; };
+struct Audio {
+    std::vector<double> close, piezo, mainLeft;
+    double mainPeak = 0;
+};
 using Field = float maremba::EngineParameters::*;
 maremba::EngineParameters controlled(int model) {
     maremba::EngineParameters p;
@@ -51,6 +54,8 @@ Audio render(const maremba::EngineParameters& p, int note = 60, float velocity =
             a.close[start + i] = cl[i] + cr[i];
             a.piezo[start + i] = pickup[i];
             a.mainLeft[start + i] = l[i];
+            a.mainPeak = std::max({a.mainPeak, std::abs(static_cast<double>(l[i])),
+                                  std::abs(static_cast<double>(r[i]))});
         }
     }
     return a;
@@ -303,6 +308,9 @@ int main(int argc, char** argv) {
                                                "piezo", "width", "drive"};
     for (size_t k = 0; k < liveFields.size(); ++k) {
         auto p = controlled(0);
+        // Isolate control smoothing from output gain history. Steady high
+        // and live-automated captures must both stay below headroom control.
+        p.volume = .25f;
         p.closeLevel = p.piezoLevel = .4f;
         // Body/mesh automation also changes what enters the room. Disable that
         // history-dependent branch here; Room itself is probed with a fixed input.
@@ -313,12 +321,16 @@ int main(int argc, char** argv) {
         const auto changed = render(p, 48, 1, .2, liveFields[k], 1);
         p.*liveFields[k] = 1;
         const auto high = render(p, 48, 1, .2);
+        for (const Audio* audio : {&low, &changed, &high})
+            check(audio->mainPeak > 1e-6 && audio->mainPeak < .5,
+                  std::string(liveNames[k]) + " automation fixture is inaudible or invokes headroom control");
+        const size_t latency = maremba::OutputHeadroom::LatencyFrames(rate);
         double edge = 0, endpoint = 0, settled = 0, settledRange = 0;
-        for (size_t i = 4800; i < changed.mainLeft.size(); ++i) {
+        for (size_t i = 4800 + latency; i < changed.mainLeft.size(); ++i) {
             const double delta = changed.mainLeft[i] - low.mainLeft[i];
             const double range = high.mainLeft[i] - low.mainLeft[i];
-            if (i < 4896) { edge += delta*delta; endpoint += range*range; }
-            if (i >= 7200) {
+            if (i < 4896 + latency) { edge += delta*delta; endpoint += range*range; }
+            if (i >= 7200 + latency) {
                 const double error = changed.mainLeft[i] - high.mainLeft[i];
                 settled += error*error;
                 settledRange += range*range;
@@ -330,7 +342,8 @@ int main(int argc, char** argv) {
               std::string(liveNames[k]) + " automation inserts a gain step");
         check(error < -35, std::string(liveNames[k]) + " automation does not reach its target");
         std::cout << "AUTOMATION control=" << liveNames[k] << " onset_to_full_step_db=" << onset
-                  << " settled_error_db=" << error << '\n';
+                  << " settled_error_db=" << error << " endpoint_energy=" << endpoint
+                  << " fixture_peak=" << std::max({low.mainPeak, changed.mainPeak, high.mainPeak}) << '\n';
     }
 
     // Idle rendering is elided, so all live-control ramps must finish at the

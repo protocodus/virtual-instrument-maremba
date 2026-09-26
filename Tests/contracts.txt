@@ -3,6 +3,8 @@
 # this list, so a contract added here runs everywhere.
 PiezoPickupTest            # attached-transducer pickup: strain, mounting, loading
 PiezoEngineTest            # complete captures, shared plate sensor, routing and tails
+CaptureRoutingTest         # independent capture coefficients and Piezo-only Drive
+HeadroomTest               # smooth overload protection, quiet unity, aligned capture latency
 MechanicalArtifactsTest    # rebounds, grazes, neighbour brushes, rattles
 CollisionResponseTest      # mounting collisions driven by vibration
 EngineRealismTest          # earlier engine realism contracts

@@ -23,7 +23,9 @@ struct MarembaEngineTestAccess {
         for (auto& voice : e.mVoices) voice.FastKill();
         e.mKalimbaBody.Reset();
         e.mKalimbaBodyRunning = false;
+        e.mMicMixer.Reset(); // the independent Room capture otherwise retains its acoustic tail
         for (auto& decimator : e.mDirectDecimators) decimator.Reset();
+        e.mOutputHeadroom.Reset(); // queued source audio must not fake a pickup tail
     }
 };
 } // namespace maremba
@@ -179,7 +181,7 @@ Audio performance(MarembaEngine& e, int batch) {
     e.DampAll();
     append(a, render(e, 4096, batch));
     for (size_t c = 0; c < 2; ++c) for (float value : a[c])
-        require(std::abs(value) <= .980001f, "limited main output exceeds its ceiling");
+        require(std::abs(value) <= .940002f, "main output exceeds its headroom ceiling");
     return a;
 }
 
@@ -209,13 +211,14 @@ void sharedPickupTail() {
             Access::LeaveOnlyPickup(*e);
             require(e->GetActiveVoiceCount() == 0, "tail fixture still contains a voice");
             if (changeModel) { p.model = 0; e->SetParameters(p); }
-            const auto tail = render(*e, 64);
+            const int firstFrames = OutputHeadroom::LatencyFrames(setup.rate) + 64;
+            const auto tail = render(*e, firstFrames);
             double piezoEnergy = 0, acousticEnergy = 0;
             for (float value : tail[6]) piezoEnergy += value * value;
             for (size_t c = 2; c < 6; ++c) for (float value : tail[c]) acousticEnergy += value * value;
             require(piezoEnergy > 1e-18, "charged plate pickup is cut off after last voice/source ends");
             require(acousticEnergy == 0, "plate pickup state leaks into acoustic captures");
-            int frames = 64;
+            int frames = firstFrames;
             while (!e->IsSilent() && frames < static_cast<int>(setup.rate * 2)) {
                 render(*e, 64);
                 frames += 64;
@@ -231,7 +234,7 @@ void sharedPickupTail() {
             for (const auto& channel : render(*e, 64)) for (float value : channel)
                 require(value == 0, "Reset leaks sensor charge to output");
             std::cout << "TAIL rate=" << setup.rate << " quality=" << (2 << setup.quality)
-                      << " model_change=" << changeModel << " first_block_energy=" << piezoEnergy
+                      << " model_change=" << changeModel << " first_audible_block_energy=" << piezoEnergy
                       << " drain_seconds=" << frames / setup.rate << '\n';
             ++lifecycleCases;
         }

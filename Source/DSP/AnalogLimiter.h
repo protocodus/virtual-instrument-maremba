@@ -8,15 +8,13 @@ namespace maremba {
 
 // Original circuit-inspired limiter: a stereo rectifier charges a control
 // capacitor, a second reservoir prolongs recovery after sustained overload,
-// and the control voltage drives a shunt-like attenuator. A smooth diode-like
-// rail catches transients while the musical attack capacitor is still charging.
+// and the control voltage drives a shunt-like attenuator. Transient headroom
+// is handled by the engine's smooth lookahead gain after decimation; rounding
+// individual peaks here would add unwanted distortion even at tiny amounts.
 // These are voiced block models, not measured components or a hardware clone.
-// The modeled analog stages run at the engine's oversampled rate; a final
-// sample-peak guard handles any overshoot created by decimation.
+// The modeled control stage runs at the engine's oversampled rate.
 class AnalogLimiter {
 public:
-    static constexpr float kOutputCeiling = 0.98f;
-
     AnalogLimiter() {
         SetSampleRate(kReferenceRate);
         SetAmount(0.25f);
@@ -40,7 +38,7 @@ public:
     }
 
     // Existing patch/automation units remain milliseconds; they describe the
-    // main control capacitor, independently of the instantaneous soft rail.
+    // main control capacitor, independently of final clean headroom protection.
     void SetTimes(float attackMs, float releaseMs) {
         attackMs = FiniteRange(attackMs, 1.0f, 50.0f, 10.0f);
         releaseMs = FiniteRange(releaseMs, 20.0f, 500.0f, 120.0f);
@@ -103,34 +101,11 @@ public:
         // The positive capacitor voltage increases attenuation conductance.
         // With constant overdrive, g=1/(1+c) tends to threshold/peak: limiting,
         // rather than the old low-ratio compressor's partial gain reduction.
-        float wetGain = 1.0f / (1.0f + mControl);
-        const float wetPeak = peak * wetGain;
-        if (wetPeak > kRailKnee) {
-            const float excess = wetPeak - kRailKnee;
-            const float span = kRailCeiling - kRailKnee;
-            const float roundedPeak = kRailKnee + span * excess / (span + excess);
-            wetGain *= roundedPeak / wetPeak;
-        }
+        const float wetGain = 1.0f / (1.0f + mControl);
         // A common gain preserves stereo balance, polarity and antiphase.
         const float gain = (1.0f - mEngagement) + mEngagement * wetGain;
         outL = inL * gain;
         outR = inR * gain;
-    }
-
-    // The decimator can overshoot a bounded internal waveform. This emergency
-    // linked sample-peak guard belongs AFTER decimation and master attenuation.
-    // It adds no latency and is not an intersample/true-peak limiter. Enabling
-    // the limiter protects immediately, including its wet-path crossfade;
-    // only an intentional transition back to bypass eases the cap away.
-    void ProtectOutput(float& left, float& right) const {
-        if (mEngagement == 0.0f && mEngagementTarget == 0.0f) return;
-        const float peak = std::max(std::abs(left), std::abs(right));
-        if (peak > kOutputCeiling) {
-            const float protection = mEngagementTarget > 0.0f ? 1.0f : mEngagement;
-            const float gain = (1.0f - protection) + protection * (kOutputCeiling / peak);
-            left *= gain;
-            right *= gain;
-        }
     }
 
     void FlushTiny() {
@@ -145,9 +120,6 @@ public:
     }
 
 private:
-    static constexpr float kRailKnee = 0.88f;
-    static constexpr float kRailCeiling = 0.94f;
-
     static float FiniteRange(float x, float low, float high, float fallback) {
         return std::isfinite(x) ? std::max(low, std::min(high, x)) : fallback;
     }
