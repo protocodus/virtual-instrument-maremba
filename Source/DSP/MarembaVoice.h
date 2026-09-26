@@ -31,8 +31,8 @@ static constexpr int kStrikerCount = 5;
 // Per-strike settings beyond the positional contract; the defaults are the
 // instrument as built.
 struct StrikeOptions {
-    float carving = 1.0f;             // 0 uncarved (rectangular) bars .. 1 as built
-    float membraneTension = 0.5f;     // 0 slack .. 1 tight; 0.5 as voiced
+    float carving = 1.0f;             // 0 uncarved bars / stiff tine profile .. 1 as built
+    float membraneTension = 0.5f;     // support and buzz tension: 0 slack .. 1 tight; .5 as voiced
     bool deadStroke = false;          // the mallet (thumb) stays on the key until Release()
     RadiationCacheEntry* radiationCache = nullptr;
 };
@@ -81,8 +81,8 @@ public:
     // resonator coefficients from the stored trigger-time frequencies.
     void Retune(float globalCents);
     // Normalized 0..1 Buzz knob (mapped to 0..kBuzzRange of the physical
-    // membrane/buzzer response) and membrane tension; both follow automation
-    // while the bar is ringing.
+    // membrane/buzzer response) and support/attachment tension; both follow
+    // automation while a key rings. Tension remains effective with Buzz off.
     static constexpr float kBuzzRange = 0.7f;
     void SetBuzz(float amount, float tension = 0.5f);
 
@@ -155,6 +155,7 @@ private:
     void SetModeCoefficients(ModeState& mode, double omega) const;
     void RetuneMode(ModeState& mode, double omega) const;
     void ReconfigureMode(ModeState& mode, double radius, double omega) const;
+    double TensionRadius(int mode, float tension) const;
     static double ModeEnergy(const ModeState& mode);
     static double FlushedModeEnergy(ModeState& mode);
     double MembraneEnergy() const;
@@ -196,6 +197,9 @@ private:
 
     // Bending modes of the bar or tine, plus two torsional and one lateral mode
     ModeState mModes[kNumPitchedModes];
+    double mNeutralModeLoss[kNumPitchedModes]{}; // loss exponent/sample at Tension=.5
+    double mNeutralModeRadius[kNumPitchedModes]{}; // exact original pole at the centre
+    float mRadiationCarving = -1.0f;
     ModalRadiationReadout mRadiation[kNumPitchedModes];
     double mRadiationHz[kNumPitchedModes]{};   // mode frequency the readout was projected at
     double mRadiationGain[kNumPitchedModes]{};   // acceleration x dipole efficiency x calibration

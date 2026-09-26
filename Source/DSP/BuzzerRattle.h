@@ -39,14 +39,17 @@ public:
     }
 
     // amount 0..1 (Buzz): 0 lifts the buzzers off the board entirely.
-    void SetLooseness(double amount) {
+    void SetLooseness(double amount, double tension = 0.5) {
         amount = std::clamp(amount, 0.0, 1.0);
         mActive = amount > 0.001;
         if (!mActive) mHeight = mVelocity = 0.0;   // taken off: no late landing
         // Tightens quickly toward low settings, so the default Buzz only
         // rattles on the hardest treble strokes; a pluck's release jolts the
         // board far harder than its ring does.
-        mPreload = 3000.0 * std::exp(2.79 * (1.0 - amount));
+        // A tighter retaining wire increases the load needed for lift-off.
+        // The centre keeps the existing buzzer voicing exactly.
+        mPreload = 3000.0 * std::exp(2.79 * (1.0 - amount))
+                 * std::exp2(2.0 * (std::clamp(tension, 0.0, 1.0) - 0.5));
         // A looser ring also rings more freely once it has landed.
         mLevel = 0.3 + 0.7 * amount;
     }

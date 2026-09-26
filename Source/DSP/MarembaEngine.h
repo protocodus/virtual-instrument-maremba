@@ -72,8 +72,8 @@ struct EngineParameters {
     int noteOffMode = 0;            // 0: Ring (bars ring freely), 1: Damp (hand/finger stops the key),
                                     // 2: Dead (the mallet or thumb stays on the key while it is held)
     float modWheel = 0.0f;          // 0..1: roll speed on mallet models, hole cover on Kalimba
-    float carving = 1.0f;           // 0..1: 0 uncarved bars .. 1 the keys as built
-    float membraneTension = 0.5f;   // 0..1: buzz membranes slack .. tight (0.5 as voiced)
+    float carving = 1.0f;           // 0..1: uncarved bars / stiff tine profile .. keys as built
+    float membraneTension = 0.5f;   // 0..1: supports and buzz attachments slack .. tight (.5 as voiced)
 };
 
 class MarembaEngine {

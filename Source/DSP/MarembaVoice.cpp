@@ -334,6 +334,20 @@ void MarembaVoice::ReconfigureMode(ModeState& mode, double radius, double omega)
     mode.y2 = (mode.y1 * cosNew + (rOld * mode.y2 - mode.y1 * cosOld) * k) / r;
 }
 
+// Cord/felt loading on bars and retaining-bar loading on tines. This is a
+// bounded voiced extension of the existing losses, not a measured support
+// law: tighter supports absorb more energy, especially from upper modes.
+// At the centre retain the old pole bit-for-bit. No pitch change or per-sample
+// work is needed; live updates preserve each mode's displacement and phase.
+double MarembaVoice::TensionRadius(int mode, float tension) const {
+    if (tension == 0.5f) return mNeutralModeRadius[mode];
+    const double span = mTine ? 1.15 : mModel == EMarimbaModel::BalafonAncestral ? 1.35
+                                  : mModel == EMarimbaModel::MayanPadauk ? 1.1 : 0.8;
+    const double upperWeight = 1.0 + 0.25 * std::min(mode, 4);
+    const double loss = mNeutralModeLoss[mode] * std::exp2((tension - 0.5) * span * upperWeight);
+    return std::exp(-std::max(loss, 6.907755 / (kMaxT60Seconds * mSampleRate)));
+}
+
 // For y[n] = A r^n cos(wn + phi): y1^2 - c*y1*y2 + s*y2^2 = (A r^n sin w)^2, so
 // dividing by sin^2 w gives the squared amplitude independent of the phase.
 double MarembaVoice::ModeEnergy(const ModeState& mode) {
@@ -720,6 +734,10 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     // Modes, losses and readouts
     // ----------------------------------------------------------------------
     const int previousModes = isRestrike ? mNumModes : 0;
+    const float carving = std::clamp(options.carving, 0.0f, 1.0f);
+    const bool sameRadiationCarving = mRadiationCarving == carving;
+    mRadiationCarving = carving;
+    mMembraneTension = std::clamp(options.membraneTension, 0.0f, 1.0f);
     mNumModes = mTine ? kNumTineModes : kNumPitchedModes;
     BarKey key{};
     KalimbaMount mount{};
@@ -736,6 +754,16 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         tineStiffness = tineGeometry.bendingStiffness;
         // The fundamental's loss above the steel's own leaves through the bridge.
         bridgeLoss0 = kPiD * f0 * std::max(TineFundamentalLossFactor(f0) - material.eta0, 0.0);
+        // Filing/relieving the tine at its support moves a stiff profile
+        // toward the existing yielding-bridge instrument. A conservative
+        // morph toward the rigid supported-beam spectrum gives Carving a
+        // tine-specific meaning while leaving its fundamental at the key.
+        // The interpolation is a voiced approximation, not a new FEM fit.
+        const double stiffShare = 0.65 * (1.0 - carving);
+        for (int m = 0; m < kNumTineModes; ++m) {
+            mount.ratio[m] += stiffShare * (KalimbaModeRatio(m) - mount.ratio[m]);
+            mount.bridgeLoss[m] *= 1.0 - 0.3 * stiffShare;
+        }
     } else {
         key = GetBarKey(model, midi, options.carving);
     }
@@ -783,7 +811,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         double shapeAtContact;
         // A restrike of the same key keeps its spatial radiation unless the
         // mode moved by more than a stroke's pitch scatter (0.05 %).
-        bool project = !(isRestrike && m < previousModes && mRadiationHz[m] > 0.0
+        bool project = !(isRestrike && sameRadiationCarving && m < previousModes && mRadiationHz[m] > 0.0
                          && std::abs(fm / mRadiationHz[m] - 1.0) < 5.0e-4);
         // A fresh strike of a key played before takes the engine's copy.
         RadiationCacheEntry* const cache = options.radiationCache;
@@ -799,10 +827,16 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
                   * KalimbaBodyLoading(fm, resonatorTuneCents, couplingShape);
             modalMass = tineMass;
             mHandShape[m] = 0.0;
-            shapeAtContact = FootprintAverage([&mountShape, m](double x) { return KalimbaMountedShape(mountShape, m, x); },
+            const auto shape = [&mountShape, m, carving](double x) {
+                const double mounted = KalimbaMountedShape(mountShape, m, x);
+                if (carving == 1.0f) return mounted;
+                const double rigid = kKalimbaBeamModes[m].contactScale * KalimbaFullModeShape(m, x);
+                return mounted + 0.65 * (1.0 - carving) * (rigid - mounted);
+            };
+            shapeAtContact = FootprintAverage(shape,
                                               spatialPosition, footprint);
             if (project)
-                for (int k = 0; k < kRadiationNodes; ++k) nodeShapes[k] = KalimbaMountedShape(mountShape, m, kModalRadiationNodes[k].x);
+                for (int k = 0; k < kRadiationNodes; ++k) nodeShapes[k] = shape(kModalRadiationNodes[k].x);
         } else {
             alpha = kPiD * fm * LossFactor(material, fm);
             modalMass = std::max(key.massFraction[m] * key.massKg, 1.0e-4);
@@ -819,7 +853,9 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         if (!(isRestrike && m < previousModes)) mode.y1 = mode.y2 = 0.0;
         mode.omega = omega;
         mode.idle = false;
-        ReconfigureMode(mode, std::exp(-6.907755 / (t60 * fs)), omega);
+        mNeutralModeLoss[m] = 6.907755 / (t60 * fs);
+        mNeutralModeRadius[m] = std::exp(-mNeutralModeLoss[m]);
+        ReconfigureMode(mode, TensionRadius(m, mMembraneTension), omega);
         mode.contact = shapeAtContact;
         mode.toDisplacement = 1.0 / (kStateScale * std::sqrt(modalMass));
 
@@ -1124,7 +1160,6 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         ? std::pow(std::min(1.0, 261.625565 / f0), kCharleoTrebleGapExponent) : 1.0;
     mMembraneGapScale = std::clamp(std::pow(261.625565 / f0, model == EMarimbaModel::BalafonAncestral ? 1.8 : 1.1)
                                    * trebleGap, model == EMarimbaModel::MayanPadauk ? 0.02 : 0.08, 1.6);
-    mMembraneTension = std::clamp(options.membraneTension, 0.0f, 1.0f);
     ConfigureMembranes(buzzAmount, true);
     mSlapPrng = FastPRNG(mLocalPrng.Next() | 1u);
     // A short treble tine shakes the board faster for the same bridge motion;
@@ -1272,6 +1307,8 @@ void MarembaVoice::SetBuzz(float amount, float tension) {
     const MembraneVoicing voicing = GetMembraneVoicing(mModel, mNoteNumber);
     if (tension != mMembraneTension) {
         mMembraneTension = tension;
+        for (int m = 0; m < mNumModes; ++m)
+            ReconfigureMode(mModes[m], TensionRadius(m, tension), mModes[m].w);
         const double formant = TensionFormantRatio(tension);
         for (int i = 0; i < mNumMembranes; ++i)
             mMembranes[i].Configure(mSampleRate, voicing.formantHz[i] * formant * MembraneFormantScale(mModel, mF0)
@@ -1280,7 +1317,7 @@ void MarembaVoice::SetBuzz(float amount, float tension) {
     // A tighter membrane needs more pressure to reach its limits.
     const double tautness = std::pow(TensionFormantRatio(tension), 3.0);
     // A kalimba has no resonator membrane; its Buzz is the board buzzers.
-    mBuzzer.SetLooseness(mTine ? amount : 0.0f);
+    mBuzzer.SetLooseness(mTine ? amount : 0.0f, tension);
     mHasMirliton = !mTine && amount > 0.001f && mNumMembranes > 0;
     // More Buzz: looser, more exposed membranes that reach their taut limits
     // at lower pressure and are pushed harder by it. Mid settings buzz only on
