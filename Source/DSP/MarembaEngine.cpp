@@ -185,8 +185,8 @@ void MarembaEngine::Reset() {
     SnapLiveControls();
     mControlCounter = 0;
     mTailsSilent = true;
-    mMeshRunning = mParams.sympathetic > 0.001f;
-    mBodyRunning = mParams.bodyBloom > 0.001f;
+    mMeshRunning = mSympatheticGain > 0.0f;
+    mBodyRunning = mBodyGain > 0.0f;
     mRoomRunning = mParams.farLevel > 0.001f;
 }
 
@@ -206,16 +206,18 @@ void MarembaEngine::ConfigureModel() {
     mConfiguredScale = mParams.tuningScale;
     ModelParams mp = GetModelParams(static_cast<EMarimbaModel>(mParams.model));
     mFrameBody.Configure(InternalRate(), mp.frameBodyFreq, mp.frameBodyQ, static_cast<EMarimbaModel>(mParams.model));
+    mVelocityFrameBody.Configure(InternalRate(), mp.frameBodyFreq, mp.frameBodyQ, static_cast<EMarimbaModel>(mParams.model));
     ConfigureSympathetic(GlobalCents());
     mKalimbaBody.Configure(InternalRate());
     mKalimbaBody.SetCover(mCover);
     ApplyKalimbaAir();
 }
 
-// The box's air mode follows the resonator Tune and Coupling controls.
+// Tune is shared; absolute coupling is carried by each strike's box drive.
+// Keeping the shared coefficient at unity lets a VOL route open Coupling
+// from a zero base without dividing by that base or multiplying by zero.
 void MarembaEngine::ApplyKalimbaAir() {
-    mKalimbaBody.SetAir(mParams.resonatorTune,
-                        std::pow(std::clamp(mParams.resonatorCoupling, 0.0f, 1.0f) / 0.7, 0.75));
+    mKalimbaBody.SetAir(mParams.resonatorTune, 1.0);
 }
 
 void MarembaEngine::FlushTails() {
@@ -229,8 +231,12 @@ void MarembaEngine::FlushTails() {
     }
     mSympathetic.Reset();
     mFrameBody.Reset();
+    mVelocitySympathetic.Reset();
+    mVelocityFrameBody.Reset();
     mKalimbaBody.Reset();
     mKalimbaBodyRunning = false;
+    mBodyVelocityActive = mMeshVelocityActive = false;
+    mBodyVelocityRunning = mMeshVelocityRunning = false;
     mQuietFrames = 0;
 }
 
@@ -238,6 +244,7 @@ void MarembaEngine::SetParameters(const EngineParameters& params) {
     const EngineParameters p = Sanitize(params);
     const int previousPolyphony = mParams.polyphony;
     const float previousBuzz = mParams.buzzAmount, previousTension = mParams.membraneTension;
+    const float previousCoupling = mParams.resonatorCoupling;
     const float previousDetune = mParams.detune;
     mParams = p;
     if (p.detune != previousDetune)
@@ -248,7 +255,13 @@ void MarembaEngine::SetParameters(const EngineParameters& params) {
     if (p.buzzAmount != previousBuzz || p.membraneTension != previousTension) {
         for (int i = 0; i < kVoicePoolSize; ++i)
             if (mVoices[i].IsActive())
-                mVoices[i].SetBuzz(p.buzzAmount * mRoutes[i].buzz, p.membraneTension * mRoutes[i].tension);
+                mVoices[i].SetBuzz(std::min(1.0f, p.buzzAmount + mRoutes[i].buzz),
+                                  std::min(1.0f, p.membraneTension + mRoutes[i].tension));
+    }
+    if (p.resonatorCoupling != previousCoupling) {
+        for (int i = 0; i < kVoicePoolSize; ++i)
+            if (mVoices[i].IsActive())
+                mRoutes[i].boxAir = std::pow(std::min(1.0f, p.resonatorCoupling + mRoutes[i].coupling) / 0.7, 0.75);
     }
 
     mLimiter.SetTimes(p.compAttack, p.compRelease);
@@ -295,6 +308,10 @@ void MarembaEngine::SnapLiveControls() {
     mPreamp.SnapTone(mParams.warmth);
     mBodyGain = mParams.bodyBloom;
     mSympatheticGain = mParams.sympathetic;
+    mBodyRunning = mBodyGain > 0.0f;
+    mMeshRunning = mSympatheticGain > 0.0f;
+    mBodyVelocityRunning = mBodyVelocityActive && mBodyGain < 1.0f;
+    mMeshVelocityRunning = mMeshVelocityActive && mSympatheticGain < 1.0f;
     mCloseGain = mParams.closeLevel;
     mFarGain = mParams.farLevel;
     mPiezoGain = mParams.piezoLevel;
@@ -316,12 +333,24 @@ void MarembaEngine::SmoothLiveControls() {
     smooth(mDrive, mParams.preampDrive);
     // Finish the audible fade before clearing a bypassed branch. Re-enabling
     // it starts from silence rather than reviving an old stored resonance.
-    const bool meshOn = mSympatheticGain > 0.001f;
+    const bool meshOn = mSympatheticGain > 0.0f;
     if (!meshOn && mMeshRunning) mSympathetic.Reset();
     mMeshRunning = meshOn;
-    const bool bodyOn = mBodyGain > 0.001f;
+    const bool bodyOn = mBodyGain > 0.0f;
     if (!bodyOn && mBodyRunning) mFrameBody.Reset();
     mBodyRunning = bodyOn;
+    // Base and velocity additions keep separate states: live knob movement
+    // scales stored base resonance immediately, while each strike retains its
+    // own added excitation. The addition cannot exceed the remaining range.
+    const bool velocityMeshOn = mMeshVelocityActive && mSympatheticGain < 1.0f;
+    if (!velocityMeshOn && mMeshVelocityRunning) mVelocitySympathetic.Reset();
+    mMeshVelocityRunning = velocityMeshOn;
+    const bool velocityBodyOn = mBodyVelocityActive && mBodyGain < 1.0f;
+    if (!velocityBodyOn && mBodyVelocityRunning) {
+        mVelocityFrameBody.Reset();
+        mKalimbaBody.ResetBloom();
+    }
+    mBodyVelocityRunning = velocityBodyOn;
     const bool roomOn = mFarGain > 0.001f;
     if (!roomOn && mRoomRunning) mMicMixer.Reset();
     mRoomRunning = roomOn;
@@ -346,6 +375,8 @@ void MarembaEngine::ApplyGlobalTuning() {
 void MarembaEngine::ConfigureSympathetic(float globalCents) {
     mSympathetic.Configure(InternalRate(), globalCents, static_cast<EMarimbaModel>(mParams.model),
                            mParams.tuningScale, mKeyDetune.data());
+    mVelocitySympathetic.Configure(InternalRate(), globalCents, static_cast<EMarimbaModel>(mParams.model),
+                                  mParams.tuningScale, mKeyDetune.data());
 }
 
 void MarembaEngine::ApplyFactorSwitch() {
@@ -410,6 +441,18 @@ float MarembaEngine::MapVelocity(float vel) const {
     }
     // Soft floor (not a clamp): no two key velocities give the same strike
     return kVelocityFloor + (1.0f - kVelocityFloor) * curve;
+}
+
+float MarembaEngine::MapControlVelocity(float vel) const {
+    // MIDI 1 is the unmodulated control and 127 is exactly the requested
+    // depth. The physical excitation mapper and its drive floor stay separate.
+    const float v = std::clamp((vel - 1.0f / 127.0f) * (127.0f / 126.0f), 0.0f, 1.0f);
+    switch (mParams.velocityCurve) {
+        case 0: return std::sqrt(v);
+        case 2: return std::pow(v, 1.55f);
+        case 3: return v * v * (3.0f - 2.0f * v);
+        default: return v;
+    }
 }
 
 int MarembaEngine::CountLiveVoices() const {
@@ -542,41 +585,47 @@ int MarembaEngine::TriggerNote(int noteNumber, float velocity, float positionOff
     const float keyDetuneCents = GetKeyDetuneOffset(noteNumber, mParams.detune)
         + static_cast<float>(TuningOffsetCents(mParams.tuningScale, noteNumber));
 
-    // Positive velocity sensitivity. The knobs set the full-velocity values;
-    // depth blends between that fixed value and value * mapped velocity.
+    // VOL adds a fraction of the full knob range above its base setting.
     // Evaluate at the strike boundary, including restrikes and queued notes,
     // so separate notes retain independent settings without changing the knobs.
-    const auto velocityScale = [mappedVel](float depth) {
-        return 1.0f - depth * (1.0f - mappedVel);
+    const float controlVelocity = MapControlVelocity(velocity);
+    const auto velocityOffset = [controlVelocity](float depth) {
+        return depth * controlVelocity;
     };
-    const float hardness = mParams.malletHardness * velocityScale(mParams.velocityToHardness);
-    const float position = mParams.strikePosition * velocityScale(mParams.velocityToPosition);
-    const float decay = std::max(0.10f, mParams.decay * velocityScale(mParams.velocityToDecay));
-    const float carving = mParams.carving * velocityScale(mParams.velocityToCarving);
-    const float couplingScale = velocityScale(mParams.velocityToCoupling);
-    const float artifacts = mParams.artifacts * velocityScale(mParams.velocityToArtifacts);
+    const auto modulate = [&velocityOffset](float base, float depth) {
+        return std::min(1.0f, base + velocityOffset(depth));
+    };
+    const float hardness = modulate(mParams.malletHardness, mParams.velocityToHardness);
+    const float position = modulate(mParams.strikePosition, mParams.velocityToPosition);
+    const float decay = std::min(8.0f, mParams.decay + 7.90f * velocityOffset(mParams.velocityToDecay));
+    const float carving = modulate(mParams.carving, mParams.velocityToCarving);
+    const float coupling = modulate(mParams.resonatorCoupling, mParams.velocityToCoupling);
+    const float artifacts = modulate(mParams.artifacts, mParams.velocityToArtifacts);
     // Bloom and Sympathetic are shared resonances: a strike's velocity sets
     // how hard it drives them, which is its own Bloom or Sympathetic level.
     // The kalimba box's air coupling follows Coupling as the voice's loading
     // by that box does (KalimbaBody's 0.75 law).
     StrikeRoute& route = mRoutes[static_cast<std::size_t>(slot)];
-    route.body = velocityScale(mParams.velocityToBloom);
-    route.sympathetic = velocityScale(mParams.velocityToSympathetic);
-    route.boxAir = std::pow(couplingScale, 0.75f);
-    route.buzz = velocityScale(mParams.velocityToBuzz);
-    route.tension = velocityScale(mParams.velocityToTension);
+    route.body = velocityOffset(mParams.velocityToBloom);
+    route.sympathetic = velocityOffset(mParams.velocityToSympathetic);
+    route.coupling = velocityOffset(mParams.velocityToCoupling);
+    route.boxAir = std::pow(coupling / 0.7, 0.75);
+    route.buzz = velocityOffset(mParams.velocityToBuzz);
+    route.tension = velocityOffset(mParams.velocityToTension);
+    mBodyVelocityActive = mBodyVelocityActive || route.body > 0.0f;
+    mMeshVelocityActive = mMeshVelocityActive || route.sympathetic > 0.0f;
 
     mVoices[slot].Trigger(noteNumber, mappedVel, model,
                           hardness, position,
-                          mParams.resonatorTune, mParams.resonatorCoupling * couplingScale,
-                          decay, mParams.buzzAmount * route.buzz, artifacts,
+                          mParams.resonatorTune, coupling,
+                          decay, std::min(1.0f, mParams.buzzAmount + route.buzz), artifacts,
                           mParams.pitchGlide,
                           InternalRate(), mPrng,
                           mAppliedGlobalCents, keyDetuneCents,
                           mParams.malletType,
                           mParams.strikeJitter,
                           positionOffset,
-                          StrikeOptions{carving, mParams.membraneTension * route.tension, mParams.noteOffMode == 2,
+                          StrikeOptions{carving, std::min(1.0f, mParams.membraneTension + route.tension), mParams.noteOffMode == 2,
                                         &mRadiationCache[static_cast<std::size_t>(std::clamp(noteNumber, 0, 127))]});
     return slot;
 }
@@ -644,6 +693,8 @@ void MarembaEngine::ControlTick() {
     // subnormal values (the main bus sits at exact 0 when every mic level is 0)
     mSympathetic.FlushTiny();
     mFrameBody.FlushTiny();
+    mVelocitySympathetic.FlushTiny();
+    mVelocityFrameBody.FlushTiny();
     mKalimbaBody.FlushTiny();
     mPreamp.FlushTiny();
     mLimiter.FlushTiny();
@@ -721,6 +772,10 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         }
         const bool meshOn = mMeshRunning;
         const bool bodyOn = mBodyRunning;
+        const float bodyHeadroom = 1.0f - mBodyGain;
+        const float meshHeadroom = 1.0f - mSympatheticGain;
+        const float bodyInverse = bodyHeadroom > 0.0f ? 1.0f / bodyHeadroom : 0.0f;
+        const float meshInverse = meshHeadroom > 0.0f ? 1.0f / meshHeadroom : 0.0f;
         const int factor = mActiveFactor;
         bool anyVoice = false;
 
@@ -732,11 +787,13 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
             float accPiezo = 0.0f;
 
             float totalMechanical = 0.0f;
+            float velocityMechanical = 0.0f;
             KalimbaBoxDrive box;
 
             if (meshOn) {
                 mSympathetic.BeginSample();
             }
+            if (mMeshVelocityRunning) mVelocitySympathetic.BeginSample();
 
             for (int v = 0; v < kVoicePoolSize; ++v) {
                 if (mVoices[v].IsActive()) {
@@ -754,16 +811,19 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
                                                  accPiezo);
 
                         const StrikeRoute& route = mRoutes[static_cast<std::size_t>(v)];
-                        totalMechanical += mVoices[v].GetMechanicalSample() * route.body;
+                        const float body = std::min(1.0f, route.body * bodyInverse);
+                        totalMechanical += mVoices[v].GetMechanicalSample();
+                        velocityMechanical += mVoices[v].GetMechanicalSample() * body;
                         const bool tine = mVoices[v].GetModel() == EMarimbaModel::KalimbaArtisan;
                         const double bridge = tine ? mVoices[v].GetBridgeForce() : 0.0;
-                        if (tine) box.Add(bridge, route.boxAir, route.body,
+                        if (tine) box.Add(bridge, route.boxAir, body,
                                           mTineSide[static_cast<std::size_t>(std::clamp(noteNum, 0, 127))]);
 
-                        if (meshOn && tine == mSympathetic.IsTine()) {
-                            mSympathetic.AccumulateVoice(noteNum, (tine ? bridge * 1.0e-2
-                                                                        : mVoices[v].GetMechanicalSample())
-                                                                  * route.sympathetic);
+                        if (tine == mSympathetic.IsTine()) {
+                            const double drive = tine ? bridge * 1.0e-2 : mVoices[v].GetMechanicalSample();
+                            if (meshOn) mSympathetic.AccumulateVoice(noteNum, drive);
+                            if (mMeshVelocityRunning)
+                                mVelocitySympathetic.AccumulateVoice(noteNum, drive * std::min(1.0f, route.sympathetic * meshInverse));
                         }
                     }
                 }
@@ -775,12 +835,14 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
             if (bodyOn && !kalimba) {
                 bodySound = mFrameBody.Process(totalMechanical) * mBodyGain * kBodyBloomGain;
             }
+            if (mBodyVelocityRunning && !kalimba)
+                bodySound += mVelocityFrameBody.Process(velocityMechanical) * bodyHeadroom * kBodyBloomGain;
             // The kalimba's box radiates what every tine's bridge pushes into it.
             float boxClose = 0.0f, boxFar = 0.0f, boxPickup = 0.0f, boxSide = 0.0f;
             if (box.board != 0.0 || mKalimbaBodyRunning) {
                 double close = 0.0, far = 0.0, plate = 0.0, side = 0.0;
                 // Body weights the box's resonances against its board.
-                mKalimbaBody.Process(box, 0.6, 0.8 * mBodyGain, close, far, plate, side);
+                mKalimbaBody.Process(box, 0.6 + 0.8 * mBodyGain, 0.8 * bodyHeadroom, close, far, plate, side);
                 boxClose = static_cast<float>(close * kKalimbaBodyGain);
                 boxFar = static_cast<float>(far * kKalimbaBodyGain);
                 boxSide = static_cast<float>(side * kKalimbaBodyGain);
@@ -794,6 +856,13 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
             if (meshOn) {
                 mSympathetic.Process(mSympatheticGain, haloL, haloR);
                 if (mMeshDamping) mSympathetic.Damp(mMeshDampPole);
+            }
+            if (mMeshVelocityRunning) {
+                float extraL = 0.0f, extraR = 0.0f;
+                mVelocitySympathetic.Process(meshHeadroom, extraL, extraR);
+                haloL += extraL;
+                haloR += extraR;
+                if (mMeshDamping) mVelocitySympathetic.Damp(mMeshDampPole);
             }
 
             // Route acoustic emissions (frame body bloom & sympathetic halo) into acoustic mic accumulators

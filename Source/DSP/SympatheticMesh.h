@@ -114,7 +114,7 @@ public:
 
     // Process the receiver bank and produce a spatialized stereo halo.
     inline void Process(float amount, float& outL, float& outR) {
-        if (amount <= 0.001f) { outL = outR = 0.0f; return; }
+        if (amount <= 0.0f) { outL = outR = 0.0f; return; }
         double sumL = 0.0, sumR = 0.0;
         for (int i = 0; i < mCount; ++i) {
             if (!mPresent[i]) continue;

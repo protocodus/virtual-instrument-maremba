@@ -22,12 +22,22 @@ maremba::EngineParameters mayanDance(float buzz) {
     p.resonatorTune = -8; p.resonatorCoupling = .7f; p.decay = 1; p.buzzAmount = buzz;
     p.artifacts = p.strikeJitter = p.detune = 0;
     p.bodyBloom = p.sympathetic = p.farLevel = p.piezoLevel = p.preampDrive = p.compAmount = p.warmth = 0;
+    // Measure the fixed physical voicing; VOL range calibration is tested separately.
+    p.velocityToHardness = p.velocityToPosition = p.velocityToDecay = 0;
     p.volume = 1;
     return p;
 }
 std::vector<double> strike(const maremba::EngineParameters& p, int note, float velocity) {
     maremba::MarembaEngine engine(rate);
-    engine.SetParameters(p);
+    auto reference = p;
+    // Keep the physical excitation/decay of the original charleo reference:
+    // its old 20% attenuation routes are baked in at each test velocity, with
+    // the current public VOL routes disabled and tested separately.
+    const float physicalVelocity = .01f + .99f * velocity;
+    const float referenceScale = 1.f - .20f * (1.f - physicalVelocity);
+    reference.malletHardness *= referenceScale;
+    reference.decay *= referenceScale;
+    engine.SetParameters(reference);
     engine.NoteOn(note, velocity);
     std::vector<double> out;
     std::array<float, 64> l{}, r{}, cl{}, cr{};

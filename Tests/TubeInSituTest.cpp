@@ -27,6 +27,8 @@ maremba::EngineParameters grand() {
     p.artifacts = p.strikeJitter = p.detune = 0;
     p.buzzAmount = p.bodyBloom = p.sympathetic = 0;
     p.farLevel = p.piezoLevel = p.preampDrive = p.compAmount = p.warmth = 0;
+    // Measure the fixed physical voicing; VOL range calibration is tested separately.
+    p.velocityToHardness = p.velocityToPosition = p.velocityToDecay = 0;
     p.volume = 1;
     return p;
 }
@@ -84,7 +86,17 @@ int main() {
     struct Key { int note; double peakMs, t60; };
     const Key keys[] = {{45, 170, 2.27}, {48, 150, 2.86}, {54, 110, 2.12}, {57, 90, 1.92}, {60, 70, 1.38}};
     for (const Key& k : keys) {
-        const auto x = strike(grand(), k.note, .63f, 3.0, true);
+        auto reference = grand();
+        // Preserve the physical input used to establish the MIS bounds. This
+        // fixture originally inherited 20% attenuation routes at velocity .63:
+        // mapped velocity .6337, effective Hardness .509707 and Decay .92674.
+        // Freeze those values here rather than depend on the public VOL law.
+        constexpr float velocity = .63f;
+        constexpr float physicalVelocity = .01f + .99f * velocity;
+        constexpr float referenceScale = 1.f - .20f * (1.f - physicalVelocity);
+        reference.malletHardness *= referenceScale;
+        reference.decay *= referenceScale;
+        const auto x = strike(reference, k.note, velocity, 3.0, true);
         const Envelope e = envelope(x, hz(k.note));
         std::cout << "INSITU note=" << k.note << " peak_ms=" << e.peakMs << " (MIS " << k.peakMs << ") t60_s=" << e.t60
                   << " (MIS " << k.t60 << ") ripple_db=" << e.ripple << '\n';

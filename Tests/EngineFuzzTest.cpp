@@ -92,6 +92,7 @@ struct MarembaEngineTestAccess {
     }
     static bool SharedNormal(const MarembaEngine& e) {
         bool ok = e.mSympathetic.HasNoSubnormalState() && e.mFrameBody.HasNoSubnormalState()
+               && e.mVelocitySympathetic.HasNoSubnormalState() && e.mVelocityFrameBody.HasNoSubnormalState()
                && e.mKalimbaBody.HasNoSubnormalState() && e.mPreamp.HasNoSubnormalState()
                && e.mLimiter.HasNoSubnormalState() && e.mOversampler.HasNoSubnormalState();
         for (const auto& d : e.mDirectDecimators) ok = ok && d.HasNoSubnormalState();
@@ -684,15 +685,16 @@ void DenormalTail(int model, double rate, int oversampling, double seconds, cons
                     plain, flushed, silent);
 }
 
-// Every model's default patch: a strike must end on its own (no stuck voice)
-// well within the longest T60 (60 s at decay 8; 20 s at decay 1).
-void VoiceEnds(int model, const Options& o) {
+// Every model/striker at engine defaults, including the calibrated additive
+// VOL depths: a strike and every shared tail must end within the same 40 s.
+void VoiceEnds(int model, int striker, const Options& o) {
     Tracker t;
     t.rate = 44100.0;
-    t.where = Fmt("decay model %d", model);
+    t.where = Fmt("decay model %d striker %d", model, striker);
     auto e = std::make_unique<MarembaEngine>(t.rate);
     EngineParameters p;
     p.model = model;
+    p.malletType = striker;
     e->SetParameters(p);
     for (int n : {36, 60, 96}) e->NoteOn(model == 3 ? std::max(n, 60) : n, 1.0f);
     for (int n : {36, 60, 96}) e->NoteOff(model == 3 ? std::max(n, 60) : n);
@@ -876,6 +878,8 @@ void Scenarios(const Options& o) {
                 p.malletType = mallet;
                 p.noteOffMode = mode;
                 p.decay = 0.25f;
+                // A fixed short decay isolates this release state machine.
+                p.velocityToDecay = 0.0f;
                 e->SetParameters(p);
                 e->NoteOn(60, 0.8f);
                 RenderFor(*e, t, 0.3);
@@ -906,6 +910,8 @@ void Scenarios(const Options& o) {
                 p.malletType = mallet;
                 p.noteOffMode = mode;
                 p.decay = 0.25f;
+                // A fixed short decay isolates this release state machine.
+                p.velocityToDecay = 0.0f;
                 e->SetParameters(p);
                 e->NoteOn(60, 0.8f);
                 RenderFor(*e, t, 0.3);
@@ -951,6 +957,7 @@ void Scenarios(const Options& o) {
         EngineParameters p;
         p.model = 3;
         p.decay = 0.25f;                      // idle sooner
+        p.velocityToDecay = 0.0f;             // keep that short decay fixed
         auto a = std::make_unique<MarembaEngine>(rate);
         auto c = std::make_unique<MarembaEngine>(rate);
         Tracker ta, tc;
@@ -1110,7 +1117,9 @@ int main(int argc, char** argv) {
     if (want("denormal")) {
         std::printf("[Tails] long decays: no subnormal state, no CPU growth ...\n");
         for (int model = 0; model < 4; ++model) DenormalTail(model, o.tailRate, o.tailOversampling, o.tailSeconds, o);
-        for (int model = 0; model < 4; ++model) VoiceEnds(model, o);
+        for (int model = 0; model < 4; ++model)
+            for (int striker = 0; striker < maremba::kStrikerCount; ++striker)
+                VoiceEnds(model, striker, o);
     }
 
     const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();

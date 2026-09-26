@@ -111,7 +111,8 @@ inline double KalimbaBodyLoading(double hz, double airCents = 0.0, double airCou
 // forces (N), and the same sum with each tine weighted by its own strike's air
 // coupling (the air mode's drive), by its Bloom (the resonances' weight
 // against the board), by both, and by where it sits across the bridge
-// (KalimbaTineSide). Without velocity routes the first three weights are 1.
+// (KalimbaTineSide). The engine supplies absolute coupling and Bloom weights
+// so velocity can raise either control from a zero base setting.
 struct KalimbaBoxDrive {
     double board = 0.0, air = 0.0, bloom = 0.0, bloomAir = 0.0, side = 0.0;
     void Add(double force, double airWeight, double bloomWeight, double tineSide) {
@@ -149,6 +150,13 @@ public:
         for (auto& mode : mModes) mode.y1 = mode.y2 = mode.z1 = mode.z2 = 0.0;
         for (auto& dc : mDc) dc = DcBlocker{};
         mDirect = mSideDirect = 0.0;
+    }
+
+    // Clear only the velocity-weighted resonance when its output headroom
+    // closes. The fixed board/air response keeps ringing without a cut.
+    void ResetBloom() {
+        for (auto& mode : mModes) mode.z1 = mode.z2 = 0.0;
+        mDc[2] = mDc[3] = DcBlocker{};
     }
 
     // Air mode tuning (cents) and coupling to the board (1 = as built).

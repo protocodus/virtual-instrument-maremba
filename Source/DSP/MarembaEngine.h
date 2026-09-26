@@ -56,9 +56,9 @@ struct EngineParameters {
     float tuneCents = 0.0f;         // static tuning offset in cents: device Master Tune knob (+/-100) + Reason global master tune (+/-100)
     float detune = 0.0f;            // 0..100: per-key drift (0 = exact, 100 = up to +/-100 cents per key)
     float strikeJitter = 15.0f;     // 0..100: stochastic strike variance
-    float velocityToHardness = 0.20f; // 0..1 depth: softer strikes reduce the base value
+    float velocityToHardness = 0.20f; // 0..1: added fraction of the control's full range
     float velocityToPosition = 0.0f;  // 0..1 depth, applied per strike after the velocity curve
-    float velocityToDecay = 0.20f;    // 0..1 depth; full velocity retains the base decay
+    float velocityToDecay = 0.20f;    // MIDI 1 adds zero; MIDI 127 adds depth * 7.9x
     // The same per-strike law for seven more controls; 0 leaves them fixed.
     float velocityToCarving = 0.0f;
     float velocityToCoupling = 0.0f;
@@ -152,6 +152,7 @@ private:
     double InternalRate() const { return mBaseSampleRate * mActiveFactor; }
     float GlobalCents() const { return mParams.tuneCents + mBendCents; }
     float MapVelocity(float vel) const;
+    float MapControlVelocity(float vel) const;
     void ConfigureForRate();           // rate-dependent coefficients (no allocation)
     void ConfigureModel();             // model-dependent coefficients
     void ApplyGlobalTuning();          // retune ringing voices + mesh when tune/bend changed
@@ -180,6 +181,8 @@ private:
     int mConfiguredScale = -1;
     bool mMeshRunning = false;
     bool mBodyRunning = false;
+    bool mBodyVelocityActive = false, mMeshVelocityActive = false;
+    bool mBodyVelocityRunning = false, mMeshVelocityRunning = false;
     bool mRoomRunning = false;
 
     // Oversampling change: fade out at the old rate, then reset and switch
@@ -206,12 +209,12 @@ private:
     bool mTailsSilent = true;
 
     std::array<MarembaVoice, kVoicePoolSize> mVoices;
-    // Each slot's latest strike, after its velocity routes: its share of the
-    // shared body and sympathetic drives, its air coupling into the kalimba
-    // box, and the factors on the live Buzz and Tension knobs (all 1 without
-    // velocity sensitivity).
+    // Each slot's latest strike: additive normalized offsets for shared/live
+    // controls, and absolute air coupling into the kalimba box. Offsets stay
+    // latched until a restrike; moving a base knob keeps that strike's offset.
     struct StrikeRoute {
-        float body = 1.0f, sympathetic = 1.0f, boxAir = 1.0f, buzz = 1.0f, tension = 1.0f;
+        float body = 0.0f, sympathetic = 0.0f, coupling = 0.0f;
+        float boxAir = 1.0f, buzz = 0.0f, tension = 0.0f;
     };
     std::array<StrikeRoute, kVoicePoolSize> mRoutes{};
     std::array<RadiationCacheEntry, 128> mRadiationCache{};
@@ -224,6 +227,8 @@ private:
     std::array<bool, kNumDirectOuts> mDirectRunning{};
     SympatheticMesh mSympathetic;
     FrameBody mFrameBody;
+    SympatheticMesh mVelocitySympathetic;
+    FrameBody mVelocityFrameBody;
     KalimbaBody mKalimbaBody;
     std::array<double, 128> mTineSide{};   // each note's tine across the bridge (KalimbaTineSide)
     bool mKalimbaBodyRunning = false;

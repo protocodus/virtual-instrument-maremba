@@ -2242,7 +2242,9 @@ void TestMembraneRestrikeFreesVoice()
     };
     for (const auto& c : cases) {
         for (bool damp : { false, true }) {
-            EngineParameters p;
+            // This checks membrane lifetime at fixed decay, independent of
+            // the optional VOL routes that deliberately lengthen firm strikes.
+            EngineParameters p = CleanParams();
             p.model = c.model0;
             p.buzzAmount = c.buzz0;
             MarembaEngine e(44100.0);
@@ -2870,40 +2872,40 @@ void TestRestrikePreservesStoredEnergy()
 
 void TestVelocityDepths()
 {
-    std::cout << "[Velocity routes] Defaults, independent destinations, curve, full-velocity reference and strike boundaries ..." << std::endl;
+    std::cout << "[Velocity routes] Defaults, additive range, MIDI endpoints, curve and strike boundaries ..." << std::endl;
     EngineParameters defaults;
-    // Hardness and decay follow velocity by 20%; position does not by default
-    // (a player lands on the same spot at every dynamic).
     CHECK(defaults.velocityToHardness==.20f && defaults.velocityToPosition==0.0f && defaults.velocityToDecay==.20f,
           "velocity sensitivities must default to 20% / 0% / 20%");
     using Field = float EngineParameters::*;
-    const std::array<std::pair<Field,Field>,3> routes{{
-        {&EngineParameters::velocityToHardness,&EngineParameters::malletHardness},
-        {&EngineParameters::velocityToPosition,&EngineParameters::strikePosition},
-        {&EngineParameters::velocityToDecay,&EngineParameters::decay}}};
+    struct Route { Field depth, knob; float minimum, range; };
+    const std::array<Route,3> routes{{
+        {&EngineParameters::velocityToHardness,&EngineParameters::malletHardness,0,1},
+        {&EngineParameters::velocityToPosition,&EngineParameters::strikePosition,0,1},
+        {&EngineParameters::velocityToDecay,&EngineParameters::decay,.1f,7.9f}}};
     auto p=CleanParams();
     p.sympathetic=p.bodyBloom=p.farLevel=p.preampDrive=p.compAmount=p.warmth=0;
+    // Binary-exact endpoints make the range contract independent of curve
+    // approximations: 50% adds half range, 100% adds full range, clamped.
     for (const auto& route:routes) {
-        for (int curve:{0,1}) for (float velocity:{.25f,1.f}) {
+        p.*route.knob=route.minimum+route.range*.25f;
+        for (int curve:{0,1,2,3}) for (float velocity:{1.f/127.f,1.f}) {
             p.velocityCurve=curve;
             const auto unmodulated=RenderNote(44100,p,60,velocity,.2);
-            for (float depth:{0.f,.2f,1.f}) {
-                auto routed=p; routed.*route.first=depth;
+            for (float depth:{0.f,.5f,1.f}) {
+                auto routed=p; routed.*route.depth=depth;
                 auto reference=p;
-                // The existing velocity mapper adds a 1% physical drive floor.
-                const float curved=curve==0?std::sqrt(velocity):velocity;
-                const float mapped=.01f+(1.f-.01f)*curved;
-                reference.*route.second *= 1-depth*(1-mapped);
-                reference.decay=std::max(.1f,reference.decay);
+                const float travel=velocity==1.f ? depth : 0.f;
+                reference.*route.knob=std::min(route.minimum+route.range,
+                                               p.*route.knob+route.range*travel);
                 const auto actual=RenderNote(44100,routed,60,velocity,.2);
                 const auto expected=RenderNote(44100,reference,60,velocity,.2);
-                CHECK(actual.ch==expected.ch, "velocity route misses its destination, uses raw velocity or changes another parameter");
-                if (depth==0 || velocity==1)
-                    CHECK(actual.ch==unmodulated.ch, "zero depth/full-velocity reference changes the base setting");
+                CHECK(actual.ch==expected.ch, "VOL endpoint adds the wrong fraction of the full knob range");
+                if (depth==0 || velocity==1.f/127.f)
+                    CHECK(actual.ch==unmodulated.ch, "zero depth/minimum velocity changes the base setting");
                 else if (depth==1) {
                     const double relative=DiffEnergy(actual.ch[kCloseL],unmodulated.ch[kCloseL],0,actual.size())
                         / Energy(unmodulated.ch[kCloseL],0,unmodulated.size());
-                    CHECK(relative>1e-4, "velocity route has no audible response to a soft stroke");
+                    CHECK(relative>1e-4, "full VOL has no audible response at maximum velocity");
                 }
             }
         }

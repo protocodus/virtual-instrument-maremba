@@ -149,12 +149,12 @@ int main() {
                 // Board buzzers need a firm treble nail/pick pluck to lift.
                 a.malletType = 3; a.malletHardness = .9f;
             }
-            if (c.context == 1) a.buzzAmount = 1;
+            if (c.context == 1) a.buzzAmount = c.value == &EngineParameters::velocityToBuzz ? .2f : 1.0f;
             if (c.context == 2) {
                 a.preampDrive = a.compAmount = a.closeLevel = a.piezoLevel = a.farLevel = 1;
                 a.compAttack = 1;
             }
-            if (c.context == 3) a.artifacts = a.bodyBloom = a.sympathetic = .8f;
+            if (c.context == 3) a.artifacts = a.bodyBloom = a.sympathetic = a.carving = .2f;
             auto b = a;
             a.*c.value = c.low; b.*c.value = c.high;
             const double effect = difference(render(a, false, nullptr, buzzerStroke),
@@ -170,10 +170,12 @@ int main() {
             std::cout << "SELECTOR model=" << model << " name=" << c.name << " relative_rms=" << effect << '\n';
             check(effect > 1e-4, "model=" + std::to_string(model) + " dead selector " + c.name);
         }
+        // Factory Buzz and its VOL are both zero. A user can deliberately
+        // open Buzz from zero with a positive additive velocity depth.
         auto routedBuzz = base;
-        routedBuzz.velocityToBuzz = 1;
+        routedBuzz.velocityToBuzz = 0;
         check(difference(render(base), render(routedBuzz)) == 0,
-              "Buzz VOL resurrects a disabled buzzer model=" + std::to_string(model));
+              "zero Buzz VOL changes the dry factory setting model=" + std::to_string(model));
         auto loose = base, tight = base;
         loose.membraneTension = 0; tight.membraneTension = 1;
         const auto fixed = render(loose), moved = render(loose, false, &tight);
