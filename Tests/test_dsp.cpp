@@ -1961,11 +1961,12 @@ void TestHaloRateInvariant()
 }
 
 // Direct close out is the close part of the main bus through the same half-band
-// decimator (same response and phase), only trimmed by the fixed direct-out gain.
+// decimator (same response and phase), with independent main and direct gains.
 void TestDirectOutMatchesMain()
 {
     std::cout << "[Gain] Direct close out matches the main bus close path ..." << std::endl;
     constexpr double kDirectOutTrim = 0.06; // published direct-output trim
+    constexpr double kMainCalibrationGain = 2.0;
     EngineParameters p = CleanParams();
     p.farLevel = 0.0f; p.piezoLevel = 0.0f; p.closeLevel = 1.0f; p.stereoWidth = 1.0f;
     p.compAmount = 0.0f; p.preampDrive = 0.0f; p.warmth = 0.0f;
@@ -1976,7 +1977,7 @@ void TestDirectOutMatchesMain()
         double err = 0.0, lvl = 0.0;
         for (size_t i = 0; i < r.size(); ++i) {
             const double close = r.ch[kCloseL][i] / kDirectOutTrim;
-            const double d = r.ch[kMainL][i] - close;
+            const double d = r.ch[kMainL][i] / kMainCalibrationGain - close;
             err += d * d;
             lvl += close * close;
         }

@@ -7,6 +7,90 @@
 
 namespace maremba {
 
+// Voltage-mode input for a bonded piezo: generated charge is shared by the
+// sensor, cable and amplifier capacitances, then leaks through the finite input
+// resistance. A clean non-inverting buffer restores nominal level; its output
+// RF network limits bandwidth. This is an equivalent circuit, not a measured
+// commercial preamp. See TI SLOA033A, figures 1-2, for the sensor/load topology.
+class PiezoInputCircuit {
+public:
+    struct Components {
+        double sensorCapacitance, cableCapacitance, inputCapacitance;
+        double inputResistance, leakageResistance;
+        double feedbackResistance, gainResistance;
+        double bandwidthResistance, bandwidthCapacitance;
+    };
+
+    // Voiced component assumptions in farads and ohms. Film size changes Cp;
+    // a short cable and high-impedance input retain its useful charge. The
+    // buffer's resistor gain compensates the capacitive divider to within 1%.
+    static Components ForModel(EMarimbaModel model) {
+        switch (model) {
+            case EMarimbaModel::MayanPadauk:
+                return {2.2e-9, 470e-12, 60e-12, 590e3, 100e6, 2.4e3, 10e3, 10e3, 820e-12};
+            case EMarimbaModel::BalafonAncestral:
+                return {1.8e-9, 470e-12, 60e-12, 549e3, 100e6, 2.94e3, 10e3, 10e3, 820e-12};
+            case EMarimbaModel::KalimbaArtisan:
+                return {4.7e-9, 470e-12, 60e-12, 634e3, 100e6, 1.13e3, 10e3, 10e3, 820e-12};
+            case EMarimbaModel::ImperialRosewood:
+            default:
+                return {3.3e-9, 470e-12, 60e-12, 560e3, 100e6, 1.6e3, 10e3, 10e3, 820e-12};
+        }
+    }
+
+    // Components must be positive and finite. Configure is control-rate and
+    // preserves stored charge; the owner resets on instrument/rate changes.
+    void Configure(double sampleRate, const Components& parts) {
+        const double fs = std::isfinite(sampleRate) && sampleRate >= 8000.0
+            ? std::min(sampleRate, 1536000.0) : kReferenceRate;
+        const double capacitance = parts.sensorCapacitance + parts.cableCapacitance
+                                 + parts.inputCapacitance;
+        const double resistance = 1.0 / (1.0 / parts.inputResistance + 1.0 / parts.leakageResistance);
+        mVoltageGain = (parts.sensorCapacitance / capacitance)
+                     * (1.0 + parts.feedbackResistance / parts.gainResistance);
+        // Trapezoidal discretization of the component time constants. Avoid
+        // differentiating force numerically: the high-pass expresses the
+        // charge/current relation without rate-dependent transient gain.
+        const double hp = 1.0 / (2.0 * fs * resistance * capacitance);
+        mHpPole = (1.0 - hp) / (1.0 + hp);
+        mHpGain = 1.0 / (1.0 + hp);
+        const double lp = 1.0 / (2.0 * fs * parts.bandwidthResistance * parts.bandwidthCapacitance);
+        mLpPole = (1.0 - lp) / (1.0 + lp);
+        mLpGain = lp / (1.0 + lp);
+    }
+
+    double Process(double openCircuitVoltage) {
+        const double hp = mHpGain * (openCircuitVoltage - mHpInput) + mHpPole * mHpOutput;
+        mHpInput = openCircuitVoltage;
+        mHpOutput = hp;
+        const double lp = mLpGain * (hp + mLpInput) + mLpPole * mLpOutput;
+        mLpInput = hp;
+        mLpOutput = lp;
+        return mVoltageGain * lp;
+    }
+
+    void Reset() { mHpInput = mHpOutput = mLpInput = mLpOutput = 0.0; }
+    double StateEnergy() const {
+        return mHpInput * mHpInput + mHpOutput * mHpOutput
+             + mLpInput * mLpInput + mLpOutput * mLpOutput;
+    }
+    void FlushTiny() {
+        if (std::abs(mHpInput) < 1.0e-15 && std::abs(mHpOutput) < 1.0e-15
+            && std::abs(mLpInput) < 1.0e-15 && std::abs(mLpOutput) < 1.0e-15) Reset();
+    }
+    bool HasNoSubnormalState() const {
+        return std::fpclassify(mHpInput) != FP_SUBNORMAL
+            && std::fpclassify(mHpOutput) != FP_SUBNORMAL
+            && std::fpclassify(mLpInput) != FP_SUBNORMAL
+            && std::fpclassify(mLpOutput) != FP_SUBNORMAL;
+    }
+
+private:
+    double mVoltageGain = 1.0;
+    double mHpPole = 0.0, mHpGain = 0.0, mLpPole = 0.0, mLpGain = 0.0;
+    double mHpInput = 0.0, mHpOutput = 0.0, mLpInput = 0.0, mLpOutput = 0.0;
+};
+
 // A contact transducer attached to the instrument, before the external preamp.
 // This is a voiced mechanical/electrical approximation, not a measurement of a
 // named pickup. The input is local bending strain, NOT a mix of the air mics.
@@ -22,26 +106,26 @@ public:
         const double fs = std::isfinite(sampleRate) && sampleRate >= 8000.0
             ? std::min(sampleRate, 1536000.0) : kReferenceRate;
         struct Mount {
-            double bodyHz, bodyQ, patchHz, patchQ, loadHz, adhesiveHz;
+            double bodyHz, bodyQ, patchHz, patchQ, adhesiveHz;
             double bodyMix, patchMix, directMix, forceMix, outputGain;
         };
         Mount mount;
         switch (model) {
             case EMarimbaModel::MayanPadauk:
-                mount = {235.0, 1.05, 920.0, 1.55, 100.0, 4900.0,
+                mount = {235.0, 1.05, 920.0, 1.55, 4900.0,
                          0.58, 0.72, 0.69, 0.26, 0.78};
                 break;
             case EMarimbaModel::BalafonAncestral:
-                mount = {310.0, 0.85, 1540.0, 2.10, 125.0, 6800.0,
+                mount = {310.0, 0.85, 1540.0, 2.10, 6800.0,
                          0.66, 1.05, 0.64, 0.32, 0.90};
                 break;
             case EMarimbaModel::KalimbaArtisan:
-                mount = {420.0, 1.45, 2260.0, 2.35, 48.0, 8900.0,
+                mount = {420.0, 1.45, 2260.0, 2.35, 8900.0,
                          0.44, 0.62, 0.74, 0.19, 0.78};
                 break;
             case EMarimbaModel::ImperialRosewood:
             default:
-                mount = {175.0, 1.15, 1180.0, 1.80, 72.0, 6400.0,
+                mount = {175.0, 1.15, 1180.0, 1.80, 6400.0,
                          0.46, 0.68, 0.72, 0.22, 0.96};
                 break;
         }
@@ -53,11 +137,9 @@ public:
         mForceMix = mount.forceMix;
         mOutputGain = mount.outputGain;
 
-        // Bilinear RC sections: a piezo's capacitance and finite input load
-        // form a high-pass, while the adhesive/sensor mass soften fast strain.
-        const double hp = std::tan(kPiD * mount.loadHz / fs);
-        mHpPole = (1.0 - hp) / (1.0 + hp);
-        mHpGain = 1.0 / (1.0 + hp);
+        mCircuit.Configure(fs, PiezoInputCircuit::ForModel(model));
+        // Adhesive/sensor mass softens fast strain before charge conversion;
+        // this mechanical bandwidth is separate from the buffer's RC pole.
         const double lp = std::tan(kPiD * std::min(mount.adhesiveHz, fs * 0.38) / fs);
         mLpPole = (1.0 - lp) / (1.0 + lp);
         mLpGain = lp / (1.0 + lp);
@@ -66,7 +148,8 @@ public:
     void Reset() {
         mBody.Reset();
         mPatch.Reset();
-        mHpInput = mHpOutput = mLpInput = mLpOutput = 0.0;
+        mCircuit.Reset();
+        mLpInput = mLpOutput = 0.0;
     }
 
     // strain: signed sum of the modal motions at the mounting patch, using
@@ -79,15 +162,12 @@ public:
                                          + 0.32 * impactForce);
         const double patch = mPatch.Process(0.60 * strain + 0.12 * structuralBody
                                            + 0.78 * impactForce);
-        const double charge = mDirectMix * strain + 0.10 * structuralBody
+        const double strainVoltage = mDirectMix * strain + 0.10 * structuralBody
                             + mForceMix * impactForce + mBodyMix * body + mPatchMix * patch;
-        const double hp = mHpGain * (charge - mHpInput) + mHpPole * mHpOutput;
-        mHpInput = charge;
-        mHpOutput = hp;
-        const double lp = mLpGain * (hp + mLpInput) + mLpPole * mLpOutput;
-        mLpInput = hp;
+        const double lp = mLpGain * (strainVoltage + mLpInput) + mLpPole * mLpOutput;
+        mLpInput = strainVoltage;
         mLpOutput = lp;
-        return mOutputGain * lp;
+        return mOutputGain * mCircuit.Process(lp);
     }
 
     // A fixed adhesive footprint reads the spatially averaged curvature of a
@@ -141,24 +221,21 @@ public:
     // Control rate: include this in the voice's finite/lifecycle guard. These
     // are short, damped mounting tails, but their last samples must not be cut.
     double StateEnergy() const {
-        return mBody.StateEnergy() + mPatch.StateEnergy()
-             + mHpInput * mHpInput + mHpOutput * mHpOutput
+        return mBody.StateEnergy() + mPatch.StateEnergy() + mCircuit.StateEnergy()
              + mLpInput * mLpInput + mLpOutput * mLpOutput;
     }
 
     void FlushTiny() {
         mBody.FlushTiny();
         mPatch.FlushTiny();
-        if (std::abs(mHpInput) < 1.0e-15 && std::abs(mHpOutput) < 1.0e-15
-            && std::abs(mLpInput) < 1.0e-15 && std::abs(mLpOutput) < 1.0e-15) {
-            mHpInput = mHpOutput = mLpInput = mLpOutput = 0.0;
+        mCircuit.FlushTiny();
+        if (std::abs(mLpInput) < 1.0e-15 && std::abs(mLpOutput) < 1.0e-15) {
+            mLpInput = mLpOutput = 0.0;
         }
     }
 
     bool HasNoSubnormalState() const {
-        return mBody.HasNoSubnormalState() && mPatch.HasNoSubnormalState()
-            && std::fpclassify(mHpInput) != FP_SUBNORMAL
-            && std::fpclassify(mHpOutput) != FP_SUBNORMAL
+        return mBody.HasNoSubnormalState() && mPatch.HasNoSubnormalState() && mCircuit.HasNoSubnormalState()
             && std::fpclassify(mLpInput) != FP_SUBNORMAL
             && std::fpclassify(mLpOutput) != FP_SUBNORMAL;
     }
@@ -194,10 +271,11 @@ private:
     };
 
     MountMode mBody, mPatch;
+    PiezoInputCircuit mCircuit;
     double mBodyMix = 0.0, mPatchMix = 0.0, mDirectMix = 0.0;
     double mForceMix = 0.0, mOutputGain = 1.0;
-    double mHpPole = 0.0, mHpGain = 0.0, mLpPole = 0.0, mLpGain = 0.0;
-    double mHpInput = 0.0, mHpOutput = 0.0, mLpInput = 0.0, mLpOutput = 0.0;
+    double mLpPole = 0.0, mLpGain = 0.0;
+    double mLpInput = 0.0, mLpOutput = 0.0;
 };
 
 } // namespace maremba

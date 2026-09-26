@@ -230,8 +230,10 @@ private:
     SympatheticMesh mVelocitySympathetic;
     FrameBody mVelocityFrameBody;
     KalimbaBody mKalimbaBody;
+    PiezoPickup mKalimbaPickup;
     std::array<double, 128> mTineSide{};   // each note's tine across the bridge (KalimbaTineSide)
     bool mKalimbaBodyRunning = false;
+    bool mKalimbaPickupRunning = false;
     float mCover = 0.0f;               // smoothed kalimba hole cover
     FastPRNG mPrng;
     FastPRNG mRollPrng;

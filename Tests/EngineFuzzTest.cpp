@@ -93,7 +93,8 @@ struct MarembaEngineTestAccess {
     static bool SharedNormal(const MarembaEngine& e) {
         bool ok = e.mSympathetic.HasNoSubnormalState() && e.mFrameBody.HasNoSubnormalState()
                && e.mVelocitySympathetic.HasNoSubnormalState() && e.mVelocityFrameBody.HasNoSubnormalState()
-               && e.mKalimbaBody.HasNoSubnormalState() && e.mPreamp.HasNoSubnormalState()
+               && e.mKalimbaBody.HasNoSubnormalState() && e.mKalimbaPickup.HasNoSubnormalState()
+               && e.mPreamp.HasNoSubnormalState()
                && e.mLimiter.HasNoSubnormalState() && e.mOversampler.HasNoSubnormalState();
         for (const auto& d : e.mDirectDecimators) ok = ok && d.HasNoSubnormalState();
         return ok;

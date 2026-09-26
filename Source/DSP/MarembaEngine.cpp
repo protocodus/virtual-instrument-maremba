@@ -57,6 +57,9 @@ constexpr double kKalimbaBodyGain = 0.072;
 // Plate motion reaching the kalimba's board-mounted transducer (per N of the
 // box's modal response): the board itself, where the transducer is glued.
 constexpr double kKalimbaPlatePickup = 0.01;
+// Restore a useful main-output level without changing physical excitation,
+// preamp drive, or pre-fader stem headroom. The limiter receives the lift.
+constexpr float kMainCalibrationGain = 2.0f; // +6.02 dB before limiting
 // Mod-wheel rolls: stroke rate at the wheel's bottom and top, two alternating
 // mallets landing a little either side of the set position.
 constexpr double kRollMinRate = 6.0, kRollMaxRate = 20.0;
@@ -209,6 +212,7 @@ void MarembaEngine::ConfigureModel() {
     mVelocityFrameBody.Configure(InternalRate(), mp.frameBodyFreq, mp.frameBodyQ, static_cast<EMarimbaModel>(mParams.model));
     ConfigureSympathetic(GlobalCents());
     mKalimbaBody.Configure(InternalRate());
+    mKalimbaPickup.Configure(InternalRate(), EMarimbaModel::KalimbaArtisan);
     mKalimbaBody.SetCover(mCover);
     ApplyKalimbaAir();
 }
@@ -234,7 +238,9 @@ void MarembaEngine::FlushTails() {
     mVelocitySympathetic.Reset();
     mVelocityFrameBody.Reset();
     mKalimbaBody.Reset();
+    mKalimbaPickup.Reset();
     mKalimbaBodyRunning = false;
+    mKalimbaPickupRunning = false;
     mBodyVelocityActive = mMeshVelocityActive = false;
     mBodyVelocityRunning = mMeshVelocityRunning = false;
     mQuietFrames = 0;
@@ -696,6 +702,7 @@ void MarembaEngine::ControlTick() {
     mVelocitySympathetic.FlushTiny();
     mVelocityFrameBody.FlushTiny();
     mKalimbaBody.FlushTiny();
+    mKalimbaPickup.FlushTiny();
     mPreamp.FlushTiny();
     mLimiter.FlushTiny();
     mOversampler.FlushTiny();
@@ -850,6 +857,13 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
                 boxPickup = static_cast<float>(plate * kKalimbaPlatePickup);
                 mKalimbaBodyRunning = box.board != 0.0 || mKalimbaBody.Energy() > 1.0e-20;
             }
+            // The plate drives the same bonded sensor/load model as the
+            // bridge pickup. Keep its stored charge and mounting motion alive
+            // after the last tine/box sample, rather than adding raw plate motion.
+            if (boxPickup != 0.0f || mKalimbaPickupRunning) {
+                boxPickup = static_cast<float>(mKalimbaPickup.Process(boxPickup, 0.0, 0.0));
+                mKalimbaPickupRunning = mKalimbaPickup.StateEnergy() > 1.0e-28;
+            }
 
             // Inter-Bar Sympathetic Resonance Halo ("Singing Rack")
             float haloL = 0.0f, haloR = 0.0f;
@@ -893,7 +907,8 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
             float preL = 0.0f;
             float preR = 0.0f;
             mPreamp.Process(frameMainL, frameMainR, mDrive, mParams.warmth, preL, preR);
-            mLimiter.Process(preL, preR, mSubBufMainL[s], mSubBufMainR[s]);
+            mLimiter.Process(preL * kMainCalibrationGain, preR * kMainCalibrationGain,
+                             mSubBufMainL[s], mSubBufMainR[s]);
         }
 
         // Decimate through polyphase half-band filters

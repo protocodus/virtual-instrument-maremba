@@ -1,6 +1,7 @@
 #include "../DSP/PiezoPickup.h"
 #include <array>
 #include <cmath>
+#include <complex>
 #include <cstdio>
 #include <cstdlib>
 
@@ -34,9 +35,95 @@ Transfer Measure(double rate, maremba::EMarimbaModel model, double frequency) {
     return result;
 }
 
+using Components = maremba::PiezoInputCircuit::Components;
+
+std::complex<double> CircuitResponse(double rate, const Components& parts, double frequency) {
+    maremba::PiezoInputCircuit circuit;
+    circuit.Configure(rate, parts);
+    const int count = static_cast<int>(rate * 0.5);
+    std::complex<double> result{};
+    for (int i = 0; i < count; ++i) {
+        const double phase = maremba::kTwoPiD * frequency * i / rate;
+        const double sample = circuit.Process(std::sin(phase));
+        Require(std::isfinite(sample), "electrical response must remain finite");
+        if (i >= count / 2)
+            result += sample * std::complex<double>(std::sin(phase), std::cos(phase));
+    }
+    return result * (4.0 / count);
+}
+
+// Independent nodal admittance: i = s * Cp * Vopen, divided by the complete
+// parallel input admittance. Then the resistor-set voltage buffer and output
+// RC network. Map the probe frequency through Tustin's continuous-frequency
+// correspondence, without reproducing implementation coefficients/states.
+std::complex<double> CircuitReference(double rate, const Components& parts, double frequency) {
+    const std::complex<double> s(0.0, 2.0 * rate * std::tan(maremba::kPiD * frequency / rate));
+    const auto admittance = 1.0 / parts.inputResistance + 1.0 / parts.leakageResistance
+        + s * (parts.sensorCapacitance + parts.cableCapacitance + parts.inputCapacitance);
+    return s * parts.sensorCapacitance / admittance
+        * (1.0 + parts.feedbackResistance / parts.gainResistance)
+        / (1.0 + s * parts.bandwidthResistance * parts.bandwidthCapacitance);
+}
+
+void TestCircuit() {
+    constexpr double rates[] = {8000, 44100, 48000, 96000, 192000, 384000, 768000, 1536000};
+    constexpr double frequencies[] = {20, 100, 440, 3000, 12000};
+    double maxError = 0.0;
+    int comparisons = 0;
+    for (int model = 0; model < 4; ++model) {
+        const auto parts = maremba::PiezoInputCircuit::ForModel(static_cast<maremba::EMarimbaModel>(model));
+        const double compensation = parts.sensorCapacitance
+            / (parts.sensorCapacitance + parts.cableCapacitance + parts.inputCapacitance)
+            * (1.0 + parts.feedbackResistance / parts.gainResistance);
+        Require(std::abs(compensation - 1.0) < 0.01,
+                "buffer compensation must preserve normal playing level");
+        for (double rate : rates) {
+            for (double hz : frequencies) {
+                if (hz >= rate * 0.45) continue;
+                const auto expected = CircuitReference(rate, parts, hz);
+                const double error = std::abs(CircuitResponse(rate, parts, hz) - expected) / std::abs(expected);
+                maxError = std::max(maxError, error);
+                ++comparisons;
+                Require(error < 2.0e-7, "electrical response must match independent nodal circuit solution");
+            }
+            maremba::PiezoInputCircuit small, large;
+            small.Configure(rate, parts);
+            large.Configure(rate, parts);
+            for (int i = 0; i < static_cast<int>(rate * 0.3); ++i) {
+                const double input = i < rate * 0.05 ? 0.2 : 0.0;
+                const double a = small.Process(input), b = large.Process(input * 10.0);
+                Require(std::abs(b - a * 10.0) < 1.0e-12,
+                        "clean pickup electronics must not add level-dependent distortion");
+                if (i % 64 == 0) { small.FlushTiny(); large.FlushTiny(); }
+            }
+            small.FlushTiny();
+            Require(small.StateEnergy() == 0.0 && small.HasNoSubnormalState(),
+                    "electrical charge tails must drain and flush at every supported rate");
+            double dc = 0.0;
+            for (int i = 0; i < static_cast<int>(rate * 0.25); ++i) dc = small.Process(0.1);
+            Require(std::abs(dc) < 1.0e-10, "electrical circuit must reject sustained DC at every rate");
+            small.Reset();
+            Require(small.StateEnergy() == 0.0 && small.Process(0.0) == 0.0,
+                    "electrical reset must clear every state");
+        }
+        auto loaded = parts;
+        loaded.inputResistance *= 0.1;
+        Require(std::abs(CircuitResponse(96000, loaded, 100))
+                    < std::abs(CircuitResponse(96000, parts, 100)) * 0.3,
+                "lower input impedance must remove low-frequency piezo voltage");
+        auto longCable = parts;
+        longCable.cableCapacitance *= 10.0;
+        Require(std::abs(CircuitResponse(96000, longCable, 3000))
+                    < std::abs(CircuitResponse(96000, parts, 3000)) * 0.65,
+                "additional cable capacitance must load voltage-mode pickup sensitivity");
+    }
+    std::printf("circuit_analytic_comparisons=%d maximum_relative_error=%.9g\n", comparisons, maxError);
+}
+
 } // namespace
 
 int main() {
+    TestCircuit();
     constexpr double rates[] = {44100, 48000, 88200, 96000, 192000, 384000, 768000, 1536000};
     constexpr double frequencies[] = {100, 440, 1400, 3000};
     std::array<Transfer, 4> profiles{};

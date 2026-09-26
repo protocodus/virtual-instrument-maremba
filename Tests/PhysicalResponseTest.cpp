@@ -156,26 +156,38 @@ int main(int argc, char** argv) {
                   "disconnected resonator tuning changes the bar");
         }
 
-        // Tune a key near the air resonance. The kalimba has one fixed wooden
-        // box; it must not acquire an artificially strong response on every key.
+        // Tune a key near the air resonance. Bars have per-key resonators;
+        // Kalimba has one fixed 400 Hz box, nearest to G4 (MIDI 67, 392 Hz).
+        // Testing C4 (262 Hz) would instead measure its weak off-resonance
+        // response, strongly dependent on the contact sensor's spatial weighting.
+        const int tuneNote = model == 3 ? 67 : 60;
         auto tune = controlled(model);
+        tune.resonatorCoupling = 0;
+        tune.resonatorTune = -50;
+        const auto disconnectedLow = render(tune, tuneNote);
+        tune.resonatorTune = 50;
+        const auto disconnectedHigh = render(tune, tuneNote);
+        check(disconnectedLow.close == disconnectedHigh.close
+              && disconnectedLow.piezo == disconnectedHigh.piezo,
+              "disconnected resonator tuning changes the resonance-test key model="
+              + std::to_string(model));
         tune.resonatorCoupling = 1;
         tune.resonatorTune = -50;
-        const auto low = render(tune, 60);
+        const auto low = render(tune, tuneNote);
         tune.resonatorTune = 50;
-        const auto high = render(tune, 60);
+        const auto high = render(tune, tuneNote);
         const double tuning = residual(low.close, high.close, .008, .30);
         const double reaction = residual(low.piezo, high.piezo, .008, .50);
         check(tuning > .0001, "coupled resonator tune lacks audible timbral response model="
               + std::to_string(model));
-        // Only air tuning changes here, so a changed isolated strain pickup
-        // establishes feedback onto the bar, beyond a wet-output coloration.
-        // The kalimba's pluck no longer steps the board (the thumb's press
-        // settles quasi-statically), which made up part of its reaction.
-        check(reaction > (model == 3 ? .000005 : .00001), "cavity pressure does not audibly react on bar strain model="
+        // The bars' contact readout senses cavity feedback into bar motion.
+        // Kalimba instead has body-dependent tine damping and a shared plate
+        // pickup: its changed contact output includes both loading and plate
+        // motion, and does not establish dynamic feedback into a tine cavity.
+        check(reaction > (model == 3 ? .000005 : .00001), "resonator loading lacks a contact-pickup response model="
               + std::to_string(model));
-        std::cout << "TUNE model=" << model << " note=60 gain_fit_residual=" << tuning
-                  << " pickup_feedback_residual=" << reaction << '\n';
+        std::cout << "TUNE model=" << model << " note=" << tuneNote << " gain_fit_residual=" << tuning
+                  << " pickup_loading_residual=" << reaction << '\n';
 
         // Isolate the added acoustic layers from the dry bar at the direct mic,
         // with no room, limiter, preamp, random errors, or velocity modulation.

@@ -209,8 +209,8 @@ public:
     // `fixedResonance` plus `bloomResonance` (the Body knob's share), which
     // applies to each tine's drive in proportion to its own Bloom: the modes
     // run twice, on the plain and on the Bloom-weighted drive (states y and z).
-    // `plate` is the top plate's own motion under the bridge, where a contact
-    // pickup sits: the plate modes and the air pushing on the plate.
+    // `plate` reads local bending under a bonded contact pickup, including
+    // the air pushing on the plate. Its spatial weights differ from radiation.
     // Below coincidence a point-driven board radiates its broadband sound from
     // around the drive point (Cremer & Heckl), so a stereo pair over the box
     // hears each tine's board sound from the tine's side: `side` is the right
@@ -227,6 +227,13 @@ public:
         mSideDirect = mDirectAlpha * mSideDirect + (1.0 - mDirectAlpha) * hpSide;
         side = kSideSpread * (hpSide - mSideDirect);
         double airSum = 0.0, plateSum = 0.0, bloomAirSum = 0.0, bloomPlateSum = 0.0;
+        double pickupStrain = 0.0;
+        // Voiced rectangular-plate proxy: 21x15 cm, sensor at (0.38,0.36)
+        // with a 0.12x0.16 fractional footprint. Area-averaged curvature of
+        // sin(m*pi*x)sin(pi*y), m=1,2,3, normalized to the first plate mode.
+        // The third mode bends oppositely at this patch. These are assumptions
+        // for the sensor location, not measurements of a particular kalimba.
+        constexpr double pickupWeight[kKalimbaBodyModes] = {0.35, 1.0, 1.4561893016911285, -1.6162245928134837};
         for (int k = 0; k < kKalimbaBodyModes; ++k) {
             auto& mode = mModes[k];
             const double y = mode.c * mode.y1 - mode.s * mode.y2 + mode.b * (k == 0 ? hpAir : hp);
@@ -236,6 +243,7 @@ public:
             mode.z2 = mode.z1;
             mode.z1 = z;
             (k == 0 ? airSum : plateSum) += y;
+            pickupStrain += pickupWeight[k] * y;
             (k == 0 ? bloomAirSum : bloomPlateSum) += z;
         }
         // The board itself: stiffness-controlled below ~260 Hz, broad above.
@@ -245,7 +253,7 @@ public:
                       + bloomResonance * (bloomPlateSum - kHoleClose * bloomAirSum);
         far = 0.8 * board + fixedResonance * (0.7 * plateSum - kHoleFar * airSum)
                           + bloomResonance * (0.7 * bloomPlateSum - kHoleFar * bloomAirSum);
-        plate = plateSum + 0.35 * airSum;
+        plate = pickupStrain;
     }
 
     void FlushTiny() {

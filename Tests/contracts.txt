@@ -2,6 +2,7 @@
 # DSP/*.cpp and run. Tests/run_all_tests.sh and the CI maremba-dsp job both read
 # this list, so a contract added here runs everywhere.
 PiezoPickupTest            # attached-transducer pickup: strain, mounting, loading
+PiezoEngineTest            # complete captures, shared plate sensor, routing and tails
 MechanicalArtifactsTest    # rebounds, grazes, neighbour brushes, rattles
 CollisionResponseTest      # mounting collisions driven by vibration
 EngineRealismTest          # earlier engine realism contracts
