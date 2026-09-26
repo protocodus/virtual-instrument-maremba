@@ -127,7 +127,10 @@ int main(int argc, char** argv) {
         for (int note : {48, 72}) {
             auto p = controlled(model);
             double previous = -300;
-            for (float decay : {.4f, 1.f, 2.5f}) {
+            // Kalimba now reserves its full upper travel for only 2x natural
+            // sustain. Compare that endpoint with natural/short settings.
+            const float longDecay = model == 3 ? 8.f : 2.5f;
+            for (float decay : {.4f, 1.f, longDecay}) {
                 p.decay = decay;
                 const auto a = render(p, note);
                 // Decay stretches the whole ring in time, the tube's bloom

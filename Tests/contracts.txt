@@ -30,5 +30,6 @@ BarModesTest               # the carved bars' generated modes
 VelocityRoutesTest         # the ten velocity routes
 ParameterReachabilityTest  # every sound control on every model, including dry Tension
 KalimbaExcitationBoundsTest # bounded thumb travel, velocity, scatter and restrikes
+KalimbaDecayTest           # compact tine sustain range and velocity-modulated maximum
 ExtremeRangeTest           # every MIDI/rate, endpoint plucks, dense chords and live limiter
 EngineFuzzTest             # hostile and extreme parameters, MIDI determinism, state machines

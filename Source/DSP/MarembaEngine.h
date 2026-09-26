@@ -28,7 +28,7 @@ struct EngineParameters {
     float strikePosition = 0.50f;   // 0..1
     float resonatorTune = 0.0f;     // cents, -50..+50
     float resonatorCoupling = 0.70f;// 0..1
-    float decay = 1.00f;            // decay multiplier, 0.1..8.0 (x the model/register T60)
+    float decay = 1.00f;            // nominal 0.1..8.0 control; Kalimba compresses 1..8 to 1x..2x sustain
     float buzzAmount = 0.15f;       // stored knob 0..1; voice maps to physical 0..0.7
     float artifacts = 0.35f;        // 0..1
 

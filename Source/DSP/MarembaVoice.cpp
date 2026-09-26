@@ -722,8 +722,13 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     const double f0 = 440.0 * std::exp2(totalPitchCents / 1200.0);
     mF0 = f0;
     const double midi = 69.0 + totalPitchCents / 100.0;
-    const double decayScale = std::pow(std::clamp(static_cast<double>(decayMultiplier), 0.10, 8.0),
-                                       response.decayExponent) * variation.decayScale;
+    const double decayControl = std::clamp(static_cast<double>(decayMultiplier), 0.10, 8.0);
+    // Tines already sustain for several seconds at the natural setting.
+    // Preserve short/natural decays, then spread only 1x..2x sustain over the
+    // remaining knob travel. This also bounds the already-added Decay VOL.
+    const double voicedDecay = mTine && decayControl > 1.0
+        ? 1.0 + (decayControl - 1.0) / 7.0 : decayControl;
+    const double decayScale = std::pow(voicedDecay, response.decayExponent) * variation.decayScale;
     const double hardness = std::clamp(static_cast<double>(malletHardness + art.malletHardnessJitter), 0.0, 1.0);
     const double position = std::clamp(static_cast<double>(strikePosition + positionOffset + art.strikePositionOffset)
                                        + character.positionOffset, 0.03, 0.97);
