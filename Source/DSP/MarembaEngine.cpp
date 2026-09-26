@@ -436,7 +436,7 @@ float MarembaEngine::MapVelocity(float vel) const {
         case 2: // Hard: needs force to play loud
             curve = std::pow(vel, 1.55f);
             break;
-        case 3: // Expressive
+        case 3: // Sigmoid (formerly Expressive)
             curve = vel * vel * (3.0f - 2.0f * vel);
             break;
         case 1: // Linear

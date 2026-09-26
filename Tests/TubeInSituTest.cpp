@@ -22,6 +22,7 @@ double hz(int note) { return 440.0 * std::exp2((note - 69) / 12.0); }
 
 maremba::EngineParameters grand() {
     maremba::EngineParameters p;
+    p.velocityCurve = 1; // keep the recorded-reference physical strike calibration
     p.model = 0; p.malletType = 1; p.malletHardness = .55f; p.strikePosition = .47f;
     p.resonatorCoupling = .75f; p.decay = 1;
     p.artifacts = p.strikeJitter = p.detune = 0;

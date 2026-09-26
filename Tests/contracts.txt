@@ -28,6 +28,7 @@ Round7BalafonKalimbaTest   # continuous pluck, tink, bridge stereo, degree-key h
 BuzzRangeTest              # the Buzz knob's physical range on every path
 StrikeVarianceTest         # the Variance control's smooth spread
 NaturalStrikeResponseTest  # zero-Variance natural hits, physical velocity, exact Reset replay
+SoftVelocityTest           # Sigmoid slow hits stay quiet and mellow without optional VOL routes
 RoomQualityTest            # the three rooms' density, roughness and T60
 BarModesTest               # the carved bars' generated modes
 VelocityRoutesTest         # the ten velocity routes

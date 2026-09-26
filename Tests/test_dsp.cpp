@@ -254,6 +254,9 @@ EngineParameters CleanParams()
     p.buzzAmount = 0.0f;
     p.strikeJitter = 0.0f;
     p.pitchGlide = 0.0f;
+    // Preserve the calibrated physical fixtures' Linear touch mapping;
+    // SoftVelocityTest separately checks the shipped Sigmoid default.
+    p.velocityCurve = 1;
     // Isolate the original physical response from the optional velocity routes.
     p.velocityToHardness = p.velocityToPosition = p.velocityToDecay = 0.0f;
     return p;
@@ -1942,7 +1945,7 @@ void TestNoDeadParameters()
         { "oversampling", [](EngineParameters& p) { p.oversampling = 2; } },
         { "velocityCurve Soft", [](EngineParameters& p) { p.velocityCurve = 0; } },
         { "velocityCurve Hard", [](EngineParameters& p) { p.velocityCurve = 2; } },
-        { "velocityCurve Expressive", [](EngineParameters& p) { p.velocityCurve = 3; } },
+        { "velocityCurve Sigmoid", [](EngineParameters& p) { p.velocityCurve = 3; } },
         { "tuneCents", [](EngineParameters& p) { p.tuneCents = 50.0f; } },
         { "detune", [](EngineParameters& p) { p.detune = 100.0f; } },
         { "strikeJitter", [](EngineParameters& p) { p.strikeJitter = 100.0f; } },
