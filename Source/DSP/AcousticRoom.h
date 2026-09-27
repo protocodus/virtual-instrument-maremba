@@ -109,6 +109,29 @@ private:
     float mMean = 1.0f, mFromL = 0.0f, mFromR = 0.0f, mStepL = 0.0f, mStepR = 0.0f, mToL = 0.0f, mToR = 0.0f;
 };
 
+// First-order Thiran fractional delay. H(z)=(a+z^-1)/(1+a*z^-1),
+// a=(1-d)/(1+d), has unity magnitude and DC group delay d samples.
+// It is causal and stable for 0<d<1; d=0 is the exact identity. Unlike a
+// fractional FIR in a feedback loop, it introduces no extra decay. Its phase
+// delay is approximate away from DC, not an exact broadband time shift.
+class RoomFractionalDelay {
+public:
+    void SetFraction(double fraction) {
+        const double d = std::clamp(fraction, 0.0, 1.0);
+        mCoefficient = static_cast<float>((1.0-d)/(1.0+d));
+        Reset();
+    }
+    float Process(float input) {
+        const float output = mCoefficient * input + mState;
+        mState = FlushTiny(input - mCoefficient * output);
+        return output;
+    }
+    void Reset() { mState = 0.0f; }
+    void FlushStates() { mState = FlushTiny(mState); }
+private:
+    float mCoefficient = 1.0f, mState = 0.0f;
+};
+
 // Twelve delay lines coupled by an orthogonal (lossless) matrix, a feedback
 // delay network: every line feeds every other line on each pass, so the echo
 // count multiplies twelve-fold per pass and the tail turns noise-like within a
@@ -136,15 +159,21 @@ public:
 
     // Realtime safe: lengths and absorption for this rate, then clear. Without
     // memory (before Allocate) every length stays 0.
-    void SetSampleRate(const NetworkVoicing& voicing, double rate) {
+    void SetSampleRate(const NetworkVoicing& voicing, double rate, bool fractionalTiming = false) {
+        mFractionalTiming = fractionalTiming;
         const bool allocated = !memory.empty();
         mLength = mDiffuserLength = 0;
         double all = 0.0, panels = 0.0;
         for (int i = 0; i < kLines; ++i) {
-            mDelay[i] = allocated ? Samples(voicing.lines[static_cast<size_t>(i)], rate, mLineSpan) : 1;
+            const double exact = voicing.lines[static_cast<size_t>(i)] * rate;
+            mDelay[i] = allocated ? (fractionalTiming
+                ? std::clamp(static_cast<int>(std::floor(exact)), 1, mLineSpan-1)
+                : Samples(voicing.lines[static_cast<size_t>(i)], rate, mLineSpan)) : 1;
+            mFraction[i].SetFraction(exact - std::floor(exact));
             if (allocated) mLength = std::max(mLength, mDelay[i] + 1);
-            all += mDelay[i];
-            if (i % 3 == 0) panels += mDelay[i];
+            const double length = fractionalTiming ? exact : mDelay[i];
+            all += length;
+            if (i % 3 == 0) panels += length;
         }
         // Air and wood (high shelf) absorb in every line in proportion to its
         // length. The panels' extra bass absorption sits in the first line of
@@ -154,10 +183,15 @@ public:
         const double bass = 60.0 / p.t500 + all / panels * (60.0 / p.t125 - 60.0 / p.t500);
         for (int i = 0; i < kLines; ++i) {
             const DecayProfile line = { i % 3 == 0 ? 60.0 / bass : p.t500, p.t500, p.t4k, p.t10k };
-            FitAbsorption(i, mDelay[i] / rate, line, rate);
+            FitAbsorption(i, fractionalTiming ? voicing.lines[static_cast<size_t>(i)]
+                                             : mDelay[i] / rate, line, rate);
         }
         for (int d = 0; d < kDiffusers; ++d) {
-            mDiffuserDelay[d] = allocated ? Samples(voicing.diffusers[static_cast<size_t>(d)], rate, mDiffuserSpan) : 1;
+            const double exact = voicing.diffusers[static_cast<size_t>(d)] * rate;
+            mDiffuserDelay[d] = allocated ? (fractionalTiming
+                ? std::clamp(static_cast<int>(std::floor(exact)), 1, mDiffuserSpan-1)
+                : Samples(voicing.diffusers[static_cast<size_t>(d)], rate, mDiffuserSpan)) : 1;
+            mDiffuserFraction[d].SetFraction(exact - std::floor(exact));
             if (allocated) mDiffuserLength = std::max(mDiffuserLength, mDiffuserDelay[d] + 1);
         }
         mDiffusion = static_cast<float>(voicing.diffusion);
@@ -176,6 +210,8 @@ public:
         mWrite = mDiffuserWrite = 0;
         mLowState.fill(0.0f);
         mHighState.fill(0.0f);
+        for (auto& delay : mFraction) delay.Reset();
+        for (auto& delay : mDiffuserFraction) delay.Reset();
     }
 
     // One sample: `in` is diffused and spread over the lines by the mixing
@@ -187,7 +223,9 @@ public:
         for (int d = 0; d < kDiffusers; ++d) {
             float* const line = diffusers + d * mDiffuserSpan;
             const int at = mDiffuserWrite - mDiffuserDelay[d];
-            const float y = line[at < 0 ? at + mDiffuserLength : at] - mDiffusion * x;
+            const float read = line[at < 0 ? at + mDiffuserLength : at];
+            const float delayed = mFractionalTiming ? mDiffuserFraction[d].Process(read) : read;
+            const float y = delayed - mDiffusion * x;
             line[mDiffuserWrite] = FlushTiny(x + mDiffusion * y);
             x = y;
         }
@@ -233,7 +271,9 @@ public:
         for (int i = 0; i < kLines; ++i) {
             mLowState[i] = FlushTiny(mLowState[i]);
             mHighState[i] = FlushTiny(mHighState[i]);
+            mFraction[i].FlushStates();
         }
+        for (auto& delay : mDiffuserFraction) delay.FlushStates();
     }
 
 private:
@@ -241,7 +281,8 @@ private:
     // on the first line of a group), then the high shelf.
     float Absorb(int i, const float* m, bool panel) {
         const int at = mWrite - mDelay[i];
-        const float s = m[i * mLineSpan + (at < 0 ? at + mLength : at)];
+        const float read = m[i * mLineSpan + (at < 0 ? at + mLength : at)];
+        const float s = mFractionalTiming ? mFraction[i].Process(read) : read;
         float u = mLowB0[i] * s;
         if (panel) {
             u += mLowState[i];
@@ -259,7 +300,8 @@ private:
     }
 
     // A delay rounded to whole samples (within half a sample of its time at every
-    // rate, so the modes, and the level of any single note, match across rates).
+    // rate). Retained for legacy room voicings; coherent new capture uses the
+    // optional fractional timing to avoid rate-dependent narrowband resonances.
     static int Samples(double seconds, double rate, int span) {
         return std::clamp(static_cast<int>(std::lround(seconds * rate)), 1, std::max(1, span - 1));
     }
@@ -311,6 +353,9 @@ private:
     std::array<int, kDiffusers> mDiffuserDelay{};
     std::array<float, kLines> mLowB0{}, mLowB1{}, mLowA1{}, mHighB1{}, mHighA1{};
     std::array<float, kLines> mLowState{}, mHighState{};
+    std::array<RoomFractionalDelay, kLines> mFraction{};
+    std::array<RoomFractionalDelay, kDiffusers> mDiffuserFraction{};
+    bool mFractionalTiming = false;
     float mDiffusion = 0.0f;
 };
 

@@ -2,8 +2,17 @@
 # DSP/*.cpp and run. Tests/run_all_tests.sh and the CI maremba-dsp job both read
 # this list, so a contract added here runs everywhere.
 PiezoPickupTest            # attached-transducer pickup: strain, mounting, loading
+PiezoGeometryTest          # generated signed Timoshenko surface strain over fixed electrodes
+PiezoReferenceCircuitTest  # SI charge, finite-bandwidth amplifier, rails and source-derived headroom
+KalimbaPiezoTest           # force-driven board strain and one shared physical sensor
+CaptureGeometryTest       # physical source/receiver placement and receiver-independent mechanics
+CloseCaptureTest          # measured binaural filtering, causal propagation and rate transfer
+CloseEngineArrivalTest    # actual strikes against measured ears, physical flight and electrical timing
+RoomCaptureTest           # causal direct/images, shared absorption and diffuse room behavior
+RoomMicrophoneTest        # pressure capsule, vent, buffer and output-coupling transfer
 PiezoEngineTest            # complete captures, shared plate sensor, routing and tails
 CaptureRoutingTest         # independent capture coefficients and Piezo-only Drive
+CompactCaptureSourceTest   # one emitted pressure with explicit Close/Room reference conversion
 HeadroomTest               # smooth overload protection, quiet unity, aligned capture latency
 HardHitOutputTest          # every hard striker, velocity 127, extreme notes and repeated 24-note chords
 MechanicalArtifactsTest    # rebounds, grazes, neighbour brushes, rattles

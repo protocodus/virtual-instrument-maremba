@@ -12,7 +12,8 @@ namespace maremba {
 // is handled by the engine's smooth lookahead gain after decimation; rounding
 // individual peaks here would add unwanted distortion even at tiny amounts.
 // These are voiced block models, not measured components or a hardware clone.
-// The modeled control stage runs at the engine's oversampled rate.
+// The modeled control stage follows the complete captures at the host rate;
+// the nonlinear Piezo Drive stage is processed separately while oversampled.
 class AnalogLimiter {
 public:
     AnalogLimiter() {

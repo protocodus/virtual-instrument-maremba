@@ -64,6 +64,30 @@ static constexpr KalimbaBodyMode kKalimbaBody[kKalimbaBodyModes] = {
     {1900.0, 16.0, 0.22},   // higher plate mode
 };
 
+// Declared virtual soundboard for the bonded PVDF pickup, not a measurement
+// of a named instrument. The modal masses come from a uniform supported wood
+// panel. Equivalent stiffnesses M*(omega_d^2+gamma^2) retain the voiced modes;
+// no claim that isotropic plate theory predicts their frequencies is made.
+struct KalimbaPlatePickup {
+    static constexpr double kLength = .21, kWidth = .15, kThickness = .005, kDensity = 600.;
+    static constexpr double kPatchLength = .0252, kPatchWidth = .024;
+    static constexpr double kPatchX = .38, kPatchY = .36;
+    static constexpr double kBridgeX = .30, kBridgeY = .5;
+    static constexpr double ModalMass() { return kDensity * kLength * kWidth * kThickness / 4.; }
+    static double ForceProjection(int mode) {
+        return std::sin(mode * kPiD * kBridgeX) * std::sin(kPiD * kBridgeY);
+    }
+    static double StrainPerMetre(int mode) {
+        const double hx = mode * kPiD * kPatchLength / (2 * kLength);
+        const double hy = kPiD * kPatchWidth / (2 * kWidth);
+        const double phi = std::sin(mode * kPiD * kPatchX) * std::sin(kPiD * kPatchY)
+                         * (std::sin(hx) / hx) * (std::sin(hy) / hy);
+        // Longitudinal strain -h/2*d2(phi)/dx2 averaged over the electrode.
+        // Transverse/shear piezo response is outside this reference model.
+        return .5 * kThickness * std::pow(mode * kPiD / kLength, 2) * phi;
+    }
+};
+
 // A hand cupped over the front sound hole (the mod wheel). The box's air
 // flows through a 3 cm front hole (two thirds of its conductance) and small
 // back holes (a third; a 0.8 L box: 299 Hz front hole alone, 366 Hz with two
@@ -144,12 +168,14 @@ public:
         mDirectAlpha = std::exp(-kTwoPiD * 260.0 / mRate);
         mAppliedCover = -1.0;
         SetCover(mCover);
+        for (int i = 0; i < 3; ++i) mPhysicalPlate[i].Configure(mRate, i + 1);
     }
 
     void Reset() {
         for (auto& mode : mModes) mode.y1 = mode.y2 = mode.z1 = mode.z2 = 0.0;
         for (auto& dc : mDc) dc = DcBlocker{};
         mDirect = mSideDirect = 0.0;
+        for (auto& mode : mPhysicalPlate) mode.Reset();
     }
 
     // Clear only the velocity-weighted resonance when its output headroom
@@ -211,13 +237,20 @@ public:
     // run twice, on the plain and on the Bloom-weighted drive (states y and z).
     // `plate` reads local bending under a bonded contact pickup, including
     // the air pushing on the plate. Its spatial weights differ from radiation.
-    // Below coincidence a point-driven board radiates its broadband sound from
-    // around the drive point (Cremer & Heckl), so a stereo pair over the box
-    // hears each tine's board sound from the tine's side: `side` is the right
-    // microphone minus the left, half of each; the plates' resonances and the
-    // holes stay in the middle.
+    // `side` retains the older two-microphone diagnostic readout. Production
+    // stereo comes from the recording scene: emitted[0] is the board's centre
+    // source and emitted[1] the hole source, with their own receiver geometry.
+    // tensileStrain is the physical board sensor output, independently of all
+    // acoustic weighting above.
     void Process(const KalimbaBoxDrive& drive, double fixedResonance, double bloomResonance,
-                 double& close, double& far, double& plate, double& side) {
+                 double& close, double& far, double& plate, double& side, double* emitted = nullptr,
+                 double* tensileStrain = nullptr) {
+        // One board sensor sees the summed bridge force. Preserve static
+        // deflection here: the charge amplifier itself rejects DC. Bloom is
+        // an acoustic mix, not another physical board/sensor excitation.
+        double physicalStrain = 0;
+        for (auto& mode : mPhysicalPlate) physicalStrain += mode.Process(drive.board);
+        if (tensileStrain) *tensileStrain = physicalStrain;
         // The thumb's static hold is not sound: remove it.
         const double hp = mDc[0].Process(drive.board, mDcAlpha);
         const double hpAir = mDc[1].Process(drive.air, mDcAlpha);
@@ -254,9 +287,17 @@ public:
         far = 0.8 * board + fixedResonance * (0.7 * plateSum - kHoleFar * airSum)
                           + bloomResonance * (0.7 * bloomPlateSum - kHoleFar * bloomAirSum);
         plate = pickupStrain;
+        if (emitted) {
+            // Separate physical emitters for the scene's shared receiver
+            // geometry. The negative sign is the hole's radiation relative
+            // to the board, not an arbitrary stereo widening operation.
+            emitted[0] = board + fixedResonance * plateSum + bloomResonance * bloomPlateSum;
+            emitted[1] = -(fixedResonance * airSum + bloomResonance * bloomAirSum);
+        }
     }
 
     void FlushTiny() {
+        for (auto& mode : mPhysicalPlate) mode.FlushTiny();
         for (auto& mode : mModes) {
             if (std::abs(mode.y1) + std::abs(mode.y2) < 1.0e-15) mode.y1 = mode.y2 = 0.0;
             if (std::abs(mode.z1) + std::abs(mode.z2) < 1.0e-15) mode.z1 = mode.z2 = 0.0;
@@ -273,6 +314,8 @@ public:
             if (subnormal(mode.y1) || subnormal(mode.y2) || subnormal(mode.z1) || subnormal(mode.z2)) return false;
         for (const auto& dc : mDc)
             if (subnormal(dc.in) || subnormal(dc.out)) return false;
+        for (const auto& mode : mPhysicalPlate)
+            if (subnormal(mode.position) || subnormal(mode.velocity)) return false;
         return !subnormal(mDirect) && !subnormal(mSideDirect);
     }
 
@@ -281,10 +324,46 @@ public:
         for (const auto& dc : mDc) e += dc.out * dc.out;
         for (const auto& mode : mModes)
             e += mode.y1 * mode.y1 + mode.y2 * mode.y2 + mode.z1 * mode.z1 + mode.z2 * mode.z2;
+        // Squared equivalent force matches the nominal-force scale of the
+        // acoustic states, so physical board tails survive source silence.
+        for (const auto& mode : mPhysicalPlate) e += mode.ForceEnergy();
         return e;
     }
 
 private:
+    struct PhysicalPlateMode {
+        double position = 0, velocity = 0;
+        double e00 = 0, e01 = 0, e10 = 0, e11 = 0, b0 = 0, b1 = 0;
+        double strainGain = 0, stiffness = 0, massOmega = 0;
+        void Configure(double rate, int index) {
+            const auto& spec = kKalimbaBody[index];
+            const double omega = kTwoPiD * spec.hz, gamma = omega / (2 * spec.q);
+            const double omega2 = omega * omega + gamma * gamma;
+            const double r = std::exp(-gamma / rate), c = std::cos(omega / rate), s = std::sin(omega / rate);
+            const double mass = KalimbaPlatePickup::ModalMass();
+            const double projection = KalimbaPlatePickup::ForceProjection(index);
+            e00 = r * (c + gamma * s / omega); e01 = r * s / omega;
+            e10 = -r * omega2 * s / omega; e11 = r * (c - gamma * s / omega);
+            // Exact held-force transition for M*q''+2M*gamma*q'+K*q=phi*F.
+            stiffness = mass * omega2;
+            massOmega = mass * std::sqrt(omega2);
+            b0 = projection * (1 - e00) / stiffness;
+            b1 = projection * r * s / (mass * omega);
+            strainGain = KalimbaPlatePickup::StrainPerMetre(index);
+        }
+        double Process(double force) {
+            const double q = e00 * position + e01 * velocity + b0 * force;
+            velocity = e10 * position + e11 * velocity + b1 * force;
+            position = q;
+            return q * strainGain;
+        }
+        void Reset() { position = velocity = 0; }
+        double ForceEnergy() const {
+            return position * position * stiffness * stiffness + velocity * velocity * massOmega * massOmega;
+        }
+        void FlushTiny() { if (ForceEnergy() < 1.e-30) Reset(); }
+    };
+    std::array<PhysicalPlateMode, 3> mPhysicalPlate{};
     // Hole radiation per unit air-mode response: at the resonance the holes
     // radiate a little more than the board (voiced), more toward the far mic.
     static constexpr double kHoleClose = 1.0, kHoleFar = 1.36;
@@ -298,9 +377,8 @@ private:
         }
     };
     std::array<Mode, kKalimbaBodyModes> mModes{};
-    // A spaced pair 20 cm apart, 15 cm over the board: a tine 6.5 cm off the
-    // centre is 3.2 dB louder in the nearer microphone (inverse distance),
-    // (1 + s) / (1 - s) with s = 0.18 at the outermost tines.
+    // Legacy diagnostic pair (20 cm apart, 15 cm over the board). Production
+    // uses the recording scene's centre-board and hole source geometry.
     static constexpr double kSideSpread = 0.18;
     std::array<DcBlocker, 5> mDc{};   // board, air, bloom, bloom-air and side drives
     double mSideDirect = 0.0;

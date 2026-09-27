@@ -1,13 +1,37 @@
 // Ten per-strike VOL routes add a calibrated fraction of the full knob range.
 #include "MarembaEngine.h"
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
 
 namespace maremba {
+struct CaptureSceneTestAccess {
+    static std::array<double, 2> FadeEnergy(const CaptureScene& actual,
+                                           const CaptureScene& reference,
+                                           const CaptureScene& floor, int factor) {
+        std::array<double, 2> energy{};
+        // Read the emissions actually supplied by the engine, before either
+        // microphone path. Keep sources separate so spatial cancellation
+        // cannot turn a correctly fading source into an apparent gain change.
+        for (int id = 0; id < kCaptureSourceCount; ++id) {
+            for (int lane = 0; lane < 3; ++lane) {
+                for (int sub = 0; sub < factor; ++sub) {
+                    const double fixed = floor.mSource[id].buffer[lane][sub];
+                    const double a = actual.mSource[id].buffer[lane][sub] - fixed;
+                    const double r = reference.mSource[id].buffer[lane][sub] - fixed;
+                    energy[0] += a * a;
+                    energy[1] += r * r;
+                }
+            }
+        }
+        return energy;
+    }
+};
 struct MarembaEngineTestAccess {
     static float ControlVelocity(const MarembaEngine& engine, float velocity) { return engine.MapControlVelocity(velocity); }
     static float BaseGain(const MarembaEngine& engine, bool mesh) {
@@ -18,6 +42,12 @@ struct MarembaEngineTestAccess {
     }
     static KalimbaBody KalimbaSnapshot(const MarembaEngine& engine) { return engine.mKalimbaBody; }
     static bool ExtraBloomRunning(const MarembaEngine& engine) { return engine.mBodyVelocityRunning; }
+    static std::array<double, 2> SourceFadeEnergy(const MarembaEngine& actual,
+                                                 const MarembaEngine& reference,
+                                                 const MarembaEngine& floor) {
+        return CaptureSceneTestAccess::FadeEnergy(actual.mMicMixer, reference.mMicMixer,
+                                                  floor.mMicMixer, actual.mActiveFactor);
+    }
     static void StopVoices(MarembaEngine& engine) {
         for (auto& voice : engine.mVoices) voice.FastKill();
     }
@@ -63,8 +93,9 @@ void check(bool ok, const std::string& message) {
     }
 }
 
-// The dry direct outputs (close, far, piezo) bypass the preamp and limiter,
-// so the linear shared resonators are compared without their nonlinearity.
+// Direct captures bypass the capture mix coefficients, Main warmth and its
+// musical limiter. They retain acoustic propagation, Piezo Drive and their
+// independent output headroom protection, held identical in each comparison.
 std::vector<float> Render(const EngineParameters& p, float velocity, double seconds,
                           const EngineParameters* changeTo = nullptr, double changeAt = 0.0) {
     auto engine = std::make_unique<maremba::MarembaEngine>(48000.0);
@@ -297,6 +328,7 @@ int main() {
                 off.*knob = 0;
                 fading->SetParameters(off);
                 std::vector<float> actual, held;
+                std::array<double, 2> sourceEnergy{};
                 int stopFrame = -1;
                 float beforeStop = 1;
                 for (int frame = 0; frame < 3360; ++frame) {
@@ -306,6 +338,11 @@ int main() {
                     const float fixed = RenderFrame(*floor);
                     actual.push_back(RenderFrame(*fading) - fixed);
                     held.push_back(RenderFrame(*reference) - fixed);
+                    if (frame >= 480 && frame < 720) {
+                        const auto energy = Access::SourceFadeEnergy(*fading, *reference, *floor);
+                        sourceEnergy[0] += energy[0];
+                        sourceEnergy[1] += energy[1];
+                    }
                     if (stopFrame < 0 && !Access::Running(*fading, mesh)) {
                         stopFrame = frame;
                         beforeStop = before;
@@ -316,13 +353,26 @@ int main() {
                     check(level > 1e-15, where + ": seeded reference tail is inaudible");
                     return WindowRms(actual, first, last) / std::max(level, 1e-30);
                 };
-                check(ratio(480, 720) < .20 * base, where + ": stored tail does not fade with the base knob");
+                // The 10–15 ms bound is a source-fade contract. Close now has
+                // real flight time and a measured head/ear impulse response,
+                // followed by the common 2 ms output delay: a listener at
+                // this time still receives sound emitted earlier in the fade.
+                // Inspect actual source audio rather than the gain variable;
+                // retain the separate delivered-audio settling gate below.
+                check(std::isfinite(sourceEnergy[0]) && std::isfinite(sourceEnergy[1]) && sourceEnergy[1] > 1e-30,
+                      where + ": seeded source reference tail is invalid or inaudible");
+                const double sourceRatio = std::sqrt(sourceEnergy[0] / std::max(sourceEnergy[1], 1e-30));
+                check(sourceRatio < .20 * base, where + ": stored source tail does not fade with the base knob");
                 const double lateRatio = ratio(1680, 1920);
                 check(lateRatio < .002,
                       where + ": quiet tail is not sufficiently attenuated");
                 check(stopFrame >= 0 && stopFrame < 3360 && beforeStop < .0011f,
                       where + ": bypass resets before the output fade completes, base=" + std::to_string(base));
                 check(Access::BaseGain(*fading, mesh) == 0, where + ": fully disabled branch does not settle to zero");
+                std::cout << std::setprecision(9) << "FADE model=" << model << " route=" << (mesh ? "Sympathetic" : "Bloom")
+                          << " base=" << base << " source_10_15ms_over_base=" << sourceRatio / base
+                          << " close_10_15ms_over_base=" << ratio(480, 720) / base
+                          << " close_35_40ms=" << lateRatio << '\n';
                 ++sharedFadeCases;
             }
 

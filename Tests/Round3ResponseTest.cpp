@@ -7,6 +7,18 @@
 #include <iomanip>
 #include <iostream>
 #include <string>
+#include <memory>
+
+namespace maremba {
+struct MarembaEngineTestAccess {
+    static MarembaVoice FirstVoice(const MarembaEngine& engine) {
+        for (const auto& voice : engine.mVoices) if (voice.IsActive()) return voice;
+        return {};
+    }
+    static SympatheticMesh Mesh(const MarembaEngine& engine) { return engine.mSympathetic; }
+    static KalimbaBody Board(const MarembaEngine& engine) { return engine.mKalimbaBody; }
+};
+}
 
 namespace {
 constexpr double rate = 48000;
@@ -26,7 +38,7 @@ maremba::EngineParameters clean(int model) {
     p.closeLevel = p.volume = 1;
     return p;
 }
-struct Halo { double ratio = 0; bool pickupIdentical = true, finite = true; };
+struct Halo { double ratio = 0, sourceRatio = 0, sceneResidual = 0; bool pickupIdentical = true, finite = true; };
 Halo haloResponse(int model, int note) {
     std::array<maremba::MarembaEngine, 2> engine{maremba::MarembaEngine(rate), maremba::MarembaEngine(rate)};
     auto p = clean(model);
@@ -38,6 +50,22 @@ Halo haloResponse(int model, int note) {
     std::array<std::array<float, 64>, 2> left{}, right{}, piezo{};
     std::array<float, 64> mainL{}, mainR{};
     double dry = 0, wet = 0;
+    // Independent source oracle retains the prior calibration at a common
+    // reference, before microphone geometry. Nearby receivers can legitimately
+    // dominate a distant struck key at the listener; that is not source gain.
+    auto voice = maremba::MarembaEngineTestAccess::FirstVoice(engine[0]);
+    auto mesh = maremba::MarembaEngineTestAccess::Mesh(engine[0]);
+    auto board = maremba::MarembaEngineTestAccess::Board(engine[0]);
+    auto scene = std::make_unique<maremba::CaptureScene>();
+    scene->Allocate(rate);
+    const bool tine = model == 3;
+    const float position = std::clamp((note - 36.f) / 60.f, 0.f, 1.f);
+    const float bipolar = tine ? static_cast<float>(maremba::KalimbaTineSide(note)) : (position - .5f) * 2;
+    const double angle = (bipolar * (tine ? .40f : .45f) + .5f) * 1.57079632679f;
+    const double oldPanSum = std::cos(angle) + std::sin(angle);
+    double sourceDry = 0, sourceHalo = 0, predictionError = 0;
+    std::array<float, 96> delay{}; // physical-output guard latency:2ms at48kHz
+    size_t delayIndex = 0;
     Halo result;
     for (int start = 0; start < 24000; start += 64) {
         const int n = std::min(64, 24000 - start);
@@ -45,15 +73,51 @@ Halo haloResponse(int model, int note) {
             engine[k].RenderBatch(mainL.data(), mainR.data(), left[k].data(), right[k].data(),
                                   nullptr, nullptr, piezo[k].data(), n);
         for (int i = 0; i < n; ++i) {
+            scene->BeginFrame(2);
+            for (int sub = 0; sub < 2; ++sub) {
+                float close = 0, far = 0, pickup = 0;
+                const bool active = voice.ProcessSample(close, far, pickup);
+                mesh.BeginSample();
+                if (active) mesh.AccumulateVoice(note, tine ? voice.GetBridgeForce() * .01 : voice.GetMechanicalSample());
+                float haloL = 0, haloR = 0;
+                mesh.Process(1, haloL, haloR);
+                double commonReferenceDry = close * oldPanSum;
+                if (tine) {
+                    maremba::KalimbaBoxDrive drive;
+                    drive.Add(active ? voice.GetBridgeForce() : 0, 1, 0, maremba::KalimbaTineSide(note));
+                    double boxClose = 0, boxFar = 0, plate = 0, side = 0;
+                    board.Process(drive, .6, .8, boxClose, boxFar, plate, side);
+                    commonReferenceDry += .072 * boxClose; // former half-per-ear board sum
+                }
+                sourceDry += commonReferenceDry * commonReferenceDry;
+                sourceHalo += .49 * (haloL + haloR) * (haloL + haloR);
+                for (int key = 0; key < mesh.ReceiverCount(); ++key) {
+                    const float receiver = mesh.GetReceiverPressure(key, 1);
+                    // Deliberately use the generic API and independent legacy
+                    // pair-sum calibration; this checks production's compact
+                    // source API and actual per-receiver geometry together.
+                    scene->Add(maremba::CaptureSourceIndex(static_cast<maremba::EMarimbaModel>(model), mesh.ReceiverNote(key)),
+                               sub, .35f * receiver, .35f * receiver, .21f * receiver);
+                }
+            }
+            float expectedL = 0, expectedR = 0, roomL = 0, roomR = 0;
+            scene->Process(expectedL, expectedR, roomL, roomR);
+            const double prediction = delay[delayIndex];
+            delay[delayIndex] = (expectedL + expectedR) * (.65f * .06f);
+            delayIndex = (delayIndex + 1) % delay.size();
+            if ((start + i) % 16 == 15) { voice.UpdateEnvelope(); mesh.FlushTiny(); board.FlushTiny(); scene->FlushTiny(); }
             const double x = left[0][i] + right[0][i];
             const double delta = left[1][i] + right[1][i] - x;
             dry += x*x;
             wet += delta*delta;
+            predictionError += (delta - prediction) * (delta - prediction);
             result.pickupIdentical &= piezo[0][i] == piezo[1][i];
             result.finite &= std::isfinite(x) && std::isfinite(delta);
         }
     }
     result.ratio = wet / std::max(dry, 1.e-30);
+    result.sourceRatio = sourceHalo / std::max(sourceDry, 1.e-30);
+    result.sceneResidual = std::sqrt(predictionError / std::max(wet, 1.e-30));
     return result;
 }
 struct Restrike { double worst = 0, absolute = 0; };
@@ -172,14 +236,18 @@ int main() {
             const auto halo = haloResponse(model, notes[n]);
             levels[n] = db(halo.ratio);
             check(halo.finite && halo.pickupIdentical, "halo is unbounded or leaks into isolated pickup");
+            check(halo.sceneResidual < 2.e-4,
+                  "halo differs from independently calibrated receiver-scene prediction model=" + std::to_string(model)
+                  + " note=" + std::to_string(notes[n]));
             // Permit natural register variation, but not the old effectively
             // dead control above/below the hard-coded two-octave bank.
             if (notes[n] == 36 || notes[n] == 84 || notes[n] == 96)
-                check(levels[n] > -60 && levels[n] < 0,
+                check(levels[n] > -60 && db(halo.sourceRatio) > -60 && db(halo.sourceRatio) < 0,
                       "Sympathetic lacks useful keyboard coverage model=" + std::to_string(model)
                       + " note=" + std::to_string(notes[n]));
             std::cout << "REGISTER model=" << model << " note=" << notes[n]
-                      << " halo_to_dry_db=" << levels[n] << '\n';
+                      << " halo_to_dry_db=" << levels[n] << " source_halo_to_dry_db=" << db(halo.sourceRatio)
+                      << " scene_prediction_residual=" << halo.sceneResidual << '\n';
         }
         double worstStep = 0;
         for (size_t n : {size_t(2), size_t(3), size_t(6), size_t(7), size_t(8)})

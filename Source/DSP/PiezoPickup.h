@@ -2,6 +2,7 @@
 
 #include "DspMath.h"
 #include "MarimbaModel.h"
+#include "PiezoReferenceCircuit.h"
 #include <algorithm>
 #include <cmath>
 
@@ -91,11 +92,10 @@ private:
     double mHpInput = 0.0, mHpOutput = 0.0, mLpInput = 0.0, mLpOutput = 0.0;
 };
 
-// A contact transducer attached to the instrument, before the external preamp.
-// This is a voiced mechanical/electrical approximation, not a measurement of a
-// named pickup. The input is local bending strain, NOT a mix of the air mics.
-// Two broad mounting modes represent the rail/bridge and bonded pickup patch;
-// the RC load removes static strain and the adhesive limits high frequencies.
+// A contact transducer attached to the instrument. ProcessSurfaceStrain uses
+// the declared PVDF/charge-amplifier SI chain; Process retains the legacy
+// nominal mounting readout until its caller supplies physical plate strain.
+// Neither path receives the acoustic microphone mix.
 class PiezoPickup {
 public:
     PiezoPickup() { Configure(kReferenceRate, EMarimbaModel::ImperialRosewood); }
@@ -138,6 +138,9 @@ public:
         mOutputGain = mount.outputGain;
 
         mCircuit.Configure(fs, PiezoInputCircuit::ForModel(model));
+        mSensor = ReferencePVDFPatch::ForModel(model);
+        mChargeAmp.Configure(fs, mSensor, ReferenceChargeAmp::Components{});
+        mPostAdcGain = PostAdcGain(model);
         // Adhesive/sensor mass softens fast strain before charge conversion;
         // this mechanical bandwidth is separate from the buffer's RC pole.
         const double lp = std::tan(kPiD * std::min(mount.adhesiveHz, fs * 0.38) / fs);
@@ -149,7 +152,28 @@ public:
         mBody.Reset();
         mPatch.Reset();
         mCircuit.Reset();
+        mChargeAmp.Reset();
         mLpInput = mLpOutput = 0.0;
+    }
+
+    // Signed tensile strain -> generated charge -> amplifier volts -> a
+    // declared +/-12V ADC -> fixed digital instrument calibration. Forces,
+    // nominal mounting sounds and acoustic signals must not enter this API.
+    double ProcessSurfaceStrain(double tensileStrain) {
+        return mChargeAmp.ProcessCharge(mSensor.ChargeFromStrain(tensileStrain))
+             * (mPostAdcGain / kAdcPeakVolts);
+    }
+
+    static constexpr double kAdcPeakVolts = 12.0;
+    static double PostAdcGain(EMarimbaModel model) {
+        // One fixed family scalar preserves the former carved C4 fundamental
+        // magnitude at 88.2 kHz. Kalimba preserves the former C4 half-second
+        // RMS at velocity .5 through the complete 44.1 kHz engine. Calibration
+        // is after the converter, not physical
+        // input gain, automatic normalization, or a mode-dependent tone curve.
+        static constexpr double gains[] = {2181.47148623013, 395.768425841642,
+                                            931.534912056703, 1627.21817439378};
+        return gains[std::clamp(static_cast<int>(model), 0, 3)];
     }
 
     // strain: signed sum of the modal motions at the mounting patch, using
@@ -170,6 +194,41 @@ public:
         return mOutputGain * mCircuit.Process(lp);
     }
 
+    // The wooden bars use the same Timoshenko sections/modes as their physical
+    // excitation: top-surface strain is -h(x)/2 * d(theta)/dx, with section
+    // rotation theta independent of displacement slope. The generator averages
+    // over the fixed metre-sized electrode before rounding the shape table.
+    // The declared patch does not grow with note length, so its assumed Cp
+    // need not silently change with note. It is not a named sensor model.
+    static BarPickupPatch BarElectrode(EMarimbaModel model) {
+        const int family = std::clamp(static_cast<int>(model), 0, 2);
+        return kBarPickupPatches[family];
+    }
+
+    static double BarSurfaceStrain(const BarKey& key, int mode) {
+        return key.pickupStrain[std::clamp(mode, 0, kBarModes - 1)];
+    }
+
+    // Preserve the existing fully carved C4 fundamental's nominal audio
+    // sensitivity with one scalar per family, not a mode-dependent EQ. Every
+    // other mode/key and Carving setting follows its actual signed strain.
+    // This is an audio calibration, NOT volts or a piezo material coefficient.
+    static double BarStrainCalibration(EMarimbaModel model) {
+        constexpr int c4 = 12;
+        static_assert(kRosewoodBars[c4].midi == 60.0 && kHormigoBars[c4].midi == 60.0
+                      && kBalafonBars[c4].midi == 60.0, "pickup reference must remain C4");
+        const BarModeAnchor& reference = BarAnchors(model)[c4];
+        const double scale = 0.38 / reference.lengthM;
+        return ModalStrainWeight(model, 0) * scale * scale / reference.pickupStrain[0];
+    }
+
+    static double BarStrainWeight(EMarimbaModel model, const BarKey& key, int mode) {
+        return BarSurfaceStrain(key, mode) * BarStrainCalibration(model);
+    }
+
+    // Legacy uniform-beam reference used only to retain C4's audio sensitivity
+    // above, and by isolated pickup fixtures. The production bars read the
+    // generated Timoshenko strain; Kalimba reads its board/bridge instead.
     // A fixed adhesive footprint reads the spatially averaged curvature of a
     // free bar (three mallet instruments) or clamped tine (Kalimba). Curvature
     // is the second derivative of displacement: higher modes can produce much
@@ -222,6 +281,7 @@ public:
     // are short, damped mounting tails, but their last samples must not be cut.
     double StateEnergy() const {
         return mBody.StateEnergy() + mPatch.StateEnergy() + mCircuit.StateEnergy()
+             + mChargeAmp.StateEnergy() * (mPostAdcGain * mPostAdcGain / (kAdcPeakVolts * kAdcPeakVolts))
              + mLpInput * mLpInput + mLpOutput * mLpOutput;
     }
 
@@ -229,6 +289,7 @@ public:
         mBody.FlushTiny();
         mPatch.FlushTiny();
         mCircuit.FlushTiny();
+        mChargeAmp.FlushTiny();
         if (std::abs(mLpInput) < 1.0e-15 && std::abs(mLpOutput) < 1.0e-15) {
             mLpInput = mLpOutput = 0.0;
         }
@@ -236,6 +297,7 @@ public:
 
     bool HasNoSubnormalState() const {
         return mBody.HasNoSubnormalState() && mPatch.HasNoSubnormalState() && mCircuit.HasNoSubnormalState()
+            && mChargeAmp.HasNoSubnormalState()
             && std::fpclassify(mLpInput) != FP_SUBNORMAL
             && std::fpclassify(mLpOutput) != FP_SUBNORMAL;
     }
@@ -272,6 +334,9 @@ private:
 
     MountMode mBody, mPatch;
     PiezoInputCircuit mCircuit;
+    ReferencePVDFPatch mSensor{};
+    ReferenceChargeAmp mChargeAmp;
+    double mPostAdcGain = 1.0;
     double mBodyMix = 0.0, mPatchMix = 0.0, mDirectMix = 0.0;
     double mForceMix = 0.0, mOutputGain = 1.0;
     double mLpPole = 0.0, mLpGain = 0.0;

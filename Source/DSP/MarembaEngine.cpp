@@ -54,9 +54,6 @@ constexpr float kBodyBloomGain = 0.375f;
 // Kalimba box radiation per unit of bridge force rate; Body scales it from a
 // board that barely rings (0) to a resonant box (1), never to silence.
 constexpr double kKalimbaBodyGain = 0.072;
-// Plate motion reaching the kalimba's board-mounted transducer (per N of the
-// box's modal response): the board itself, where the transducer is glued.
-constexpr double kKalimbaPlatePickup = 0.01;
 // Restore a useful main-output level without changing physical excitation,
 // preamp drive, or pre-fader stem headroom. The limiter receives the lift.
 constexpr float kMainCalibrationGain = 2.0f; // +6.02 dB before limiting
@@ -98,9 +95,9 @@ MarembaEngine::MarembaEngine(double sampleRate)
     , mPrng(kEngineSeed)
 {
     for (int note = 0; note < 128; ++note) mTineSide[static_cast<std::size_t>(note)] = KalimbaTineSide(note);
-    // The only allocation: room delay lines for the highest internal rate this
-    // instance can run at (8x the host rate; a host-rate change re-creates the engine).
-    mMicMixer.Allocate(mBaseSampleRate * kMaxOversample);
+    // Linear acoustic capture runs at host rate after per-source decimation.
+    // A host-rate change re-creates the engine and its preallocated histories.
+    mMicMixer.Allocate(mBaseSampleRate);
     mOutputHeadroom.SetSampleRate(mBaseSampleRate);
     mVolumeAlpha = static_cast<float>(1.0 - std::exp(-1.0 / (kVolumeSmoothingSeconds * mBaseSampleRate)));
     mQuietFramesNeeded = static_cast<int>(kTailHoldSeconds * mBaseSampleRate);
@@ -194,12 +191,11 @@ void MarembaEngine::Reset() {
 }
 
 void MarembaEngine::ConfigureForRate() {
-    const double rate = InternalRate();
-    mMicMixer.SetSampleRate(rate);   // changes the room's active lengths, no allocation
-    mLimiter.SetSampleRate(rate);
+    mMicMixer.SetSampleRate(mBaseSampleRate);
+    mLimiter.SetSampleRate(mBaseSampleRate);
     mLimiter.SetTimes(mParams.compAttack, mParams.compRelease);
     mLimiter.SetAmount(mParams.compAmount);
-    mPreamp.SetSampleRate(rate);
+    mPreamp.SetSampleRate(mBaseSampleRate);
     mAppliedGlobalCents = GlobalCents();
     ConfigureModel();
 }
@@ -229,9 +225,8 @@ void MarembaEngine::FlushTails() {
     mPreamp.Reset();
     mLimiter.Reset();
     mOutputHeadroom.Reset();
-    mOversampler.Reset();
+    mPiezoDecimator.Reset();
     for (int k = 0; k < kNumDirectOuts; ++k) {
-        mDirectDecimators[k].Reset();
         mDirectRunning[k] = false;
     }
     mSympathetic.Reset();
@@ -703,8 +698,8 @@ void MarembaEngine::ControlTick() {
     mKalimbaPickup.FlushTiny();
     mPreamp.FlushTiny();
     mLimiter.FlushTiny();
-    mOversampler.FlushTiny();
-    for (auto& decimator : mDirectDecimators) decimator.FlushTiny();
+    mPiezoDecimator.FlushTiny();
+    mMicMixer.FlushTiny();
 }
 
 // Held keys roll while the mod wheel is up (mallet models): two mallets
@@ -783,12 +778,9 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         const float meshInverse = meshHeadroom > 0.0f ? 1.0f / meshHeadroom : 0.0f;
         const int factor = mActiveFactor;
         bool anyVoice = false;
+        mMicMixer.BeginFrame(factor);
 
         for (int s = 0; s < factor; ++s) {
-            float accCloseL = 0.0f;
-            float accCloseR = 0.0f;
-            float accFarL = 0.0f;
-            float accFarR = 0.0f;
             float accPiezo = 0.0f;
 
             float totalMechanical = 0.0f;
@@ -802,24 +794,28 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
 
             for (int v = 0; v < kVoicePoolSize; ++v) {
                 if (mVoices[v].IsActive()) {
+                    // A final faded sample is valid even though ProcessSample
+                    // releases the slot. Its travelling wave keeps its key.
+                    const int noteNum = mVoices[v].GetNoteNumber();
+                    const EMarimbaModel voiceModel = mVoices[v].GetModel();
                     float voiceClose = 0.0f;
                     float voiceFar = 0.0f;
                     float voicePiezo = 0.0f;
+                    float voiceEars[2]{};
 
-                    if (mVoices[v].ProcessSample(voiceClose, voiceFar, voicePiezo)) {
+                    if (mVoices[v].ProcessSample(voiceClose, voiceFar, voicePiezo, voiceEars)) {
                         anyVoice = true;
-                        int noteNum = mVoices[v].GetNoteNumber();
-                        mMicMixer.MixVoiceSample(noteNum, mVoices[v].GetModel() == EMarimbaModel::KalimbaArtisan,
-                                                 voiceClose, voiceFar, voicePiezo,
-                                                 accCloseL, accCloseR,
-                                                 accFarL, accFarR,
-                                                 accPiezo);
+                        mMicMixer.Add(CaptureSourceIndex(voiceModel, noteNum), s,
+                                      voiceEars[0], voiceEars[1], voiceFar);
+                        // One Kalimba board sensor reads summed tine force;
+                        // per-voice nominal pickups must not bypass it.
+                        if (voiceModel != EMarimbaModel::KalimbaArtisan) accPiezo += voicePiezo;
 
                         const StrikeRoute& route = mRoutes[static_cast<std::size_t>(v)];
                         const float body = std::min(1.0f, route.body * bodyInverse);
                         totalMechanical += mVoices[v].GetMechanicalSample();
                         velocityMechanical += mVoices[v].GetMechanicalSample() * body;
-                        const bool tine = mVoices[v].GetModel() == EMarimbaModel::KalimbaArtisan;
+                        const bool tine = voiceModel == EMarimbaModel::KalimbaArtisan;
                         const double bridge = tine ? mVoices[v].GetBridgeForce() : 0.0;
                         if (tine) box.Add(bridge, route.boxAir, body,
                                           mTineSide[static_cast<std::size_t>(std::clamp(noteNum, 0, 127))]);
@@ -843,83 +839,84 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
             if (mBodyVelocityRunning && !kalimba)
                 bodySound += mVelocityFrameBody.Process(velocityMechanical) * bodyHeadroom * kBodyBloomGain;
             // The kalimba's box radiates what every tine's bridge pushes into it.
-            float boxClose = 0.0f, boxFar = 0.0f, boxPickup = 0.0f, boxSide = 0.0f;
+            float boxPickup = 0.0f;
+            double boardStrain = 0.0;
             if (box.board != 0.0 || mKalimbaBodyRunning) {
                 double close = 0.0, far = 0.0, plate = 0.0, side = 0.0;
+                double emitted[2]{};
                 // Body weights the box's resonances against its board.
-                mKalimbaBody.Process(box, 0.6 + 0.8 * mBodyGain, 0.8 * bodyHeadroom, close, far, plate, side);
-                boxClose = static_cast<float>(close * kKalimbaBodyGain);
-                boxFar = static_cast<float>(far * kKalimbaBodyGain);
-                boxSide = static_cast<float>(side * kKalimbaBodyGain);
-                // The transducer on the board also feels the plate the box moves.
-                boxPickup = static_cast<float>(plate * kKalimbaPlatePickup);
+                mKalimbaBody.Process(box, 0.6 + 0.8 * mBodyGain, 0.8 * bodyHeadroom, close, far, plate, side, emitted, &boardStrain);
+                const float boardSound = static_cast<float>(emitted[0] * kKalimbaBodyGain);
+                const float holeSound = static_cast<float>(emitted[1] * kKalimbaBodyGain);
+                // The former board/hole sum contributed half to each Close
+                // channel. Preserve that source calibration before assigning
+                // real propagation, instead of doubling a compact source.
+                mMicMixer.AddCompactPressure(kCaptureBoardSource, s, .5f * boardSound);
+                mMicMixer.AddCompactPressure(kCaptureHoleSource, s, .5f * holeSound);
                 mKalimbaBodyRunning = box.board != 0.0 || mKalimbaBody.Energy() > 1.0e-20;
             }
-            // The plate drives the same bonded sensor/load model as the
-            // bridge pickup. Keep its stored charge and mounting motion alive
-            // after the last tine/box sample, rather than adding raw plate motion.
-            if (boxPickup != 0.0f || mKalimbaPickupRunning) {
-                boxPickup = static_cast<float>(mKalimbaPickup.Process(boxPickup, 0.0, 0.0));
+            // SI board strain enters the PVDF/charge-amplifier chain. Retain
+            // capacitor charge after the last physical board sample.
+            if (boardStrain != 0.0 || mKalimbaPickupRunning) {
+                boxPickup = static_cast<float>(mKalimbaPickup.ProcessSurfaceStrain(boardStrain));
                 mKalimbaPickupRunning = mKalimbaPickup.StateEnergy() > 1.0e-28;
             }
 
             // Inter-Bar Sympathetic Resonance Halo ("Singing Rack")
-            float haloL = 0.0f, haloR = 0.0f;
             if (meshOn) {
-                mSympathetic.Process(mSympatheticGain, haloL, haloR);
+                mSympathetic.Advance(mSympatheticGain);
+                for (int key = 0; key < mSympathetic.ReceiverCount(); ++key) {
+                    const float sound = mSympathetic.GetReceiverPressure(key, mSympatheticGain);
+                    // Legacy receiver pan gains summed to 1 and the Close
+                    // halo scale was .7: its equal-ear reference pressure is
+                    // .7/2. Geometry now determines each ear's actual level.
+                    mMicMixer.AddCompactPressure(CaptureSourceIndex(static_cast<EMarimbaModel>(mParams.model), mSympathetic.ReceiverNote(key)),
+                                                s, .35f * sound);
+                }
                 if (mMeshDamping) mSympathetic.Damp(mMeshDampPole);
             }
             if (mMeshVelocityRunning) {
-                float extraL = 0.0f, extraR = 0.0f;
-                mVelocitySympathetic.Process(meshHeadroom, extraL, extraR);
-                haloL += extraL;
-                haloR += extraR;
+                mVelocitySympathetic.Advance(meshHeadroom);
+                for (int key = 0; key < mVelocitySympathetic.ReceiverCount(); ++key) {
+                    const float sound = mVelocitySympathetic.GetReceiverPressure(key, meshHeadroom);
+                    mMicMixer.AddCompactPressure(CaptureSourceIndex(static_cast<EMarimbaModel>(mParams.model), mVelocitySympathetic.ReceiverNote(key)),
+                                                s, .35f * sound);
+                }
                 if (mMeshDamping) mVelocitySympathetic.Damp(mMeshDampPole);
             }
 
-            // Route acoustic emissions (frame body bloom & sympathetic halo) into acoustic mic accumulators
-            // so they are properly controlled by the mixer and completely silent when mixer volumes are at 0
-            // The board's drive-point sound leans toward the tine's side; the
-            // far pair, farther off, hears half the difference.
-            accCloseL += (bodySound * 0.5f + haloL * 0.7f + (boxClose - boxSide) * 0.5f);
-            accCloseR += (bodySound * 0.5f + haloR * 0.7f + (boxClose + boxSide) * 0.5f);
-            accFarL += (bodySound * 0.8f + haloL * 1.0f + (boxFar - 0.4f * boxSide) * 0.5f);
-            accFarR += (bodySound * 0.8f + haloR * 1.0f + (boxFar + 0.4f * boxSide) * 0.5f);
+            // Frame sound likewise used half its nominal level per Close ear.
+            mMicMixer.AddCompactPressure(kCaptureFrameSource, s, .5f * bodySound);
             accPiezo += boxPickup;
 
             // Drive is the contact pickup's amplifier, before its mix
             // coefficient and direct tap. Calibrate its input like a mono
             // pickup at unity in the former stereo preamp, independent of
             // Close/Room levels. The zero setting is an exact clean bypass.
-            constexpr float piezoPreampScale = MicMixer::kMasterMixScale * 0.707f;
+            constexpr float piezoPreampScale = CaptureScene::kMasterMixScale * 0.707f;
             if (mDrive > 0.001f)
                 accPiezo = AnalogPreamp::ApplyDrive(accPiezo * piezoPreampScale, mDrive) / piezoPreampScale;
 
-            float frameMainL = 0.0f;
-            float frameMainR = 0.0f;
-
-            mMicMixer.ProcessFrame(accCloseL, accCloseR,
-                                   accFarL, accFarR,
-                                   accPiezo,
-                                   mCloseGain, mFarGain, mPiezoGain,
-                                   mStereoWidth,
-                                   frameMainL, frameMainR,
-                                   mSubBufDirect[0][s], mSubBufDirect[1][s],
-                                   mSubBufDirect[2][s], mSubBufDirect[3][s],
-                                   mSubBufDirect[4][s]);
-
-            // Global warmth precedes limiting; Drive has already processed
-            // Piezo alone. Both nonlinear stages run at the oversampled rate.
-            float preL = 0.0f;
-            float preR = 0.0f;
-            mPreamp.Process(frameMainL, frameMainR, 0.0f, mParams.warmth, preL, preR);
-            mLimiter.Process(preL * kMainCalibrationGain, preR * kMainCalibrationGain,
-                             mSubBufMainL[s], mSubBufMainR[s]);
+            mSubBufPiezo[s] = accPiezo;
         }
 
-        // Decimate through polyphase half-band filters
+        if (mMicMixer.HasInvalidInput()) {
+            Reset();
+            zeroFrames(0);
+            return;
+        }
+        float capture[kNumDirectOuts]{};
+        mMicMixer.Process(capture[0], capture[1], capture[2], capture[3]);
+        capture[4] = mPiezoDecimator.DownsampleFrame(mSubBufPiezo, factor);
+        float mixedL = 0.0f, mixedR = 0.0f, preL = 0.0f, preR = 0.0f;
+        CaptureScene::Mix(capture[0], capture[1], capture[2], capture[3], capture[4],
+                          mCloseGain, mFarGain, mPiezoGain, mStereoWidth, mixedL, mixedR);
+        // Drive was oversampled in the electrical path. Warmth is linear;
+        // the musical gain envelope and common output protection follow
+        // complete microphone captures at the host rate.
+        mPreamp.Process(mixedL, mixedR, 0.0f, mParams.warmth, preL, preR);
         float mainL = 0.0f, mainR = 0.0f;
-        mOversampler.DownsampleFrame(mSubBufMainL, mSubBufMainR, factor, mainL, mainR);
+        mLimiter.Process(preL * kMainCalibrationGain, preR * kMainCalibrationGain, mainL, mainR);
 
         // Master volume (smoothed per frame). Apply the quality-switch fade
         // after the lookahead delay so its last samples reach zero before a
@@ -928,18 +925,16 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         const float gain = mVolumeGain;
         std::array<float, 7> frame = {mainL * gain, mainR * gain, 0, 0, 0, 0, 0};
 
-        // Direct outs: same half-band chain as main, pre-fader mic taps scaled
-        // by the main mix scale, a fixed -24.4 dB trim and the master volume
-        // (unconnected outs are skipped)
-        const float directGain = MicMixer::kMasterMixScale * kDirectOutTrim * gain;
+        // Complete microphone/electrical captures, before the main mix and
+        // dynamics, with the established direct trim and master volume.
+        const float directGain = CaptureScene::kMasterMixScale * kDirectOutTrim * gain;
         for (int k = 0; k < kNumDirectOuts; ++k) {
             if (direct[k]) {
                 if (!mDirectRunning[k]) {
-                    mDirectDecimators[k].Reset();
                     mOutputHeadroom.ResetDirect(k);
                     mDirectRunning[k] = true;
                 }
-                frame[k + 2] = mDirectDecimators[k].DownsampleFrame(mSubBufDirect[k], factor) * directGain;
+                frame[k + 2] = capture[k] * directGain;
             } else {
                 mDirectRunning[k] = false;
             }
@@ -969,12 +964,7 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         // than the longest room echo gap -> flush all tails and go idle.
         if (!anyVoice && !mSwitchPending) {
             float peak = std::max(std::abs(mainL), std::abs(mainR));
-            for (int s = 0; s < factor; ++s) {
-                peak = std::max(peak, std::max(std::abs(mSubBufMainL[s]), std::abs(mSubBufMainR[s])));
-                for (int k = 0; k < kNumDirectOuts; ++k) {
-                    peak = std::max(peak, std::abs(mSubBufDirect[k][s]));
-                }
-            }
+            for (float value : capture) peak = std::max(peak, std::abs(value));
             mQuietFrames = (peak < kSilenceLevel) ? mQuietFrames + 1 : 0;
             if (mQuietFrames >= mQuietFramesNeeded) {
                 FlushTails();

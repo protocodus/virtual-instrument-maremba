@@ -6,6 +6,7 @@
 // its membrane-free top keys. Rendered checks use the engine's dry close output.
 #include "MarembaEngine.h"
 #include "KalimbaBody.h"
+#include "DryCaptureProbe.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -343,7 +344,10 @@ int main() {
         p.strikePosition = .43f;
         p.malletType = 2;
         p.malletHardness = .6f;
-        const auto note = strike(p, 60, .8f, .4);
+        // The published comparison uses the original anechoic reference
+        // microphone. The new player's ears add direction-dependent filtering
+        // and must not redefine this independent mechanical calibration.
+        const auto note = maremba::MarembaEngineTestAccess::DryCapture(p, 60, .8f, rate, .4, false);
         const double r2 = maremba::GetBarKey(EMarimbaModel::BalafonAncestral, 60).ratio[1];
         const double overtone = line(note, peakHz(note, r2 * hz(60), .03, .3, 40), .03, .3);
         const double level = 20 * std::log10(overtone / line(note, peakHz(note, hz(60), .03, .3, 20), .03, .3));

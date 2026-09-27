@@ -2,7 +2,7 @@
 
 #include "MarimbaModel.h"
 #include "MarembaVoice.h"
-#include "MicMixer.h"
+#include "CaptureScene.h"
 #include "AnalogPreamp.h"
 #include "AnalogLimiter.h"
 #include "OutputHeadroom.h"
@@ -219,12 +219,11 @@ private:
     std::array<StrikeRoute, kVoicePoolSize> mRoutes{};
     std::array<RadiationCacheEntry, 128> mRadiationCache{};
     std::array<float, 128> mKeyDetune{};   // each key's Detune offset (cents), for the sympathetic keys
-    MicMixer mMicMixer;
+    CaptureScene mMicMixer;
     AnalogPreamp mPreamp;
     AnalogLimiter mLimiter;
     OutputHeadroom mOutputHeadroom;
-    StereoOversampler mOversampler;
-    std::array<MonoOversampler, kNumDirectOuts> mDirectDecimators;
+    MonoOversampler mPiezoDecimator;
     std::array<bool, kNumDirectOuts> mDirectRunning{};
     SympatheticMesh mSympathetic;
     FrameBody mFrameBody;
@@ -255,9 +254,7 @@ private:
     double mClock = 0.0;               // output frames since reset
 
     // Sub-sample buffers for oversampling decimation
-    float mSubBufMainL[kMaxOversample] = {};
-    float mSubBufMainR[kMaxOversample] = {};
-    float mSubBufDirect[kNumDirectOuts][kMaxOversample] = {};
+    float mSubBufPiezo[kMaxOversample] = {};
 };
 
 } // namespace maremba

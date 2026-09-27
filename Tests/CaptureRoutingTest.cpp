@@ -2,12 +2,13 @@
 // Room coefficient must not change the wet/dry balance or drain the room, and
 // Piezo Drive must not color either air microphone.
 #include "MarembaEngine.h"
-#include "MicMixer.h"
+#include "CaptureScene.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -43,7 +44,7 @@ double residual(const std::vector<float>& a, const std::vector<float>& b) {
 }
 
 Audio mix(double rate, int roomType, const std::array<float, 3>& coefficient) {
-    MicMixer mixer;
+    CaptureScene mixer;
     mixer.Allocate(rate);
     mixer.SetSampleRate(rate);
     mixer.SetRoomType(roomType);
@@ -55,10 +56,15 @@ Audio mix(double rate, int roomType, const std::array<float, 3>& coefficient) {
         const float envelope = time < .025 ? static_cast<float>(1 - time / .025) : 0;
         const float a = envelope * (.17f * std::sin(kTwoPiD * 373 * time) + (i == 0 ? .2f : 0));
         const float b = envelope * (.12f * std::cos(kTwoPiD * 911 * time) - (i == 0 ? .1f : 0));
-        mixer.ProcessFrame(a, b, .7f * b, .6f * a, .3f * (a - b),
-                           coefficient[0], coefficient[1], coefficient[2], 1.6f,
-                           result[0][i], result[1][i], result[2][i], result[3][i],
-                           result[4][i], result[5][i], result[6][i]);
+        mixer.BeginFrame(2);
+        for (int sample = 0; sample < 2; ++sample) {
+            mixer.Add(60, sample, a, a, .7f*b);
+            mixer.Add(84, sample, b, b, .6f*a);
+        }
+        mixer.Process(result[2][i], result[3][i], result[4][i], result[5][i]);
+        result[6][i] = .3f*(a-b);
+        CaptureScene::Mix(result[2][i], result[3][i], result[4][i], result[5][i], result[6][i],
+                          coefficient[0], coefficient[1], coefficient[2], 1.6f, result[0][i], result[1][i]);
     }
     return result;
 }
@@ -106,6 +112,32 @@ void coefficientContracts() {
                 "muting Room destroys the direct room tail");
         ++mixerCases;
     }
+}
+
+void invalidSourceContracts() {
+    context = "invalid physical source";
+    CaptureScene scene;
+    scene.Allocate(48000);
+    for (float invalid : {std::numeric_limits<float>::quiet_NaN(),
+                          std::numeric_limits<float>::infinity(),
+                          -std::numeric_limits<float>::infinity()}) {
+        for (int lane = 0; lane < 3; ++lane) {
+            scene.BeginFrame(2);
+            std::array<float,3> input{.01f,.02f,.03f};
+            input[lane] = invalid;
+            scene.Add(60, 0, input[0], input[1], input[2]);
+            require(scene.HasInvalidInput(), "capture concealed a nonfinite acoustic emitter");
+        }
+    }
+    scene.BeginFrame(2);
+    const float huge = std::numeric_limits<float>::max();
+    scene.Add(60, 0, huge, 0, 0);
+    scene.Add(60, 0, huge, 0, 0);
+    require(scene.HasInvalidInput(), "capture concealed emitter-sum overflow");
+    scene.Reset();
+    scene.BeginFrame(2);
+    scene.Add(60, 0, .01f, .02f, .03f);
+    require(!scene.HasInvalidInput(), "reset retained the invalid-source flag");
 }
 
 Audio strike(double rate, const EngineParameters& p) {
@@ -163,6 +195,7 @@ void driveContracts() {
 } // namespace
 
 int main() {
+    invalidSourceContracts();
     coefficientContracts();
     driveContracts();
     std::cout << "CaptureRoutingTest PASSED checks=" << checks << " coefficient_cases=" << mixerCases

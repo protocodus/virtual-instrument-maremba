@@ -10,6 +10,7 @@
 #include "../DSP/ModalExcitation.h"
 #include "../DSP/ContactExcitation.h"
 #include "../DSP/BarModes.h"
+#include "../DSP/RoomAlgorithms.h"
 
 #include <algorithm>
 #include <array>
@@ -21,21 +22,53 @@
 #include <cstdlib>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <new>
 #include <string>
 #include <vector>
 
 // ─── Private engine state for the tests (MarembaEngine befriends this) ──────
 namespace maremba {
+struct MarembaVoiceTestAccess {
+    // Phase-independent squared mechanical modal amplitude, in normalized
+    // state units (not joules). Reconstruct quadrature independently of the
+    // production energy cache, excluding all pickup/electronic state.
+    static double MechanicalAmplitudeEnergy(const MarembaVoice& voice) {
+        if (!voice.mActive) return 0.0;
+        double energy = 0.0;
+        const auto add = [&](const auto& mode) {
+            const double sine = std::sin(mode.w);
+            if (std::abs(sine) <= 1e-12) return;
+            const double quadrature = (mode.r * mode.y2 - mode.y1 * std::cos(mode.w)) / sine;
+            energy += mode.y1 * mode.y1 + quadrature * quadrature;
+        };
+        for (int i = 0; i < voice.mNumModes; ++i) add(voice.mModes[i]);
+        for (int i = 0; i < voice.mNumTorsionModes; ++i) add(voice.mTorsion[i]);
+        if (voice.mHasLateral) add(voice.mLateral);
+        add(voice.mTube);
+        for (const auto& mode : voice.mUpperCavity) add(mode);
+        for (const auto& mode : voice.mBrushModes) add(mode);
+        for (const auto& mode : voice.mCollisionModes) add(mode);
+        return energy;
+    }
+};
 struct MarembaEngineTestAccess {
+    static MarembaVoice FirstVoice(const MarembaEngine& e) {
+        for (const auto& voice : e.mVoices) if (voice.IsActive()) return voice;
+        return {};
+    }
+    static FrameBody Body(const MarembaEngine& e) { return e.mFrameBody; }
+    static SympatheticMesh Mesh(const MarembaEngine& e) { return e.mSympathetic; }
+    static float BodyGain(const MarembaEngine& e) { return e.mBodyGain; }
+    static float MeshGain(const MarembaEngine& e) { return e.mSympatheticGain; }
+    static int Factor(const MarembaEngine& e) { return e.mActiveFactor; }
     static bool MeshNormal(const MarembaEngine& e) { return e.mSympathetic.HasNoSubnormalState(); }
     static bool BodyNormal(const MarembaEngine& e) { return e.mFrameBody.HasNoSubnormalState(); }
     static void CorruptOutputGain(MarembaEngine& e, float gain) { e.mVolumeGain = gain; }
     // Float main-bus chain after the mixer, including limiter control memory.
     static bool MainBusNormal(const MarembaEngine& e) {
         bool ok = e.mPreamp.HasNoSubnormalState() && e.mLimiter.HasNoSubnormalState()
-                  && e.mOversampler.HasNoSubnormalState();
-        for (const auto& d : e.mDirectDecimators) ok = ok && d.HasNoSubnormalState();
+                  && e.mPiezoDecimator.HasNoSubnormalState() && e.mMicMixer.HasNoSubnormalState();
         return ok;
     }
     // True when a live voice holds the note and is marked released
@@ -121,6 +154,67 @@ struct Render {
     std::array<std::vector<float>, kNumChannels> ch;
     size_t size() const { return ch[0].size(); }
 };
+
+struct ReferenceSourcePeaks {
+    double combined = 0, voiceLeft = 0, body = 0, mechanicalAmplitudeEnergy = 0;
+    bool finite = true;
+};
+
+// Independently replay a single wooden voice and the shared frame/mesh from
+// their actual engine state at the start of a 64-frame-aligned block. The old
+// common-reference readout preserves source calibration without imposing it
+// on a frequency-dependent microphone transfer or on spatial cancellation.
+void ReferenceSourceBlock(const MarembaEngine& engine, int note, int frames,
+                          ReferenceSourcePeaks& peaks,
+                          maremba::CaptureScene* frameScene = nullptr,
+                          Render* predictedFrame = nullptr)
+{
+    using Access = maremba::MarembaEngineTestAccess;
+    auto voice = Access::FirstVoice(engine);
+    auto body = Access::Body(engine);
+    auto mesh = Access::Mesh(engine);
+    const int factor = Access::Factor(engine);
+    const float position = std::clamp((note - 36.f) / 60.f, 0.f, 1.f);
+    const float angle = ((position - .5f) * 2 * .45f + .5f) * 1.57079632679f;
+    const float panL = std::cos(angle), panR = std::sin(angle);
+    for (int frame = 0; frame < frames; ++frame) {
+        if (frameScene) frameScene->BeginFrame(factor);
+        for (int sub = 0; sub < factor; ++sub) {
+            float close = 0, far = 0, piezo = 0;
+            const bool active = voice.ProcessSample(close, far, piezo);
+            const float mechanical = active ? voice.GetMechanicalSample() : 0;
+            mesh.BeginSample();
+            if (active) mesh.AccumulateVoice(note, mechanical);
+            float haloL = 0, haloR = 0;
+            mesh.Process(Access::MeshGain(engine), haloL, haloR);
+            const float frameSound = body.Process(mechanical) * Access::BodyGain(engine) * .375f;
+            const double left = close * panL + .5f * frameSound + .7f * haloL;
+            const double right = close * panR + .5f * frameSound + .7f * haloR;
+            const double energy = maremba::MarembaVoiceTestAccess::MechanicalAmplitudeEnergy(voice);
+            peaks.finite = peaks.finite && std::isfinite(left) && std::isfinite(right) && std::isfinite(energy);
+            peaks.combined = std::max({peaks.combined, std::abs(left), std::abs(right)});
+            peaks.voiceLeft = std::max(peaks.voiceLeft, std::abs(double(close * panL)));
+            peaks.body = std::max(peaks.body, std::abs(double(.5f * frameSound)));
+            peaks.mechanicalAmplitudeEnergy = std::max(peaks.mechanicalAmplitudeEnergy, energy);
+            if (frameScene) {
+                // Independent compact-source calibration: former half-per-ear
+                // frame signal at .6m, converted by .6/1 for Room's reference.
+                frameScene->Add(maremba::kCaptureFrameSource, sub,
+                                .5f * frameSound, .5f * frameSound, .3f * frameSound);
+            }
+        }
+        if (frameScene && predictedFrame) {
+            float left = 0, right = 0, roomL = 0, roomR = 0;
+            frameScene->Process(left, right, roomL, roomR);
+            predictedFrame->ch[kCloseL].push_back(left);
+            predictedFrame->ch[kCloseR].push_back(right);
+        }
+        if (frame % 16 == 15) {
+            voice.UpdateEnvelope(); body.FlushTiny(); mesh.FlushTiny();
+            if (frameScene) frameScene->FlushTiny();
+        }
+    }
+}
 
 // Render 'frames' frames in 64-frame batches, appending to 'out'.
 // If 'everyBatch' is set, SetParameters(params) is called before every batch (wrapper pattern).
@@ -718,18 +812,51 @@ void TestSympatheticHalo()
 
 void TestBodyBloom()
 {
-    std::cout << "[Body] Frame body bloom level (differential, ~-13 dB below the bar) ..." << std::endl;
+    std::cout << "[Body] Frame source calibration and independently propagated capture ..." << std::endl;
     EngineParameters p = CleanParams();
     p.sympathetic = 0.0f;
     p.bodyBloom = 0.0f;
     Render off = RenderNote(44100.0, p, 60, 0.8f, 0.6);
     p.bodyBloom = 1.0f;
-    Render on = RenderNote(44100.0, p, 60, 0.8f, 0.6);
+    MarembaEngine engine(44100.0);
+    engine.SetParameters(p);
+    engine.NoteOn(60, 0.8f);
+    auto scene = std::make_unique<maremba::CaptureScene>();
+    scene->Allocate(44100.0);
+    Render on, predicted;
+    ReferenceSourcePeaks source;
+    for (int start = 0; start < static_cast<int>(off.size()); start += 64) {
+        const int n = std::min(64, static_cast<int>(off.size()) - start);
+        ReferenceSourceBlock(engine, 60, n, source, scene.get(), &predicted);
+        RenderFrames(engine, on, n);
+    }
     std::vector<float> body(off.size());
     for (size_t i = 0; i < body.size(); ++i) body[i] = on.ch[kCloseL][i] - off.ch[kCloseL][i];
-    const double db = Db(Peak(body) / Peak(off.ch[kCloseL]));
-    std::cout << "  -> body bloom at 1.0: " << db << " dB re bar peak" << std::endl;
-    CHECK(db > -18.0 && db < -8.0, "body bloom level out of range: " << db);
+    const double sourceDb = Db(source.body / std::max(source.voiceLeft, 1e-30));
+    CHECK(source.finite && source.voiceLeft > 1e-8, "Bloom source reference is invalid or silent");
+    CHECK(sourceDb > -18.0 && sourceDb < -8.0, "body source bloom level out of range: " << sourceDb);
+    // Ear filtering need not preserve this relative peak. It must deliver the
+    // independently predicted frame source, at the same trim and output delay.
+    const int delay = maremba::OutputHeadroom::LatencyFrames(44100.0);
+    const float directGain = .65f * .06f * (p.volume * p.volume);
+    double error = 0, delivered = 0;
+    bool finite = true;
+    for (int channel : {kCloseL, kCloseR}) {
+        for (size_t i = 0; i < off.size(); ++i) {
+            const double actual = on.ch[channel][i] - off.ch[channel][i];
+            const double expected = i < static_cast<size_t>(delay) ? 0
+                : predicted.ch[channel][i - delay] * directGain;
+            error += (actual - expected) * (actual - expected);
+            delivered += actual * actual;
+            finite = finite && std::isfinite(actual) && std::isfinite(expected)
+                && std::abs(on.ch[channel][i]) <= maremba::OutputHeadroom::kCeiling;
+        }
+    }
+    const double residual = std::sqrt(error / std::max(delivered, 1e-30));
+    CHECK(finite && delivered > 1e-10, "body capture is invalid or inaudible");
+    CHECK(residual < 2e-4, "body capture disagrees with independent source propagation: " << residual);
+    std::cout << "  -> source " << sourceDb << " dB, measured Close "
+              << Db(Peak(body) / Peak(off.ch[kCloseL])) << " dB re bar peak; capture residual " << residual << std::endl;
 }
 
 void TestVelocityAndMixerSilence()
@@ -2034,14 +2161,21 @@ void TestDirectOutMatchesMain()
         CHECK(Peak(r.ch[kMainL]) < .5 && Peak(r.ch[kMainR]) < .5,
               "direct/main alignment fixture is not safely below the output ceiling");
         double err = 0.0, lvl = 0.0;
+        // Main includes the documented 20 Hz DC blocker; the direct capture
+        // does not. Reconstruct that known transfer independently instead of
+        // mistaking its legitimate low-frequency phase shift for a mismatch.
+        const double pole = static_cast<float>(std::exp(-2.0*M_PI*20.0/44100.0));
+        double previousIn = 0.0, previousOut = 0.0;
         for (size_t i = 0; i < r.size(); ++i) {
             const double close = r.ch[kCloseL][i] / kDirectOutTrim;
-            const double d = r.ch[kMainL][i] / kMainCalibrationGain - close;
+            const double expected = close-previousIn+pole*previousOut;
+            previousIn = close; previousOut = expected;
+            const double d = r.ch[kMainL][i] / kMainCalibrationGain - expected;
             err += d * d;
             lvl += close * close;
         }
         std::cout << "  -> os " << os << ": direct vs main " << Db(std::sqrt(err / lvl)) << " dB" << std::endl;
-        CHECK(err < 1e-3 * lvl, "direct close differs from the main close path (os " << os << ")");
+        CHECK(err < 1e-8 * lvl, "direct close differs from the main close path (os " << os << ")");
     }
 }
 
@@ -2235,8 +2369,15 @@ void TestWidthAndRoomImage()
     const auto wide = StereoImage(phrase(1.8f));
     std::cout << "  -> far-heavy phrase: width 1 S/M " << natural.first << " dB, mono " << natural.second
               << " dB; width 1.8 S/M " << wide.first << " dB, mono " << wide.second << " dB" << std::endl;
-    CHECK(wide.first <= 0.0, "wide far-heavy mix is side-heavy: S/M " << wide.first << " dB");
     CHECK(wide.second >= -4.0, "wide far-heavy mix loses too much in mono: " << wide.second << " dB");
+
+    // A real spaced pair can have either sign of inter-channel correlation.
+    // Test the actual width contract exactly rather than forcing its physical
+    // delay/interference pattern to have S/M <= 0 dB for an arbitrary phrase.
+    p.closeLevel = 0.0f;
+    const auto roomNatural = phrase(1.0f), roomWide = phrase(2.0f);
+    CHECK(roomNatural.ch[kMainL] == roomWide.ch[kMainL] && roomNatural.ch[kMainR] == roomWide.ch[kMainR],
+          "width above natural modifies the room-only main output");
 
     // The far direct out (dry + room) does not depend on the width at all
     const Render a = phrase(0.5f), b = phrase(2.0f);
@@ -2405,13 +2546,15 @@ void TestModelChangeRestrikeNoClick()
 
 // E2-2: bend and tune changes keep the ringing resonators' amplitude and phase.
 // A per-batch square bend and a 2*f0 sine tune modulation (the parametric-pump
-// cases) on bass notes stay at the unmodulated level (voices and mesh).
+// cases) on bass notes stay near the unmodulated source amplitude (voices and
+// mesh). Measured ear filters can change peaks as partial frequencies move;
+// source and internal mechanical invariants must be checked before capture.
 void TestBendModulationStability()
 {
     std::cout << "[Bend] Square bend / 2*f0 tune modulation cannot pump ringing resonators ..." << std::endl;
     const EngineParameters p = CleanParams();   // sympathetic mesh on
     const int batches = 44100 / 2 / 64;
-    double worst = 0.0;
+    double worst = 0.0, worstEnergy = 0.0, worstCapture = 0.0;
     int worstNote = 0;
     for (int note = 21; note <= 45; ++note) {
         auto run = [&](int mode) {
@@ -2421,25 +2564,42 @@ void TestBendModulationStability()
             e.NoteOn(note, 1.0f);
             float buf[kNumChannels][64];
             double peak = 0.0;
+            ReferenceSourcePeaks source;
+            bool finite = true;
             for (int b = 0; b < batches; ++b) {
                 if (mode == 1) e.SetPitchBendCents((b & 1) ? 200.0f : -200.0f);
                 if (mode == 2) {
                     q.tuneCents = static_cast<float>(200.0 * std::sin(2.0 * M_PI * 2.0 * NoteHz(note) * b * 64.0 / 44100.0));
                     e.SetParameters(q);
                 }
+                ReferenceSourceBlock(e, note, 64, source);
                 e.RenderBatch(buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], 64);
                 for (int i = 0; i < 64; ++i) {
                     peak = std::max({ peak, static_cast<double>(std::fabs(buf[kCloseL][i])), static_cast<double>(std::fabs(buf[kCloseR][i])) });
+                    for (int c = 0; c < kNumChannels; ++c)
+                        finite = finite && std::isfinite(buf[c][i]) && std::abs(buf[c][i]) <= maremba::OutputHeadroom::kCeiling;
                 }
             }
-            return peak;
+            CHECK(finite && source.finite && peak > 1e-8 && source.combined > 1e-8
+                      && source.mechanicalAmplitudeEnergy > 1e-12,
+                  "bend source or delivered output is silent, invalid or exceeds output headroom");
+            return std::array<double, 3>{source.combined, source.mechanicalAmplitudeEnergy, peak};
         };
-        const double ref = run(0);
-        const double ratio = std::max(run(1), run(2)) / ref;
-        if (ratio > worst) { worst = ratio; worstNote = note; }
-        CHECK(ratio < 1.5, "note " << note << " grows " << ratio << "x under bend / tune modulation");
+        const auto ref = run(0);
+        for (int mode : {1, 2}) {
+            const auto modulated = run(mode);
+            const double ratio = modulated[0] / std::max(ref[0], 1e-30);
+            const double energyRatio = modulated[1] / std::max(ref[1], 1e-30);
+            const double captureRatio = modulated[2] / std::max(ref[2], 1e-30);
+            if (ratio > worst) { worst = ratio; worstNote = note; }
+            worstEnergy = std::max(worstEnergy, energyRatio);
+            worstCapture = std::max(worstCapture, captureRatio);
+            CHECK(ratio < 1.5, "note " << note << " source grows " << ratio << "x under bend / tune modulation");
+            CHECK(energyRatio < 1.5, "note " << note << " mechanical modal amplitude energy grows " << energyRatio << "x");
+        }
     }
-    std::cout << "  -> worst peak ratio " << worst << " (note " << worstNote << ")" << std::endl;
+    std::cout << "  -> worst source peak ratio " << worst << " (note " << worstNote
+              << "), mechanical amplitude energy " << worstEnergy << ", delivered Close peak " << worstCapture << std::endl;
 }
 
 // E2-3/S2-2: at Polyphony 24 with 24 bars ringing, a 12-note chord fades 12
@@ -3219,6 +3379,12 @@ int main(int argc, char** argv)
     if (argc == 2 && std::string(argv[1]) == "--capture-routing") {
         TestFarReverbWithPerBatchParameters();
         TestRoomCoefficientPreservesTail();
+        return gFailures ? 1 : 0;
+    }
+    if (argc == 2 && std::string(argv[1]) == "--capture-scene") {
+        TestRateInvariance();
+        TestDirectOutMatchesMain();
+        TestWidthAndRoomImage();
         return gFailures ? 1 : 0;
     }
     if (argc == 2 && std::string(argv[1]) == "--output-latency") {

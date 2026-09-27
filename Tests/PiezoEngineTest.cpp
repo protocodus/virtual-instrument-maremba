@@ -24,7 +24,7 @@ struct MarembaEngineTestAccess {
         e.mKalimbaBody.Reset();
         e.mKalimbaBodyRunning = false;
         e.mMicMixer.Reset(); // the independent Room capture otherwise retains its acoustic tail
-        for (auto& decimator : e.mDirectDecimators) decimator.Reset();
+        e.mPiezoDecimator.Reset();
         e.mOutputHeadroom.Reset(); // queued source audio must not fake a pickup tail
     }
 };

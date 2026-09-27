@@ -73,6 +73,7 @@ struct BarKey {
     double ratio[kBarModes];
     double massFraction[kBarModes];
     double shape[kBarShapedModes][kBarShapePoints];
+    double pickupStrain[kBarModes]; // fixed electrode's surface strain per metre of modal displacement
     double torsion[2];
     double lateral;
     double lengthM, widthM, thicknessM, massKg;
@@ -104,6 +105,7 @@ inline BarKey InterpolateBarKey(const BarModeAnchor* anchors, double midi) {
     for (int m = 0; m < kBarModes; ++m) {
         key.ratio[m] = blend(a.ratio[m], b.ratio[m]);
         key.massFraction[m] = mix(a.massFraction[m], b.massFraction[m]);
+        key.pickupStrain[m] = mix(a.pickupStrain[m], b.pickupStrain[m]);
     }
     for (int m = 0; m < kBarShapedModes; ++m)
         for (int i = 0; i < kBarShapePoints; ++i)
@@ -133,6 +135,7 @@ inline BarKey GetBarKey(EMarimbaModel model, double midi, double carving = 1.0) 
     for (int m = 0; m < kBarModes; ++m) {
         key.ratio[m] = blend(key.ratio[m], blank.ratio[m]);
         key.massFraction[m] = mix(key.massFraction[m], blank.massFraction[m]);
+        key.pickupStrain[m] = mix(key.pickupStrain[m], blank.pickupStrain[m]);
     }
     for (int m = 0; m < kBarShapedModes; ++m)
         for (int i = 0; i < kBarShapePoints; ++i)

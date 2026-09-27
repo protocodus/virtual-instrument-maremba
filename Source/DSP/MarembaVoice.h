@@ -4,6 +4,7 @@
 #include "RandomArtifacts.h"
 #include "PiezoPickup.h"
 #include "ModalRadiation.h"
+#include "CaptureGeometry.h"
 #include "MalletContact.h"
 #include "SlackMembrane.h"
 #include "BuzzerRattle.h"
@@ -21,6 +22,7 @@ struct RadiationCacheEntry {
     float carving = -1.0f;
     double hz[kNumPitchedModes]{};
     ModalRadiationReadout readout[kNumPitchedModes];
+    ModalRadiationReadout ears[kNumPitchedModes];
 };
 
 // Striker beyond the four heads (malletType 0-3): the mallet's shaft on the
@@ -90,7 +92,9 @@ public:
 
     // Render one sample at the internal (oversampled) rate.
     // Returns false once the voice has finished.
-    bool ProcessSample(float& outClose, float& outFar, float& outPiezo);
+    // Optional ear fields use the fixed recording scene. They contain source
+    // directivity, before head filtering, distance attenuation and flight time.
+    bool ProcessSample(float& outClose, float& outFar, float& outPiezo, float* outEars = nullptr);
 
     // Control-rate update (every few output frames): phase-independent energy
     // estimate, idle-mode skipping, deactivation below -120 dB and the non-finite guard.
@@ -201,9 +205,11 @@ private:
     double mNeutralModeRadius[kNumPitchedModes]{}; // exact original pole at the centre
     float mRadiationCarving = -1.0f;
     ModalRadiationReadout mRadiation[kNumPitchedModes];
+    ModalRadiationReadout mEarRadiation[kNumPitchedModes];
     double mRadiationHz[kNumPitchedModes]{};   // mode frequency the readout was projected at
     double mRadiationGain[kNumPitchedModes]{};   // acceleration x dipole efficiency x calibration
     double mStrainGain[kNumPitchedModes]{};      // pickup strain per unit state
+    double mSurfaceStrainGain[kNumPitchedModes]{}; // SI tensile strain per modal state
     double mSupportGain[kNumPitchedModes]{};     // force into the rails/frame per unit state
     double mBridgeGain[kNumPitchedModes]{};      // kalimba: bridge reaction (N) per unit state
     int mNumModes = 0;

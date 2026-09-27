@@ -55,6 +55,13 @@ HEADER = PROJECT / "DSP" / "BarModes.h"
 N_BEND = 16          # stored bending modes
 N_SHAPED = 6         # modes whose sampled shapes are stored
 SHAPE_POINTS = 21    # half bar, x = 0 .. 0.5 in steps of 0.025
+# A fixed electrode on each bar: centre/length, length in metres, width in
+# metres. These mounting assumptions are not a commercial sensor specification.
+# The patch moves with the bar's nodal region, but its area does not grow with
+# the key. Width is explicit although the 1D bending strain is uniform across it.
+PICKUP_PATCHES = {"rosewood": (0.24, 0.038, 0.010),
+                  "hormigo": (0.29, 0.052, 0.010),
+                  "balafon": (0.20, 0.049, 0.010)}
 ANCHOR_FIRST, ANCHOR_LAST, ANCHOR_STEP = 24, 108, 3
 KAPPA = 5.0 / 6.0
 
@@ -362,12 +369,61 @@ def tune_bar(spec, midi, previous=None):
 # Modal data for one tuned bar
 # ---------------------------------------------------------------------------
 
-def modal_data(bar, elements=720):
+def pickup_surface_strain(bar, rotation, patch):
+    """Mean tensile strain per metre of modal displacement on the top face.
+
+    Timoshenko section rotation is independent of transverse displacement
+    slope. Each linear element has constant d(theta)/dx and the same midpoint
+    thickness used by its stiffness/mass assembly. Integrate its exact overlap
+    with the electrode; do not differentiate the rounded displacement table.
+    """
+    position, length, width = patch
+    if not (0 < length <= bar.length and 0 < width <= bar.width):
+        raise ValueError("pickup electrode must fit on the bar")
+    elements = len(rotation) - 1
+    dx = bar.length / elements
+    edges = np.linspace(0.0, bar.length, elements + 1)
+    centre = np.clip(position * bar.length, length / 2, bar.length - length / 2)
+    overlap = np.maximum(0.0, np.minimum(edges[1:], centre + length / 2)
+                         - np.maximum(edges[:-1], centre - length / 2))
+    # epsilon_x = -z*d(theta)/dx, z=h/2; units are 1/m for w normalized to 1 m.
+    strain = -0.5 * bar.height((edges[:-1] + edges[1:]) * 0.5) * np.diff(rotation) / dx
+    return float(np.dot(overlap, strain) / length)
+
+
+def validate_pickup_integral():
+    """Independent analytical fields, not another invocation of the formula.
+
+    A uniform section in constant curvature has exactly known surface strain;
+    a quadratic rotation over an undercut has a known derivative that is
+    integrated densely, without differencing or the element-overlap routine.
+    """
+    plain = Bar(0.4, 0.055, 0.024, ROSEWOOD, 0.0, 0.55, 1.0)
+    carved = Bar(0.4, 0.055, 0.024, ROSEWOOD, 0.65, 0.55, 1.0)
+    xs = np.linspace(0, plain.length, 721)
+    worst = 0.0
+    for patch in PICKUP_PATCHES.values():
+        value = pickup_surface_strain(plain, 0.7 * xs + 0.12, patch)
+        assert abs(value - (-0.5 * plain.h0 * 0.7)) < 1e-14
+        assert pickup_surface_strain(plain, np.full_like(xs, 0.8), patch) == 0.0
+        centre = patch[0] * carved.length
+        fine = np.linspace(centre - patch[1] / 2, centre + patch[1] / 2, 100001)
+        expected = float(trapezoid(-0.5 * carved.height(fine) * (1.6 * fine - 0.12), fine) / patch[1])
+        value = pickup_surface_strain(carved, 0.8 * xs ** 2 - 0.12 * xs, patch)
+        error = abs(value - expected)
+        worst = max(worst, error)
+        assert error < 2e-7, (value, expected, error)
+    odd = pickup_surface_strain(carved, (xs - 0.2) ** 2, (0.5, 0.049, 0.010))
+    assert abs(odd) < 1e-14, odd
+    print(f"PASS: pickup overlap integration; max analytical absolute error {worst:.9g} /m")
+
+
+def modal_data(bar, elements=720, pickup_patch=None):
     (freqs, vectors), M = bar.bending(N_BEND, elements)
     f1 = freqs[0]
     total_mass = bar.mass()
     xs = np.linspace(0.0, bar.length, elements + 1)
-    masses, shapes = [], []
+    masses, shapes, pickup_strain = [], [], []
     for m in range(N_BEND):
         w = vectors[0::2, m]
         vec = vectors[:, m]
@@ -377,6 +433,8 @@ def modal_data(bar, elements=720):
         vec = vec / scale
         w = w / scale
         masses.append(float(vec @ (M @ vec)) / total_mass)
+        if pickup_patch is not None:
+            pickup_strain.append(pickup_surface_strain(bar, vec[1::2], pickup_patch))
         if m < N_SHAPED:
             half = np.linspace(0.0, 0.5 * bar.length, SHAPE_POINTS)
             shapes.append(np.interp(half, xs, w))
@@ -387,6 +445,7 @@ def modal_data(bar, elements=720):
         "ratio": freqs / f1,
         "mass_fraction": np.array(masses),
         "shapes": np.array(shapes),
+        "pickup_strain": np.array(pickup_strain),
         "torsion": tor / f1,
         "lateral": lat[0] / f1,
         "length": bar.length, "width": bar.width, "thickness": bar.h0,
@@ -413,10 +472,10 @@ def generate_model(spec, verbose=False):
     previous = None
     for midi in range(ANCHOR_FIRST, ANCHOR_LAST + 1, ANCHOR_STEP):
         bar, previous = tune_bar(spec, midi, previous)
-        data = modal_data(bar)
+        data = modal_data(bar, pickup_patch=PICKUP_PATCHES[spec.key])
         data["midi"] = midi
         anchors.append(data)
-        blank = modal_data(uncarved_bar(spec, midi, bar))
+        blank = modal_data(uncarved_bar(spec, midi, bar), pickup_patch=PICKUP_PATCHES[spec.key])
         blank["midi"] = midi
         blanks.append(blank)
         if verbose:
@@ -476,6 +535,8 @@ def render_header(models):
         "// Shapes: first kBarShapedModes bending modes on the half bar x = 0..0.5",
         "// (normalized to max |phi| = 1, positive at the end; even modes symmetric,",
         "// odd modes antisymmetric). Mass fractions use that normalization.",
+        "// Pickup: top-face tensile strain per metre of modal displacement,",
+        "// averaged over a fixed physical electrode using FEM section rotation.",
         "",
         "namespace maremba {",
         "",
@@ -492,6 +553,12 @@ def render_header(models):
         "    double torsion[2];",
         "    double lateral;",
         "    float shape[kBarShapedModes][kBarShapePoints];",
+        "    double pickupStrain[kBarModes];",
+        "};",
+        "",
+        "struct BarPickupPatch { double centreFraction, lengthM, widthM; };",
+        "static constexpr BarPickupPatch kBarPickupPatches[3] = {",
+        *("    {" + ", ".join(fmt(v) for v in patch) + "}," for patch in PICKUP_PATCHES.values()),
         "};",
         "",
     ]
@@ -508,12 +575,14 @@ def render_header(models):
             ratio = ", ".join(fmt(v) for v in a["ratio"])
             mass = ", ".join(fmt(v) for v in a["mass_fraction"])
             shapes = ",\n       ".join("{" + ", ".join(f"{v:.5f}f" for v in s) + "}" for s in a["shapes"])
+            pickup = ", ".join(fmt(v) for v in a["pickup_strain"])
             lines.append(f"    {{{a['midi']}, {fmt(a['length'])}, {fmt(a['width'])}, {fmt(a['thickness'])}, "
                          f"{fmt(a['mass'])},")
             lines.append(f"     {{{ratio}}},")
             lines.append(f"     {{{mass}}},")
             lines.append(f"     {{{fmt(a['torsion'][0])}, {fmt(a['torsion'][1])}}}, {fmt(a['lateral'])},")
-            lines.append(f"     {{{shapes}}}}},")
+            lines.append(f"     {{{shapes}}},")
+            lines.append(f"     {{{pickup}}}}},")
         lines.append("};")
         lines.append("")
     lines.append("} // namespace maremba")
@@ -525,8 +594,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--check", action="store_true", help="fail if DSP/BarModes.h differs from a fresh run")
     parser.add_argument("--bork", action="store_true", help="validate against Bork et al.'s C3 bar and exit")
+    parser.add_argument("--validate-pickup", action="store_true", help="validate strain integration against analytical fields and exit")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
+    validate_pickup_integral()
+    if args.validate_pickup:
+        return
     if args.bork:
         worst = bork_validation()
         sys.exit(0 if worst < 0.15 else 1)

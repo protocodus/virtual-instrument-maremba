@@ -41,7 +41,7 @@ constexpr double kMaxVoiceEnergy = 1.0e4;
 // earlier engine did; per-model calibration lives in ModelParams.
 constexpr double kRadiationUnit = 3.32e-4;  // close/far pressure per (m/s^2) of bar surface
 constexpr double kAirUnit = 3.32e-4;        // pressure per unit air state x omega^2
-constexpr double kStrainUnit = 640.0;       // pickup charge per metre of curvature-weighted motion
+constexpr double kStrainUnit = 640.0;       // nominal pickup units at the C4 strain reference, not coulombs
 constexpr double kSupportUnit = 4.0e-3;     // support force per (m/s) at the cords
 constexpr double kFrameDriveUnit = 1100.0;  // frame/mesh drive per unit support force
 constexpr double kBrushLevel = 0.18;
@@ -270,6 +270,7 @@ void MarembaVoice::FastKill() {
         mRadiation[i] = ModalRadiationReadout{};
         mRadiationHz[i] = 0.0;
         mRadiationGain[i] = mStrainGain[i] = mSupportGain[i] = mBridgeGain[i] = 0.0;
+        mSurfaceStrainGain[i] = 0.0;
     }
     mNumModes = 0;
     for (auto& mode : mTorsion) mode = ModeState{};
@@ -781,6 +782,16 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     const auto geometry = mTine ? GetModalRadiationGeometry(model, f0)
                                 : GetModalRadiationGeometry(model, f0, key.lengthM, key.widthM);
     const ModalRadiationSetup radiation = PrepareModalRadiation(geometry);
+    const CapturePoint source = CaptureSourcePosition(model, noteNumber);
+    const auto earPoint = [&](int channel) {
+        const auto ear = CloseEar(channel);
+        // A key's long axis is scene Y; its local origin is its near end.
+        return ModalRadiationPoint{.5 * geometry.length + ear.y - source.y,
+                                   ear.x - source.x, ear.z - source.z};
+    };
+    const ModalRadiationSetup ears{PrepareModalRadiationPaths(geometry, earPoint(0)),
+                                  PrepareModalRadiationPaths(geometry, earPoint(1)),
+                                  geometry.closeStrength, geometry.closeStrength};
     // A bar's finite radiating face, relative to this model's calibrated C4
     // key. This changes acoustic readout only, not contact energy, mounting
     // forces, cavity exchange or pickup strain. Tines sound through the box.
@@ -811,6 +822,8 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         }
     }
 
+    const double pickupStrainScale = mTine ? 0.0 : params.pickupGain * kStrainUnit
+        * PiezoPickup::BarStrainCalibration(model) * kStateScale * 1.0e-3;
     for (int m = 0; m < kNumPitchedModes; ++m) {
         ModeState& mode = mModes[m];
         if (m >= mNumModes) { mode = ModeState{}; mRadiationGain[m] = 0.0; continue; }
@@ -833,6 +846,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         const bool cacheValid = cache && cache->model == static_cast<int>(model) && cache->carving == options.carving;
         if (project && cacheValid && cache->hz[m] > 0.0 && std::abs(fm / cache->hz[m] - 1.0) < 5.0e-4) {
             mRadiation[m] = cache->readout[m];
+            mEarRadiation[m] = cache->ears[m];
             mRadiationHz[m] = cache->hz[m];
             project = false;
         }
@@ -877,6 +891,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         const double omegaSeconds = kTwoPiD * fm;
         if (project) {
             mRadiation[m] = ComputeModalRadiation(m, fm, radiation, nodeShapes);
+            mEarRadiation[m] = ComputeModalRadiation(m, fm, ears, nodeShapes);
             mRadiationHz[m] = fm;
             if (cache) {
                 if (!cacheValid) {
@@ -886,6 +901,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
                 }
                 cache->hz[m] = fm;
                 cache->readout[m] = mRadiation[m];
+                cache->ears[m] = mEarRadiation[m];
             }
         }
         if (mTine) {
@@ -911,12 +927,14 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
                                                               supportPoint, 0.05));
             mSupportGain[m] = kSupportUnit * omegaSeconds * mode.toDisplacement * cord * felt;
         }
-        // Surface strain = half the thickness times curvature: the mode's
-        // beta^2 (in the weight) over the squared length. A tine's transducer
-        // sits on the board and reads the bridge reaction instead (below).
-        const double length = mTine ? tineLength : key.lengthM;
-        mStrainGain[m] = mTine ? 0.0 : params.pickupGain * kStrainUnit * PiezoPickup::ModalStrainWeight(model, m)
-                       * mode.toDisplacement * kStateScale * 1.0e-3 * (0.38 / length) * (0.38 / length);
+        // The fixed electrode reads the same carved Timoshenko mode, including
+        // local thickness and section rotation. C4 sets only the family audio
+        // calibration; no extra length scaling belongs here. A tine's pickup
+        // sits on its board and reads the bridge reaction instead (below).
+        mStrainGain[m] = mTine ? 0.0 : pickupStrainScale
+                       * PiezoPickup::BarSurfaceStrain(key, m) * mode.toDisplacement;
+        mSurfaceStrainGain[m] = mTine ? 0.0
+            : PiezoPickup::BarSurfaceStrain(key, m) * mode.toDisplacement;
     }
     UpdateContactCompliance();
 
@@ -1425,9 +1443,10 @@ void MarembaVoice::Damp(double pole) {
     for (auto& mode : mUpperCavity) { mode.y1 *= pole; mode.y2 *= pole; }
 }
 
-bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo) {
+bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo, float* outEars) {
     if (!mActive) {
         outClose = outFar = outPiezo = 0.0f;
+        if (outEars) outEars[0] = outEars[1] = 0.0f;
         mMechanicalSample = 0.0f;
         mBridgeSample = 0.0;
         return false;
@@ -1538,6 +1557,8 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
 
     // 4. Bending modes.
     double barClose = 0.0, barFar = 0.0, support = 0.0, strain = 0.0, bridge = 0.0;
+    double surfaceStrain = 0.0;
+    double earLeft = 0.0, earRight = 0.0;
     for (int m = 0; m < mNumModes; ++m) {
         ModeState& mode = mModes[m];
         if (mode.idle && impulse == 0.0) continue;
@@ -1552,10 +1573,16 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
         const double quadrature = (mode.r * mode.y2 - y * mode.cosW) * mode.invSin;
         barClose += mRadiation[m].close.Read(y, quadrature) * mRadiationGain[m];
         barFar += mRadiation[m].far.Read(y, quadrature) * mRadiationGain[m];
+        if (outEars) {
+            earLeft += mEarRadiation[m].close.Read(y, quadrature) * mRadiationGain[m];
+            earRight += mEarRadiation[m].far.Read(y, quadrature) * mRadiationGain[m];
+        }
         support += y * mSupportGain[m];
         strain += y * mStrainGain[m];
+        surfaceStrain += y * mSurfaceStrainGain[m];
         bridge += y * mBridgeGain[m];
     }
+    const double bendingClose = barClose;
 
     double airSum = 0.0;
     double membranePressure = 0.0;
@@ -1780,10 +1807,19 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
                  + brushAir * 0.6 + knockAir * 0.65 + clickSound * 0.5;
     double far = barFar * 0.60 + air * mFarAirWeight + buzz * 0.50 + slapSound * 0.45
                + brushAir * 0.45 + knockAir * 0.22 + clickSound * 0.2;
+    // Cavity mouths, impacts and weak auxiliary modes are compact sources at
+    // this key. The capture scene subsequently filters/delays every source.
+    // Their point-source approximation does not override the bending field.
+    earLeft += close - bendingClose;
+    earRight += close - bendingClose;
     if (mTine) strain += bridge * kTineBridgeStrain;
-    double piezo = mPickup.Process(strain + knockPickup * 1.6 + brushAir * mBrushPickupWeight * 0.2,
+    // The bonded bar film reads bending strain only. Contact, support and
+    // cavity feedback already act on these mechanical modes; adding their
+    // nominal audio layers as sensor charge would double-count excitation.
+    double piezo = mTine ? mPickup.Process(strain + knockPickup * 1.6 + brushAir * mBrushPickupWeight * 0.2,
         (force + brushForce * 50.0) * mPickupContactGain + buzzerImpact,
-        support * kPickupSupportUnit + brushAir * 0.2 + knockPickup);
+        support * kPickupSupportUnit + brushAir * 0.2 + knockPickup)
+        : mPickup.ProcessSurfaceStrain(surfaceStrain);
 
     if (mDamping) Damp(mHandDampPole);
 
@@ -1801,6 +1837,8 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
         close *= fade;
         far *= fade;
         piezo *= fade;
+        earLeft *= fade;
+        earRight *= fade;
         mMechanicalSample *= fade;
         mBridgeSample *= fade;
         mFadeGain -= mFadeStep;
@@ -1808,6 +1846,7 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
             outClose = static_cast<float>(close);
             outFar = static_cast<float>(far);
             outPiezo = static_cast<float>(piezo);
+            if (outEars) { outEars[0] = static_cast<float>(earLeft); outEars[1] = static_cast<float>(earRight); }
             FastKill();
             return true;
         }
@@ -1816,6 +1855,7 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
     outClose = static_cast<float>(close);
     outFar = static_cast<float>(far);
     outPiezo = static_cast<float>(piezo);
+    if (outEars) { outEars[0] = static_cast<float>(earLeft); outEars[1] = static_cast<float>(earRight); }
     return true;
 }
 

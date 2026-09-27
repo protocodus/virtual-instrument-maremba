@@ -112,10 +112,10 @@ public:
         }
     }
 
-    // Process the receiver bank and produce a spatialized stereo halo.
-    inline void Process(float amount, float& outL, float& outR) {
-        if (amount <= 0.0f) { outL = outR = 0.0f; return; }
-        double sumL = 0.0, sumR = 0.0;
+    // Advance physical receivers without inventing a microphone pan. The
+    // recording scene reads each receiver at its own source position.
+    inline void Advance(float amount) {
+        if (amount <= 0.0f) return;
         for (int i = 0; i < mCount; ++i) {
             if (!mPresent[i]) continue;
             const double input = mTine ? mDrive[i] : mSharedDrive;
@@ -125,9 +125,19 @@ public:
             const double y = mC[i] * mY1[i] - mS[i] * mY2[i] + mB[i] * drive;
             mY2[i] = mY1[i];
             mY1[i] = y;
-            sumL += y * mPanL[i];
-            sumR += y * mPanR[i];
             if (mSounding[i]) --mSounding[i];
+        }
+    }
+
+    // Legacy standalone readout used by the mechanical-response contracts.
+    inline void Process(float amount, float& outL, float& outR) {
+        if (amount <= 0.0f) { outL = outR = 0.0f; return; }
+        Advance(amount);
+        double sumL = 0.0, sumR = 0.0;
+        for (int i = 0; i < mCount; ++i) {
+            if (!mPresent[i]) continue;
+            sumL += mY1[i] * mPanL[i];
+            sumR += mY1[i] * mPanR[i];
         }
         const double gain = amount * (mTine ? kTineGain : kBarGain);
         outL = static_cast<float>(sumL * gain);
@@ -164,6 +174,13 @@ public:
 
     float GetResonatorOutput(int index) const {
         return index >= 0 && index < kNumResonators ? static_cast<float>(mY1[index]) : 0.0f;
+    }
+    // Legacy-calibrated nominal receiver signal, before microphone placement;
+    // this is not an SI velocity or pressure measurement. The engine converts
+    // it to its declared reference pressure before feeding both microphones.
+    float GetReceiverPressure(int index, float amount) const {
+        return index >= 0 && index < mCount && mPresent[index]
+            ? static_cast<float>(mY1[index] * amount * (mTine ? kTineGain : kBarGain)) : 0.0f;
     }
     int ReceiverCount() const { return mCount; }
     bool IsTine() const { return mTine; }

@@ -5,6 +5,7 @@
 // voice, then read its physical microphone before Room. This test-only probe
 // has no production bypass, socket or behavior flag.
 #include "MarembaEngine.h"
+#include "MicMixer.h"
 #include <algorithm>
 #include <array>
 #include <stdexcept>
@@ -27,6 +28,9 @@ struct MarembaEngineTestAccess {
         const int factor = engine.mActiveFactor;
         const int frames = static_cast<int>(std::ceil(seconds * rate));
         MonoOversampler left, right;
+        // Preserve the historical anechoic reference fixture's panning. The
+        // production capture scene includes propagation and measured ears.
+        MicMixer referenceMixer;
         std::array<float, MarembaEngine::kMaxOversample> subLeft{}, subRight{};
         std::vector<double> result;
         result.reserve(static_cast<size_t>(frames));
@@ -37,8 +41,9 @@ struct MarembaEngineTestAccess {
                 float closeL = 0, closeR = 0, farL = 0, farR = 0, piezo = 0;
                 for (auto& voice : engine.mVoices) if (voice.IsActive()) {
                     float vc = 0, vf = 0, vp = 0;
+                    const int noteNumber = voice.GetNoteNumber();
                     if (voice.ProcessSample(vc, vf, vp))
-                        engine.mMicMixer.MixVoiceSample(voice.GetNoteNumber(), false, vc, vf, vp,
+                        referenceMixer.MixVoiceSample(noteNumber, false, vc, vf, vp,
                                                        closeL, closeR, farL, farR, piezo);
                 }
                 // Original dry Far calibration, before adding reflected sound.

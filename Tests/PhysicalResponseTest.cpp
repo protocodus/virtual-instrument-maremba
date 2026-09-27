@@ -373,10 +373,18 @@ int main(int argc, char** argv) {
         maremba::MarembaEngine reference(rate);
         reference.SetParameters(p);
         reference.NoteOn(96, .85f);
+        // An inaudible Room coefficient does not erase the recording's tail.
+        // Allow three measured 60 dB decay intervals to reach the engine's
+        // -180 dB capture threshold, plus source decay and the quiet hold.
+        const auto roomDecay = maremba::RoomCapture::Decay(p.roomType, rate);
+        const int drainBudget = static_cast<int>(rate * (.75 + 3 * std::max({
+            roomDecay.t125, roomDecay.t500, roomDecay.t4k, roomDecay.t10k})));
         int idleFrame = 0;
-        while (!reference.IsSilent() && idleFrame < 3 * rate) {
+        while (!reference.IsSilent() && idleFrame < drainBudget) {
             renderMainPeak(reference, 1);
             ++idleFrame;
+            if (idleFrame == static_cast<int>(rate))
+                check(reference.GetActiveVoiceCount() == 0, "short strike's mechanics failed to drain within one second");
         }
         check(reference.IsSilent() && idleFrame > 1, "short probe never reaches natural idle");
         if (reference.IsSilent() && idleFrame > 1) {
