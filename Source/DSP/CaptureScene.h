@@ -35,8 +35,8 @@ public:
         Reset();
     }
     void SetRoomType(int type) { mRoom.SetType(type); }
-    void Reset() {
-        mClose.Reset(); mRoom.Reset();
+    void Reset(bool resetRoomMotion = true) {
+        mClose.Reset(); mRoom.Reset(resetRoomMotion);
         for (auto& source : mSource) {
             for (auto& decimator : source.decimator) decimator.Reset();
             source.active = source.receiving = false;

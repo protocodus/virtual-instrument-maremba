@@ -220,8 +220,8 @@ void MarembaEngine::ApplyKalimbaAir() {
     mKalimbaBody.SetAir(mParams.resonatorTune, 1.0);
 }
 
-void MarembaEngine::FlushTails() {
-    mMicMixer.Reset();
+void MarembaEngine::FlushTails(bool resetRoomMotion) {
+    mMicMixer.Reset(resetRoomMotion);
     mPreamp.Reset();
     mLimiter.Reset();
     mOutputHeadroom.Reset();
@@ -967,7 +967,9 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
             for (float value : capture) peak = std::max(peak, std::abs(value));
             mQuietFrames = (peak < kSilenceLevel) ? mQuietFrames + 1 : 0;
             if (mQuietFrames >= mQuietFramesNeeded) {
-                FlushTails();
+                // Clear inaudible audio, retaining the room's slow scattering
+                // phase across rests. Explicit Reset still replays exactly.
+                FlushTails(false);
                 mTailsSilent = true;
                 mControlCounter = 0;
                 mVolumeGain = volumeTarget;

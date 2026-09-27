@@ -9,6 +9,8 @@ CaptureGeometryTest       # physical source/receiver placement and receiver-inde
 CloseCaptureTest          # measured binaural filtering, causal propagation and rate transfer
 CloseEngineArrivalTest    # actual strikes against measured ears, physical flight and electrical timing
 RoomCaptureTest           # causal direct/images, shared absorption and diffuse room behavior
+RoomScatterMotionTest     # smooth seeded orthogonal mixing with bounded energy and rate-independent timing
+RoomMotionTest            # evolving late field, unchanged early paths, decay and reset/idle lifecycle
 RoomMicrophoneTest        # pressure capsule, vent, buffer and output-coupling transfer
 PiezoEngineTest            # complete captures, shared plate sensor, routing and tails
 CaptureRoutingTest         # independent capture coefficients and Piezo-only Drive

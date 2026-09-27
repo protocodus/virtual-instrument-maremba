@@ -119,7 +119,13 @@ public:
                 room.wall[static_cast<size_t>(wall)] = ReflectionCoefficients(type, wall, mRate);
             room.voicing = Voicing(type);
             room.voicing.decay = Decay(type, mRate);
-            for (auto& tail : room.tail) tail.SetSampleRate(room.voicing, mRate, true);
+            for (size_t branch = 0; branch < room.tail.size(); ++branch) {
+                // One evolving room, shared by both spatial modes. Each room
+                // has a distinct reproducible walk; mid/side retain their
+                // existing spatial relationship instead of drifting apart.
+                const uint32_t seed = 0x726f6f6du ^ (0x9e3779b9u * static_cast<uint32_t>(1 + type));
+                room.tail[branch].SetSampleRate(room.voicing, mRate, true, seed);
+            }
             // The image density at late times is4*pi*c*r_ref^2/V. Integrate its
             // exponentially decaying energy beyond two mean free paths. The
             // FDN normalization is the diffuse (uncorrelated-loop) estimate,
@@ -142,11 +148,11 @@ public:
         mWanted = std::clamp(type, 0, 2);
         if (mPristine) { mActive = mNext = mWanted; mFade = 1.0f; }
     }
-    void Reset() {
+    void Reset(bool resetMotion = true) {
         std::fill(mHistory.begin(), mHistory.end(), 0.0f);
         for (auto& source : mSource) source.remaining = 0;
         mActiveSourceCount = 0; mSourceQueued.fill(false);
-        for (int type = 0; type < 3; ++type) ResetRoom(type);
+        for (int type = 0; type < 3; ++type) ResetRoom(type, resetMotion);
         for (auto& microphone : mMicrophone) microphone.Reset();
         mWrite = 0; mActive = mNext = mWanted; mFade = 1.0f; mPristine = true;
     }
@@ -166,7 +172,7 @@ private:
         if (mHistory.empty() || mSpan <= 1) return;
         count = input ? std::clamp(count, 0, mCapacity) : 0;
         if (mFade >= 1.0f && mWanted != mActive) {
-            mNext = mWanted; ResetRoom(mNext); mFade = 0.0f;
+            mNext = mWanted; ResetRoom(mNext, false); mFade = 0.0f;
         }
         float direct[2] = {}, early[2][2][6] = {}, lateInput[2][2] = {};
         // Scan the contiguous excitation buffer, not515 large path structs.
@@ -384,9 +390,9 @@ private:
         out[1]=reflected[1]+room.tailGain*(midR-sideR);
         for(auto& tail:room.tail)tail.FlushStates();
     }
-    void ResetRoom(int type) {
+    void ResetRoom(int type, bool resetMotion = true) {
         auto& room=mRoom[static_cast<size_t>(type)];
-        for(auto& tail:room.tail)tail.Reset();room.flush=0;
+        for(auto& tail:room.tail)tail.Reset(resetMotion);room.flush=0;
         for(auto& channel:room.filter)for(auto& filter:channel)filter.state.fill(0.0);
     }
 

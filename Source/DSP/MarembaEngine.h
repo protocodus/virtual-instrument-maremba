@@ -158,7 +158,7 @@ private:
     void ConfigureModel();             // model-dependent coefficients
     void ApplyGlobalTuning();          // retune ringing voices + mesh when tune/bend changed
     void ConfigureSympathetic(float globalCents);
-    void FlushTails();                 // clear every shared tail (mesh, body, room, dynamics, decimators)
+    void FlushTails(bool resetRoomMotion = true); // clear shared audio; optionally retain slow room motion
     void ApplyFactorSwitch();          // end of the oversampling fade: reset and switch the rate
     void CancelFactorSwitch();         // oversampling set back to the active factor during the fade
     void StartPendingNotes();          // notes queued during the fade start now

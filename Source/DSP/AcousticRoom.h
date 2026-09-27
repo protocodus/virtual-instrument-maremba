@@ -1,6 +1,7 @@
 #pragma once
 
 #include "DspMath.h"
+#include "RoomScatterMotion.h"
 #include <vector>
 #include <array>
 #include <cmath>
@@ -159,8 +160,11 @@ public:
 
     // Realtime safe: lengths and absorption for this rate, then clear. Without
     // memory (before Allocate) every length stays 0.
-    void SetSampleRate(const NetworkVoicing& voicing, double rate, bool fractionalTiming = false) {
+    void SetSampleRate(const NetworkVoicing& voicing, double rate, bool fractionalTiming = false,
+                       uint32_t scatterSeed = 0) {
         mFractionalTiming = fractionalTiming;
+        mScatterEnabled = scatterSeed != 0;
+        if (mScatterEnabled) mScatter.Configure(rate, scatterSeed);
         const bool allocated = !memory.empty();
         mLength = mDiffuserLength = 0;
         double all = 0.0, panels = 0.0;
@@ -200,7 +204,7 @@ public:
 
     bool IsAllocated() const { return mLength > 0; }
 
-    void Reset() {
+    void Reset(bool resetMotion = true) {
         for (int i = 0; i < kLines; ++i)
             std::fill(memory.begin() + i * mLineSpan, memory.begin() + i * mLineSpan + mLength, 0.0f);
         for (int d = 0; d < kDiffusers; ++d) {
@@ -212,6 +216,7 @@ public:
         mHighState.fill(0.0f);
         for (auto& delay : mFraction) delay.Reset();
         for (auto& delay : mDiffuserFraction) delay.Reset();
+        if (resetMotion && mScatterEnabled) mScatter.Reset();
     }
 
     // One sample: `in` is diffused and spread over the lines by the mixing
@@ -243,6 +248,10 @@ public:
             v[g + 1] = b - t;
             v[g + 2] = c - t;
         }
+        // Slowly varying orthogonal scattering rotates feedback only. It
+        // redistributes stored echo energy without adding gain, moving delay
+        // taps, or modulating the direct input. Legacy networks leave it off.
+        if (mScatterEnabled) mScatter.Process(v);
         // The input joins the second Hadamard input of each position, so it
         // reaches lines 0-2 and 6-8 with +1 and lines 3-5 and 9-11 with -1.
         v[3] += x;
@@ -356,6 +365,8 @@ private:
     std::array<RoomFractionalDelay, kLines> mFraction{};
     std::array<RoomFractionalDelay, kDiffusers> mDiffuserFraction{};
     bool mFractionalTiming = false;
+    bool mScatterEnabled = false;
+    RoomScatterMotion mScatter;
     float mDiffusion = 0.0f;
 };
 
