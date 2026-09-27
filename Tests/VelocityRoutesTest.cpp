@@ -11,6 +11,11 @@
 
 namespace maremba {
 struct CaptureSceneTestAccess {
+    static float Emission(const CaptureScene& scene, int id, int lane, int sub) {
+        const auto& source = scene.mSource[id];
+        // Read the logical emission even while equal ears share storage.
+        return source.buffer[lane == 1 && source.equalEars ? 0 : lane][sub];
+    }
     static std::array<double, 2> FadeEnergy(const CaptureScene& actual,
                                            const CaptureScene& reference,
                                            const CaptureScene& floor, int factor) {
@@ -21,9 +26,9 @@ struct CaptureSceneTestAccess {
         for (int id = 0; id < kCaptureSourceCount; ++id) {
             for (int lane = 0; lane < 3; ++lane) {
                 for (int sub = 0; sub < factor; ++sub) {
-                    const double fixed = floor.mSource[id].buffer[lane][sub];
-                    const double a = actual.mSource[id].buffer[lane][sub] - fixed;
-                    const double r = reference.mSource[id].buffer[lane][sub] - fixed;
+                    const double fixed = Emission(floor, id, lane, sub);
+                    const double a = Emission(actual, id, lane, sub) - fixed;
+                    const double r = Emission(reference, id, lane, sub) - fixed;
                     energy[0] += a * a;
                     energy[1] += r * r;
                 }

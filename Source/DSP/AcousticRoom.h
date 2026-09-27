@@ -221,7 +221,8 @@ public:
 
     // One sample: `in` is diffused and spread over the lines by the mixing
     // matrix; left/right are two orthogonal (uncorrelated) mixes of the lines.
-    void Process(float in, float& left, float& right) {
+    void Process(float in, float& left, float& right,
+                 const RoomScatterMotion::Coefficients* sharedScattering = nullptr) {
         float* const m = memory.data();
         float* const diffusers = m + kLines * mLineSpan;
         float x = in;
@@ -251,7 +252,15 @@ public:
         // Slowly varying orthogonal scattering rotates feedback only. It
         // redistributes stored echo energy without adding gain, moving delay
         // taps, or modulating the direct input. Legacy networks leave it off.
-        if (mScatterEnabled) mScatter.Process(v);
+        if (mScatterEnabled) {
+            if (sharedScattering) {
+                RoomScatterMotion::Apply(v, *sharedScattering);
+                mScatter.Advance();
+            } else {
+                mScatterCoefficients = mScatter.Next();
+                RoomScatterMotion::Apply(v, mScatterCoefficients);
+            }
+        }
         // The input joins the second Hadamard input of each position, so it
         // reaches lines 0-2 and 6-8 with +1 and lines 3-5 and 9-11 with -1.
         v[3] += x;
@@ -273,16 +282,23 @@ public:
         if (++mWrite == mLength) mWrite = 0;
     }
 
+    // Available after Process without shared coefficients. A disabled legacy
+    // network returns null, keeping static reference and old room paths exact.
+    const RoomScatterMotion::Coefficients* ScatteringCoefficients() const {
+        return mScatterEnabled ? &mScatterCoefficients : nullptr;
+    }
+
     // The line writes are flushed on every Process call; the filter states only
     // need it every kFlushPeriod calls (too few for a state to decay from 1e-20
     // into the subnormal range in between), which the owning room schedules.
     void FlushStates() {
         for (int i = 0; i < kLines; ++i) {
-            mLowState[i] = FlushTiny(mLowState[i]);
+            // Only the first line of each three-line group has a low shelf.
+            // Other low states stay zero after Reset. Fractional-delay states
+            // are already flushed at every write in RoomFractionalDelay.
+            if (i % 3 == 0) mLowState[i] = FlushTiny(mLowState[i]);
             mHighState[i] = FlushTiny(mHighState[i]);
-            mFraction[i].FlushStates();
         }
-        for (auto& delay : mDiffuserFraction) delay.FlushStates();
     }
 
 private:
@@ -367,6 +383,7 @@ private:
     bool mFractionalTiming = false;
     bool mScatterEnabled = false;
     RoomScatterMotion mScatter;
+    RoomScatterMotion::Coefficients mScatterCoefficients{};
     float mDiffusion = 0.0f;
 };
 

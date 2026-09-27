@@ -157,8 +157,11 @@ public:
         mWrite = 0; mActive = mNext = mWanted; mFade = 1.0f; mPristine = true;
     }
 
-    void Process(const float* input, int count, float& left, float& right) {
-        ProcessPressure(input,count,left,right);
+    // Sorted IDs can narrow input discovery to known emitters. Existing image
+    // and diffuse tails remain independent of this list and keep rendering.
+    void Process(const float* input, int count, float& left, float& right,
+                 const int* sourceIds = nullptr, int sourceCount = 0) {
+        ProcessPressure(input,count,left,right,sourceIds,sourceCount);
         left=mMicrophone[0].Process(left);right=mMicrophone[1].Process(right);
     }
 
@@ -167,7 +170,8 @@ private:
     // receiver; the production API always includes its mechanical/electrical
     // response. Capsule group delay is separate from source flight time.
     friend struct RoomCaptureTestAccess;
-    void ProcessPressure(const float* input, int count, float& left, float& right) {
+    void ProcessPressure(const float* input, int count, float& left, float& right,
+                         const int* sourceIds = nullptr, int sourceCount = 0) {
         left = right = 0.0f;
         if (mHistory.empty() || mSpan <= 1) return;
         count = input ? std::clamp(count, 0, mCapacity) : 0;
@@ -178,7 +182,10 @@ private:
         // Scan the contiguous excitation buffer, not515 large path structs.
         // Keep source IDs sorted so summation order remains exactly unchanged.
         bool added = false;
-        for (int id = 0; id < count; ++id) {
+        const int candidates = sourceIds ? std::clamp(sourceCount, 0, count) : count;
+        for (int candidate = 0; candidate < candidates; ++candidate) {
+            const int id = sourceIds ? sourceIds[candidate] : candidate;
+            if (id < 0 || id >= count) continue;
             const float x = maremba::FlushTiny(RoomExcitation(input[id]));
             if (x == 0.0f || mSourceQueued[static_cast<size_t>(id)]) continue;
             if (!mSource[static_cast<size_t>(id)].configured) continue;
@@ -381,7 +388,8 @@ private:
         auto& room=mRoom[static_cast<size_t>(type)];
         float midL=0,midR=0,sideL=0,sideR=0;
         room.tail[0].Process(.5f*(input[0]+input[1]),midL,midR);
-        room.tail[1].Process(.5f*(input[0]-input[1]),sideL,sideR);
+        room.tail[1].Process(.5f*(input[0]-input[1]),sideL,sideR,
+                             room.tail[0].ScatteringCoefficients());
         float reflected[2]={};
         for(int channel=0;channel<2;++channel) for(int wall=0;wall<6;++wall)
             reflected[channel]+=room.filter[static_cast<size_t>(channel)][static_cast<size_t>(wall)].Process(

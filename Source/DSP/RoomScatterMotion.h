@@ -26,6 +26,8 @@ public:
     static constexpr std::array<std::array<int, 2>, kPairs> kIndices{{
         {{0, 3}}, {{1, 6}}, {{2, 9}}, {{4, 7}}, {{5, 10}}, {{8, 11}}
     }};
+    struct Rotation { float cosine = 1.0f, sine = 0.0f; };
+    using Coefficients = std::array<Rotation, kPairs>;
 
     RoomScatterMotion() { Configure(48000.0, 0); }
 
@@ -53,6 +55,14 @@ public:
     // zero while the same motion continues. The first call after Reset is the
     // identity. Call once per FDN sample, including quiet samples.
     void Process(float* twelveValues) {
+        Apply(twelveValues, Next());
+    }
+
+    // Two spatial modes of the same room use the same walk. Compute its six
+    // rotations once; applying them to independent feedback vectors preserves
+    // the exact scalar operation order and each mode's independent audio.
+    Coefficients Next() {
+        Coefficients result;
         for (int index = 0; index < kPairs; ++index) {
             auto& motion = mMotion[static_cast<std::size_t>(index)];
             const float phase = static_cast<float>(motion.elapsed * motion.inverseDuration);
@@ -64,11 +74,26 @@ public:
             // arithmetic. Interpolating c/s separately would add gain loss.
             const float cosine = 1.0f - 2.0f * squared * inverse;
             const float sine = 2.0f * halfAngle * inverse;
+            result[static_cast<std::size_t>(index)] = {cosine, sine};
+        }
+        Advance();
+        return result;
+    }
+
+    static void Apply(float* twelveValues, const Coefficients& coefficients) {
+        for (int index = 0; index < kPairs; ++index) {
+            const auto rotation = coefficients[static_cast<std::size_t>(index)];
             const auto pair = kIndices[static_cast<std::size_t>(index)];
             const float a = twelveValues[pair[0]], b = twelveValues[pair[1]];
-            twelveValues[pair[0]] = cosine * a - sine * b;
-            twelveValues[pair[1]] = sine * a + cosine * b;
+            twelveValues[pair[0]] = rotation.cosine * a - rotation.sine * b;
+            twelveValues[pair[1]] = rotation.sine * a + rotation.cosine * b;
+        }
+    }
 
+    // A mode that consumes shared coefficients still advances its own clock,
+    // so resetting or using the network independently retains its semantics.
+    void Advance() {
+        for (auto& motion : mMotion) {
             motion.elapsed += mStepSeconds;
             if (motion.elapsed >= motion.duration) {
                 motion.elapsed -= motion.duration;

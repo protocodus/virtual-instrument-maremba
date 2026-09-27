@@ -7,7 +7,11 @@
 #include <memory>
 namespace maremba {
 struct CaptureSceneTestAccess {
-    static float Input(const CaptureScene& scene,int id,int lane,int sub) { return scene.mSource[id].buffer[lane][sub]; }
+    static float Input(const CaptureScene& scene,int id,int lane,int sub) {
+        const auto& source = scene.mSource[id];
+        // Equal ears share one physical input buffer until they diverge.
+        return source.buffer[lane == 1 && source.equalEars ? 0 : lane][sub];
+    }
 };
 struct MarembaEngineTestAccess {
     static int Factor(const MarembaEngine& e) { return e.mActiveFactor; }

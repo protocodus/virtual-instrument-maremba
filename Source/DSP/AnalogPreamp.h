@@ -59,23 +59,37 @@ public:
 
     // Stateless pickup amplifier transfer, shared by the mixed and direct
     // Piezo paths. Zero Drive leaves the sensor voltage exactly unchanged.
-    static float ApplyDrive(float sample, float drive) {
-        if (drive <= 0.001f) return sample;
-        const float driveGain = 1.0f + drive * 0.8f;
-        const float driveComp = 1.0f / std::sqrt(1.0f + drive * 0.7f);
-        const float x = sample * driveGain;
+    struct DriveCoefficients {
+        float gain = 1.0f, compensation = 1.0f, curve = 1.0f;
+        bool bypass = true;
+    };
+    static DriveCoefficients PrepareDrive(float drive) {
+        if (drive <= 0.001f) return {};
+        return {1.0f + drive * 0.8f,
+                1.0f / std::sqrt(1.0f + drive * 0.7f),
+                1.0f + drive * 1.5f, false};
+    }
+    // Reuse these coefficients when several samples share one Drive value;
+    // keep the nonlinear transfer's arithmetic and rounding order unchanged.
+    static float ApplyDrive(float sample, const DriveCoefficients& drive) {
+        if (drive.bypass) return sample;
+        const float x = sample * drive.gain;
         const float ax = std::abs(x);
-        if (ax <= 0.60f) return x * driveComp;
+        if (ax <= 0.60f) return x * drive.compensation;
         const float excess = ax - 0.60f;
-        const float sat = 0.60f + 0.40f * std::tanh(excess * (1.0f + drive * 1.5f) / 0.40f);
-        return std::copysign(sat * driveComp, x);
+        const float sat = 0.60f + 0.40f * std::tanh(excess * drive.curve / 0.40f);
+        return std::copysign(sat * drive.compensation, x);
+    }
+    static float ApplyDrive(float sample, float drive) {
+        return ApplyDrive(sample, PrepareDrive(drive));
     }
 
     // Stereo DC removal and warmth. The engine applies Drive to Piezo before
     // capture mixing and passes zero here, keeping both microphones clean.
     void Process(float inL, float inR, float drive, float warmth, float& outL, float& outR) {
-        float satL = ApplyDrive(inL, drive);
-        float satR = ApplyDrive(inR, drive);
+        const auto coefficients = PrepareDrive(drive);
+        float satL = ApplyDrive(inL, coefficients);
+        float satR = ApplyDrive(inR, coefficients);
 
         // DC Blocker (20 Hz). Runs continuously, so toggling the drive never
         // resumes from a stale state.

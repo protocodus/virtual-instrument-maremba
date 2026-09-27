@@ -144,13 +144,14 @@ private:
         double y2 = 0.0;
         double c = 0.0;       // 2 * r * cos(w)
         double s = 0.0;       // r^2
-        double omega = 0.0;   // pole angle at the trigger-time tuning
-        double w = 0.0;       // pole angle currently in c (tuning and bend applied)
+        // Keep the eight audio-rate fields together in one 64-byte span.
         double r = 0.0;
         double cosW = 1.0, invSin = 0.0;
+        double force = 0.0;   // state per newton-second at the contact point
+        double omega = 0.0;   // pole angle at the trigger-time tuning
+        double w = 0.0;       // pole angle currently in c (tuning and bend applied)
         double cosOverR = 0.0, sinOverR = 0.0; // cached state-junction coordinate maps
         double invSin2 = 0.0; // 1 / sin^2(w): converts the quadratic invariant to squared amplitude
-        double force = 0.0;   // state per newton-second at the contact point
         double contact = 0.0; // mode shape at the contact (footprint-averaged)
         double toDisplacement = 0.0; // physical displacement per unit state
         bool idle = false;    // decayed below -300 dB and not driven: skipped
@@ -259,6 +260,7 @@ private:
 
     // The mallet shaft's own bending modes, knocked by the contact.
     ModeState mShaftModes[3];
+    double mShaftSin[3]{}; // cached pole sine; no per-sample transcendental
     double mShaftDrive = 0.0, mShaftRadiation = 0.0;
     bool mShaftActive = false;
 
@@ -347,6 +349,7 @@ private:
     double mBrushImpulse = 0.0;
     ModeState mBrushModes[2];       // incidental adjacent bar / tine
     ModeState mCollisionModes[2];   // mount/rail/bridge knock
+    double mBrushSin[2]{}, mCollisionSin[2]{};
     bool mBrushActive = false, mCollisionActive = false;
     double mCollisionGap = 1.0;
     double mCollisionPrevious = 0.0, mCollisionImpulse = 0.0, mCollisionImpulseLimit = 0.0;

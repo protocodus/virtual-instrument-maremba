@@ -760,6 +760,21 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
     const float volumeTarget = mParams.volume * mParams.volume;
     const bool kalimba = mParams.model == static_cast<int>(EMarimbaModel::KalimbaArtisan);
     const float coverAlpha = static_cast<float>(1.0 - std::exp(-1.0 / (kCoverSmoothingSeconds * mBaseSampleRate)));
+    // Receiver identities do not change inside a batch, including a pending
+    // rate switch. Resolve their physical source slots once, not at every
+    // oversampled step of each receiver.
+    std::array<int, 128> receiverSources{};
+    std::array<float, SympatheticMesh::kNumResonators> receiverPressure;
+    for (int key = 0; key < mSympathetic.ReceiverCount(); ++key)
+        receiverSources[static_cast<std::size_t>(key)] = CaptureSourceIndex(
+            static_cast<EMarimbaModel>(mParams.model), mSympathetic.ReceiverNote(key));
+    struct ActiveRoute {
+        int slot, note, source;
+        bool tine, mesh;
+        float body, sympathetic;
+    };
+    std::array<ActiveRoute, kVoicePoolSize> active;
+    int activeCount = 0, cachedRollStrokes = mRollStrokes, cachedFactor = mActiveFactor;
     for (int f = 0; f < frameCount; ++f) {
         SmoothLiveControls();
         if (!mSwitchPending) AdvanceRolls();
@@ -777,6 +792,31 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         const float bodyInverse = bodyHeadroom > 0.0f ? 1.0f / bodyHeadroom : 0.0f;
         const float meshInverse = meshHeadroom > 0.0f ? 1.0f / meshHeadroom : 0.0f;
         const int factor = mActiveFactor;
+        const auto driveCoefficients = AnalogPreamp::PrepareDrive(mDrive);
+        // Host events occur between batches. Within one batch only a roll or
+        // a quality switch's queued notes can add/reuse slots. Preserve their
+        // ascending summation order, and still check retirement per substep.
+        if (f == 0 || cachedRollStrokes != mRollStrokes || cachedFactor != factor) {
+            activeCount = 0;
+            for (int v = 0; v < kVoicePoolSize; ++v) {
+                if (!mVoices[v].IsActive()) continue;
+                const int note = mVoices[v].GetNoteNumber();
+                const auto model = mVoices[v].GetModel();
+                const bool tine = model == EMarimbaModel::KalimbaArtisan;
+                active[static_cast<std::size_t>(activeCount++)] = {
+                    v, note, CaptureSourceIndex(model, note), tine,
+                    tine == mSympathetic.IsTine(), 0.0f, 0.0f};
+            }
+            cachedRollStrokes = mRollStrokes;
+            cachedFactor = factor;
+        }
+        // Smoothed shared controls still change once per host frame.
+        for (int index = 0; index < activeCount; ++index) {
+            auto& cached = active[static_cast<std::size_t>(index)];
+            const auto& route = mRoutes[static_cast<std::size_t>(cached.slot)];
+            cached.body = std::min(1.0f, route.body * bodyInverse);
+            cached.sympathetic = std::min(1.0f, route.sympathetic * meshInverse);
+        }
         bool anyVoice = false;
         mMicMixer.BeginFrame(factor);
 
@@ -792,12 +832,13 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
             }
             if (mMeshVelocityRunning) mVelocitySympathetic.BeginSample();
 
-            for (int v = 0; v < kVoicePoolSize; ++v) {
+            for (int index = 0; index < activeCount; ++index) {
+                const auto& cached = active[static_cast<std::size_t>(index)];
+                const int v = cached.slot;
                 if (mVoices[v].IsActive()) {
                     // A final faded sample is valid even though ProcessSample
                     // releases the slot. Its travelling wave keeps its key.
-                    const int noteNum = mVoices[v].GetNoteNumber();
-                    const EMarimbaModel voiceModel = mVoices[v].GetModel();
+                    const int noteNum = cached.note;
                     float voiceClose = 0.0f;
                     float voiceFar = 0.0f;
                     float voicePiezo = 0.0f;
@@ -805,26 +846,26 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
 
                     if (mVoices[v].ProcessSample(voiceClose, voiceFar, voicePiezo, voiceEars)) {
                         anyVoice = true;
-                        mMicMixer.Add(CaptureSourceIndex(voiceModel, noteNum), s,
+                        mMicMixer.Add(cached.source, s,
                                       voiceEars[0], voiceEars[1], voiceFar);
                         // One Kalimba board sensor reads summed tine force;
                         // per-voice nominal pickups must not bypass it.
-                        if (voiceModel != EMarimbaModel::KalimbaArtisan) accPiezo += voicePiezo;
+                        if (!cached.tine) accPiezo += voicePiezo;
 
                         const StrikeRoute& route = mRoutes[static_cast<std::size_t>(v)];
-                        const float body = std::min(1.0f, route.body * bodyInverse);
+                        const float body = cached.body;
                         totalMechanical += mVoices[v].GetMechanicalSample();
                         velocityMechanical += mVoices[v].GetMechanicalSample() * body;
-                        const bool tine = voiceModel == EMarimbaModel::KalimbaArtisan;
+                        const bool tine = cached.tine;
                         const double bridge = tine ? mVoices[v].GetBridgeForce() : 0.0;
                         if (tine) box.Add(bridge, route.boxAir, body,
                                           mTineSide[static_cast<std::size_t>(std::clamp(noteNum, 0, 127))]);
 
-                        if (tine == mSympathetic.IsTine()) {
+                        if (cached.mesh) {
                             const double drive = tine ? bridge * 1.0e-2 : mVoices[v].GetMechanicalSample();
                             if (meshOn) mSympathetic.AccumulateVoice(noteNum, drive);
                             if (mMeshVelocityRunning)
-                                mVelocitySympathetic.AccumulateVoice(noteNum, drive * std::min(1.0f, route.sympathetic * meshInverse));
+                                mVelocitySympathetic.AccumulateVoice(noteNum, drive * cached.sympathetic);
                         }
                     }
                 }
@@ -864,22 +905,22 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
 
             // Inter-Bar Sympathetic Resonance Halo ("Singing Rack")
             if (meshOn) {
-                mSympathetic.Advance(mSympatheticGain);
+                mSympathetic.AdvanceAndRead(mSympatheticGain, receiverPressure.data());
                 for (int key = 0; key < mSympathetic.ReceiverCount(); ++key) {
-                    const float sound = mSympathetic.GetReceiverPressure(key, mSympatheticGain);
+                    const float sound = receiverPressure[static_cast<std::size_t>(key)];
                     // Legacy receiver pan gains summed to 1 and the Close
                     // halo scale was .7: its equal-ear reference pressure is
                     // .7/2. Geometry now determines each ear's actual level.
-                    mMicMixer.AddCompactPressure(CaptureSourceIndex(static_cast<EMarimbaModel>(mParams.model), mSympathetic.ReceiverNote(key)),
+                    mMicMixer.AddCompactPressure(receiverSources[static_cast<std::size_t>(key)],
                                                 s, .35f * sound);
                 }
                 if (mMeshDamping) mSympathetic.Damp(mMeshDampPole);
             }
             if (mMeshVelocityRunning) {
-                mVelocitySympathetic.Advance(meshHeadroom);
+                mVelocitySympathetic.AdvanceAndRead(meshHeadroom, receiverPressure.data());
                 for (int key = 0; key < mVelocitySympathetic.ReceiverCount(); ++key) {
-                    const float sound = mVelocitySympathetic.GetReceiverPressure(key, meshHeadroom);
-                    mMicMixer.AddCompactPressure(CaptureSourceIndex(static_cast<EMarimbaModel>(mParams.model), mVelocitySympathetic.ReceiverNote(key)),
+                    const float sound = receiverPressure[static_cast<std::size_t>(key)];
+                    mMicMixer.AddCompactPressure(receiverSources[static_cast<std::size_t>(key)],
                                                 s, .35f * sound);
                 }
                 if (mMeshDamping) mVelocitySympathetic.Damp(mMeshDampPole);
@@ -895,7 +936,7 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
             // Close/Room levels. The zero setting is an exact clean bypass.
             constexpr float piezoPreampScale = CaptureScene::kMasterMixScale * 0.707f;
             if (mDrive > 0.001f)
-                accPiezo = AnalogPreamp::ApplyDrive(accPiezo * piezoPreampScale, mDrive) / piezoPreampScale;
+                accPiezo = AnalogPreamp::ApplyDrive(accPiezo * piezoPreampScale, driveCoefficients) / piezoPreampScale;
 
             mSubBufPiezo[s] = accPiezo;
         }

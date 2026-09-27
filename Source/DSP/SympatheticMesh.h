@@ -58,10 +58,12 @@ public:
         const MaterialLoss loss = GetMaterialLoss(model);
         mCount = mTine ? kTines : kNumResonators;
         const bool degreesOnly = model == EMarimbaModel::BalafonAncestral && tuningScale != 0;
+        mAllPresent = true;
         for (int i = 0; i < mCount; ++i) {
             const int note = mTine ? kTineNotes[i] : kFirstNote + i;
             mNote[i] = note;
             const bool present = !degreesOnly || detail::IsDegreeKey(tuningScale, note);
+            mAllPresent = mAllPresent && present;
             if (!present) { mY1[i] = mY2[i] = mInput1[i] = mInput2[i] = 0.0; mSounding[i] = 0; }
             mPresent[i] = present;
             const double cents = (note - 69) * 100.0 + tuneOffsetCents + TuningOffsetCents(tuningScale, note)
@@ -104,11 +106,11 @@ public:
             return;
         }
         // Tines: weighted by distance along the bridge.
-        const double slot = TineSlot(noteNumber);
+        const int slot = noteNumber >= 0 && noteNumber < 128
+            ? kTineNoteSlots[static_cast<std::size_t>(noteNumber)] : static_cast<int>(TineSlot(noteNumber));
         for (int i = 0; i < kTines; ++i) {
-            const double d = std::abs(kTineSlot[i] - slot);
-            if (d < 0.5) { mSounding[i] = 2; continue; }
-            mDrive[i] += drive * (0.15 + 1.0 / (1.0 + d * d));
+            if (i == slot) { mSounding[i] = 2; continue; }
+            mDrive[i] += drive * kTineCoupling[static_cast<std::size_t>(slot)][static_cast<std::size_t>(i)];
         }
     }
 
@@ -116,17 +118,22 @@ public:
     // recording scene reads each receiver at its own source position.
     inline void Advance(float amount) {
         if (amount <= 0.0f) return;
-        for (int i = 0; i < mCount; ++i) {
-            if (!mPresent[i]) continue;
-            const double input = mTine ? mDrive[i] : mSharedDrive;
-            const double drive = mSounding[i] ? 0.0 : input - mInput2[i];
-            mInput2[i] = mInput1[i];
-            mInput1[i] = mSounding[i] ? 0.0 : input;
-            const double y = mC[i] * mY1[i] - mS[i] * mY2[i] + mB[i] * drive;
-            mY2[i] = mY1[i];
-            mY1[i] = y;
-            if (mSounding[i]) --mSounding[i];
+        DispatchAdvance<false>(amount, nullptr);
+    }
+
+    // Engine readout: update and read each receiver while its state is hot.
+    // Writes ReceiverCount() entries in unchanged physical-key order. The
+    // caller owns the fixed output buffer; no storage or allocation is added.
+    // Keep the original y * amount * gain operation order and float rounding.
+    inline void AdvanceAndRead(float amount, float* receiverPressure) {
+        if (amount <= 0.0f) {
+            // Advance historically does nothing here, while its separate
+            // readout still multiplies the retained state by the amount.
+            for (int i = 0; i < mCount; ++i)
+                receiverPressure[i] = GetReceiverPressure(i, amount);
+            return;
         }
+        DispatchAdvance<true>(amount, receiverPressure);
     }
 
     // Legacy standalone readout used by the mechanical-response contracts.
@@ -187,6 +194,37 @@ public:
     int ReceiverNote(int index) const { return index >= 0 && index < mCount ? mNote[index] : -1; }
 
 private:
+    template<bool Read>
+    inline void DispatchAdvance(float amount, float* receiverPressure) {
+        if (mTine) AdvanceReceivers<true, true, Read>(amount, receiverPressure);
+        else if (mAllPresent) AdvanceReceivers<false, true, Read>(amount, receiverPressure);
+        else AdvanceReceivers<false, false, Read>(amount, receiverPressure);
+    }
+
+    template<bool Tine, bool AllPresent, bool Read>
+    inline void AdvanceReceivers(float amount, float* receiverPressure) {
+        constexpr int count = Tine ? kTines : kNumResonators;
+        for (int i = 0; i < count; ++i) {
+            if constexpr (!AllPresent) {
+                if (!mPresent[i]) {
+                    if constexpr (Read) receiverPressure[i] = 0.0f;
+                    continue;
+                }
+            }
+            const double input = Tine ? mDrive[i] : mSharedDrive;
+            const bool sounding = mSounding[i] != 0;
+            const double drive = sounding ? 0.0 : input - mInput2[i];
+            mInput2[i] = mInput1[i];
+            mInput1[i] = sounding ? 0.0 : input;
+            const double y = mC[i] * mY1[i] - mS[i] * mY2[i] + mB[i] * drive;
+            mY2[i] = mY1[i];
+            mY1[i] = y;
+            if (sounding) --mSounding[i];
+            if constexpr (Read)
+                receiverPressure[i] = static_cast<float>(y * amount * (Tine ? kTineGain : kBarGain));
+        }
+    }
+
     static constexpr double kMaxState = 1.0e3;
     static constexpr double kBarGain = 0.8;
     static constexpr double kTineGain = 40.0;
@@ -195,6 +233,31 @@ private:
     static constexpr double kTineSlot[kTines] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     static constexpr double kTineSide[kTines] = {-1.0, -0.875, -0.75, -0.625, -0.5, -0.375, -0.25, -0.125, 0.0,
                                                  0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1.0};
+    // The bridge layout never changes with sample rate, tuning or model
+    // controls. Cache the exact existing nearest-tine rule (including ties)
+    // and distance law; accumulation order and receiver states stay intact.
+    inline static constexpr auto kTineNoteSlots = [] {
+        std::array<int, 128> slots{};
+        for (int note = 0; note < 128; ++note) {
+            int best = 0, distance = 1000;
+            for (int i = 0; i < kTines; ++i) {
+                const int difference = kTineNotes[i] - note;
+                const int d = difference < 0 ? -difference : difference;
+                if (d < distance) { distance = d; best = i; }
+            }
+            slots[static_cast<std::size_t>(note)] = best;
+        }
+        return slots;
+    }();
+    inline static constexpr auto kTineCoupling = [] {
+        std::array<std::array<double, kTines>, kTines> weights{};
+        for (int slot = 0; slot < kTines; ++slot) for (int i = 0; i < kTines; ++i) {
+            const double difference = kTineSlot[i] - kTineSlot[slot];
+            const double d = difference < 0.0 ? -difference : difference;
+            weights[static_cast<std::size_t>(slot)][static_cast<std::size_t>(i)] = 0.15 + 1.0 / (1.0 + d * d);
+        }
+        return weights;
+    }();
 
     // Position along the bridge of any played note: the slot of the nearest
     // tine in pitch (chromatic notes fall between their neighbours).
@@ -215,6 +278,7 @@ private:
 
     double mSampleRate = 44100.0;
     bool mTine = false;
+    bool mAllPresent = true;
     int mCount = kNumResonators;
     double mSharedDrive = 0.0;
     std::array<int, kNumResonators> mNote{};

@@ -105,6 +105,10 @@ public:
     void Configure(double sampleRate, EMarimbaModel model) {
         const double fs = std::isfinite(sampleRate) && sampleRate >= 8000.0
             ? std::min(sampleRate, 1536000.0) : kReferenceRate;
+        // Repeated strikes commonly reuse the same sensor/circuit. Configure
+        // only writes coefficients, so an identical configuration cannot
+        // affect retained mechanical or capacitor state.
+        if (fs == mConfiguredRate && static_cast<int>(model) == mConfiguredModel) return;
         struct Mount {
             double bodyHz, bodyQ, patchHz, patchQ, adhesiveHz;
             double bodyMix, patchMix, directMix, forceMix, outputGain;
@@ -141,11 +145,19 @@ public:
         mSensor = ReferencePVDFPatch::ForModel(model);
         mChargeAmp.Configure(fs, mSensor, ReferenceChargeAmp::Components{});
         mPostAdcGain = PostAdcGain(model);
+        // These physical/calibration coefficients change only with the
+        // configured patch. Preserve the original operation order when
+        // caching them, including the separate squared-energy conversion.
+        mChargePerStrain = mSensor.ChargeFromStrain(1.0);
+        mAdcScale = mPostAdcGain / kAdcPeakVolts;
+        mAdcEnergyScale = mPostAdcGain * mPostAdcGain / (kAdcPeakVolts * kAdcPeakVolts);
         // Adhesive/sensor mass softens fast strain before charge conversion;
         // this mechanical bandwidth is separate from the buffer's RC pole.
         const double lp = std::tan(kPiD * std::min(mount.adhesiveHz, fs * 0.38) / fs);
         mLpPole = (1.0 - lp) / (1.0 + lp);
         mLpGain = lp / (1.0 + lp);
+        mConfiguredRate = fs;
+        mConfiguredModel = static_cast<int>(model);
     }
 
     void Reset() {
@@ -160,8 +172,7 @@ public:
     // declared +/-12V ADC -> fixed digital instrument calibration. Forces,
     // nominal mounting sounds and acoustic signals must not enter this API.
     double ProcessSurfaceStrain(double tensileStrain) {
-        return mChargeAmp.ProcessCharge(mSensor.ChargeFromStrain(tensileStrain))
-             * (mPostAdcGain / kAdcPeakVolts);
+        return mChargeAmp.ProcessCharge(mChargePerStrain * tensileStrain) * mAdcScale;
     }
 
     static constexpr double kAdcPeakVolts = 12.0;
@@ -281,7 +292,7 @@ public:
     // are short, damped mounting tails, but their last samples must not be cut.
     double StateEnergy() const {
         return mBody.StateEnergy() + mPatch.StateEnergy() + mCircuit.StateEnergy()
-             + mChargeAmp.StateEnergy() * (mPostAdcGain * mPostAdcGain / (kAdcPeakVolts * kAdcPeakVolts))
+             + mChargeAmp.StateEnergy() * mAdcEnergyScale
              + mLpInput * mLpInput + mLpOutput * mLpOutput;
     }
 
@@ -337,6 +348,9 @@ private:
     ReferencePVDFPatch mSensor{};
     ReferenceChargeAmp mChargeAmp;
     double mPostAdcGain = 1.0;
+    double mChargePerStrain = 0.0, mAdcScale = 1.0, mAdcEnergyScale = 1.0;
+    double mConfiguredRate = 0.0;
+    int mConfiguredModel = -1;
     double mBodyMix = 0.0, mPatchMix = 0.0, mDirectMix = 0.0;
     double mForceMix = 0.0, mOutputGain = 1.0;
     double mLpPole = 0.0, mLpGain = 0.0;

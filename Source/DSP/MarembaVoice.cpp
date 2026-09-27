@@ -1,4 +1,5 @@
 #include "MarembaVoice.h"
+#include <type_traits>
 #include "BarModes.h"
 #include "KalimbaMountShapes.h"
 #include "DspMath.h"
@@ -262,6 +263,8 @@ void MarembaVoice::FastKill() {
     mMechanicalSample = 0.0f;
     for (auto& mode : mBrushModes) mode = ModeState{};
     for (auto& mode : mCollisionModes) mode = ModeState{};
+    for (double& sine : mBrushSin) sine = 0.0;
+    for (double& sine : mCollisionSin) sine = 0.0;
     mPickup.Reset();
     mClackBpY1 = mClackBpY2 = 0.0;
     mClickGain = 0.0;
@@ -290,6 +293,7 @@ void MarembaVoice::FastKill() {
     mHandModes = false;
     mHandPulseSample = mHandPulseSamples = 0;
     for (auto& mode : mShaftModes) mode = ModeState{};
+    for (double& sine : mShaftSin) sine = 0.0;
     mShaftActive = false;
 }
 
@@ -477,7 +481,11 @@ void MarembaVoice::Retune(float globalCents) {
     if (mHasLateral) RetuneMode(mLateral, mLateral.omega * mPitchRatio);
     RetuneMode(mTube, mTube.omega * mPitchRatio);
     for (auto& mode : mUpperCavity) if (mode.r > 0.0) RetuneMode(mode, mode.omega * mPitchRatio);
-    for (auto& mode : mBrushModes) if (mode.r > 0.0) RetuneMode(mode, mode.omega * mPitchRatio);
+    for (int i = 0; i < 2; ++i) {
+        auto& mode = mBrushModes[i];
+        if (mode.r > 0.0) RetuneMode(mode, mode.omega * mPitchRatio);
+        mBrushSin[i] = std::sin(mode.w);
+    }
     UpdateContactCompliance();
     UpdateCavityCoupling();
 }
@@ -1323,6 +1331,13 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         mode.omega = kTwoPiD * frequency / fs;
         ReconfigureMode(mode, std::exp(-6.907755 / (response.collisionDecaySec * art.collisionDecayScale * (m == 0 ? 1.0 : 0.43) * fs)), mode.omega);
     }
+    // Frequencies stay fixed between Trigger/Retune calls. Keep these exact
+    // libm sine values outside the oversampled oscillator loops.
+    for (int i = 0; i < 3; ++i) mShaftSin[i] = std::sin(mShaftModes[i].w);
+    for (int i = 0; i < 2; ++i) {
+        mBrushSin[i] = std::sin(mBrushModes[i].w);
+        mCollisionSin[i] = std::sin(mCollisionModes[i].w);
+    }
 }
 
 // Membrane tension: a membrane's resonance goes as the square root of its
@@ -1467,12 +1482,19 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
         mPreloadOffset += (after + mBridgeNonlinear * after * after) - (before + mBridgeNonlinear * before * before);
     }
 
-    // 1. Prediction of the bending modes without this sample's force.
+    // Contact/finger solvers need all free predictions before solving their
+    // force. A freely ringing key can instead predict each mode in its update
+    // loop, avoiding a second pass and temporary-array traffic every sample.
     double predicted[kNumPitchedModes];
-    for (int m = 0; m < mNumModes; ++m) {
-        const ModeState& mode = mModes[m];
-        predicted[m] = mode.idle ? 0.0 : mode.c * mode.y1 - mode.s * mode.y2;
-    }
+    bool predictedReady = false;
+    const auto predictContact = [&] {
+        if (predictedReady) return;
+        for (int m = 0; m < mNumModes; ++m) {
+            const ModeState& mode = mModes[m];
+            predicted[m] = mode.idle ? 0.0 : mode.c * mode.y1 - mode.s * mode.y2;
+        }
+        predictedReady = true;
+    };
 
     // 2. Excitation force at the contact: a thumb's release, or a mallet
     // head, shaft or fingertip.
@@ -1490,6 +1512,7 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
             mReboundStart = -1;
         }
         if (mContact.Active()) {
+            predictContact();
             double free = -mContactCompliance * mSupportLoad;
             for (int m = 0; m < mNumModes; ++m) free += mModes[m].contact * mModes[m].toDisplacement * predicted[m];
             // Fibre slip while the head is compressed; a head held still on
@@ -1515,7 +1538,7 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
         mFingerDamping = kFingerDamping;
         mFingerRamp = 1.0 - std::exp(-1.0 / (kFingerLandingSeconds * mSampleRate));
     }
-    if (mFingerOn) force += FingerForce(predicted, force);
+    if (mFingerOn) { predictContact(); force += FingerForce(predicted, force); }
     mContactForce = force;
     // A muffling palm's landing, where the stroke landed.
     double handImpulse = 0.0;
@@ -1559,28 +1582,55 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
     double barClose = 0.0, barFar = 0.0, support = 0.0, strain = 0.0, bridge = 0.0;
     double surfaceStrain = 0.0;
     double earLeft = 0.0, earRight = 0.0;
-    for (int m = 0; m < mNumModes; ++m) {
-        ModeState& mode = mModes[m];
-        if (mode.idle && impulse == 0.0) continue;
-        const double y = predicted[m] + mode.force * impulse;
-        mode.y2 = mode.y1;
-        mode.y1 = y;
-        // Both coordinates describe the same post-force oscillator state.
-        // Reading the new displacement with the old, free quadrature would
-        // give the spatial field a rate-dependent phase error during contact.
-        // The impulse's quadrature contribution is proportional to F*dt;
-        // it vanishes with the timestep rather than creating a 1/dt spike.
-        const double quadrature = (mode.r * mode.y2 - y * mode.cosW) * mode.invSin;
-        barClose += mRadiation[m].close.Read(y, quadrature) * mRadiationGain[m];
-        barFar += mRadiation[m].far.Read(y, quadrature) * mRadiationGain[m];
-        if (outEars) {
-            earLeft += mEarRadiation[m].close.Read(y, quadrature) * mRadiationGain[m];
-            earRight += mEarRadiation[m].far.Read(y, quadrature) * mRadiationGain[m];
+    // These choices are constant for this sample. Dispatch once so the
+    // modal pass does not repeat them for each independently ringing mode.
+    const auto renderModes = [&](auto predictedTag, auto tineTag, auto earsTag) {
+        for (int m = 0; m < mNumModes; ++m) {
+            ModeState& mode = mModes[m];
+            if (mode.idle && impulse == 0.0) continue;
+            const double free = decltype(predictedTag)::value ? predicted[m]
+                : mode.idle ? 0.0 : mode.c * mode.y1 - mode.s * mode.y2;
+            const double y = free + mode.force * impulse;
+            mode.y2 = mode.y1;
+            mode.y1 = y;
+            // Both coordinates describe the same post-force oscillator state.
+            // Reading the new displacement with the old, free quadrature would
+            // give the spatial field a rate-dependent phase error during contact.
+            // The impulse's quadrature contribution is proportional to F*dt;
+            // it vanishes with the timestep rather than creating a 1/dt spike.
+            const double quadrature = (mode.r * mode.y2 - y * mode.cosW) * mode.invSin;
+            barClose += mRadiation[m].close.Read(y, quadrature) * mRadiationGain[m];
+            barFar += mRadiation[m].far.Read(y, quadrature) * mRadiationGain[m];
+            if constexpr (decltype(earsTag)::value) {
+                earLeft += mEarRadiation[m].close.Read(y, quadrature) * mRadiationGain[m];
+                earRight += mEarRadiation[m].far.Read(y, quadrature) * mRadiationGain[m];
+            }
+            if constexpr (decltype(tineTag)::value) {
+                bridge += y * mBridgeGain[m];
+            } else {
+                support += y * mSupportGain[m];
+                surfaceStrain += y * mSurfaceStrainGain[m];
+            }
         }
-        support += y * mSupportGain[m];
-        strain += y * mStrainGain[m];
-        surfaceStrain += y * mSurfaceStrainGain[m];
-        bridge += y * mBridgeGain[m];
+    };
+    if (predictedReady) {
+        if (mTine) {
+            if (outEars) renderModes(std::true_type{}, std::true_type{}, std::true_type{});
+            else renderModes(std::true_type{}, std::true_type{}, std::false_type{});
+        }
+        else {
+            if (outEars) renderModes(std::true_type{}, std::false_type{}, std::true_type{});
+            else renderModes(std::true_type{}, std::false_type{}, std::false_type{});
+        }
+    } else {
+        if (mTine) {
+            if (outEars) renderModes(std::false_type{}, std::true_type{}, std::true_type{});
+            else renderModes(std::false_type{}, std::true_type{}, std::false_type{});
+        }
+        else {
+            if (outEars) renderModes(std::false_type{}, std::false_type{}, std::true_type{});
+            else renderModes(std::false_type{}, std::false_type{}, std::false_type{});
+        }
     }
     const double bendingClose = barClose;
 
@@ -1603,7 +1653,6 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
         mode.y1 = y;
         barClose += y * mTorsionClose[n];
         barFar += y * mTorsionFar[n];
-        strain += y * 0.25 * mStrainGain[0];
     }
     if (mHasLateral) {
         const double y = mLateral.c * mLateral.y1 - mLateral.s * mLateral.y2 + mLateralDrive * impulse;
@@ -1616,8 +1665,9 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
     // The shaft's knock.
     if (mShaftActive) {
         double knock = 0.0;
-        for (auto& mode : mShaftModes) {
-            const double y = mode.c * mode.y1 - mode.s * mode.y2 + std::sin(mode.w) * mShaftDrive * impulse;
+        for (int i = 0; i < 3; ++i) {
+            auto& mode = mShaftModes[i];
+            const double y = mode.c * mode.y1 - mode.s * mode.y2 + mShaftSin[i] * mShaftDrive * impulse;
             mode.y2 = mode.y1;
             mode.y1 = y;
             knock += y;
@@ -1647,7 +1697,8 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
     double buzz = 0.0;
     const double handPole = mDamping ? mHandDampPole : 1.0;
     bool membranesMoving = false;
-    for (int i = 0; i < mNumMembranes; ++i) membranesMoving = membranesMoving || !mMembranes[i].IsResting();
+    if (!mHasMirliton)
+        for (int i = 0; i < mNumMembranes; ++i) membranesMoving = membranesMoving || !mMembranes[i].IsResting();
     if (mHasMirliton || membranesMoving) {
         double slapTotal = 0.0;
         for (int i = 0; i < mNumMembranes; ++i) {
@@ -1697,8 +1748,9 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
 
     // 7. Adjacent-key brush and vibration-driven mount/bridge collision.
     double brushSound = 0.0;
-    if (mBrushActive) for (auto& mode : mBrushModes) {
-        const double y = mode.c * mode.y1 - mode.s * mode.y2 + std::sin(mode.w) * kBrushLevel * brushForce;
+    if (mBrushActive) for (int i = 0; i < 2; ++i) {
+        auto& mode = mBrushModes[i];
+        const double y = mode.c * mode.y1 - mode.s * mode.y2 + mBrushSin[i] * kBrushLevel * brushForce;
         mode.y2 = mode.y1 * handPole;
         mode.y1 = y * handPole;
         brushSound += y;
@@ -1747,8 +1799,9 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
         if (mCollisionEnvelope < 1.0e-8) mCollisionEnvelope = 0.0;
     }
     double collisionSound = 0.0;
-    if (mCollisionActive) for (auto& mode : mCollisionModes) {
-        const double y = mode.c * mode.y1 - mode.s * mode.y2 + std::sin(mode.w) * collisionDrive;
+    if (mCollisionActive) for (int i = 0; i < 2; ++i) {
+        auto& mode = mCollisionModes[i];
+        const double y = mode.c * mode.y1 - mode.s * mode.y2 + mCollisionSin[i] * collisionDrive;
         mode.y2 = mode.y1 * handPole;
         mode.y1 = y * handPole;
         collisionSound += y;

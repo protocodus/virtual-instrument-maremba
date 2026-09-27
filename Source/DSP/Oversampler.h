@@ -106,9 +106,19 @@ public:
     }
 
     inline float DownsampleFrame(const float* inBuf, int factor) {
-        if (factor == 2) {
+        if (factor == 2) return DownsampleFrame<2>(inBuf);
+        if (factor == 4) return DownsampleFrame<4>(inBuf);
+        return DownsampleFrame<8>(inBuf);
+    }
+
+    // A scene has one common quality setting. Its source loop dispatches
+    // once per frame, leaving this small, fixed cascade available to inline.
+    template<int Factor>
+    inline float DownsampleFrame(const float* inBuf) {
+        static_assert(Factor == 2 || Factor == 4 || Factor == 8, "Unsupported oversampling factor");
+        if constexpr (Factor == 2) {
             return mDec[0].Decimate(inBuf[0], inBuf[1]);
-        } else if (factor == 4) {
+        } else if constexpr (Factor == 4) {
             float s0 = mDec[0].Decimate(inBuf[0], inBuf[1]);
             float s1 = mDec[0].Decimate(inBuf[2], inBuf[3]);
             return mDec[1].Decimate(s0, s1);

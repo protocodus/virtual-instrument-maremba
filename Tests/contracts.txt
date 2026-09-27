@@ -15,6 +15,7 @@ RoomMicrophoneTest        # pressure capsule, vent, buffer and output-coupling t
 PiezoEngineTest            # complete captures, shared plate sensor, routing and tails
 CaptureRoutingTest         # independent capture coefficients and Piezo-only Drive
 CompactCaptureSourceTest   # one emitted pressure with explicit Close/Room reference conversion
+CaptureSceneEqualityTest   # exact lazy/eager ear decimation, transitions, isolation and lifecycle
 HeadroomTest               # smooth overload protection, quiet unity, aligned capture latency
 HardHitOutputTest          # every hard striker, velocity 127, extreme notes and repeated 24-note chords
 MechanicalArtifactsTest    # rebounds, grazes, neighbour brushes, rattles
