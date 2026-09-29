@@ -103,7 +103,7 @@ Halo haloResponse(int model, int note) {
             float expectedL = 0, expectedR = 0, roomL = 0, roomR = 0;
             scene->Process(expectedL, expectedR, roomL, roomR);
             const double prediction = delay[delayIndex];
-            delay[delayIndex] = (expectedL + expectedR) * (.65f * .24f);
+            delay[delayIndex] = (expectedL + expectedR) * (.65f * maremba::MarembaEngine::kCloseStemTrim);
             delayIndex = (delayIndex + 1) % delay.size();
             if ((start + i) % 16 == 15) { voice.UpdateEnvelope(); mesh.FlushTiny(); board.FlushTiny(); scene->FlushTiny(); }
             const double x = left[0][i] + right[0][i];

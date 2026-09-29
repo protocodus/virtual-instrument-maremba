@@ -173,12 +173,14 @@ double Itd(int note) {
 struct ArrivalResult { double magnitude = 0, phase = 0, peak = 0, error = 0; int bins = 0; bool audible = true, complete = true; };
 ArrivalResult CheckArrival(int note, double rate, int quality) {
     using namespace maremba;
+    // Volume quiets Main only; a soft pluck keeps the Close stem below output protection.
+    constexpr float kPluckVelocity = .1f;
     auto p = Kalimba(1); p.volume = .08f; p.preampDrive = p.compAmount = p.warmth = 0;
     p.oversampling = quality; p.closeLevel = 1; p.farLevel = p.piezoLevel = 0;
     auto actual = std::make_unique<MarembaEngine>(rate);
     auto physical = std::make_unique<MarembaEngine>(rate);
-    actual->SetParameters(p); actual->Reset(); actual->NoteOn(note, .8f);
-    physical->SetParameters(p); physical->Reset(); physical->NoteOn(note, .8f);
+    actual->SetParameters(p); actual->Reset(); actual->NoteOn(note, kPluckVelocity);
+    physical->SetParameters(p); physical->Reset(); physical->NoteOn(note, kPluckVelocity);
     const int factor = MarembaEngineTestAccess::Factor(*physical);
     const int frames = static_cast<int>(std::ceil(.30 * rate));
     std::array<std::vector<double>, 4> source;
@@ -215,7 +217,7 @@ ArrivalResult CheckArrival(int note, double rate, int quality) {
     }
     const std::array<int, 3> ids{CaptureSourceIndex(EMarimbaModel::KalimbaArtisan, note),
                                 kCaptureBoardSource, kCaptureHoleSource};
-    const float gain = CaptureScene::kMasterMixScale * .24f * p.volume * p.volume;
+    const float gain = CaptureScene::kMasterMixScale * MarembaEngine::kCloseStemTrim; // stems never follow Volume
     const std::array<double, 9> frequencies{100, 300, 500, 1000, 2000, 4000, 8000, 12000,
                                           440 * std::exp2((note - 69) / 12.0)};
     for (int ear = 0; ear < 2; ++ear) for (double hz : frequencies) {

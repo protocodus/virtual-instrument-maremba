@@ -86,6 +86,14 @@ public:
     static constexpr int kVoicePoolSize = 2 * kMaxPolyphony;
     static constexpr int kMaxFrames = 64;      // largest frameCount RenderBatch accepts
 
+    // Calibration of the direct outputs: a capture's fixed gain is its trim times
+    // CaptureScene::kMasterMixScale. Volume, the Level knobs, Width, Warmth and
+    // Limit shape Main only and never reach a direct output. The calibration and
+    // its evidence are in MarembaEngine.cpp and docs/OUTPUT_LEVEL.md.
+    static constexpr float kCloseStemTrim = 0.40f;
+    static constexpr float kRoomStemTrim = 0.55f;
+    static constexpr float kPiezoStemTrim = 0.70f;
+
     // Allocates everything the engine will ever need (delay lines are sized for
     // 8x the construction sample rate; the host re-creates the native object
     // when the system rate changes). Must be called outside the realtime thread.

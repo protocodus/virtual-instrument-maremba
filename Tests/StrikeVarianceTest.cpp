@@ -31,7 +31,7 @@ struct MarembaEngineTestAccess {
         MicMixer reference;
         std::array<float,MarembaEngine::kMaxOversample> subLeft{},subRight{};
         std::vector<float> output(static_cast<size_t>(frames),0.f);
-        const float gain=MicMixer::kMasterMixScale*.24f*engine.mVolumeGain;
+        const float gain=MicMixer::kMasterMixScale*MarembaEngine::kCloseStemTrim; // the Close stem: no Volume
         constexpr int outputDelay=96; //2ms at this fixture's48kHz
         for(int frame=0;frame<frames;++frame){
             for(int sub=0;sub<factor;++sub){

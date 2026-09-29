@@ -28,6 +28,7 @@ namespace {
 using namespace maremba;
 constexpr double pi = 3.14159265358979323846;
 constexpr std::array<double, 7> frequencies{100.,500.,1000.,2000.,4000.,8000.,12000.};
+constexpr float kStrikeVelocity=.1f;
 int checks=0,cases=0;
 double worstMagnitude=0,worstPhase=0,worstElectrical=0,maximumOutput=0;
 int contextModel=0,contextNote=0,contextQuality=0;
@@ -53,21 +54,23 @@ void Run(int model,int note,double rate,int quality) {
     contextModel=model;contextNote=note;contextRate=rate;contextQuality=quality;
     EngineParameters p;
     p.model=model;p.oversampling=quality;p.malletType=3;p.malletHardness=.7f;
-    p.volume=.08f;p.preampDrive=0;p.compAmount=0;p.warmth=0;
+    p.volume=.08f;p.preampDrive=0;p.compAmount=0;p.warmth=0; // Volume quiets Main only
     p.closeLevel=1;p.farLevel=0;p.piezoLevel=0;p.stereoWidth=1;
     p.artifacts=p.buzzAmount=p.bodyBloom=p.sympathetic=p.strikeJitter=p.detune=0;
     p.velocityToHardness=p.velocityToPosition=p.velocityToDecay=0;
     p.velocityToCarving=p.velocityToCoupling=p.velocityToBloom=p.velocityToSympathetic=0;
     p.velocityToBuzz=p.velocityToTension=p.velocityToArtifacts=0;
     auto engine=std::make_unique<MarembaEngine>(rate);
-    engine->SetParameters(p);engine->NoteOn(note,.82f);
+    // A soft strike keeps every direct output far below its protection.
+    engine->SetParameters(p);engine->NoteOn(note,kStrikeVelocity);
     auto physical=MarembaEngineTestAccess::CloneStruckVoice(*engine);
     const int factor=2<<quality;
     const int frames=static_cast<int>(std::ceil(.080*rate));
     const int fadeFrame=static_cast<int>(std::ceil(.040*rate));
     const int latency=OutputHeadroom::LatencyFrames(rate);
-    const float volume=p.volume*p.volume;
-    const float directGain=CaptureScene::kMasterMixScale*.24f*volume;
+    // Direct outputs carry only their calibration (never Volume).
+    const float closeGain=CaptureScene::kMasterMixScale*MarembaEngine::kCloseStemTrim;
+    const float piezoGain=CaptureScene::kMasterMixScale*MarembaEngine::kPiezoStemTrim;
     std::array<MonoOversampler,3> decimator;
     std::array<std::vector<float>,3> raw;
     std::array<std::vector<float>,7> output;
@@ -103,7 +106,7 @@ void Run(int model,int note,double rate,int quality) {
                   +static_cast<double>(raw[1][frame])*raw[1][frame];
         closeEnergy+=static_cast<double>(output[2][frame])*output[2][frame]
                     +static_cast<double>(output[3][frame])*output[3][frame];
-        const double expected=frame>=latency ? raw[2][frame-latency]*directGain : 0.0;
+        const double expected=frame>=latency ? raw[2][frame-latency]*piezoGain : 0.0;
         piezoEnergy+=expected*expected;
         piezoError+=std::pow(output[6][frame]-expected,2);
     }
@@ -143,7 +146,7 @@ void Run(int model,int note,double rate,int quality) {
                 +(ear ? .5 : -.5)*profile.residualItdSeconds+latency/rate;
             const auto h=Transform(profile.impulse[ear],kCloseHrtfTaps,f,kCloseHrtfReferenceRate);
             const auto expected=source[i]*h*(CloseCapture::kReferenceDistance/distance)
-                *static_cast<double>(directGain)*std::polar(1.0,-2*pi*f*delay);
+                *static_cast<double>(closeGain)*std::polar(1.0,-2*pi*f*delay);
             const auto actual=Transform(output[2+ear],f,rate);
             const auto ratio=actual/expected;
             const double db=std::abs(20*std::log10(std::abs(ratio)));

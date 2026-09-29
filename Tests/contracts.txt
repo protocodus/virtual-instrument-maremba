@@ -18,6 +18,7 @@ CompactCaptureSourceTest   # one emitted pressure with explicit Close/Room refer
 CaptureSceneEqualityTest   # exact lazy/eager ear decimation, transitions, isolation and lifecycle
 HeadroomTest               # smooth overload protection, quiet unity, aligned capture latency
 HardHitOutputTest          # every hard striker, velocity 127, extreme notes and repeated 24-note chords
+DirectOutputLevelTest      # direct outputs ignore every Main-mix control and are calibrated level with each other
 MechanicalArtifactsTest    # rebounds, grazes, neighbour brushes, rattles
 ClickFilterCalibrationTest # unity-centre impact and membrane-noise filters at 32 rates
 CollisionResponseTest      # mounting collisions driven by vibration

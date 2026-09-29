@@ -845,7 +845,7 @@ void TestBodyBloom()
     // Ear filtering need not preserve this relative peak. It must deliver the
     // independently predicted frame source, at the same trim and output delay.
     const int delay = maremba::OutputHeadroom::LatencyFrames(44100.0);
-    const float directGain = .65f * .24f * (p.volume * p.volume);
+    const float directGain = .65f * MarembaEngine::kCloseStemTrim; // the Close stem: no Volume
     double error = 0, delivered = 0;
     bool finite = true;
     for (int channel : {kCloseL, kCloseR}) {
@@ -2153,13 +2153,15 @@ void TestHaloRateInvariant()
 void TestDirectOutMatchesMain()
 {
     std::cout << "[Gain] Direct close out matches the main bus close path ..." << std::endl;
-    constexpr double kDirectOutTrim = 0.24; // published direct-output trim
+    constexpr double kCloseStemTrim = MarembaEngine::kCloseStemTrim; // published Close direct-output trim
     constexpr double kMainCalibrationGain = 4.0;
     EngineParameters p = CleanParams();
     p.farLevel = 0.0f; p.piezoLevel = 0.0f; p.closeLevel = 1.0f; p.stereoWidth = 1.0f;
     p.compAmount = 0.0f; p.preampDrive = 0.0f; p.warmth = 0.0f;
     p.malletType = 3; p.malletHardness = 0.9f;
     p.volume = .25f;
+    // Volume is Main's alone: the direct capture never follows it.
+    const double volumeGain = static_cast<double>(p.volume) * p.volume;
     for (int os : { 0, 2 }) {
         p.oversampling = os;
         // A quiet strike isolates the aligned, linear paths. Hot strikes use
@@ -2174,10 +2176,10 @@ void TestDirectOutMatchesMain()
         const double pole = static_cast<float>(std::exp(-2.0*M_PI*20.0/44100.0));
         double previousIn = 0.0, previousOut = 0.0;
         for (size_t i = 0; i < r.size(); ++i) {
-            const double close = r.ch[kCloseL][i] / kDirectOutTrim;
+            const double close = r.ch[kCloseL][i] / kCloseStemTrim;
             const double expected = close-previousIn+pole*previousOut;
             previousIn = close; previousOut = expected;
-            const double d = r.ch[kMainL][i] / kMainCalibrationGain - expected;
+            const double d = r.ch[kMainL][i] / (kMainCalibrationGain * volumeGain) - expected;
             err += d * d;
             lvl += close * close;
         }

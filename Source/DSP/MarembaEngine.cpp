@@ -68,11 +68,22 @@ constexpr float kRollThreshold = 0.02f;
 constexpr double kCoverSmoothingSeconds = 0.012;
 constexpr uint32_t kRollSeed = 0x2468ACE1u;
 
-// Fixed -12.4 dB trim on the pre-fader direct taps. They bypass the limiter,
-// and a hard stick's attack peaks some 20 dB above the ring it leaves; each
-// stem pair's own headroom stage catches that, so this trim sets level, not
-// safety (docs/OUTPUT_LEVEL.md).
-constexpr float kDirectOutTrim = 0.24f;
+// Fixed gain of each direct tap: its capture's trim (MarembaEngine.h) times the
+// shared mix scale. A stem carries this calibration and nothing else. The three
+// captures differ by several dB on the same playing (on a full-velocity chord
+// Room peaks 2.5 dB and Piezo 5.7 dB below Close), so a shared trim
+// would leave Room and Piezo behind Close. Each trim puts a full-velocity
+// eight-note chord (C3 to E5) at the top of its stem's own protection on the
+// median factory patch: ordinary playing never touches the protection, and only
+// the hardest strikes on hard-mallet patches lean on it, as on Main
+// (docs/OUTPUT_LEVEL.md). Close L, Close R, Room L, Room R, Piezo.
+constexpr float kDirectStemGain[] = {
+    CaptureScene::kMasterMixScale * MarembaEngine::kCloseStemTrim,
+    CaptureScene::kMasterMixScale * MarembaEngine::kCloseStemTrim,
+    CaptureScene::kMasterMixScale * MarembaEngine::kRoomStemTrim,
+    CaptureScene::kMasterMixScale * MarembaEngine::kRoomStemTrim,
+    CaptureScene::kMasterMixScale * MarembaEngine::kPiezoStemTrim,
+};
 
 // Steal score of a voice: how loud it sounds now (the last ~30 ms), so bass
 // and treble voices compare by what is heard; a non-finite voice is the first
@@ -969,15 +980,17 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         std::array<float, 7> frame = {mainL * gain, mainR * gain, 0, 0, 0, 0, 0};
 
         // Complete microphone/electrical captures, before the main mix and
-        // dynamics, with the established direct trim and master volume.
-        const float directGain = CaptureScene::kMasterMixScale * kDirectOutTrim * gain;
+        // dynamics. Each carries only its fixed calibration: Volume and the
+        // other Main-mix controls never reach a stem.
+        static_assert(sizeof(kDirectStemGain) / sizeof(kDirectStemGain[0]) == kNumDirectOuts,
+                      "one calibrated gain per direct tap");
         for (int k = 0; k < kNumDirectOuts; ++k) {
             if (direct[k]) {
                 if (!mDirectRunning[k]) {
                     mOutputHeadroom.ResetDirect(k);
                     mDirectRunning[k] = true;
                 }
-                frame[k + 2] = capture[k] * directGain;
+                frame[k + 2] = capture[k] * kDirectStemGain[k];
             } else {
                 mDirectRunning[k] = false;
             }
