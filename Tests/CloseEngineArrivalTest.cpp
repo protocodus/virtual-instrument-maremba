@@ -67,7 +67,7 @@ void Run(int model,int note,double rate,int quality) {
     const int fadeFrame=static_cast<int>(std::ceil(.040*rate));
     const int latency=OutputHeadroom::LatencyFrames(rate);
     const float volume=p.volume*p.volume;
-    const float directGain=CaptureScene::kMasterMixScale*.06f*volume;
+    const float directGain=CaptureScene::kMasterMixScale*.24f*volume;
     std::array<MonoOversampler,3> decimator;
     std::array<std::vector<float>,3> raw;
     std::array<std::vector<float>,7> output;

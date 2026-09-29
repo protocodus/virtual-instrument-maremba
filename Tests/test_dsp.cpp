@@ -509,12 +509,16 @@ void TestAnalogLimiterCurveAndLink()
         for (int i = 0; i < 96000; ++i) limiter.Process(input, -input * .37f, l, r);
         return l;
     };
+    // Automatic makeup: a signal far below the threshold gains exactly the
+    // threshold's drop from -3 dBFS (15 dB at full Limit), and limited
+    // material settles at that -3 dBFS reference.
+    const float makeup = static_cast<float>(std::pow(10.0, 15.0 / 20.0));
     const float low = settled(0.0001f), a = settled(2.0f), b = settled(8.0f);
-    CHECK(std::abs(low - .0001f) < 1e-8f, "limiter colors a signal far below its threshold");
+    CHECK(std::abs(low - .0001f * makeup) < 1e-8f, "limiter colors a signal far below its threshold");
     const double rise = Db(b / a);
-    std::cout << "  -> +12 dB input produces " << rise << " dB output rise" << std::endl;
-    CHECK(a > .01f && a < .5f && std::abs(rise) < 1.0,
-          "limiter still behaves as gentle compression, rise=" << rise);
+    std::cout << "  -> +12 dB input produces " << rise << " dB output rise, settled at " << Db(a) << " dBFS" << std::endl;
+    CHECK(std::abs(Db(a) + 3.0) < .1 && std::abs(rise) < 1.0,
+          "limited level misses the -3 dBFS makeup reference: " << Db(a) << " dBFS, rise=" << rise);
 
     struct RatePair { double base; int factor; };
     for (const RatePair rates : {RatePair{44100, 2}, RatePair{48000, 2},
@@ -535,7 +539,9 @@ void TestAnalogLimiterCurveAndLink()
             for (int sub = 0; sub < rates.factor; ++sub)
                 limiter.Process(input, -.37f * input, l, r);
             CHECK(std::isfinite(l) && std::isfinite(r), "limiter produced non-finite audio at " << rate);
-            CHECK(std::abs(r + .37f * l) < 1e-6f, "musical gain changes stereo balance");
+            // Relative: makeup lifts the samples up to 15 dB above the input.
+            CHECK(std::abs(r + .37f * l) < 1e-6f * std::max(1.0f, std::abs(l)),
+                  "musical gain changes stereo balance");
             if (i == 0) rawAttack = std::abs(l);
             std::array<float, 7> frame{{l, r, 0, 0, 0, 0, 0}};
             headroom.Process(frame);
@@ -657,7 +663,8 @@ void TestAnalogLimiterState()
     }
     CHECK(l == 0.0f && r == 0.0f, "silent limiter generates a residual output");
     limiter.Process(.0001f, -.0001f, l, r);
-    CHECK(std::abs(l - .0001f) < 1e-8f, "limiter resumes with stale attenuation");
+    const float fullMakeup = static_cast<float>(std::pow(10.0, 15.0 / 20.0));
+    CHECK(std::abs(l - .0001f * fullMakeup) < 1e-8f, "limiter resumes with stale attenuation");
 }
 
 void TestPreampLimiterContainment()
@@ -838,7 +845,7 @@ void TestBodyBloom()
     // Ear filtering need not preserve this relative peak. It must deliver the
     // independently predicted frame source, at the same trim and output delay.
     const int delay = maremba::OutputHeadroom::LatencyFrames(44100.0);
-    const float directGain = .65f * .06f * (p.volume * p.volume);
+    const float directGain = .65f * .24f * (p.volume * p.volume);
     double error = 0, delivered = 0;
     bool finite = true;
     for (int channel : {kCloseL, kCloseR}) {
@@ -2146,8 +2153,8 @@ void TestHaloRateInvariant()
 void TestDirectOutMatchesMain()
 {
     std::cout << "[Gain] Direct close out matches the main bus close path ..." << std::endl;
-    constexpr double kDirectOutTrim = 0.06; // published direct-output trim
-    constexpr double kMainCalibrationGain = 2.0;
+    constexpr double kDirectOutTrim = 0.24; // published direct-output trim
+    constexpr double kMainCalibrationGain = 4.0;
     EngineParameters p = CleanParams();
     p.farLevel = 0.0f; p.piezoLevel = 0.0f; p.closeLevel = 1.0f; p.stereoWidth = 1.0f;
     p.compAmount = 0.0f; p.preampDrive = 0.0f; p.warmth = 0.0f;

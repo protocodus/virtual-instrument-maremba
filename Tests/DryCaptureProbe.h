@@ -34,7 +34,7 @@ struct MarembaEngineTestAccess {
         std::array<float, MarembaEngine::kMaxOversample> subLeft{}, subRight{};
         std::vector<double> result;
         result.reserve(static_cast<size_t>(frames));
-        const float gain = MicMixer::kMasterMixScale * .06f * engine.mVolumeGain;
+        const float gain = MicMixer::kMasterMixScale * .24f * engine.mVolumeGain;
         for (int frame = 0; frame < frames; ++frame) {
             engine.mClock += 1;
             for (int sub = 0; sub < factor; ++sub) {
