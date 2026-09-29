@@ -54,9 +54,11 @@ constexpr float kBodyBloomGain = 0.375f;
 // Kalimba box radiation per unit of bridge force rate; Body scales it from a
 // board that barely rings (0) to a resonant box (1), never to silence.
 constexpr double kKalimbaBodyGain = 0.072;
-// Restore a useful main-output level without changing physical excitation,
-// preamp drive, or pre-fader stem headroom. The limiter receives the lift.
-constexpr float kMainCalibrationGain = 2.0f; // +6.02 dB before limiting
+// Main-output level, without changing physical excitation or Piezo drive.
+// The limiter receives the lift: its makeup holds limited material at its
+// -3 dBFS reference, so the lift raises what sits below the threshold, and
+// the headroom stage catches the strike transients that pass its attack.
+constexpr float kMainCalibrationGain = 4.0f; // +12.04 dB before limiting
 // Mod-wheel rolls: stroke rate at the wheel's bottom and top, two alternating
 // mallets landing a little either side of the set position.
 constexpr double kRollMinRate = 6.0, kRollMaxRate = 20.0;
@@ -66,11 +68,11 @@ constexpr float kRollThreshold = 0.02f;
 constexpr double kCoverSmoothingSeconds = 0.012;
 constexpr uint32_t kRollSeed = 0x2468ACE1u;
 
-// Fixed -24.4 dB headroom on the pre-fader direct taps (close/far/piezo are
-// summed before the compressor and saturator, so they run hotter than main;
-// a hard stick's attack peaks some 20 dB above the ring it leaves). The full
-// factory-key sweep needs 6 dB more headroom than the mid-register chords.
-constexpr float kDirectOutTrim = 0.06f;
+// Fixed -12.4 dB trim on the pre-fader direct taps. They bypass the limiter,
+// and a hard stick's attack peaks some 20 dB above the ring it leaves; each
+// stem pair's own headroom stage catches that, so this trim sets level, not
+// safety (docs/OUTPUT_LEVEL.md).
+constexpr float kDirectOutTrim = 0.24f;
 
 // Steal score of a voice: how loud it sounds now (the last ~30 ms), so bass
 // and treble voices compare by what is heard; a non-finite voice is the first

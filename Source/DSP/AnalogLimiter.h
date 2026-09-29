@@ -49,8 +49,11 @@ public:
         UpdateBallistics();
     }
 
-    // Amount lowers the control threshold from -3 to -18 dBFS. The default
-    // 0.25 is deliberately gentle; there is no automatic makeup gain.
+    // Amount lowers the control threshold from -3 to -18 dBFS. Automatic
+    // makeup gain raises the output by the same amount, so limited material
+    // keeps its -3 dBFS level at every setting and everything below the
+    // threshold comes up: more Amount is louder and denser, never quieter.
+    // The default 0.25 is deliberately gentle (+2.2 dB of makeup).
     // Expensive coefficient/threshold math happens only on parameter changes.
     void SetAmount(float amount) {
         amount = FiniteRange(amount, 0.0f, 1.0f, 0.25f);
@@ -84,6 +87,10 @@ public:
         }
 
         mThreshold += mParameterAlpha * (mThresholdTarget - mThreshold);
+        // The makeup follows this value, and at high internal rates the float
+        // smoother stalls up to ~3e-4 short of its target: land it exactly.
+        if (std::abs(mThresholdTarget - mThreshold) < 1.0e-3f * mThresholdTarget)
+            mThreshold = mThresholdTarget;
         const float peak = std::max(std::abs(inL), std::abs(inR));
         // Bound control voltage well beyond the engine's valid signal range;
         // even a finite input near FLT_MAX must not poison capacitor state.
@@ -102,7 +109,9 @@ public:
         // The positive capacitor voltage increases attenuation conductance.
         // With constant overdrive, g=1/(1+c) tends to threshold/peak: limiting,
         // rather than the old low-ratio compressor's partial gain reduction.
-        const float wetGain = 1.0f / (1.0f + mControl);
+        // The makeup follows the smoothed threshold, so automation stays
+        // click-free, and fades in and out with the engagement crossfade.
+        const float wetGain = (kMakeupReference / mThreshold) / (1.0f + mControl);
         // A common gain preserves stereo balance, polarity and antiphase.
         const float gain = (1.0f - mEngagement) + mEngagement * wetGain;
         outL = inL * gain;
@@ -143,6 +152,10 @@ private:
         mReleaseAlpha = Alpha(mReleaseMs);
         mReservoirReleaseAlpha = Alpha(4.0 * mReleaseMs);
     }
+
+    // The threshold at the smallest nonzero Amount (-3 dBFS). Makeup is
+    // measured from it, so the level is continuous with the exact bypass.
+    static constexpr float kMakeupReference = 0.70794578f;
 
     double mSampleRate = kReferenceRate;
     float mAmount = -1.0f;
