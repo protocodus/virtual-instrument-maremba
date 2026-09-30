@@ -93,6 +93,12 @@ public:
     static constexpr float kCloseStemTrim = 0.40f;
     static constexpr float kRoomStemTrim = 0.55f;
     static constexpr float kPiezoStemTrim = 0.70f;
+    // The Kalimba radiates and picks up less than a bar (its Close capture most
+    // of all) and the stems carry no makeup, so it has its own trims: 6.0, 3.0
+    // and 1.5 dB above the bars'.
+    static constexpr float kKalimbaCloseStemTrim = 0.80f;
+    static constexpr float kKalimbaRoomStemTrim = 0.78f;
+    static constexpr float kKalimbaPiezoStemTrim = 0.83f;
 
     // Allocates everything the engine will ever need (delay lines are sized for
     // 8x the construction sample rate; the host re-creates the native object
@@ -180,6 +186,8 @@ private:
     void ControlTick();
     void SnapLiveControls();
     void SmoothLiveControls();
+    // Close, Room and Piezo trims of an instrument (see kCloseStemTrim above).
+    static std::array<float, 3> StemTrimsFor(int model);
 
     double mBaseSampleRate = 44100.0;
     EngineParameters mParams;
@@ -209,6 +217,9 @@ private:
     float mBodyGain = 0.0f, mSympatheticGain = 0.0f;
     float mCloseGain = 0.0f, mFarGain = 0.0f, mPiezoGain = 0.0f;
     float mStereoWidth = 1.0f, mDrive = 0.0f;
+    // The direct outputs' trims for the current Model: exact when idle or after
+    // a reset, and smoothed like the controls above when Model changes mid-ring.
+    std::array<float, 3> mStemTrim{};
 
     // Control-rate clock and silence tracking
     int mControlCounter = 0;

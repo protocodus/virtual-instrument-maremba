@@ -1,9 +1,11 @@
 // The five direct outputs are stems of the instrument, not of the mix. Volume,
 // the three Level coefficients, Width, Warmth and Limit belong to Main and never
 // reach them; what sets a stem's loudness is its fixed calibration. That
-// calibration gives Close, Room and Piezo the same headroom: a full-velocity
-// chord reaches the top of every stem, so no direct output is left far behind
-// Main or behind the other two (docs/OUTPUT_LEVEL.md).
+// calibration gives Close, Room and Piezo the same headroom on every
+// instrument: a full-velocity chord reaches the top of every stem, so no direct
+// output is left far behind Main or behind the other two, the Kalimba's
+// included. Changing Model while a note rings moves the calibration smoothly
+// (docs/OUTPUT_LEVEL.md).
 #include "MarembaEngine.h"
 #include "OutputHeadroom.h"
 #include <algorithm>
@@ -16,6 +18,12 @@
 #include <utility>
 #include <vector>
 
+namespace maremba {
+struct MarembaEngineTestAccess {
+    static std::array<float, 3> StemTrim(const MarembaEngine& engine) { return engine.mStemTrim; }
+};
+} // namespace maremba
+
 namespace {
 using namespace maremba;
 using Audio = std::array<std::vector<float>, 7>;
@@ -25,15 +33,14 @@ constexpr double kRate = 48000.0;
 constexpr int kBatch = 64;
 constexpr int kMain = 0, kClose = 2, kRoom = 4, kPiezo = 6; // first channel of each group
 
-// What "not quiet" means for a stem, in dBFS peak: a full-velocity chord reaches
-// within chordFloorDb of full scale, a mezzo-forte note stays above noteFloorDb,
-// and the three stems' chord peaks lie within spreadDb of each other. The bars
-// are measured at their calibration (Rosewood, Padauk and Balafon on the default
-// patch peak at -3.5 to -0.5 dBFS on the chord); the Kalimba radiates far less
-// into its close microphones, so its Close stem is allowed to sit lower.
+// What "not quiet" means for a stem, in dBFS peak, on every instrument: a
+// full-velocity chord reaches within chordFloorDb of full scale, a mezzo-forte
+// note stays above noteFloorDb, and the three stems' chord peaks lie within
+// spreadDb of each other. The bars share one calibration and the Kalimba, which
+// radiates less into its close microphones, has its own (Rosewood, Padauk and
+// Balafon on the default patch peak at -3.5 to -0.5 dBFS on the chord).
 struct Expectation { double chordFloorDb, spreadDb, noteFloorDb; };
-constexpr Expectation kBars{-5.0, 4.0, -24.0};
-constexpr Expectation kKalimba{-10.0, 8.0, -32.0};
+constexpr Expectation kExpected{-5.0, 4.0, -24.0};
 
 int checks = 0;
 std::string context;
@@ -161,8 +168,8 @@ void independenceContracts() {
 }
 
 // Every stem has the headroom of a full-velocity chord to itself, and a
-// mezzo-forte note is still a healthy signal on each. Room and Piezo sit no
-// lower than Close on the same playing.
+// mezzo-forte note is still a healthy signal on each, on every instrument. Room
+// and Piezo sit no lower than Close on the same playing.
 void calibrationContracts() {
     const double ceiling = 20.0 * std::log10(static_cast<double>(OutputHeadroom::kCeiling)); // -0.54 dBFS
     double lowest = 0, spreadWorst = 0;
@@ -173,7 +180,7 @@ void calibrationContracts() {
         const Audio note = render(p, kMezzoNote, 1.5);
         const double chordPeak[3] = {peakDb(chord, kClose, 2), peakDb(chord, kRoom, 2), peakDb(chord, kPiezo, 1)};
         const double notePeak[3] = {peakDb(note, kClose, 2), peakDb(note, kRoom, 2), peakDb(note, kPiezo, 1)};
-        const Expectation& expected = model == 3 ? kKalimba : kBars;
+        const Expectation& expected = kExpected;
         const char* names[3] = {"Close", "Room", "Piezo"};
         for (int stem = 0; stem < 3; ++stem) {
             context = std::string("calibration model=") + std::to_string(model) + " " + names[stem];
@@ -192,10 +199,85 @@ void calibrationContracts() {
     }
     std::cout << "  lowest chord peak " << lowest << " dBFS, widest spread " << spreadWorst << " dB\n";
 }
+// The trims follow Model. Idle or after a reset they are exact; while a note
+// rings, a Model change moves them at the 5 ms smoothing rate instead of
+// stepping them, in either direction.
+void modelSwitchContracts() {
+    using Trim = std::array<float, 3>;
+    const Trim bars{MarembaEngine::kCloseStemTrim, MarembaEngine::kRoomStemTrim, MarembaEngine::kPiezoStemTrim};
+    const Trim kalimba{MarembaEngine::kKalimbaCloseStemTrim, MarembaEngine::kKalimbaRoomStemTrim,
+                       MarembaEngine::kKalimbaPiezoStemTrim};
+    const auto trim = [](const MarembaEngine& engine) { return MarembaEngineTestAccess::StemTrim(engine); };
+
+    context = "model switch: idle";
+    {
+        MarembaEngine engine(kRate);
+        engine.SetParameters(defaultPatch(0));
+        require(trim(engine) == bars, "a bar's trims are not exact at rest");
+        engine.SetParameters(defaultPatch(3));
+        require(trim(engine) == kalimba, "an idle Model change does not snap to the Kalimba's trims");
+        engine.SetParameters(defaultPatch(1));
+        require(trim(engine) == bars, "an idle Model change does not snap back to the bars' trims");
+        engine.SetParameters(defaultPatch(3));
+        engine.Reset();
+        require(trim(engine) == kalimba, "Reset does not snap to the current Model's trims");
+    }
+
+    for (int from : {0, 3}) {
+        const int to = from == 0 ? 3 : 0;
+        const Trim& start = from == 0 ? bars : kalimba;
+        const Trim& target = from == 0 ? kalimba : bars;
+        context = "model switch: " + std::string(from == 0 ? "bar to Kalimba" : "Kalimba to bar") + " while ringing";
+        MarembaEngine engine(kRate);
+        engine.SetParameters(defaultPatch(from));
+        for (const auto& note : kChord) engine.NoteOn(note.first, note.second);
+        std::array<std::vector<float>, 7> scratch;
+        for (auto& channel : scratch) channel.resize(kBatch);
+        const auto render = [&](int frames) {
+            engine.RenderBatch(scratch[0].data(), scratch[1].data(), scratch[2].data(), scratch[3].data(),
+                               scratch[4].data(), scratch[5].data(), scratch[6].data(), frames);
+        };
+        for (int block = 0; block < 4; ++block) render(kBatch);
+        require(trim(engine) == start, "trims drift while a note rings without a Model change");
+        engine.SetParameters(defaultPatch(to));
+        require(!engine.IsSilent(), "the switch fixture is not ringing");
+        require(trim(engine) == start, "a Model change while a note rings steps the trims at once");
+        Trim previous = start;
+        double largestStep = 0;
+        for (int frame = 0; frame < static_cast<int>(0.2 * kRate); ++frame) {
+            render(1);
+            const Trim now = trim(engine);
+            for (size_t stem = 0; stem < 3; ++stem) {
+                const double delta = static_cast<double>(now[stem]) - previous[stem];
+                const double direction = static_cast<double>(target[stem]) - start[stem];
+                require(delta * direction >= 0, "a trim moves away from its target");
+                largestStep = std::max(largestStep, std::fabs(delta));
+            }
+            previous = now;
+        }
+        require(largestStep < 0.005, "a trim moves faster than the 5 ms smoothing allows");
+        require(largestStep > 0, "the trims never move after a Model change");
+        require(previous == target, "the trims do not settle exactly on the new Model's values");
+    }
+
+    context = "model switch: bars keep their exact trims";
+    {
+        MarembaEngine engine(kRate);
+        engine.SetParameters(defaultPatch(0));
+        for (const auto& note : kChord) engine.NoteOn(note.first, note.second);
+        std::array<std::vector<float>, 7> scratch;
+        for (auto& channel : scratch) channel.resize(kBatch);
+        for (int block = 0; block < static_cast<int>(0.5 * kRate / kBatch); ++block)
+            engine.RenderBatch(scratch[0].data(), scratch[1].data(), scratch[2].data(), scratch[3].data(),
+                               scratch[4].data(), scratch[5].data(), scratch[6].data(), kBatch);
+        require(trim(engine) == bars, "a bar's trims drift while it sounds");
+    }
+}
 } // namespace
 
 int main() {
     independenceContracts();
     calibrationContracts();
+    modelSwitchContracts();
     std::cout << "DirectOutputLevelTest PASSED checks=" << checks << '\n';
 }

@@ -217,7 +217,7 @@ ArrivalResult CheckArrival(int note, double rate, int quality) {
     }
     const std::array<int, 3> ids{CaptureSourceIndex(EMarimbaModel::KalimbaArtisan, note),
                                 kCaptureBoardSource, kCaptureHoleSource};
-    const float gain = CaptureScene::kMasterMixScale * MarembaEngine::kCloseStemTrim; // stems never follow Volume
+    const float gain = CaptureScene::kMasterMixScale * MarembaEngine::kKalimbaCloseStemTrim; // the Kalimba's Close stem; never Volume
     const std::array<double, 9> frequencies{100, 300, 500, 1000, 2000, 4000, 8000, 12000,
                                           440 * std::exp2((note - 69) / 12.0)};
     for (int ear = 0; ear < 2; ++ear) for (double hz : frequencies) {

@@ -64,6 +64,8 @@ Halo haloResponse(int model, int note) {
     const double angle = (bipolar * (tine ? .40f : .45f) + .5f) * 1.57079632679f;
     const double oldPanSum = std::cos(angle) + std::sin(angle);
     double sourceDry = 0, sourceHalo = 0, predictionError = 0;
+    // The Close stem's calibration: the Kalimba has its own.
+    const float closeTrim = tine ? maremba::MarembaEngine::kKalimbaCloseStemTrim : maremba::MarembaEngine::kCloseStemTrim;
     std::array<float, 96> delay{}; // physical-output guard latency:2ms at48kHz
     size_t delayIndex = 0;
     Halo result;
@@ -103,7 +105,7 @@ Halo haloResponse(int model, int note) {
             float expectedL = 0, expectedR = 0, roomL = 0, roomR = 0;
             scene->Process(expectedL, expectedR, roomL, roomR);
             const double prediction = delay[delayIndex];
-            delay[delayIndex] = (expectedL + expectedR) * (.65f * maremba::MarembaEngine::kCloseStemTrim);
+            delay[delayIndex] = (expectedL + expectedR) * (.65f * closeTrim);
             delayIndex = (delayIndex + 1) % delay.size();
             if ((start + i) % 16 == 15) { voice.UpdateEnvelope(); mesh.FlushTiny(); board.FlushTiny(); scene->FlushTiny(); }
             const double x = left[0][i] + right[0][i];

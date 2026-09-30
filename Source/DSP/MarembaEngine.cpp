@@ -68,22 +68,17 @@ constexpr float kRollThreshold = 0.02f;
 constexpr double kCoverSmoothingSeconds = 0.012;
 constexpr uint32_t kRollSeed = 0x2468ACE1u;
 
-// Fixed gain of each direct tap: its capture's trim (MarembaEngine.h) times the
-// shared mix scale. A stem carries this calibration and nothing else. The three
+// The gain of a direct tap is its capture's trim (MarembaEngine.h) times the
+// shared mix scale; a stem carries this calibration and nothing else. The three
 // captures differ by several dB on the same playing (on a full-velocity chord
-// Room peaks 2.5 dB and Piezo 5.7 dB below Close), so a shared trim
-// would leave Room and Piezo behind Close. Each trim puts a full-velocity
-// eight-note chord (C3 to E5) at the top of its stem's own protection on the
-// median factory patch: ordinary playing never touches the protection, and only
-// the hardest strikes on hard-mallet patches lean on it, as on Main
-// (docs/OUTPUT_LEVEL.md). Close L, Close R, Room L, Room R, Piezo.
-constexpr float kDirectStemGain[] = {
-    CaptureScene::kMasterMixScale * MarembaEngine::kCloseStemTrim,
-    CaptureScene::kMasterMixScale * MarembaEngine::kCloseStemTrim,
-    CaptureScene::kMasterMixScale * MarembaEngine::kRoomStemTrim,
-    CaptureScene::kMasterMixScale * MarembaEngine::kRoomStemTrim,
-    CaptureScene::kMasterMixScale * MarembaEngine::kPiezoStemTrim,
-};
+// Room peaks 2.5 dB and Piezo 5.7 dB below Close), so a shared trim would leave
+// Room and Piezo behind Close. Each bar trim puts a full-velocity eight-note
+// chord (C3 to E5) at the top of its stem's own protection on the median
+// factory patch: ordinary playing never touches the protection, and only the
+// hardest strikes on hard-mallet patches lean on it, as on Main. The Kalimba's
+// trims bring its stems to within about 2 dB of the bars' median phrase
+// loudness on the three factory Kalimba patches, with at most 3 dB of
+// protection on a forte chord (docs/OUTPUT_LEVEL.md).
 
 // Steal score of a voice: how loud it sounds now (the last ~30 ms), so bass
 // and treble voices compare by what is heard; a non-finite voice is the first
@@ -317,6 +312,12 @@ void MarembaEngine::SetParameters(const EngineParameters& params) {
     }
 }
 
+std::array<float, 3> MarembaEngine::StemTrimsFor(int model) {
+    if (model == static_cast<int>(EMarimbaModel::KalimbaArtisan))
+        return {kKalimbaCloseStemTrim, kKalimbaRoomStemTrim, kKalimbaPiezoStemTrim};
+    return {kCloseStemTrim, kRoomStemTrim, kPiezoStemTrim};
+}
+
 void MarembaEngine::SnapLiveControls() {
     mCover = mParams.model == static_cast<int>(EMarimbaModel::KalimbaArtisan) ? mParams.modWheel : 0.0f;
     mKalimbaBody.SetCover(mCover);
@@ -332,6 +333,7 @@ void MarembaEngine::SnapLiveControls() {
     mPiezoGain = mParams.piezoLevel;
     mStereoWidth = mParams.stereoWidth;
     mDrive = mParams.preampDrive;
+    mStemTrim = StemTrimsFor(mParams.model);
 }
 
 void MarembaEngine::SmoothLiveControls() {
@@ -346,6 +348,8 @@ void MarembaEngine::SmoothLiveControls() {
     smooth(mPiezoGain, mParams.piezoLevel);
     smooth(mStereoWidth, mParams.stereoWidth);
     smooth(mDrive, mParams.preampDrive);
+    const std::array<float, 3> stemTrim = StemTrimsFor(mParams.model);
+    for (std::size_t stem = 0; stem < stemTrim.size(); ++stem) smooth(mStemTrim[stem], stemTrim[stem]);
     // Finish the audible fade before clearing a bypassed branch. Re-enabling
     // it starts from silence rather than reviving an old stored resonance.
     const bool meshOn = mSympatheticGain > 0.0f;
@@ -982,15 +986,14 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         // Complete microphone/electrical captures, before the main mix and
         // dynamics. Each carries only its fixed calibration: Volume and the
         // other Main-mix controls never reach a stem.
-        static_assert(sizeof(kDirectStemGain) / sizeof(kDirectStemGain[0]) == kNumDirectOuts,
-                      "one calibrated gain per direct tap");
+        static_assert(kNumDirectOuts == 5, "a stereo Close pair, a stereo Room pair and one Piezo: three trims");
         for (int k = 0; k < kNumDirectOuts; ++k) {
             if (direct[k]) {
                 if (!mDirectRunning[k]) {
                     mOutputHeadroom.ResetDirect(k);
                     mDirectRunning[k] = true;
                 }
-                frame[k + 2] = capture[k] * kDirectStemGain[k];
+                frame[k + 2] = capture[k] * (CaptureScene::kMasterMixScale * mStemTrim[static_cast<std::size_t>(k / 2)]);
             } else {
                 mDirectRunning[k] = false;
             }
