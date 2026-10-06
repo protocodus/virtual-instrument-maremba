@@ -202,6 +202,16 @@ inline double KalimbaMountedShape(const KalimbaMountShape& shape, int mode, doub
     return lo + shape.fraction * (hi - lo);
 }
 
+// A yielding bridge's reaction is -kappa*phi(0), from the shear jump across
+// its spring. The common stiffness cancels against the fundamental. Keep
+// signed modal ratios; a mode with a node at the bridge must barely drive
+// the board even when its tip moves strongly. Only the positive fundamental
+// (bounded away from zero over the fitted mount range) is a denominator.
+// The voice applies its existing fundamental body-output calibration once.
+inline double KalimbaMountedBridgeRatio(const KalimbaMountShape& shape, int mode) {
+    return KalimbaMountedShape(shape, mode, 0.0) / KalimbaMountedShape(shape, 0, 0.0);
+}
+
 inline double KalimbaMountedRadiationSample(const KalimbaMountShape& shape, int mode, double position) {
     return KalimbaMountedContactWeight(shape, mode, position, 0.0);
 }

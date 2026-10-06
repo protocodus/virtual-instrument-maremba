@@ -30,6 +30,7 @@ ModalRadiationTest         # radiation geometry and projections
 AcousticReadoutTest        # finite bar area, signed surface pressure and source crest
 KalimbaModesTest           # the supported-beam tine
 KalimbaMountShapesTest     # the yielding bridge's mode shapes
+KalimbaBridgeReactionTest  # signed box drive agrees with the yielding mount and its losses
 MalletContactTest          # Hertzian head: passivity, contact times
 SlackMembraneStretchTest   # the stretched membrane
 Round3ResponseTest         # restrikes, clamp-bridge tine, neighbour halo
