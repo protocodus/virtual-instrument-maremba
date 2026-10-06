@@ -57,7 +57,7 @@ static constexpr KalimbaBeamMode kKalimbaBeamModes[8] = {
 // END GENERATED KALIMBA MODES
 
 // Mounted tine frequencies and bridge losses. The two-span shapes above keep
-// the round-3 rigid-bridge solution for contact, radiation and strain, but a
+// the round-3 rigid-bridge solution for Carving's stiff endpoint, but a
 // real tine rests on a bridge that yields under its reaction, and the
 // pressure bar holds it with a line contact that lets it rotate. That mount
 // lowers the upper modes more than the fundamental, more so for short, stiff
@@ -140,7 +140,8 @@ inline KalimbaMount GetKalimbaMount(double fundamentalHz) {
 
 // Reaction the bridge takes per unit modal displacement: the jump of the
 // third derivative (shear force / EI) across the support, in free-length
-// units. Rigid-bridge shapes, consistent with contact and radiation.
+// units. Rigid-bridge reference for Carving and fundamental output calibration;
+// the as-built voice uses KalimbaMountedBridgeRatio for its modal balance.
 inline double KalimbaBridgeShearJump(int mode) {
     const auto& data = kKalimbaBeamModes[std::clamp(mode, 0, 7)];
     const double b = data.beta;

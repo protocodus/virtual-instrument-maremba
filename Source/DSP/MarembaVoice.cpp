@@ -918,7 +918,16 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
             const double direct = BarDirectRadiationScale(fm, geometry.width);
             mRadiationGain[m] = params.radiationGain * kRadiationUnit * 0.007 * omegaSeconds * omegaSeconds
                               * mode.toDisplacement * direct;
-            mBridgeGain[m] = bridgeCoupling * tineStiffness * KalimbaBridgeShearJump(m) / (tineLength * tineLength * tineLength)
+            // The same yielding mount drives the box and the microphones.
+            // Preserve the established fundamental output with one common
+            // gain, while every overtone keeps its signed spring reaction.
+            // Carving follows the existing approximate mounted/rigid morph;
+            // normalize each endpoint by its fundamental before blending.
+            const double mountedBridge = KalimbaMountedBridgeRatio(mountShape, m);
+            const double rigidBridge = kKalimbaBeamModes[m].contactScale * KalimbaBridgeShearJump(m)
+                / (kKalimbaBeamModes[0].contactScale * KalimbaBridgeShearJump(0));
+            const double bridgeRatio = mountedBridge + 0.65 * (1.0 - carving) * (rigidBridge - mountedBridge);
+            mBridgeGain[m] = bridgeCoupling * tineStiffness * KalimbaBridgeShearJump(0) * bridgeRatio / (tineLength * tineLength * tineLength)
                            * mode.toDisplacement;
             mSupportGain[m] = 0.0;
         } else {
