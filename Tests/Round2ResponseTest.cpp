@@ -30,7 +30,7 @@ constexpr double pi = 3.14159265358979323846;
 struct Settings {
     int model = 0, note = 60;
     double rate = 96000, seconds = .12;
-    float cavityTune = 0, buzz = 0;
+    float cavityTune = 0, buzz = 0, tension = .5f;
     bool disableBuzz = false;
     std::vector<double>* buzzEnergy = nullptr;   // per-sample Buzz layer energy
 };
@@ -38,11 +38,13 @@ std::vector<double> render(const Settings& s) {
     maremba::MarembaVoice voice;
     maremba::FastPRNG random(0x812u);
     voice.SetSeed(0x812u);
+    maremba::StrikeOptions options;
+    options.membraneTension = s.tension;
     voice.Trigger(s.note, 1, static_cast<maremba::EMarimbaModel>(s.model), .9f, .35f,
-                  s.cavityTune, 1, 1, s.buzz, 0, 0, s.rate, random, 0, 0, 3, 0);
+                  s.cavityTune, 1, 1, s.buzz, 0, 0, s.rate, random, 0, 0, 3, 0, 0, options);
     std::vector<double> output(static_cast<size_t>(s.seconds * s.rate));
     for (size_t i = 0; i < output.size(); ++i) {
-        if (s.disableBuzz && i == static_cast<size_t>(.04 * s.rate)) voice.SetBuzz(0);
+        if (s.disableBuzz && i == static_cast<size_t>(.04 * s.rate)) voice.SetBuzz(0, s.tension);
         float close, far, piezo;
         voice.ProcessSample(close, far, piezo);
         output[i] = close;
@@ -176,6 +178,10 @@ int main(int argc, char** argv) {
         Settings s;
         s.model = model; s.note = note;
         s.buzz = 1; s.disableBuzz = true;
+        // The yielding Kalimba bridge leaves a low C3 below the buzzer's
+        // default lift-off preload. Slack tension makes this release probe
+        // excite the layer without changing the excitation or decay gates.
+        if (model == 3 && note == 48) s.tension = 0;
         std::vector<double> layer;
         s.buzzEnergy = &layer;
         const auto released = render(s);
@@ -185,11 +191,13 @@ int main(int argc, char** argv) {
         };
         const double before = peak(.02, .04), after = peak(.06, .08);
         const double decay = db(after/std::max(before, 1.e-30));
-        check(before > 1.e-12, "Buzz-off probe never excited its membrane");
+        check(before > 1.e-12, "Buzz-off probe never excited its membrane model="
+              + std::to_string(model) + " note=" + std::to_string(note));
         check(energy(released) > 0 && std::isfinite(decay) && decay < -60,
               "disabled membrane fails to release model="
               + std::to_string(model) + " note=" + std::to_string(note));
         std::cout << "BUZZ_OFF model=" << model << " note=" << note
+                  << " tension=" << s.tension << " energy_before=" << before
                   << " residual_after_20ms_db=" << decay << '\n';
     }
 
