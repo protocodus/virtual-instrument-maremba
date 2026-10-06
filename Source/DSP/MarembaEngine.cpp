@@ -54,11 +54,11 @@ constexpr float kBodyBloomGain = 0.375f;
 // Kalimba box radiation per unit of bridge force rate; Body scales it from a
 // board that barely rings (0) to a resonant box (1), never to silence.
 constexpr double kKalimbaBodyGain = 0.072;
-// Main-output level, without changing physical excitation or Piezo drive.
-// The limiter receives the lift: its makeup holds limited material at its
-// -3 dBFS reference, so the lift raises what sits below the threshold, and
-// the headroom stage catches the strike transients that pass its attack.
-constexpr float kMainCalibrationGain = 4.0f; // +12.04 dB before limiting
+// Retain the selected musical limiter response, then lower Main to 70% before
+// its independent safety guard. Moving this reduction before the limiter would
+// change its response to harder playing instead of simply lowering the output.
+constexpr float kMainCalibrationGain = 4.0f;
+constexpr float kMainOutputCalibrationGain = 0.7f;
 // Mod-wheel rolls: stroke rate at the wheel's bottom and top, two alternating
 // mallets landing a little either side of the set position.
 constexpr double kRollMinRate = 6.0, kRollMaxRate = 20.0;
@@ -69,16 +69,10 @@ constexpr double kCoverSmoothingSeconds = 0.012;
 constexpr uint32_t kRollSeed = 0x2468ACE1u;
 
 // The gain of a direct tap is its capture's trim (MarembaEngine.h) times the
-// shared mix scale; a stem carries this calibration and nothing else. The three
-// captures differ by several dB on the same playing (on a full-velocity chord
-// Room peaks 2.5 dB and Piezo 5.7 dB below Close), so a shared trim would leave
-// Room and Piezo behind Close. Each bar trim puts a full-velocity eight-note
-// chord (C3 to E5) at the top of its stem's own protection on the median
-// factory patch: ordinary playing never touches the protection, and only the
-// hardest strikes on hard-mallet patches lean on it, as on Main. The Kalimba's
-// trims bring its stems to within about 2 dB of the bars' median phrase
-// loudness on the three factory Kalimba patches, with at most 3 dB of
-// protection on a forte chord (docs/OUTPUT_LEVEL.md).
+// shared mix scale; a stem carries this calibration and nothing else. Bar and
+// Kalimba families retain their original balance at 70% nominal amplitude.
+// Each stereo pair or mono Piezo keeps its own independent protection, which
+// may act on louder material (docs/OUTPUT_LEVEL.md).
 
 // Steal score of a voice: how loud it sounds now (the last ~30 ms), so bass
 // and treble voices compare by what is heard; a non-finite voice is the first
@@ -981,7 +975,8 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         // factor change clears the queued audio.
         mVolumeGain += mVolumeAlpha * (volumeTarget - mVolumeGain);
         const float gain = mVolumeGain;
-        std::array<float, 7> frame = {mainL * gain, mainR * gain, 0, 0, 0, 0, 0};
+        std::array<float, 7> frame = {mainL * gain * kMainOutputCalibrationGain,
+                                    mainR * gain * kMainOutputCalibrationGain, 0, 0, 0, 0, 0};
 
         // Complete microphone/electrical captures, before the main mix and
         // dynamics. Each carries only its fixed calibration: Volume and the

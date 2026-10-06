@@ -44,9 +44,9 @@ struct EngineParameters {
     float piezoLevel = 0.30f;       // 0..1 independent capture coefficient
     float stereoWidth = 1.0f;       // 0..2 (1 = natural), applied to the main bus
 
-    float preampDrive = 0.15f;      // 0..1 Piezo amplifier only; legacy stored name
+    float preampDrive = 0.05f;      // 0..1 Piezo amplifier only; legacy stored name
     float warmth = 0.10f;           // -1..1 tilt
-    float compAmount = 0.25f;       // 0..1 analog limiter; legacy stored name
+    float compAmount = 0.05f;       // 0..1 analog limiter; legacy stored name
     float compAttack = 10.0f;       // main limiter control attack, ms, 1..50
     float compRelease = 120.0f;     // initial limiter recovery, ms, 20..500
 
@@ -90,15 +90,14 @@ public:
     // CaptureScene::kMasterMixScale. Volume, the Level knobs, Width, Warmth and
     // Limit shape Main only and never reach a direct output. The calibration and
     // its evidence are in MarembaEngine.cpp and docs/OUTPUT_LEVEL.md.
-    static constexpr float kCloseStemTrim = 0.40f;
-    static constexpr float kRoomStemTrim = 0.55f;
-    static constexpr float kPiezoStemTrim = 0.70f;
-    // The Kalimba radiates and picks up less than a bar (its Close capture most
-    // of all) and the stems carry no makeup, so it has its own trims: 6.0, 3.0
-    // and 1.5 dB above the bars'.
-    static constexpr float kKalimbaCloseStemTrim = 0.80f;
-    static constexpr float kKalimbaRoomStemTrim = 0.78f;
-    static constexpr float kKalimbaPiezoStemTrim = 0.83f;
+    static constexpr float kCloseStemTrim = 0.28f;
+    static constexpr float kRoomStemTrim = 0.385f;
+    static constexpr float kPiezoStemTrim = 0.49f;
+    // Both families use 70% of their original fixed calibration. The direct
+    // outputs retain independent guards and never follow Main controls.
+    static constexpr float kKalimbaCloseStemTrim = 0.56f;
+    static constexpr float kKalimbaRoomStemTrim = 0.546f;
+    static constexpr float kKalimbaPiezoStemTrim = 0.581f;
 
     // Allocates everything the engine will ever need (delay lines are sized for
     // 8x the construction sample rate; the host re-creates the native object

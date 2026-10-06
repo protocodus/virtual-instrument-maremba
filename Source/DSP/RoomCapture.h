@@ -341,13 +341,17 @@ private:
         return result;
     }
     static NetworkVoicing Voicing(int type) {
-        // Diverse path lengths around the mean free path4V/S; mean multiplier1.
+        // Statistical diffuse paths span several wall flights in the smaller
+        // rooms. More total delay memory raises modal density without adding
+        // feedback lines; short input diffusers retain the initial buildup.
         constexpr double ratios[12]={.43,.53,.61,.71,.79,.89,1.01,1.13,1.27,1.39,1.53,1.71};
         double mean=0.0;for(double r:ratios)mean+=r/12.0;
         NetworkVoicing result{};const double flight=MeanFlightSeconds(type);
-        for(size_t i=0;i<result.lines.size();++i)result.lines[i]=flight*ratios[i]/mean;
+        const double loopFlights=type==2?1.0:2.5;
+        for(size_t i=0;i<result.lines.size();++i)result.lines[i]=loopFlights*flight*ratios[i]/mean;
         result.diffusers={flight*.131,flight*.217,flight*.307};
         result.diffusion=.61;result.decay={1.0,1.0,.7,.4};
+        result.loopDiffusion=true;
         return result;
     }
     static double LateFeedSeconds(int type,CapturePoint source,int channel) {

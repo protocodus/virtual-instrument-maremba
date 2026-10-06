@@ -20,6 +20,7 @@ struct NetworkVoicing {
     std::array<double, 3> diffusers;  // series input allpasses
     double diffusion;                 // allpass coefficient
     DecayProfile decay;
+    bool loopDiffusion = false;        // short lossless allpasses inside each loop
 };
 
 // Voicing delays are distinct prime numbers of samples at this reference tick
@@ -133,6 +134,63 @@ private:
     float mCoefficient = 1.0f, mState = 0.0f;
 };
 
+// Short Schroeder allpass, H(z)=(D(z)-g)/(1-g*D(z)). External storage is
+// reserved with the FDN; configuration and rendering never allocate. D(z) is
+// an integer delay followed by a first-order Thiran allpass of delay [1,2).
+// Its magnitude is unity and its maximum group delay is the exact configured
+// delay, at DC. The complete diffuser is bounded by delay*(1+|g|)/(1-|g|).
+// Keeping the fractional section at >=1 sample avoids its Nyquist delay peak;
+// requested delays shorter than one sample are an exact, stateless bypass.
+class RoomLoopDiffuser {
+public:
+    static constexpr float kMaximumCoefficient = .35f;
+    void Configure(double delay, float coefficient) {
+        mExactDelay = delay >= 1.0 ? delay : 0.0;
+        mDelay = mExactDelay > 0.0 ? static_cast<int>(std::floor(mExactDelay)) - 1 : 0;
+        mCoefficient = std::clamp(coefficient, -kMaximumCoefficient, kMaximumCoefficient);
+        const double fractional = mExactDelay > 0.0 ? mExactDelay - mDelay : 1.0;
+        mFractionCoefficient = static_cast<float>((1.0 - fractional) / (1.0 + fractional));
+        mImmediateCoefficient = (mFractionCoefficient - mCoefficient)
+                              / (1.0f - mFractionCoefficient * mCoefficient);
+        mFractionState = 0.0f;
+        mWrite = 0;
+    }
+    float Process(float input, float* storage) {
+        if (mExactDelay == 0.0) return input;
+        if (mDelay == 0) {
+            // The core has feedthrough here. Solve that feedback analytically
+            // as one allpass, rather than introducing an extra sample delay.
+            const float output = mImmediateCoefficient * input + mFractionState;
+            mFractionState = FlushTiny(input - mImmediateCoefficient * output);
+            return output;
+        }
+        const float read = storage[mWrite];
+        const float delayed = mFractionCoefficient * read + mFractionState;
+        mFractionState = FlushTiny(read - mFractionCoefficient * delayed);
+        const float output = delayed - mCoefficient * input;
+        storage[mWrite] = FlushTiny(input + mCoefficient * output);
+        if (++mWrite == mDelay) mWrite = 0;
+        return output;
+    }
+    void Reset(float* storage) {
+        if (mDelay > 0) std::fill(storage, storage + mDelay, 0.0f);
+        mFractionState = 0.0f;
+        mWrite = 0;
+    }
+    int Delay() const { return mDelay; }
+    double ExactDelay() const { return mExactDelay; }
+    float Coefficient() const { return mCoefficient; }
+    double MaximumGroupDelay() const {
+        const double magnitude = std::abs(static_cast<double>(mCoefficient));
+        return mExactDelay * (1.0 + magnitude) / (1.0 - magnitude);
+    }
+private:
+    int mDelay = 0, mWrite = 0;
+    double mExactDelay = 0.0;
+    float mCoefficient = 0.0f, mFractionCoefficient = 0.0f;
+    float mImmediateCoefficient = 0.0f, mFractionState = 0.0f;
+};
+
 // Twelve delay lines coupled by an orthogonal (lossless) matrix, a feedback
 // delay network: every line feeds every other line on each pass, so the echo
 // count multiplies twelve-fold per pass and the tail turns noise-like within a
@@ -155,7 +213,15 @@ public:
     size_t Layout(const NetworkVoicing& voicing, double maxRate) {
         mLineSpan = Span(voicing.lines, maxRate);
         mDiffuserSpan = Span(voicing.diffusers, maxRate);
-        return static_cast<size_t>(kLines * mLineSpan + kDiffusers * mDiffuserSpan);
+        mLoopDiffuserSpan = 0;
+        if (voicing.loopDiffusion) {
+            for (int i = 0; i < kLines; ++i)
+                mLoopDiffuserSpan = std::max(mLoopDiffuserSpan,
+                    static_cast<int>(std::floor(voicing.lines[static_cast<size_t>(i)]
+                        * maxRate * kLoopDiffuserRatios[static_cast<size_t>(i)])) + 1);
+        }
+        return static_cast<size_t>(kLines * mLineSpan + kDiffusers * mDiffuserSpan
+                                 + kLines * mLoopDiffuserSpan);
     }
 
     // Realtime safe: lengths and absorption for this rate, then clear. Without
@@ -166,6 +232,7 @@ public:
         mScatterEnabled = scatterSeed != 0;
         if (mScatterEnabled) mScatter.Configure(rate, scatterSeed);
         const bool allocated = !memory.empty();
+        mLoopDiffusionEnabled = allocated && voicing.loopDiffusion && mLoopDiffuserSpan > 0;
         mLength = mDiffuserLength = 0;
         double all = 0.0, panels = 0.0;
         for (int i = 0; i < kLines; ++i) {
@@ -174,6 +241,10 @@ public:
                 ? std::clamp(static_cast<int>(std::floor(exact)), 1, mLineSpan-1)
                 : Samples(voicing.lines[static_cast<size_t>(i)], rate, mLineSpan)) : 1;
             mFraction[i].SetFraction(exact - std::floor(exact));
+            const double loopDelay = mLoopDiffusionEnabled ? std::min(
+                exact * kLoopDiffuserRatios[static_cast<size_t>(i)],
+                static_cast<double>(mLoopDiffuserSpan)) : 0.0;
+            mLoopDiffuser[i].Configure(loopDelay, kLoopDiffuserCoefficients[static_cast<size_t>(i)]);
             if (allocated) mLength = std::max(mLength, mDelay[i] + 1);
             const double length = fractionalTiming ? exact : mDelay[i];
             all += length;
@@ -216,6 +287,11 @@ public:
         mHighState.fill(0.0f);
         for (auto& delay : mFraction) delay.Reset();
         for (auto& delay : mDiffuserFraction) delay.Reset();
+        if (mLoopDiffusionEnabled) {
+            float* const base = memory.data() + kLines * mLineSpan + kDiffusers * mDiffuserSpan;
+            for (int i = 0; i < kLines; ++i)
+                mLoopDiffuser[i].Reset(base + i * mLoopDiffuserSpan);
+        }
         if (resetMotion && mScatterEnabled) mScatter.Reset();
     }
 
@@ -302,12 +378,18 @@ public:
     }
 
 private:
+    friend struct FeedbackNetworkTestAccess;
     // Output of line i through its absorption: gain (with the panels' low shelf
     // on the first line of a group), then the high shelf.
-    float Absorb(int i, const float* m, bool panel) {
+    float Absorb(int i, float* m, bool panel) {
         const int at = mWrite - mDelay[i];
         const float read = m[i * mLineSpan + (at < 0 ? at + mLength : at)];
-        const float s = mFractionalTiming ? mFraction[i].Process(read) : read;
+        float s = mFractionalTiming ? mFraction[i].Process(read) : read;
+        if (mLoopDiffusionEnabled) {
+            float* const storage = m + kLines * mLineSpan + kDiffusers * mDiffuserSpan
+                                   + i * mLoopDiffuserSpan;
+            s = mLoopDiffuser[i].Process(s, storage);
+        }
         float u = mLowB0[i] * s;
         if (panel) {
             u += mLowState[i];
@@ -370,8 +452,16 @@ private:
     }
 
     static constexpr double kLowShelfHz = 200.0;
+    // At |g|<=.35 the maximum added group delay is less than 3.95% of each
+    // original loop. At low rates an unrepresentable sub-sample delay bypasses.
+    // The small added phase delay is measured by decay contracts; absorption
+    // remains the same monotone four-band fit used by the undiffused network.
+    static constexpr std::array<double, kLines> kLoopDiffuserRatios{
+        .008, .011, .014, .017, .019, .010, .013, .016, .018, .012, .015, .019};
+    static constexpr std::array<float, kLines> kLoopDiffuserCoefficients{
+        .31f, -.33f, .35f, -.30f, .34f, -.32f, -.35f, .30f, -.31f, .33f, -.34f, .32f};
 
-    int mLineSpan = 0, mDiffuserSpan = 0;             // capacity per line (Allocate)
+    int mLineSpan = 0, mDiffuserSpan = 0, mLoopDiffuserSpan = 0; // capacity per line (Allocate)
     int mLength = 0, mDiffuserLength = 0;             // active circular length
     int mWrite = 0, mDiffuserWrite = 0;
     std::array<int, kLines> mDelay{};
@@ -380,8 +470,10 @@ private:
     std::array<float, kLines> mLowState{}, mHighState{};
     std::array<RoomFractionalDelay, kLines> mFraction{};
     std::array<RoomFractionalDelay, kDiffusers> mDiffuserFraction{};
+    std::array<RoomLoopDiffuser, kLines> mLoopDiffuser{};
     bool mFractionalTiming = false;
     bool mScatterEnabled = false;
+    bool mLoopDiffusionEnabled = false;
     RoomScatterMotion mScatter;
     RoomScatterMotion::Coefficients mScatterCoefficients{};
     float mDiffusion = 0.0f;

@@ -806,15 +806,34 @@ void TestLegacyPitchGlideIgnored()
 void TestSympatheticHalo()
 {
     std::cout << "[Halo] Sympathetic mesh adds a tail (differential) ..." << std::endl;
+    constexpr double rate = 44100.0;
     EngineParameters p = CleanParams();
     p.decay = 0.5f;
     p.sympathetic = 0.0f;
-    Render off = RenderNote(44100.0, p, 60, 0.9f, 1.0);
+    const Render off = RenderNote(rate, p, 60, 0.9f, 1.5);
     p.sympathetic = 0.8f;
-    Render on = RenderNote(44100.0, p, 60, 0.9f, 1.0);
-    const double rel = DiffEnergy(on.ch[kMainL], off.ch[kMainL], 0, on.size()) / Energy(off.ch[kMainL], 0, off.size());
-    std::cout << "  -> halo " << 10.0 * std::log10(rel) << " dB re bar" << std::endl;
-    CHECK(rel > 1e-4, "sympathetic halo inaudible");
+    const Render on = RenderNote(rate, p, 60, 0.9f, 1.5);
+    // Measure the ringing tail after the first half-second, not the attack
+    // and initial room buildup. A whole-note ratio conflates physical halo
+    // audibility with changes in the room's energy. Keep the original -40 dB
+    // relative bound, and also check direct Close so reverb cannot stand in
+    // for the mechanical source. Absolute floors reject a vanishing reference
+    // or roundoff-sized differential; this is not an absolute hearing test.
+    const size_t from = static_cast<size_t>(rate * 0.5);
+    for (int first : {kMainL, kCloseL}) {
+        double difference = 0.0, reference = 0.0;
+        for (int channel = first; channel < first + 2; ++channel) {
+            difference += DiffEnergy(on.ch[channel], off.ch[channel], from, on.size());
+            reference += Energy(off.ch[channel], from, off.size());
+        }
+        const double rms = std::sqrt(difference / (2.0 * (on.size() - from)));
+        const double rel = difference / std::max(reference, 1e-30);
+        std::cout << "  -> " << (first == kMainL ? "Main" : "Close") << " 0.5-1.5 s halo "
+                  << 10.0 * std::log10(rel) << " dB re bar, " << Db(rms) << " dBFS" << std::endl;
+        CHECK(reference > 1e-6 && std::isfinite(rms) && rms > 1e-6,
+              "halo tail fixture is silent or numerically negligible");
+        CHECK(rel > 1e-4, "sympathetic halo inaudible in the ringing tail");
+    }
 }
 
 void TestBodyBloom()
@@ -2154,7 +2173,9 @@ void TestDirectOutMatchesMain()
 {
     std::cout << "[Gain] Direct close out matches the main bus close path ..." << std::endl;
     constexpr double kCloseStemTrim = MarembaEngine::kCloseStemTrim; // published Close direct-output trim
-    constexpr double kMainCalibrationGain = 4.0;
+    // Deliberate public output calibration: fixed gain 4 followed by 70% output.
+    // Keep this independent of the implementation so a gain regression fails.
+    constexpr double kMainCalibrationGain = 2.8;
     EngineParameters p = CleanParams();
     p.farLevel = 0.0f; p.piezoLevel = 0.0f; p.closeLevel = 1.0f; p.stereoWidth = 1.0f;
     p.compAmount = 0.0f; p.preampDrive = 0.0f; p.warmth = 0.0f;
@@ -2185,6 +2206,52 @@ void TestDirectOutMatchesMain()
         }
         std::cout << "  -> os " << os << ": direct vs main " << Db(std::sqrt(err / lvl)) << " dB" << std::endl;
         CHECK(err < 1e-8 * lvl, "direct close differs from the main close path (os " << os << ")");
+    }
+}
+
+// The selected output reduction belongs after the musical limiter. Moving it
+// before the detector preserves quiet-note gain but changes hard-hit dynamics.
+void TestMainOutputGainAfterLimiter()
+{
+    std::cout << "[Gain] Seventy-percent output follows musical limiting ..." << std::endl;
+    for (double rate : {44100.0, 96000.0}) {
+        EngineParameters p = CleanParams();
+        p.closeLevel = 1; p.farLevel = p.piezoLevel = 0; p.stereoWidth = 1;
+        p.preampDrive = p.warmth = 0; p.compAmount = 1; p.volume = .1f;
+        const Render actual = RenderNote(rate, p, 60, .9f, .5);
+        CHECK(std::max(Peak(actual.ch[kCloseL]), Peak(actual.ch[kCloseR])) < .5,
+              "limiter-placement fixture drives the direct guard");
+        CHECK(std::max(Peak(actual.ch[kMainL]), Peak(actual.ch[kMainR])) < .5,
+              "limiter-placement fixture drives the Main guard");
+        maremba::AnalogPreamp preamp; preamp.SetSampleRate(rate); preamp.Reset();
+        maremba::AnalogLimiter correct, before;
+        for (auto* limiter : {&correct, &before}) {
+            limiter->SetSampleRate(rate); limiter->SetTimes(p.compAttack, p.compRelease);
+            limiter->SetAmount(p.compAmount); limiter->Reset();
+        }
+        const float volume = p.volume * p.volume;
+        double error = 0, wrongPlacement = 0, energy = 0;
+        for (size_t i = 0; i < actual.size(); ++i) {
+            float preL, preR, limitedL, limitedR, wrongL, wrongR;
+            preamp.Process(actual.ch[kCloseL][i] / MarembaEngine::kCloseStemTrim,
+                           actual.ch[kCloseR][i] / MarembaEngine::kCloseStemTrim, 0, 0, preL, preR);
+            correct.Process(preL * 4.0f, preR * 4.0f, limitedL, limitedR);
+            before.Process(preL * 4.0f * .7f, preR * 4.0f * .7f, wrongL, wrongR);
+            const float expected[2] = {limitedL * volume * .7f, limitedR * volume * .7f};
+            const float incorrect[2] = {wrongL * volume, wrongR * volume};
+            for (int channel = 0; channel < 2; ++channel) {
+                const double difference = actual.ch[channel][i] - expected[channel];
+                const double wrong = actual.ch[channel][i] - incorrect[channel];
+                error += difference * difference; wrongPlacement += wrong * wrong;
+                energy += static_cast<double>(expected[channel]) * expected[channel];
+            }
+        }
+        CHECK(energy > 1.e-6 && error < 1.e-8 * energy,
+              "Main does not match gain4 -> limiter -> volume -> gain0.7");
+        CHECK(wrongPlacement > 1.e-3 * energy,
+              "limiter-placement fixture cannot distinguish a pre-detector reduction");
+        std::cout << "  -> " << rate << " Hz: correct path " << Db(std::sqrt(error/energy))
+                  << " dB, wrong placement " << Db(std::sqrt(wrongPlacement/energy)) << " dB" << std::endl;
     }
 }
 
@@ -3390,6 +3457,11 @@ int main(int argc, char** argv)
         TestRoomCoefficientPreservesTail();
         return gFailures ? 1 : 0;
     }
+    if (argc == 2 && std::string(argv[1]) == "--output-calibration") {
+        TestDirectOutMatchesMain();
+        TestMainOutputGainAfterLimiter();
+        return gFailures ? 1 : 0;
+    }
     if (argc == 2 && std::string(argv[1]) == "--capture-scene") {
         TestRateInvariance();
         TestDirectOutMatchesMain();
@@ -3467,6 +3539,7 @@ int main(int argc, char** argv)
     TestMaxDecayRateInvariant();
     TestHaloRateInvariant();
     TestDirectOutMatchesMain();
+    TestMainOutputGainAfterLimiter();
     TestDirectOutHeadroom();
     TestVolumeSmoothing();
     TestBendLeavesNothingBehind();

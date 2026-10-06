@@ -10,6 +10,7 @@ CloseCaptureTest          # measured binaural filtering, causal propagation and 
 CloseEngineArrivalTest    # actual strikes against measured ears, physical flight and electrical timing
 RoomCaptureTest           # causal direct/images, shared absorption and diffuse room behavior
 RoomScatterMotionTest     # smooth seeded orthogonal mixing with bounded energy and rate-independent timing
+RoomLoopDiffusionTest     # lossless fractional loop scattering, allocation/reset and group-delay bounds
 RoomMotionTest            # evolving late field, unchanged early paths, decay and reset/idle lifecycle
 RoomMicrophoneTest        # pressure capsule, vent, buffer and output-coupling transfer
 PiezoEngineTest            # complete captures, shared plate sensor, routing and tails
@@ -18,7 +19,7 @@ CompactCaptureSourceTest   # one emitted pressure with explicit Close/Room refer
 CaptureSceneEqualityTest   # exact lazy/eager ear decimation, transitions, isolation and lifecycle
 HeadroomTest               # smooth overload protection, quiet unity, aligned capture latency
 HardHitOutputTest          # every hard striker, velocity 127, extreme notes and repeated 24-note chords
-DirectOutputLevelTest      # direct outputs ignore every Main-mix control and are calibrated level with each other
+DirectOutputLevelTest      # direct routing independence, calibration anchors and stress safety
 MechanicalArtifactsTest    # rebounds, grazes, neighbour brushes, rattles
 ClickFilterCalibrationTest # unity-centre impact and membrane-noise filters at 32 rates
 CollisionResponseTest      # mounting collisions driven by vibration
@@ -46,7 +47,7 @@ BuzzRangeTest              # the Buzz knob's physical range on every path
 StrikeVarianceTest         # the Variance control's smooth spread
 NaturalStrikeResponseTest  # zero-Variance natural hits, physical velocity, exact Reset replay
 SoftVelocityTest           # Sigmoid slow hits stay quiet and mellow without optional VOL routes
-RoomQualityTest            # the three rooms' density, roughness and T60
+RoomQualityTest            # legacy RoomBank density, roughness and T60 (not production RoomCapture)
 BarModesTest               # the carved bars' generated modes
 VelocityRoutesTest         # the ten velocity routes
 ParameterReachabilityTest  # every sound control on every model, including dry Tension

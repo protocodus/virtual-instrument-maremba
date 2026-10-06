@@ -209,6 +209,54 @@ void independentGroups(double rate) {
     }
 }
 
+void simultaneousIndependentGroups() {
+    context = "simultaneous independent group envelopes";
+    constexpr int rate = 48000;
+    OutputHeadroom combined;
+    std::array<OutputHeadroom, 4> isolated;
+    combined.SetSampleRate(rate);
+    for (auto& processor : isolated) processor.SetSampleRate(rate);
+    const int delay = OutputHeadroom::LatencyFrames(rate);
+    std::array<bool, 4> reduced{};
+    for (int i = 0; i < rate; ++i) {
+        Frame input{.1f, -.2f, .15f, -.1f, .12f, -.08f, .1f};
+        // Overlapping overloads have different levels and release times.
+        // A single shared envelope can pass equal-overload tests, so compare
+        // each group to a processor that has never seen any other capture.
+        if (i >= 480 && i < 1440) input[1] = -20.f;  // Main right only
+        if (i >= 960 && i < 4800) input[2] = 3.f;    // Close left only
+        if (i >= 1920 && i < 2880) input[5] = -8.f;  // Room right only
+        if (i >= 2400 && i < 7200) input[6] = 1.5f;  // mono Piezo
+        Frame actual = input;
+        combined.Process(actual);
+        for (int group = 0; group < 4; ++group) {
+            Frame expected{};
+            const int first = kGroupStart[group], end = first + kGroupSize[group];
+            for (int c = first; c < end; ++c) expected[c] = input[c];
+            isolated[group].Process(expected);
+            for (int c = first; c < end; ++c) {
+                require(actual[c] == expected[c],
+                        "simultaneous overloads share gain or recovery across captures");
+                require(std::abs(actual[c]) <= OutputHeadroom::kCeiling + 1.5e-7f,
+                        "simultaneous overload escapes protection");
+            }
+            // Each stereo overload must also reduce its quiet sibling, even
+            // when only the right channel drives the detector. Piezo has no
+            // sibling; its sustained overload must itself be attenuated.
+            const int quietSibling = group == 1 ? 3 : first;
+            const float quietValue = group == 0 ? .1f : group == 1 ? -.1f : .12f;
+            const int start = group == 0 ? 480 : group == 1 ? 960 : group == 2 ? 1920 : 2400;
+            const int stop = group == 0 ? 1440 : group == 1 ? 4800 : group == 2 ? 2880 : 7200;
+            if (i >= start + delay && i < stop) {
+                const bool isReduced = group < 3 ? std::abs(actual[quietSibling]) < std::abs(quietValue) * .9f
+                                                 : actual[6] < 1.0f;
+                reduced[group] = reduced[group] || isReduced;
+            }
+        }
+    }
+    for (bool active : reduced) require(active, "concurrent fixture did not limit every group and stereo sibling");
+}
+
 void independentDirectReset() {
     const Frame quiet {.1f, -.2f, .3f, -.4f, .5f, -.6f, .7f};
     for (int direct = 0; direct < 5; ++direct) {
@@ -365,6 +413,7 @@ int main() {
         for (double frequency : {20.0, 50.3, 100.1, 1000.0, 4000.3})
             steadyOverload(rate, frequency);
     independentDirectReset();
+    simultaneousIndependentGroups();
     pendingFirReset();
     quietTones();
     for (int group = 0; group < 4; ++group) smoothAttackAndRecovery(group);
