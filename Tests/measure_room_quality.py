@@ -30,8 +30,13 @@ BANDS = (125, 500, 4000, 10000)
 # Production-room quality bounds leave margin across 44.1/48/96k while rejecting
 # the former sparse Hall onset and strongly metallic Wood/Chamber tails.
 # They are measured properties, independent of the implementation's loop sizes.
-EARLY_ROUGHNESS_MAX = {"Wood": 10.0, "Chamber": 8.5, "Hall": 11.0}
+EARLY_ROUGHNESS_MAX = {"Wood": 7.5, "Chamber": 8.5, "Hall": 11.0}
 LATE_ROUGHNESS_MAX = {"Wood": 12.5, "Chamber": 10.0, "Hall": 17.0}
+# Audible room goals, independent of the implementation's absorption targets:
+# compact studio/chamber tails, a longer Hall, and bass that drains before the
+# mids while upper mids retain air. Merely matching a too-resonant material
+# table must not pass this gate.
+MIDBAND_DECAY_RANGE = {"Wood": (.45, .70), "Chamber": (.40, .65), "Hall": (1.50, 2.20)}
 
 
 def digest(path):
@@ -93,6 +98,19 @@ def stereo(samples, rate, start, end):
     return {"correlation": float(correlation), "mono_loss_db": float(mono_loss)}
 
 
+def tail_balance(samples, rate):
+    # Absolute energy is retained alongside the ratio: increasing the highs
+    # must not masquerade as removing a pooled low/mid tail. Both measurements
+    # use one fixed, unnormalized production impulse and the 100ms-1s window.
+    bands = {}
+    for name, edges in (("body_100_600hz", (100, 600)), ("air_2000_8000hz", (2000, 8000))):
+        filtered = signal.sosfilt(signal.butter(3, edges, btype="bandpass", fs=rate, output="sos"), samples, axis=0)
+        energy = np.sum(filtered[round(.1*rate):rate]**2) / (2*rate)
+        bands[name+"_energy_db"] = float(10*np.log10(max(energy, 1.e-300)))
+    bands["air_to_body_db"] = bands["air_2000_8000hz_energy_db"] - bands["body_100_600hz_energy_db"]
+    return bands
+
+
 def measure(output, metadata, write_wav):
     rate, room = metadata["sample_rate"], metadata["room"]
     stem = output / f"room{room}-{rate}"
@@ -105,6 +123,7 @@ def measure(output, metadata, write_wav):
               "wet_energy_db": float(10*np.log10(np.sum(audio*audio)/(2*rate))),
               "broadband_t60": decay_fit(np.sum(audio*audio, axis=1), rate),
               "band_t60": {}, "channel": [],
+              "tail_balance_100_1000ms": tail_balance(audio, rate),
               "stereo_100_600ms": stereo(audio, rate, .1, .6),
               "stereo_600_2000ms": stereo(audio, rate, .6, 2)}
     for hz in BANDS:
@@ -146,6 +165,14 @@ def check(results):
             fit = result["band_t60"][str(hz)]
             if abs(fit["seconds"]/target-1) > .12 or fit["fit_r2"] < .95:
                 failures.append(f"{where}: {hz}Hz decay differs from room absorption target or is nonlinear")
+        bass, mid, air = (result["band_t60"][str(hz)]["seconds"] for hz in (125, 500, 4000))
+        minimum, maximum = MIDBAND_DECAY_RANGE[result["room"]]
+        if not minimum <= mid <= maximum:
+            failures.append(f"{where}: midband tail outside voiced room range {minimum}-{maximum}s")
+        if bass > .95*mid:
+            failures.append(f"{where}: bass tail does not drain before the midband")
+        if not .70 <= air/mid <= 1.0:
+            failures.append(f"{where}: upper-mid decay does not retain the intended airy balance")
         if result["peak_dbfs"] < -100:
             failures.append(f"{where}: inaudible wet impulse")
         for channel, metrics in enumerate(result["channel"]):
@@ -172,6 +199,7 @@ def main():
     parser.add_argument("--baseline", type=Path, help="Earlier metrics.json; descriptive deltas only")
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--wav", action="store_true", help="Keep unnormalized float32 wet listening files")
+    parser.add_argument("--tone-sweep", action="store_true", help="Measure fixed sine bursts at every semitone from MIDI 36 to 96")
     args = parser.parse_args()
     started = time.monotonic()
     source, output = args.source_dsp.resolve(), args.output.resolve()
@@ -194,6 +222,10 @@ def main():
             rendered = subprocess.run([str(output/"room-quality-probe"), str(output), str(rate), str(room)],
                                       check=True, capture_output=True, text=True)
             item = measure(output, json.loads(rendered.stdout), args.wav)
+            if args.tone_sweep:
+                tones = subprocess.run([str(output/"room-quality-probe"), str(output), str(rate), str(room), "--tones"],
+                                       check=True, capture_output=True, text=True)
+                item["tonal_response"] = json.loads(tones.stdout)
             results.append(item)
             print(f'{NAMES[room]} @ {rate}: RT60={item["broadband_t60"]["seconds"]:.3f}s '
                   f'NED={[round(c["ned_50_150ms"], 3) for c in item["channel"]]} '

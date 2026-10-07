@@ -30,6 +30,14 @@
 // ─── Private engine state for the tests (MarembaEngine befriends this) ──────
 namespace maremba {
 struct MarembaVoiceTestAccess {
+    static void RestoreReferencePressure(MarembaVoice& voice) {
+        if (voice.mTine) return;
+        // Independent fixed pressure reference from before the deliberate
+        // upper/transverse voicing. Mechanical and frame excitation are intact.
+        for (int m = 2; m < voice.mNumModes; ++m) voice.mRadiationGain[m] /= .08;
+        for (auto& gain : voice.mTorsionClose) gain /= .15;
+        voice.mLateralRadiation /= .15;
+    }
     // Phase-independent squared mechanical modal amplitude, in normalized
     // state units (not joules). Reconstruct quadrature independently of the
     // production energy cache, excluding all pickup/electronic state.
@@ -77,6 +85,11 @@ struct MarembaEngineTestAccess {
             if (v.IsLive() && v.GetNoteNumber() == note) return v.IsReleased();
         }
         return false;
+    }
+    static double NoteLoudness(const MarembaEngine& e, int note) {
+        for (const auto& voice : e.mVoices)
+            if (voice.IsLive() && voice.GetNoteNumber() == note) return voice.GetLoudness();
+        return 0;
     }
 };
 } // namespace maremba
@@ -156,7 +169,7 @@ struct Render {
 };
 
 struct ReferenceSourcePeaks {
-    double combined = 0, voiceLeft = 0, body = 0, mechanicalAmplitudeEnergy = 0;
+    double combined = 0, voiceLeft = 0, referenceVoiceLeft = 0, body = 0, mechanicalAmplitudeEnergy = 0;
     bool finite = true;
 };
 
@@ -171,6 +184,8 @@ void ReferenceSourceBlock(const MarembaEngine& engine, int note, int frames,
 {
     using Access = maremba::MarembaEngineTestAccess;
     auto voice = Access::FirstVoice(engine);
+    auto referenceVoice = voice;
+    maremba::MarembaVoiceTestAccess::RestoreReferencePressure(referenceVoice);
     auto body = Access::Body(engine);
     auto mesh = Access::Mesh(engine);
     const int factor = Access::Factor(engine);
@@ -182,6 +197,8 @@ void ReferenceSourceBlock(const MarembaEngine& engine, int note, int frames,
         for (int sub = 0; sub < factor; ++sub) {
             float close = 0, far = 0, piezo = 0;
             const bool active = voice.ProcessSample(close, far, piezo);
+            float referenceClose = 0, referenceFar = 0, referencePiezo = 0;
+            referenceVoice.ProcessSample(referenceClose, referenceFar, referencePiezo);
             const float mechanical = active ? voice.GetMechanicalSample() : 0;
             mesh.BeginSample();
             if (active) mesh.AccumulateVoice(note, mechanical);
@@ -191,9 +208,11 @@ void ReferenceSourceBlock(const MarembaEngine& engine, int note, int frames,
             const double left = close * panL + .5f * frameSound + .7f * haloL;
             const double right = close * panR + .5f * frameSound + .7f * haloR;
             const double energy = maremba::MarembaVoiceTestAccess::MechanicalAmplitudeEnergy(voice);
-            peaks.finite = peaks.finite && std::isfinite(left) && std::isfinite(right) && std::isfinite(energy);
+            peaks.finite = peaks.finite && std::isfinite(left) && std::isfinite(right)
+                && std::isfinite(referenceClose) && std::isfinite(energy);
             peaks.combined = std::max({peaks.combined, std::abs(left), std::abs(right)});
             peaks.voiceLeft = std::max(peaks.voiceLeft, std::abs(double(close * panL)));
+            peaks.referenceVoiceLeft = std::max(peaks.referenceVoiceLeft, std::abs(double(referenceClose * panL)));
             peaks.body = std::max(peaks.body, std::abs(double(.5f * frameSound)));
             peaks.mechanicalAmplitudeEnergy = std::max(peaks.mechanicalAmplitudeEnergy, energy);
             if (frameScene) {
@@ -210,7 +229,7 @@ void ReferenceSourceBlock(const MarembaEngine& engine, int note, int frames,
             predictedFrame->ch[kCloseR].push_back(right);
         }
         if (frame % 16 == 15) {
-            voice.UpdateEnvelope(); body.FlushTiny(); mesh.FlushTiny();
+            voice.UpdateEnvelope(); referenceVoice.UpdateEnvelope(); body.FlushTiny(); mesh.FlushTiny();
             if (frameScene) frameScene->FlushTiny();
         }
     }
@@ -595,14 +614,48 @@ void TestAnalogLimiterState()
     std::cout << "[Limiter] Exact bypass, reset, smooth automation and silent control state ..." << std::endl;
     maremba::AnalogLimiter limiter;
     limiter.SetSampleRate(96000.0);
-    limiter.SetAmount(0.0f);
-    limiter.Reset();
-    for (int i = 0; i < 1000; ++i) {
-        const float input = static_cast<float>(2.0 * std::sin(i * .031));
-        float l = 0.0f, r = 0.0f;
-        limiter.Process(input, -input * .5f, l, r);
-        CHECK(l == input && r == -input * .5f, "zero amount is not an exact dry bypass");
+    for (float amount : {0.0f, 0.05f, 0.25f, std::nextafter(.30f, 0.f), .30f}) {
+        limiter.SetAmount(amount);
+        limiter.Reset();
+        for (int i = 0; i < 1000; ++i) {
+            const float input = static_cast<float>(2.0 * std::sin(i * .031));
+            float l = 0.0f, r = 0.0f;
+            limiter.Process(input, -input * .5f, l, r);
+            CHECK(l == input && r == -input * .5f,
+                  "Limit at or below 30% changes audio: " << amount);
+        }
     }
+    // An overloaded steady input exposes a static transfer jump at the first
+    // representable value above 30%; a quiet input would miss it entirely.
+    for (double rate : {44100., 48000., 96000.}) {
+        limiter.SetSampleRate(rate);
+        float previous = 8.f;
+        for (float amount : {std::nextafter(.30f, 1.f), .31f, .37f}) {
+            limiter.SetAmount(amount);
+            limiter.Reset();
+            float l = 0.f, r = 0.f;
+            for (int i = 0; i < static_cast<int>(rate); ++i)
+                limiter.Process(8.f, -4.f, l, r);
+            CHECK(std::isfinite(l) && l > 0 && l <= previous,
+                  "Limit onset is not progressively attenuating overload");
+            if (amount == std::nextafter(.30f, 1.f))
+                CHECK(std::abs(l - 8.f) < 1e-6f, "Limit has a transfer jump just above 30%");
+            else
+                CHECK(l < previous - .01f, "Limit above 30% does not engage");
+            CHECK(r == -.5f * l, "Limit onset changes stereo balance");
+            previous = l;
+        }
+        limiter.SetAmount(.30f);
+        for (int i = 0; i < static_cast<int>(.01 * rate); ++i) {
+            float l, r;
+            limiter.Process(.02f, -.01f, l, r);
+            if (i + 1 == static_cast<int>(.01 * rate))
+                CHECK(l == .02f && r == -.01f, "30% fails to clear prior overload attenuation");
+        }
+    }
+    limiter.SetSampleRate(96000.);
+    limiter.SetAmount(0.f);
+    limiter.Reset();
     // Output protection stays active through both directions of the musical
     // limiter's fade, including zero Amount. It runs at the native rate.
     maremba::OutputHeadroom headroom;
@@ -859,8 +912,10 @@ void TestBodyBloom()
     std::vector<float> body(off.size());
     for (size_t i = 0; i < body.size(); ++i) body[i] = on.ch[kCloseL][i] - off.ch[kCloseL][i];
     const double sourceDb = Db(source.body / std::max(source.voiceLeft, 1e-30));
+    const double calibrationDb = Db(source.body / std::max(source.referenceVoiceLeft, 1e-30));
     CHECK(source.finite && source.voiceLeft > 1e-8, "Bloom source reference is invalid or silent");
-    CHECK(sourceDb > -18.0 && sourceDb < -8.0, "body source bloom level out of range: " << sourceDb);
+    CHECK(source.referenceVoiceLeft > 1e-8 && calibrationDb > -18.0 && calibrationDb < -8.0,
+          "body source bloom calibration out of range: " << calibrationDb);
     // Ear filtering need not preserve this relative peak. It must deliver the
     // independently predicted frame source, at the same trim and output delay.
     const int delay = maremba::OutputHeadroom::LatencyFrames(44100.0);
@@ -881,7 +936,7 @@ void TestBodyBloom()
     const double residual = std::sqrt(error / std::max(delivered, 1e-30));
     CHECK(finite && delivered > 1e-10, "body capture is invalid or inaudible");
     CHECK(residual < 2e-4, "body capture disagrees with independent source propagation: " << residual);
-    std::cout << "  -> source " << sourceDb << " dB, measured Close "
+    std::cout << "  -> fixed reference " << calibrationDb << " dB, voiced source " << sourceDb << " dB, measured Close "
               << Db(Peak(body) / Peak(off.ch[kCloseL])) << " dB re bar peak; capture residual " << residual << std::endl;
 }
 
@@ -1988,6 +2043,12 @@ void TestStealVictim()
         if (releasedIndex >= 0) e.NoteOff(notes[releasedIndex]);
         Render r;
         RenderFrames(e, r, 4410, &p);
+        if (releasedIndex >= 0) {
+            const double released = maremba::MarembaEngineTestAccess::NoteLoudness(e, notes[releasedIndex]);
+            const double low = maremba::MarembaEngineTestAccess::NoteLoudness(e, notes[0]);
+            CHECK(released > low && released < 4 * low,
+                  "released-victim fixture no longer distinguishes the bounded held-key preference");
+        }
         e.NoteOn(84, 0.9f);
         RenderFrames(e, r, 44100 / 2, &p);
         return r;
@@ -1997,7 +2058,9 @@ void TestStealVictim()
     // tube resonance at its twelfth) and E4 (C3's first torsional mode), which
     // would mask a correctly stolen quiet note there.
     for (int mode = 0; mode < 2; ++mode) {
-        const int quiet = mode == 0 ? 1 : -1, released = mode == 0 ? -1 : 3;
+        // At equal velocity E3 is louder than C3, but by less than the held
+        // key's 4x weighting. Releasing it must therefore change the victim.
+        const int quiet = mode == 0 ? 1 : -1, released = mode == 0 ? -1 : 1;
         const int victim = mode == 0 ? quiet : released;
         const Render stolen = run(0, quiet, released), ref = run(2, quiet, released);
         for (int i = 0; i < 8; ++i) {
@@ -2173,9 +2236,9 @@ void TestDirectOutMatchesMain()
 {
     std::cout << "[Gain] Direct close out matches the main bus close path ..." << std::endl;
     constexpr double kCloseStemTrim = MarembaEngine::kCloseStemTrim; // published Close direct-output trim
-    // Deliberate public output calibration: fixed gain 4 followed by 70% output.
+    // Deliberate public output calibration: fixed gain 2.8 with 70% recording trim.
     // Keep this independent of the implementation so a gain regression fails.
-    constexpr double kMainCalibrationGain = 2.8;
+    constexpr double kMainCalibrationGain = 1.96;
     EngineParameters p = CleanParams();
     p.farLevel = 0.0f; p.piezoLevel = 0.0f; p.closeLevel = 1.0f; p.stereoWidth = 1.0f;
     p.compAmount = 0.0f; p.preampDrive = 0.0f; p.warmth = 0.0f;
@@ -2209,11 +2272,11 @@ void TestDirectOutMatchesMain()
     }
 }
 
-// The selected output reduction belongs after the musical limiter. Moving it
-// before the detector preserves quiet-note gain but changes hard-hit dynamics.
-void TestMainOutputGainAfterLimiter()
+// Volume and recording calibration must precede both limiters: a low Volume
+// setting must not hide compression happening at the old internal gain.
+void TestMainGainBeforeLimiter()
 {
-    std::cout << "[Gain] Seventy-percent output follows musical limiting ..." << std::endl;
+    std::cout << "[Gain] Calibrated Volume buys headroom before musical limiting ..." << std::endl;
     for (double rate : {44100.0, 96000.0}) {
         EngineParameters p = CleanParams();
         p.closeLevel = 1; p.farLevel = p.piezoLevel = 0; p.stereoWidth = 1;
@@ -2235,10 +2298,10 @@ void TestMainOutputGainAfterLimiter()
             float preL, preR, limitedL, limitedR, wrongL, wrongR;
             preamp.Process(actual.ch[kCloseL][i] / MarembaEngine::kCloseStemTrim,
                            actual.ch[kCloseR][i] / MarembaEngine::kCloseStemTrim, 0, 0, preL, preR);
-            correct.Process(preL * 4.0f, preR * 4.0f, limitedL, limitedR);
-            before.Process(preL * 4.0f * .7f, preR * 4.0f * .7f, wrongL, wrongR);
-            const float expected[2] = {limitedL * volume * .7f, limitedR * volume * .7f};
-            const float incorrect[2] = {wrongL * volume, wrongR * volume};
+            correct.Process(preL * volume * .7f * 2.8f, preR * volume * .7f * 2.8f, limitedL, limitedR);
+            before.Process(preL * 2.8f, preR * 2.8f, wrongL, wrongR);
+            const float expected[2] = {limitedL, limitedR};
+            const float incorrect[2] = {wrongL * volume * .7f, wrongR * volume * .7f};
             for (int channel = 0; channel < 2; ++channel) {
                 const double difference = actual.ch[channel][i] - expected[channel];
                 const double wrong = actual.ch[channel][i] - incorrect[channel];
@@ -2247,9 +2310,9 @@ void TestMainOutputGainAfterLimiter()
             }
         }
         CHECK(energy > 1.e-6 && error < 1.e-8 * energy,
-              "Main does not match gain4 -> limiter -> volume -> gain0.7");
+              "Main does not match Volume -> recording gain 1.96 -> limiter");
         CHECK(wrongPlacement > 1.e-3 * energy,
-              "limiter-placement fixture cannot distinguish a pre-detector reduction");
+              "limiter-placement fixture cannot distinguish gain placed after the detector");
         std::cout << "  -> " << rate << " Hz: correct path " << Db(std::sqrt(error/energy))
                   << " dB, wrong placement " << Db(std::sqrt(wrongPlacement/energy)) << " dB" << std::endl;
     }
@@ -2764,13 +2827,16 @@ void TestReleaseWhileQueued()
 }
 
 // N2-1: the contact time is capped per register: the top of the keyboard stays
-// audible on the default patch (C7 within 15 dB of C4).
+// audible on the default patch (C7 within 20 dB of C4).
 void TestTrebleNotBuried()
 {
     // The top octave rings about 7x shorter than C4 and a medium mallet's
-    // ~1 ms contact passes little at 2 kHz, so C7 sits well below C4, as on a
-    // real marimba, but must not be buried.
-    std::cout << "[Voicing] Default patch: C7 within 18 dB of C4 ..." << std::endl;
+    // ~1 ms contact passes little at 2 kHz, so C7 sits well below C4 in the
+    // calibrated source, but must not be buried. The retained uncompressed
+    // Close-only natural-Decay reference spans 19.43-19.55 dB; use a fixed
+    // 20 dB gate because the cleaner Main path no longer compresses C4 toward
+    // the treble. Keep the same notes, velocity and 300 ms measurement window.
+    std::cout << "[Voicing] Default patch: C7 within 20 dB of C4 ..." << std::endl;
     for (auto cfg : { std::make_pair(44100.0, 0), std::make_pair(96000.0, 2) }) {
         EngineParameters p;
         p.oversampling = cfg.second;
@@ -2780,7 +2846,7 @@ void TestTrebleNotBuried()
         };
         const double c4 = level(60), c7 = level(96);
         std::cout << "  -> " << cfg.first << "/" << (2 << cfg.second) << "x: C4 " << c4 << " dBFS, C7 " << c7 << " dBFS" << std::endl;
-        CHECK(c7 > c4 - 18.0, "C7 is " << c4 - c7 << " dB below C4 at " << cfg.first);
+        CHECK(c7 > c4 - 20.0, "C7 is " << c4 - c7 << " dB below C4 at " << cfg.first);
     }
 }
 
@@ -3180,8 +3246,8 @@ void TestVelocityDepths()
 {
     std::cout << "[Velocity routes] Defaults, additive range, MIDI endpoints, curve and strike boundaries ..." << std::endl;
     EngineParameters defaults;
-    CHECK(defaults.velocityToHardness==.20f && defaults.velocityToPosition==0.0f && defaults.velocityToDecay==.20f,
-          "velocity sensitivities must default to 20% / 0% / 20%");
+    CHECK(defaults.velocityToHardness==.20f && defaults.velocityToPosition==0.0f && defaults.velocityToDecay==0.0f,
+          "velocity sensitivities must default to 20% / 0% / 0%");
     using Field = float EngineParameters::*;
     struct Route { Field depth, knob; float minimum, range; };
     const std::array<Route,3> routes{{
@@ -3193,7 +3259,11 @@ void TestVelocityDepths()
     // Binary-exact endpoints make the range contract independent of curve
     // approximations: 50% adds half range, 100% adds full range, clamped.
     for (const auto& route:routes) {
-        p.*route.knob=route.minimum+route.range*.25f;
+        const bool decayRoute = route.knob == &EngineParameters::decay;
+        // Natural Decay is at half travel. Its zero/half/full-VOL endpoint
+        // expectations are exact 1/8/8; intermediate log travel is covered by
+        // VelocityRoutesTest with an independent physical-value oracle.
+        p.*route.knob=decayRoute ? 1.f : route.minimum+route.range*.25f;
         for (int curve:{0,1,2,3}) for (float velocity:{1.f/127.f,1.f}) {
             p.velocityCurve=curve;
             const auto unmodulated=RenderNote(44100,p,60,velocity,.2);
@@ -3201,8 +3271,8 @@ void TestVelocityDepths()
                 auto routed=p; routed.*route.depth=depth;
                 auto reference=p;
                 const float travel=velocity==1.f ? depth : 0.f;
-                reference.*route.knob=std::min(route.minimum+route.range,
-                                               p.*route.knob+route.range*travel);
+                reference.*route.knob=decayRoute ? (travel > 0 ? 8.f : 1.f)
+                    : std::min(route.minimum+route.range, p.*route.knob+route.range*travel);
                 const auto actual=RenderNote(44100,routed,60,velocity,.2);
                 const auto expected=RenderNote(44100,reference,60,velocity,.2);
                 CHECK(actual.ch==expected.ch, "VOL endpoint adds the wrong fraction of the full knob range");
@@ -3459,7 +3529,7 @@ int main(int argc, char** argv)
     }
     if (argc == 2 && std::string(argv[1]) == "--output-calibration") {
         TestDirectOutMatchesMain();
-        TestMainOutputGainAfterLimiter();
+        TestMainGainBeforeLimiter();
         return gFailures ? 1 : 0;
     }
     if (argc == 2 && std::string(argv[1]) == "--capture-scene") {
@@ -3539,7 +3609,7 @@ int main(int argc, char** argv)
     TestMaxDecayRateInvariant();
     TestHaloRateInvariant();
     TestDirectOutMatchesMain();
-    TestMainOutputGainAfterLimiter();
+    TestMainGainBeforeLimiter();
     TestDirectOutHeadroom();
     TestVolumeSmoothing();
     TestBendLeavesNothingBehind();

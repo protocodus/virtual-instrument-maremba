@@ -322,8 +322,12 @@ private:
 
     static WallCoefficients ReflectionCoefficients(int type, int wall, double rate) {
         // Four broad bands of energy absorption, voiced reference materials.
+        // Stronger low/mid absorption prevents struck-bar fundamentals from
+        // pooling in the late field. A gentler upper-mid loss retains the airy
+        // reflections while the top octave still drains faster. These same
+        // materials set first-order reflections, diffuse decay and energy.
         // Floor is less absorbent; ceiling more absorbent than the wall panels.
-        constexpr double absorption[3][4]={{.105,.095,.14,.22},{.15,.15,.29,.50},{.086,.084,.13,.20}};
+        constexpr double absorption[3][4]={{.23,.17,.19,.27},{.30,.23,.26,.40},{.19,.135,.155,.225}};
         const int t=std::clamp(type,0,2), w=std::clamp(wall,0,5);
         const double factor=w==4?.80:w==5?1.20:1.0;
         double gain[4];
@@ -347,7 +351,9 @@ private:
         constexpr double ratios[12]={.43,.53,.61,.71,.79,.89,1.01,1.13,1.27,1.39,1.53,1.71};
         double mean=0.0;for(double r:ratios)mean+=r/12.0;
         NetworkVoicing result{};const double flight=MeanFlightSeconds(type);
-        const double loopFlights=type==2?1.0:2.5;
+        // Wood needs the densest modal field around sustained bar pitches;
+        // Chamber keeps shorter paths for a dense onset in its larger volume.
+        const double loopFlights=type==2?1.0:type==1?2.5:3.5;
         for(size_t i=0;i<result.lines.size();++i)result.lines[i]=loopFlights*flight*ratios[i]/mean;
         result.diffusers={flight*.131,flight*.217,flight*.307};
         result.diffusion=.61;result.decay={1.0,1.0,.7,.4};

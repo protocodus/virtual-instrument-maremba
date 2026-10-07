@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cmath>
 #include "DspMath.h"
+#include "DecayControl.h"
 
 namespace maremba {
 
@@ -54,10 +55,9 @@ constexpr float kBodyBloomGain = 0.375f;
 // Kalimba box radiation per unit of bridge force rate; Body scales it from a
 // board that barely rings (0) to a resonant box (1), never to silence.
 constexpr double kKalimbaBodyGain = 0.072;
-// Retain the selected musical limiter response, then lower Main to 70% before
-// its independent safety guard. Moving this reduction before the limiter would
-// change its response to harder playing instead of simply lowering the output.
-constexpr float kMainCalibrationGain = 4.0f;
+// Calibrate the complete Main signal before its musical limiter. Volume and
+// the fixed recording trim must reduce detector drive as well as output level.
+constexpr float kMainCalibrationGain = 2.8f;
 constexpr float kMainOutputCalibrationGain = 0.7f;
 // Mod-wheel rolls: stroke rate at the wheel's bottom and top, two alternating
 // mallets landing a little either side of the set position.
@@ -323,7 +323,7 @@ void MarembaEngine::SnapLiveControls() {
     mBodyVelocityRunning = mBodyVelocityActive && mBodyGain < 1.0f;
     mMeshVelocityRunning = mMeshVelocityActive && mSympatheticGain < 1.0f;
     mCloseGain = mParams.closeLevel;
-    mFarGain = mParams.farLevel;
+    mFarGain = mParams.farLevel * mParams.farLevel;
     mPiezoGain = mParams.piezoLevel;
     mStereoWidth = mParams.stereoWidth;
     mDrive = mParams.preampDrive;
@@ -338,7 +338,7 @@ void MarembaEngine::SmoothLiveControls() {
     smooth(mBodyGain, mParams.bodyBloom);
     smooth(mSympatheticGain, mParams.sympathetic);
     smooth(mCloseGain, mParams.closeLevel);
-    smooth(mFarGain, mParams.farLevel);
+    smooth(mFarGain, mParams.farLevel * mParams.farLevel);
     smooth(mPiezoGain, mParams.piezoLevel);
     smooth(mStereoWidth, mParams.stereoWidth);
     smooth(mDrive, mParams.preampDrive);
@@ -607,7 +607,9 @@ int MarembaEngine::TriggerNote(int noteNumber, float velocity, float positionOff
     };
     const float hardness = modulate(mParams.malletHardness, mParams.velocityToHardness);
     const float position = modulate(mParams.strikePosition, mParams.velocityToPosition);
-    const float decay = std::min(8.0f, mParams.decay + 7.90f * velocityOffset(mParams.velocityToDecay));
+    const float decayOffset = velocityOffset(mParams.velocityToDecay);
+    const float decay = decayOffset > 0.0f
+        ? DecayFromControl(DecayToControl(mParams.decay) + decayOffset) : mParams.decay;
     const float carving = modulate(mParams.carving, mParams.velocityToCarving);
     const float coupling = modulate(mParams.resonatorCoupling, mParams.velocityToCoupling);
     const float artifacts = modulate(mParams.artifacts, mParams.velocityToArtifacts);
@@ -967,16 +969,16 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         // the musical gain envelope and common output protection follow
         // complete microphone captures at the host rate.
         mPreamp.Process(mixedL, mixedR, 0.0f, mParams.warmth, preL, preR);
+        // Smooth Volume before both dynamics stages, so turning it down buys
+        // actual headroom instead of attenuating an already limited signal.
+        mVolumeGain += mVolumeAlpha * (volumeTarget - mVolumeGain);
+        preL *= mVolumeGain * kMainOutputCalibrationGain;
+        preR *= mVolumeGain * kMainOutputCalibrationGain;
         float mainL = 0.0f, mainR = 0.0f;
         mLimiter.Process(preL * kMainCalibrationGain, preR * kMainCalibrationGain, mainL, mainR);
 
-        // Master volume (smoothed per frame). Apply the quality-switch fade
-        // after the lookahead delay so its last samples reach zero before a
-        // factor change clears the queued audio.
-        mVolumeGain += mVolumeAlpha * (volumeTarget - mVolumeGain);
-        const float gain = mVolumeGain;
-        std::array<float, 7> frame = {mainL * gain * kMainOutputCalibrationGain,
-                                    mainR * gain * kMainOutputCalibrationGain, 0, 0, 0, 0, 0};
+        // The quality-switch fade remains after the shared lookahead delay.
+        std::array<float, 7> frame = {mainL, mainR, 0, 0, 0, 0, 0};
 
         // Complete microphone/electrical captures, before the main mix and
         // dynamics. Each carries only its fixed calibration: Volume and the

@@ -15,6 +15,7 @@ RoomMotionTest            # evolving late field, unchanged early paths, decay an
 RoomMicrophoneTest        # pressure capsule, vent, buffer and output-coupling transfer
 PiezoEngineTest            # complete captures, shared plate sensor, routing and tails
 CaptureRoutingTest         # independent capture coefficients and Piezo-only Drive
+RoomLevelTaperTest         # squared engine Room control, smooth automation and unchanged direct capture
 CompactCaptureSourceTest   # one emitted pressure with explicit Close/Room reference conversion
 CaptureSceneEqualityTest   # exact lazy/eager ear decimation, transitions, isolation and lifecycle
 HeadroomTest               # smooth overload protection, quiet unity, aligned capture latency

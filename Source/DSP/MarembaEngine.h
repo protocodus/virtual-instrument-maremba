@@ -39,7 +39,7 @@ struct EngineParameters {
     float bodyBloom = 0.50f;        // 0..1 frame & soundboard body
 
     float closeLevel = 0.85f;       // 0..1 independent capture coefficient
-    float farLevel = 0.45f;         // 0..1 coefficient on the complete Room capture
+    float farLevel = 0.45f;         // 0..1 Room knob; squared coefficient on the complete capture
     int roomType = 0;              // 0: Wood (legacy), 1: Chamber FDN, 2: Hall tank
     float piezoLevel = 0.30f;       // 0..1 independent capture coefficient
     float stereoWidth = 1.0f;       // 0..2 (1 = natural), applied to the main bus
@@ -50,7 +50,7 @@ struct EngineParameters {
     float compAttack = 10.0f;       // main limiter control attack, ms, 1..50
     float compRelease = 120.0f;     // initial limiter recovery, ms, 20..500
 
-    float volume = 0.80f;           // 0..1 (knob + volume CV, before the squared law)
+    float volume = 0.68f;           // 0..1 (knob + volume CV, before the squared law)
     int oversampling = 0;           // 0: 2x, 1: 4x, 2: 8x (literal factors at every host rate)
     int velocityCurve = 3;          // 0: Soft (sqrt), 1: Linear, 2: Hard (v^1.55), 3: Sigmoid (smoothstep)
     int polyphony = 1;              // 0: 8, 1: 16, 2: 24 voices
@@ -59,7 +59,7 @@ struct EngineParameters {
     float strikeJitter = 15.0f;     // 0..100: stochastic strike variance
     float velocityToHardness = 0.20f; // 0..1: added fraction of the control's full range
     float velocityToPosition = 0.0f;  // 0..1 depth, applied per strike after the velocity curve
-    float velocityToDecay = 0.20f;    // MIDI 1 adds zero; MIDI 127 adds depth * 7.9x
+    float velocityToDecay = 0.0f;     // MIDI 1 adds zero; MIDI 127 adds depth in normalized Decay travel
     // The same per-strike law for seven more controls; 0 leaves them fixed.
     float velocityToCarving = 0.0f;
     float velocityToCoupling = 0.0f;

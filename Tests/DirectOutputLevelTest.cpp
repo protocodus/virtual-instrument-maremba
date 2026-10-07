@@ -35,14 +35,16 @@ constexpr int kMain = 0, kClose = 2, kRoom = 4, kPiezo = 6; // first channel of 
 // Regression anchors for the calibrated normal-playing fixtures below, in
 // dBFS peak. A half-dB tolerance catches unintended gain changes without
 // requiring bit-identical floating point across platforms. These are product
-// calibration measurements, not an SDK loudness standard. The separate bank
+// calibration measurements for natural Decay, the shorter room and the
+// softened upper-mode acoustic voicing,
+// not an SDK loudness standard. The separate bank
 // probe reports dynamics and verifies every output remains safely contained.
 struct Expectation { std::array<double, 3> chordDb, noteDb; };
 constexpr Expectation kExpected[] = {
-    {{{-9.03, -6.69, -4.61}}, {{-17.82, -14.03, -18.12}}},
-    {{{-7.40, -9.11, -6.24}}, {{-18.54, -18.08, -18.19}}},
-    {{{-11.19, -6.59, -8.82}}, {{-24.16, -17.52, -18.53}}},
-    {{{-16.29, -13.91, -8.44}}, {{-25.30, -21.55, -19.89}}},
+    {{{-14.42, -6.56, -4.66}}, {{-24.80, -16.26, -18.25}}},
+    {{{-16.69, -9.28, -6.61}}, {{-27.68, -20.45, -18.22}}},
+    {{{-15.08, -8.94, -9.29}}, {{-25.82, -19.35, -18.75}}},
+    {{{-16.37, -14.21, -8.44}}, {{-25.31, -22.82, -19.89}}},
 };
 constexpr double kCalibrationToleranceDb = 0.5;
 
@@ -81,8 +83,9 @@ EngineParameters defaultPatch(int model) {
     p.compAmount = .05f;
     p.compAttack = 12.0f;
     p.compRelease = 120.0f;
-    p.volume = .8f;
-    p.velocityToHardness = p.velocityToPosition = p.velocityToDecay = .1f;
+    p.volume = .75063051f;
+    p.velocityToHardness = p.velocityToPosition = .1f;
+    p.velocityToDecay = 0.0f;
     p.velocityToCarving = p.velocityToCoupling = p.velocityToBloom = p.velocityToSympathetic = .1f;
     p.velocityToTension = p.velocityToArtifacts = .1f;
     return p;
