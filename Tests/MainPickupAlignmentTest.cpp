@@ -194,7 +194,7 @@ void EngineRouting(double rate, int model) {
     const double seconds = CaptureDistance(position, CloseHeadCentre()) / kCaptureSpeedOfSound;
     const double trim = model == 3 ? MarembaEngine::kKalimbaPiezoStemTrim : MarembaEngine::kPiezoStemTrim;
     // Independent declared Main calibration and default-off Volume transfer.
-    const double scale = .707 * (.08 * .08) * .7 * 2.8 / trim;
+    const double scale = .707 * (.08 / .85) * (.08 / .85) * .7 * 1.202853 / trim;
     for (double hz : {100., 261.625565, 500., 1000.}) {
         const auto r = Transform(reference, hz, rate);
         Require(std::abs(r) > 1.e-6, "pickup routing fixture is silent at a reference frequency");

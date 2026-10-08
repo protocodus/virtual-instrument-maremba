@@ -18,6 +18,7 @@ PiezoEngineTest            # complete captures, shared plate sensor, routing and
 CaptureRoutingTest         # independent capture coefficients, Main Drive and clean direct captures
 DriveBehaviorTest          # subtle clean default, nonlinear color, antialiasing and live preamp state
 RoomLevelTaperTest         # squared engine Room control, smooth automation and unchanged direct capture
+MainVolumeTest            # 85% nominal, upper boost reserve, smooth automation and direct isolation
 CompactCaptureSourceTest   # one emitted pressure with explicit Close/Room reference conversion
 CaptureSceneEqualityTest   # exact lazy/eager ear decimation, transitions, isolation and lifecycle
 HeadroomTest               # smooth overload protection, quiet unity, aligned capture latency

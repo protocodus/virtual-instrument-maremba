@@ -3,6 +3,7 @@
 #include <cmath>
 #include "DspMath.h"
 #include "DecayControl.h"
+#include "MainVolume.h"
 
 namespace maremba {
 
@@ -57,7 +58,7 @@ constexpr float kBodyBloomGain = 0.375f;
 constexpr double kKalimbaBodyGain = 0.072;
 // Calibrate the complete Main signal before its musical limiter. Volume and
 // the fixed recording trim must reduce detector drive as well as output level.
-constexpr float kMainCalibrationGain = 2.8f;
+constexpr float kMainCalibrationGain = 1.202853f;
 constexpr float kMainOutputCalibrationGain = 0.7f;
 // Mod-wheel rolls: stroke rate at the wheel's bottom and top, two alternating
 // mallets landing a little either side of the set position.
@@ -186,7 +187,7 @@ void MarembaEngine::Reset() {
     ConfigureForRate();
     FlushTails();
 
-    mVolumeGain = mParams.volume * mParams.volume;
+    mVolumeGain = MainVolumeGain(mParams.volume);
     SnapLiveControls();
     mControlCounter = 0;
     mTailsSilent = true;
@@ -305,7 +306,7 @@ void MarembaEngine::SetParameters(const EngineParameters& params) {
     }
 
     if (IsSilent()) {
-        mVolumeGain = p.volume * p.volume;
+        mVolumeGain = MainVolumeGain(p.volume);
         SnapLiveControls();
     }
 }
@@ -408,7 +409,7 @@ void MarembaEngine::ApplyFactorSwitch() {
     mSwitchStep = 0.0f;
     mTailsSilent = true;
     mControlCounter = 0;
-    mVolumeGain = mParams.volume * mParams.volume;
+    mVolumeGain = MainVolumeGain(mParams.volume);
     SnapLiveControls();
 
     // Notes that arrived during the fade start now, at the new rate.
@@ -778,7 +779,7 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         return;
     }
 
-    const float volumeTarget = mParams.volume * mParams.volume;
+    const float volumeTarget = MainVolumeGain(mParams.volume);
     const bool kalimba = mParams.model == static_cast<int>(EMarimbaModel::KalimbaArtisan);
     const float coverAlpha = static_cast<float>(1.0 - std::exp(-1.0 / (kCoverSmoothingSeconds * mBaseSampleRate)));
     // Receiver identities do not change inside a batch, including a pending

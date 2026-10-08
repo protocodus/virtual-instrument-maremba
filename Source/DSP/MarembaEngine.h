@@ -51,7 +51,7 @@ struct EngineParameters {
     float compAttack = 10.0f;       // main limiter control attack, ms, 1..50
     float compRelease = 120.0f;     // initial limiter recovery, ms, 20..500
 
-    float volume = 0.68f;           // 0..1 (knob + volume CV, before the squared law)
+    float volume = 0.85f;           // 0..1; nominal level at .85, before MainVolumeGain
     int oversampling = 0;           // 0: 2x, 1: 4x, 2: 8x (literal factors at every host rate)
     int velocityCurve = 3;          // 0: Soft (sqrt), 1: Linear, 2: Hard (v^1.55), 3: Sigmoid (smoothstep)
     int polyphony = 1;              // 0: 8, 1: 16, 2: 24 voices

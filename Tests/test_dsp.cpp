@@ -2241,16 +2241,16 @@ void TestDirectOutMatchesMain()
 {
     std::cout << "[Gain] Direct close out matches the main bus close path ..." << std::endl;
     constexpr double kCloseStemTrim = MarembaEngine::kCloseStemTrim; // published Close direct-output trim
-    // Deliberate public output calibration: fixed gain 2.8 with 70% recording trim.
+    // Deliberate public output calibration at the 85% Volume reference.
     // Keep this independent of the implementation so a gain regression fails.
-    constexpr double kMainCalibrationGain = 1.96;
+    constexpr double kMainCalibrationGain = 1.202853 * .7;
     EngineParameters p = CleanParams();
     p.farLevel = 0.0f; p.piezoLevel = 0.0f; p.closeLevel = 1.0f; p.stereoWidth = 1.0f;
     p.compAmount = 0.0f; p.preampDrive = 0.0f; p.warmth = 0.0f;
     p.malletType = 3; p.malletHardness = 0.9f;
     p.volume = .25f;
     // Volume is Main's alone: the direct capture never follows it.
-    const double volumeGain = static_cast<double>(p.volume) * p.volume;
+    const double volumeGain = (static_cast<double>(p.volume) / .85) * (p.volume / .85);
     for (int os : { 0, 2 }) {
         p.oversampling = os;
         // A quiet strike isolates the aligned, linear paths. Hot strikes use
@@ -2297,14 +2297,14 @@ void TestMainGainBeforeLimiter()
             limiter->SetSampleRate(rate); limiter->SetTimes(p.compAttack, p.compRelease);
             limiter->SetAmount(p.compAmount); limiter->Reset();
         }
-        const float volume = p.volume * p.volume;
+        const float volume = (p.volume / .85f) * (p.volume / .85f);
         double error = 0, wrongPlacement = 0, energy = 0;
         for (size_t i = 0; i < actual.size(); ++i) {
             float preL, preR, limitedL, limitedR, wrongL, wrongR;
             preamp.Process(actual.ch[kCloseL][i] / MarembaEngine::kCloseStemTrim,
                            actual.ch[kCloseR][i] / MarembaEngine::kCloseStemTrim, 0, 0, preL, preR);
-            correct.Process(preL * volume * .7f * 2.8f, preR * volume * .7f * 2.8f, limitedL, limitedR);
-            before.Process(preL * 2.8f, preR * 2.8f, wrongL, wrongR);
+            correct.Process(preL * volume * .7f * 1.202853f, preR * volume * .7f * 1.202853f, limitedL, limitedR);
+            before.Process(preL * 1.202853f, preR * 1.202853f, wrongL, wrongR);
             const float expected[2] = {limitedL, limitedR};
             const float incorrect[2] = {wrongL * volume * .7f, wrongR * volume * .7f};
             for (int channel = 0; channel < 2; ++channel) {
@@ -2315,7 +2315,7 @@ void TestMainGainBeforeLimiter()
             }
         }
         CHECK(energy > 1.e-6 && error < 1.e-8 * energy,
-              "Main does not match Volume -> recording gain 1.96 -> limiter");
+              "Main does not match Volume -> recording gain 0.842 -> limiter");
         CHECK(wrongPlacement > 1.e-3 * energy,
               "limiter-placement fixture cannot distinguish gain placed after the detector");
         std::cout << "  -> " << rate << " Hz: correct path " << Db(std::sqrt(error/energy))
