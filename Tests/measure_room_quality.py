@@ -32,6 +32,11 @@ BANDS = (125, 500, 4000, 10000)
 # They are measured properties, independent of the implementation's loop sizes.
 EARLY_ROUGHNESS_MAX = {"Wood": 7.5, "Chamber": 8.5, "Hall": 11.0}
 LATE_ROUGHNESS_MAX = {"Wood": 12.5, "Chamber": 10.0, "Hall": 17.0}
+# Broad roughness can hide one stable narrow resonance. Limit both its
+# prominence and the energy concentrated in any 20Hz band, without selecting
+# particular instrument pitches or historical offending frequencies.
+EARLY_PEAK_MAX = {"Wood": 14.0, "Chamber": 15.0, "Hall": 18.0}
+EARLY_20HZ_ENERGY_MAX = .025
 # Audible room goals, independent of the implementation's absorption targets:
 # compact studio/chamber tails, a longer Hall, and bass that drains before the
 # mids while upper mids retain air. Merely matching a too-resonant material
@@ -77,7 +82,8 @@ def spectrum(samples, rate, start, end):
     # At 48k and 100-600ms this is the existing legacy test's 501-bin average.
     part = samples[round(start*rate):round(end*rate)]
     bins = np.fft.rfftfreq(len(part), 1/rate)
-    db = 20*np.log10(np.maximum(np.abs(np.fft.rfft(part*np.hanning(len(part)))), 1.e-30))
+    magnitude = np.abs(np.fft.rfft(part*np.hanning(len(part))))
+    db = 20*np.log10(np.maximum(magnitude, 1.e-30))
     half = round(500*len(part)/rate)
     indices = np.arange(len(db))
     lo, hi = np.maximum(0, indices-half), np.minimum(len(db), indices+half+1)
@@ -85,9 +91,19 @@ def spectrum(samples, rate, start, end):
     residual = db - (cumulative[hi]-cumulative[lo])/(hi-lo)
     selected = (bins >= 200) & (bins <= 4000)
     peak = np.flatnonzero(selected)[np.argmax(residual[selected])]
+    power = magnitude[selected]**2
+    width = max(1, round(20*len(part)/rate))
+    band_energy = np.sum(power)
+    if not np.isfinite(band_energy) or not band_energy > 0:
+        raise ValueError("No finite nonzero 200-4000Hz energy in spectral window")
+    concentration = np.max(np.convolve(power, np.ones(width), mode="valid"))/band_energy
     return {"roughness_db": float(np.std(residual[selected])),
             "max_peak_above_smooth_db": float(residual[peak]), "peak_hz": float(bins[peak]),
-            "p95_above_smooth_db": float(np.percentile(residual[selected], 95))}
+            "p95_above_smooth_db": float(np.percentile(residual[selected], 95)),
+            "max_20hz_energy_fraction": float(concentration),
+            # Keep absolute tail level beside prominence: a peak in the very
+            # quiet compact-room tail is not an equally loud sustained ring.
+            "window_rms_dbfs": float(10*np.log10(max(np.mean(part*part), 1.e-300)))}
 
 
 def stereo(samples, rate, start, end):
@@ -154,9 +170,19 @@ def measure(output, metadata, write_wav):
 
 
 def check(results):
+    def finite_metrics(value):
+        if isinstance(value, dict):
+            return all(finite_metrics(item) for item in value.values())
+        if isinstance(value, (list, tuple)):
+            return all(finite_metrics(item) for item in value)
+        return not isinstance(value, (float, np.floating)) or math.isfinite(value)
+
     failures = []
     for result in results:
         where = f'{result["room"]}@{result["sample_rate"]}'
+        if not finite_metrics(result):
+            failures.append(f"{where}: nonfinite measurement")
+            continue
         metadata = result["metadata"]
         for key in ("finite", "repeatable", "silent_after_reset"):
             if not metadata[key]:
@@ -176,6 +202,11 @@ def check(results):
         if result["peak_dbfs"] < -100:
             failures.append(f"{where}: inaudible wet impulse")
         for channel, metrics in enumerate(result["channel"]):
+            early = metrics["spectrum_100_600ms"]
+            if early["max_peak_above_smooth_db"] > EARLY_PEAK_MAX[result["room"]]:
+                failures.append(f"{where} channel{channel}: narrow spectral peak exceeds room bound")
+            if early["max_20hz_energy_fraction"] > EARLY_20HZ_ENERGY_MAX:
+                failures.append(f"{where} channel{channel}: a 20Hz band holds over 2.5% of 200-4000Hz energy")
             for key in ("ned_50_150ms", "ned_late_plus20_80ms"):
                 if metrics[key] < .9:
                     failures.append(f"{where} channel{channel}: {key} < .9")

@@ -65,8 +65,10 @@ public:
         for (int type = 0; type < 3; ++type) {
             auto& room = mRoom[static_cast<size_t>(type)];
             room.voicing = Voicing(type);
-            for (auto& tail : room.tail)
-                tail.memory.assign(tail.Layout(room.voicing, mMaxRate), 0.0f);
+            for (size_t branch = 0; branch < room.tail.size(); ++branch) {
+                auto& tail = room.tail[branch];
+                tail.memory.assign(tail.Layout(Voicing(type, branch), mMaxRate), 0.0f);
+            }
             for (int id = 0; id < kCaptureSourceCount; ++id) {
                 const auto source = CaptureSourcePosition(id);
                 for (int channel = 0; channel < 2; ++channel) {
@@ -120,11 +122,12 @@ public:
             room.voicing = Voicing(type);
             room.voicing.decay = Decay(type, mRate);
             for (size_t branch = 0; branch < room.tail.size(); ++branch) {
-                // One evolving room, shared by both spatial modes. Each room
-                // has a distinct reproducible walk; mid/side retain their
-                // existing spatial relationship instead of drifting apart.
+                // The diffuse fields have different fixed path lengths, but
+                // share one subtle scattering walk for this room. No tap moves.
                 const uint32_t seed = 0x726f6f6du ^ (0x9e3779b9u * static_cast<uint32_t>(1 + type));
-                room.tail[branch].SetSampleRate(room.voicing, mRate, true, seed);
+                auto field = Voicing(type, branch);
+                field.decay = room.voicing.decay;
+                room.tail[branch].SetSampleRate(field, mRate, true, seed);
             }
             // The image density at late times is4*pi*c*r_ref^2/V. Integrate its
             // exponentially decaying energy beyond two mean free paths. The
@@ -133,9 +136,15 @@ public:
             const auto def = RoomDefinition(type);
             const double volume = def.dimensions.x * def.dimensions.y * def.dimensions.z;
             const double kappa = 6.0 * std::log(10.0) / room.voicing.decay.t500;
-            double meanEnergy = 0.0;
-            for (double seconds : room.voicing.lines) meanEnergy += std::exp(-kappa * seconds) / 12.0;
-            const double kernelEnergy = meanEnergy / std::max(1.0 - meanEnergy, 1.e-9);
+            double kernelEnergy = 0.0;
+            for (size_t branch = 0; branch < room.tail.size(); ++branch) {
+                double meanEnergy = 0.0;
+                for (double seconds : Voicing(type, branch).lines)
+                    meanEnergy += std::exp(-kappa * seconds) / 12.0;
+                // The 1/sqrt(2) readout sums decorrelated pressure fields, so
+                // their expected energies average rather than add coherently.
+                kernelEnergy += .5 * meanEnergy / std::max(1.0 - meanEnergy, 1.e-9);
+            }
             const double diffuseEnergy = 4.0 * kPiD * kCaptureSpeedOfSound * kReferenceDistance * kReferenceDistance
                 / (volume * kappa) * std::exp(-kappa * 2.0 * MeanFlightSeconds(type));
             room.tailGain = static_cast<float>(std::sqrt(diffuseEnergy / kernelEnergy));
@@ -313,8 +322,9 @@ private:
         // once commutes with that sum and preserves a wall tail after the last
         // source history empties.
         std::array<std::array<WallState,6>,2> filter{};
-        // Mid/side excitation retains separated-source cancellation differences;
-        // collapsing the two flight paths to mono would discard that information.
+        // Two independently timed diffuse fields, excited by the two retained
+        // microphone flight paths. Identical FDN poles would duplicate a sparse
+        // set of resonances instead of increasing the diffuse modal density.
         std::array<FeedbackNetwork,2> tail;
         float tailGain=1.0f;
         int flush=0;
@@ -344,7 +354,7 @@ private:
         result.shelf={lowShelf(220.0,gain[0]/gain[1]),highShelf(2200.0,gain[2]/gain[1]),highShelf(7500.0,gain[3]/gain[2])};
         return result;
     }
-    static NetworkVoicing Voicing(int type) {
+    static NetworkVoicing Voicing(int type, size_t branch = 0) {
         // Statistical diffuse paths span several wall flights in the smaller
         // rooms. More total delay memory raises modal density without adding
         // feedback lines; short input diffusers retain the initial buildup.
@@ -353,8 +363,14 @@ private:
         NetworkVoicing result{};const double flight=MeanFlightSeconds(type);
         // Wood needs the densest modal field around sustained bar pitches;
         // Chamber keeps shorter paths for a dense onset in its larger volume.
+        // An incommensurate second path ensemble increases modal density using
+        // the existing second bank. This is statistical diffusion, not a claim
+        // that the twelve lines are measured room eigenmodes. The first field
+        // retains the declared late onset; the longer field arrives after it.
+        constexpr double secondFieldScale=1.4142135623730951;
         const double loopFlights=type==2?1.0:type==1?2.5:3.5;
         for(size_t i=0;i<result.lines.size();++i)result.lines[i]=loopFlights*flight*ratios[i]/mean;
+        if(branch!=0)for(double& seconds:result.lines)seconds*=secondFieldScale;
         result.diffusers={flight*.131,flight*.217,flight*.307};
         result.diffusion=.61;result.decay={1.0,1.0,.7,.4};
         result.loopDiffusion=true;
@@ -396,16 +412,17 @@ private:
     }
     void ProcessTail(int type,const float early[2][6],const float* input,float* out) {
         auto& room=mRoom[static_cast<size_t>(type)];
-        float midL=0,midR=0,sideL=0,sideR=0;
-        room.tail[0].Process(.5f*(input[0]+input[1]),midL,midR);
-        room.tail[1].Process(.5f*(input[0]-input[1]),sideL,sideR,
+        float firstL=0,firstR=0,secondL=0,secondR=0;
+        room.tail[0].Process(input[0],firstL,firstR);
+        room.tail[1].Process(input[1],secondL,secondR,
                              room.tail[0].ScatteringCoefficients());
         float reflected[2]={};
         for(int channel=0;channel<2;++channel) for(int wall=0;wall<6;++wall)
             reflected[channel]+=room.filter[static_cast<size_t>(channel)][static_cast<size_t>(wall)].Process(
                 early[channel][wall],room.wall[static_cast<size_t>(wall)]);
-        out[0]=reflected[0]+room.tailGain*(midL+sideL);
-        out[1]=reflected[1]+room.tailGain*(midR-sideR);
+        constexpr float fieldReadout=.7071067811865475f;
+        out[0]=reflected[0]+room.tailGain*fieldReadout*(firstL+secondL);
+        out[1]=reflected[1]+room.tailGain*fieldReadout*(firstR+secondR);
         for(auto& tail:room.tail)tail.FlushStates();
     }
     void ResetRoom(int type, bool resetMotion = true) {

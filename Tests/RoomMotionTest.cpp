@@ -14,9 +14,14 @@
 namespace maremba {
 struct RoomCaptureTestAccess {
     static void Static(RoomCapture& capture) {
-        for (auto& room : capture.mRoom)
-            for (auto& tail : room.tail)
-                tail.SetSampleRate(room.voicing, capture.mRate, true);
+        for (size_t type = 0; type < capture.mRoom.size(); ++type) {
+            auto& room = capture.mRoom[type];
+            for (size_t branch = 0; branch < room.tail.size(); ++branch) {
+                auto field = RoomCapture::Voicing(static_cast<int>(type), branch);
+                field.decay = room.voicing.decay;
+                room.tail[branch].SetSampleRate(field, capture.mRate, true);
+            }
+        }
         capture.Reset();
     }
     static void EarlyOnly(RoomCapture& capture) {
