@@ -36,8 +36,8 @@ constexpr int kMain = 0, kClose = 2, kRoom = 4, kPiezo = 6; // first channel of 
 // Regression anchors for the calibrated normal-playing fixtures below, in
 // dBFS peak. A half-dB tolerance catches unintended gain changes without
 // requiring bit-identical floating point across platforms. These are product
-// calibration measurements for natural Decay, the two diffuse Room fields and
-// the softened upper-mode acoustic voicing,
+// calibration measurements for natural Decay, the two diffuse Room fields,
+// local early-reflection scattering and the softened upper-mode acoustic voicing,
 // not an SDK loudness standard. The separate bank
 // probe reports dynamics and verifies every output remains safely contained.
 struct Expectation { std::array<double, 3> chordDb, noteDb; };
@@ -45,14 +45,15 @@ constexpr Expectation kExpected[] = {
     // f3 Piezo anchors are the independently recorded clean pre-trim peaks
     // (docs/validation/drive-captures-20261008/direct-output-level-before-trim.log),
     // minus 20*log10(2).
-    // f4 Room anchors come from the independent rendered-stem probe in
-    // docs/validation/room-resonance-20261008/direct-level-followup. Restoring
-    // only the old RoomCapture reproduces the former direct audio exactly;
-    // denser diffusion changes resonant peaks, not the fixed recording trims.
-    {{{-14.42, -8.15, -10.60}}, {{-24.80, -18.06, -24.46}}},
-    {{{-16.69, -10.21, -12.88}}, {{-27.68, -21.33, -24.43}}},
-    {{{-15.08, -9.27, -15.50}}, {{-25.82, -21.10, -24.96}}},
-    {{{-16.37, -15.68, -8.44}}, {{-25.31, -24.09, -19.89}}},
+    // Room anchors come from the independent rendered-stem probe in
+    // docs/validation/room-patterns-20261008/early-scatter-b. All12 Close/Piezo
+    // fixtures remain byte-identical; passive early scattering changes the
+    // interference of wall paths with the unmodified direct/diffuse fields.
+    // Fixed recording trims and the half-dB tolerance are unchanged.
+    {{{-14.42, -7.87, -10.60}}, {{-24.80, -19.97, -24.46}}},
+    {{{-16.69, -10.79, -12.88}}, {{-27.68, -22.28, -24.43}}},
+    {{{-15.08, -9.46, -15.50}}, {{-25.82, -22.32, -24.96}}},
+    {{{-16.37, -16.77, -8.44}}, {{-25.31, -25.32, -19.89}}},
 };
 constexpr double kCalibrationToleranceDb = 0.5;
 

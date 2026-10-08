@@ -22,6 +22,7 @@ import time
 import numpy as np
 from scipy import signal
 from scipy.io import wavfile
+from room_temporal_quality import check_temporal, measure_temporal
 
 ROOT = Path(__file__).resolve().parent.parent
 NAMES = ("Wood", "Chamber", "Hall")
@@ -139,6 +140,7 @@ def measure(output, metadata, write_wav):
               "wet_energy_db": float(10*np.log10(np.sum(audio*audio)/(2*rate))),
               "broadband_t60": decay_fit(np.sum(audio*audio, axis=1), rate),
               "band_t60": {}, "channel": [],
+              "temporal": measure_temporal(audio, rate, metadata["late_first_arrival_seconds"]),
               "tail_balance_100_1000ms": tail_balance(audio, rate),
               "stereo_100_600ms": stereo(audio, rate, .1, .6),
               "stereo_600_2000ms": stereo(audio, rate, .6, 2)}
@@ -183,6 +185,7 @@ def check(results):
         if not finite_metrics(result):
             failures.append(f"{where}: nonfinite measurement")
             continue
+        failures.extend(f"{where}: {failure}" for failure in check_temporal(result.get("temporal")))
         metadata = result["metadata"]
         for key in ("finite", "repeatable", "silent_after_reset"):
             if not metadata[key]:
@@ -242,6 +245,7 @@ def main():
                "-I"+str(source), str(probe), "-o", str(output/"room-quality-probe")]
     metadata = {"source_dsp": str(source), "source_hashes": {str(p.relative_to(source)): digest(p) for p in sorted(source.rglob("*.h"))},
                 "runner_sha256": digest(Path(__file__)), "probe_sha256": digest(probe), "compile_command": command,
+                "temporal_helper_sha256": digest(ROOT/"Tests/room_temporal_quality.py"),
                 "normalization": "None; fixed .25 pressure impulse, wet-only receiver output",
                 "quality_scope": "Host-rate RoomCapture. Mechanical 2x/4x/8x quality is upstream and excluded."}
     (output/"source-inputs.json").write_text(json.dumps(metadata, indent=2)+"\n")

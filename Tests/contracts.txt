@@ -12,6 +12,7 @@ MainPickupAlignmentTest   # source flight in Main only, clean direct pickup and 
 RoomCaptureTest           # causal direct/images, shared absorption and diffuse room behavior
 RoomScatterMotionTest     # smooth seeded orthogonal mixing with bounded energy and rate-independent timing
 RoomLoopDiffusionTest     # lossless fractional loop scattering, allocation/reset and group-delay bounds
+EarlyReflectionScatterTest # causal energy-preserving early scattering, centroid, spectrum and reset
 RoomMotionTest            # evolving late field, unchanged early paths, decay and reset/idle lifecycle
 RoomMicrophoneTest        # pressure capsule, vent, buffer and output-coupling transfer
 PiezoEngineTest            # complete captures, shared plate sensor, routing and tails

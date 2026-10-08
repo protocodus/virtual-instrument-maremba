@@ -3,6 +3,7 @@
 #include "AcousticRoom.h"
 #include "CaptureGeometry.h"
 #include "RoomMicrophone.h"
+#include "EarlyReflectionScatter.h"
 #include <array>
 #include <algorithm>
 #include <cmath>
@@ -69,6 +70,13 @@ public:
                 auto& tail = room.tail[branch];
                 tail.memory.assign(tail.Layout(Voicing(type, branch), mMaxRate), 0.0f);
             }
+            size_t scatterSamples=0;
+            for(int channel=0;channel<2;++channel)for(int wall=0;wall<6;++wall){
+                const size_t i=static_cast<size_t>(channel*6+wall);
+                room.scatterOffset[i]=scatterSamples;
+                scatterSamples+=room.scatter[i].Layout(ScatteringBudget(type,wall,channel),mMaxRate);
+            }
+            room.scatterMemory.assign(scatterSamples,0.f);
             for (int id = 0; id < kCaptureSourceCount; ++id) {
                 const auto source = CaptureSourcePosition(id);
                 for (int channel = 0; channel < 2; ++channel) {
@@ -119,6 +127,8 @@ public:
             auto& room = mRoom[static_cast<size_t>(type)];
             for (int wall = 0; wall < 6; ++wall)
                 room.wall[static_cast<size_t>(wall)] = ReflectionCoefficients(type, wall, mRate);
+            for(int channel=0;channel<2;++channel)for(int wall=0;wall<6;++wall)
+                room.scatter[static_cast<size_t>(channel*6+wall)].Configure(ScatteringBudget(type,wall,channel),mRate);
             room.voicing = Voicing(type);
             room.voicing.decay = Decay(type, mRate);
             for (size_t branch = 0; branch < room.tail.size(); ++branch) {
@@ -263,6 +273,8 @@ public:
         return power;
     }
     void FlushTiny() {
+        // Early-scattering delay buffers are flushed on every write, like
+        // FDN delay memory; their only additional state is integer indices.
         for (auto& microphone : mMicrophone) microphone.FlushTiny();
         for (auto& room : mRoom) for (auto& tail : room.tail) tail.FlushStates();
         for (auto& room : mRoom)
@@ -277,6 +289,7 @@ public:
         for (float value : mHistory) if (!normal(value)) return false;
         for (const auto& room : mRoom) for (const auto& tail : room.tail)
             for (float value : tail.memory) if (!normal(value)) return false;
+        for(const auto& room:mRoom)for(float value:room.scatterMemory)if(!normal(value))return false;
         for (const auto& room : mRoom)
             for (const auto& channel : room.filter) for (const auto& filter : channel)
                 for (double value : filter.state) if (!normal(value)) return false;
@@ -326,6 +339,9 @@ private:
         // microphone flight paths. Identical FDN poles would duplicate a sparse
         // set of resonances instead of increasing the diffuse modal density.
         std::array<FeedbackNetwork,2> tail;
+        std::array<EarlyReflectionScatter,12> scatter;
+        std::array<size_t,12> scatterOffset{};
+        std::vector<float> scatterMemory;
         float tailGain=1.0f;
         int flush=0;
     };
@@ -353,6 +369,12 @@ private:
         };
         result.shelf={lowShelf(220.0,gain[0]/gain[1]),highShelf(2200.0,gain[2]/gain[1]),highShelf(7500.0,gain[3]/gain[2])};
         return result;
+    }
+    static double ScatteringBudget(int type,int wall,int channel){
+        // Modest5% object/geometry deviation from an empty shoebox. A shared
+        // centre-source wall flight is a declared low-cost approximation:
+        // each actual image path retains its individual onset and attenuation.
+        return .05*Geometry(type,{0.,0.,0.},channel)[static_cast<size_t>(wall+1)].seconds;
     }
     static NetworkVoicing Voicing(int type, size_t branch = 0) {
         // Statistical diffuse paths span several wall flights in the smaller
@@ -417,9 +439,12 @@ private:
         room.tail[1].Process(input[1],secondL,secondR,
                              room.tail[0].ScatteringCoefficients());
         float reflected[2]={};
-        for(int channel=0;channel<2;++channel) for(int wall=0;wall<6;++wall)
-            reflected[channel]+=room.filter[static_cast<size_t>(channel)][static_cast<size_t>(wall)].Process(
+        for(int channel=0;channel<2;++channel) for(int wall=0;wall<6;++wall){
+            const size_t i=static_cast<size_t>(channel*6+wall);
+            const float filtered=room.filter[static_cast<size_t>(channel)][static_cast<size_t>(wall)].Process(
                 early[channel][wall],room.wall[static_cast<size_t>(wall)]);
+            reflected[channel]+=room.scatter[i].Process(filtered,room.scatterMemory.data()+room.scatterOffset[i]);
+        }
         constexpr float fieldReadout=.7071067811865475f;
         out[0]=reflected[0]+room.tailGain*fieldReadout*(firstL+secondL);
         out[1]=reflected[1]+room.tailGain*fieldReadout*(firstR+secondR);
@@ -428,6 +453,8 @@ private:
     void ResetRoom(int type, bool resetMotion = true) {
         auto& room=mRoom[static_cast<size_t>(type)];
         for(auto& tail:room.tail)tail.Reset(resetMotion);room.flush=0;
+        if(!room.scatterMemory.empty())for(size_t i=0;i<room.scatter.size();++i)
+            room.scatter[i].Reset(room.scatterMemory.data()+room.scatterOffset[i]);
         for(auto& channel:room.filter)for(auto& filter:channel)filter.state.fill(0.0);
     }
 
