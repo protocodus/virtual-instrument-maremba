@@ -1,7 +1,8 @@
 // The five direct outputs are stems of the instrument, not of the mix. Volume,
 // the three Level coefficients, Width, Warmth and Limit belong to Main and never
 // reach them; what sets a stem's loudness is its fixed calibration. That
-// calibration is 70% of the original recording gain. Capture balance varies
+// calibration is 70% of the original recording gain, except the clean wooden
+// Piezo's 35% gain reserves another 6.02 dB of peak headroom. Capture balance varies
 // naturally by model; the stems need not approach
 // full scale or match each other's peaks. Changing Model while a note rings
 // moves the calibration smoothly (docs/OUTPUT_LEVEL.md).
@@ -35,14 +36,24 @@ constexpr int kMain = 0, kClose = 2, kRoom = 4, kPiezo = 6; // first channel of 
 // Regression anchors for the calibrated normal-playing fixtures below, in
 // dBFS peak. A half-dB tolerance catches unintended gain changes without
 // requiring bit-identical floating point across platforms. These are product
-// calibration measurements, not an SDK loudness standard. The separate bank
+// calibration measurements for natural Decay, the two diffuse Room fields,
+// local early-reflection scattering and the softened upper-mode acoustic voicing,
+// not an SDK loudness standard. The separate bank
 // probe reports dynamics and verifies every output remains safely contained.
 struct Expectation { std::array<double, 3> chordDb, noteDb; };
 constexpr Expectation kExpected[] = {
-    {{{-9.03, -6.69, -4.61}}, {{-17.82, -14.03, -18.12}}},
-    {{{-7.40, -9.11, -6.24}}, {{-18.54, -18.08, -18.19}}},
-    {{{-11.19, -6.59, -8.82}}, {{-24.16, -17.52, -18.53}}},
-    {{{-16.29, -13.91, -8.44}}, {{-25.30, -21.55, -19.89}}},
+    // f3 Piezo anchors are the independently recorded clean pre-trim peaks
+    // (docs/validation/drive-captures-20261008/direct-output-level-before-trim.log),
+    // minus 20*log10(2).
+    // Room anchors come from the independent rendered-stem probe in
+    // docs/validation/room-patterns-20261008/early-scatter-b. All12 Close/Piezo
+    // fixtures remain byte-identical; passive early scattering changes the
+    // interference of wall paths with the unmodified direct/diffuse fields.
+    // Fixed recording trims and the half-dB tolerance are unchanged.
+    {{{-14.42, -7.87, -10.60}}, {{-24.80, -19.97, -24.46}}},
+    {{{-16.69, -10.79, -12.88}}, {{-27.68, -22.28, -24.43}}},
+    {{{-15.08, -9.46, -15.50}}, {{-25.82, -22.32, -24.96}}},
+    {{{-16.37, -16.77, -8.44}}, {{-25.31, -25.32, -19.89}}},
 };
 constexpr double kCalibrationToleranceDb = 0.5;
 
@@ -76,13 +87,14 @@ EngineParameters defaultPatch(int model) {
     p.roomType = 0;
     p.piezoLevel = .25f;
     p.stereoWidth = 1.0f;
-    p.preampDrive = .05f;
+    p.preampDrive = .10f;
     p.warmth = .1f;
     p.compAmount = .05f;
     p.compAttack = 12.0f;
     p.compRelease = 120.0f;
-    p.volume = .8f;
-    p.velocityToHardness = p.velocityToPosition = p.velocityToDecay = .1f;
+    p.volume = .85f;
+    p.velocityToHardness = p.velocityToPosition = .1f;
+    p.velocityToDecay = 0.0f;
     p.velocityToCarving = p.velocityToCoupling = p.velocityToBloom = p.velocityToSympathetic = .1f;
     p.velocityToTension = p.velocityToArtifacts = .1f;
     return p;

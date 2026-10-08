@@ -2,6 +2,7 @@
 // Read the actual resonator poles, independently of the control-mapping helper:
 // this catches applying the taper at the wrong layer or bypassing it with VOL.
 #include "MarembaEngine.h"
+#include "DecayControl.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -91,7 +92,7 @@ int main() {
 
             double previous = 0;
             for (int step = 0; step <= 16; ++step) {
-                const float decay = .1f + 7.9f * (static_cast<float>(step) / 16);
+                const float decay = DecayFromControl(static_cast<float>(step) / 16);
                 strike(voice, rate, note, decay);
                 const double t60 = VoiceAccess::T60(voice);
                 const double ratio = t60 / natural[0];
@@ -102,11 +103,11 @@ int main() {
                     require(std::abs(ratio - .1) < 1e-6,
                             "shortest Kalimba sustain changed from one tenth natural");
                 if (step == 4)
-                    require(ratio > 1.1 && ratio < 1.2,
-                            "quarter-travel Kalimba decay grows too early or lost its range");
+                    require(std::abs(ratio - std::sqrt(.1)) < 1e-6,
+                            "quarter-travel Kalimba decay must be the geometric midpoint of the short range");
                 if (step == 8)
-                    require(ratio > 1.4 && ratio < 1.5,
-                            "half-travel Kalimba decay grows too early or lost its range");
+                    require(std::abs(ratio - 1) < 1e-6,
+                            "half-travel Kalimba decay must match the natural instrument");
                 if (step == 16) {
                     for (int mode = 0; mode < modes; ++mode)
                         require(std::abs(VoiceAccess::T60(voice, mode) / natural[mode] - 2) < 1e-6,
@@ -142,10 +143,10 @@ int main() {
                         require(std::abs(ratio - 1) < 1e-6,
                                 "zero depth or minimum MIDI velocity changed natural Kalimba decay");
                     if (depth == .1f) {
-                        require(ratio < 1.12, "factory Decay VOL makes Kalimba sustain grow too early");
+                        require(ratio < 1.12, "10% Decay VOL makes Kalimba sustain grow too early");
                         maximumFactoryDepthRatio = std::max(maximumFactoryDepthRatio, ratio);
                         if (velocity == 1)
-                            require(ratio > 1.1, "factory Decay VOL no longer extends Kalimba sustain");
+                            require(ratio > 1.07, "10% Decay VOL no longer extends Kalimba sustain");
                     }
                     if (depth == 1 && velocity == 1)
                         require(std::abs(ratio - 2) < 1e-6,

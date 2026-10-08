@@ -98,8 +98,8 @@ void check(bool ok, const std::string& message) {
     }
 }
 
-// Direct captures bypass the capture mix coefficients, Main warmth and its
-// musical limiter. They retain acoustic propagation, Piezo Drive and their
+// Direct captures bypass the capture mix coefficients, Main Drive, Warmth and
+// musical limiter. They retain physical capture coloration and their
 // independent output headroom protection, held identical in each comparison.
 std::vector<float> Render(const EngineParameters& p, float velocity, double seconds,
                           const EngineParameters* changeTo = nullptr, double changeAt = 0.0) {
@@ -184,11 +184,25 @@ float VelocityTravel(int curve, float velocity) {
     return static_cast<float>(shape(travel));
 }
 
+// Independent physical oracle for the Decay knob: natural decay at 50%.
+float DecayAt(float position) {
+    const double x = std::clamp(static_cast<double>(position), 0.0, 1.0);
+    return static_cast<float>(std::pow(x <= .5 ? 10.0 : 8.0, 2 * x - 1));
+}
+float AddTravel(const Route& route, float base, float offset) {
+    if (offset == 0) return base;
+    if (route.knob == &EngineParameters::decay) {
+        const double position = .5 + .5 * std::log(base) / std::log(base <= 1 ? 10.0 : 8.0);
+        return DecayAt(static_cast<float>(position) + offset);
+    }
+    return std::min(route.minimum + route.range, base + route.range * offset);
+}
+
 int main() {
     const Route routes[] = {
         {"Hardness", &EngineParameters::velocityToHardness, &EngineParameters::malletHardness, .25f, 0, 1, true},
         {"Position", &EngineParameters::velocityToPosition, &EngineParameters::strikePosition, .20f, 0, 1, true},
-        {"Decay", &EngineParameters::velocityToDecay, &EngineParameters::decay, 1.0f, .1f, 7.9f, true},
+        {"Decay", &EngineParameters::velocityToDecay, &EngineParameters::decay, 1.0f, .1f, 7.9f, false},
         {"Carving", &EngineParameters::velocityToCarving, &EngineParameters::carving, .25f, 0, 1, true},
         {"Coupling", &EngineParameters::velocityToCoupling, &EngineParameters::resonatorCoupling, .25f, 0, 1, false},
         {"Bloom", &EngineParameters::velocityToBloom, &EngineParameters::bodyBloom, .20f, 0, 1, false},
@@ -239,10 +253,11 @@ int main() {
             p.*(route.knob) = route.value;
             for (const auto& item : cases) {
                 auto routed = p, expected = p;
-                routed.*(route.knob) = route.minimum + route.range * item.base;
+                routed.*(route.knob) = route.knob == &EngineParameters::decay
+                    ? DecayAt(item.base) : route.minimum + route.range * item.base;
                 routed.*(route.depth) = item.depth;
-                expected.*(route.knob) = std::min(route.minimum + route.range,
-                    routed.*(route.knob) + route.range * item.depth * VelocityTravel(1, item.velocity));
+                expected.*(route.knob) = AddTravel(route, routed.*(route.knob),
+                    item.depth * VelocityTravel(1, item.velocity));
                 const auto actual = Render(routed, item.velocity, .30);
                 const auto reference = Render(expected, item.velocity, .30);
                 const double error = Difference(reference, actual);
@@ -259,8 +274,8 @@ int main() {
                 auto routed = p, expected = p;
                 routed.velocityCurve = expected.velocityCurve = curve;
                 routed.*(route.depth) = .50f;
-                expected.*(route.knob) = std::min(route.minimum + route.range,
-                    p.*(route.knob) + route.range * .50f * VelocityTravel(curve, .60f));
+                expected.*(route.knob) = AddTravel(route, p.*(route.knob),
+                    .50f * VelocityTravel(curve, .60f));
                 const auto actual = Render(routed, .60f, .30);
                 const double error = Difference(Render(expected, .60f, .30), actual);
                 // Float curve rounding can reach the physical modal parameters;

@@ -3,6 +3,7 @@
 #include "AcousticRoom.h"
 #include "CaptureGeometry.h"
 #include "RoomMicrophone.h"
+#include "EarlyReflectionScatter.h"
 #include <array>
 #include <algorithm>
 #include <cmath>
@@ -65,8 +66,17 @@ public:
         for (int type = 0; type < 3; ++type) {
             auto& room = mRoom[static_cast<size_t>(type)];
             room.voicing = Voicing(type);
-            for (auto& tail : room.tail)
-                tail.memory.assign(tail.Layout(room.voicing, mMaxRate), 0.0f);
+            for (size_t branch = 0; branch < room.tail.size(); ++branch) {
+                auto& tail = room.tail[branch];
+                tail.memory.assign(tail.Layout(Voicing(type, branch), mMaxRate), 0.0f);
+            }
+            size_t scatterSamples=0;
+            for(int channel=0;channel<2;++channel)for(int wall=0;wall<6;++wall){
+                const size_t i=static_cast<size_t>(channel*6+wall);
+                room.scatterOffset[i]=scatterSamples;
+                scatterSamples+=room.scatter[i].Layout(ScatteringBudget(type,wall,channel),mMaxRate);
+            }
+            room.scatterMemory.assign(scatterSamples,0.f);
             for (int id = 0; id < kCaptureSourceCount; ++id) {
                 const auto source = CaptureSourcePosition(id);
                 for (int channel = 0; channel < 2; ++channel) {
@@ -117,14 +127,17 @@ public:
             auto& room = mRoom[static_cast<size_t>(type)];
             for (int wall = 0; wall < 6; ++wall)
                 room.wall[static_cast<size_t>(wall)] = ReflectionCoefficients(type, wall, mRate);
+            for(int channel=0;channel<2;++channel)for(int wall=0;wall<6;++wall)
+                room.scatter[static_cast<size_t>(channel*6+wall)].Configure(ScatteringBudget(type,wall,channel),mRate);
             room.voicing = Voicing(type);
             room.voicing.decay = Decay(type, mRate);
             for (size_t branch = 0; branch < room.tail.size(); ++branch) {
-                // One evolving room, shared by both spatial modes. Each room
-                // has a distinct reproducible walk; mid/side retain their
-                // existing spatial relationship instead of drifting apart.
+                // The diffuse fields have different fixed path lengths, but
+                // share one subtle scattering walk for this room. No tap moves.
                 const uint32_t seed = 0x726f6f6du ^ (0x9e3779b9u * static_cast<uint32_t>(1 + type));
-                room.tail[branch].SetSampleRate(room.voicing, mRate, true, seed);
+                auto field = Voicing(type, branch);
+                field.decay = room.voicing.decay;
+                room.tail[branch].SetSampleRate(field, mRate, true, seed);
             }
             // The image density at late times is4*pi*c*r_ref^2/V. Integrate its
             // exponentially decaying energy beyond two mean free paths. The
@@ -133,9 +146,15 @@ public:
             const auto def = RoomDefinition(type);
             const double volume = def.dimensions.x * def.dimensions.y * def.dimensions.z;
             const double kappa = 6.0 * std::log(10.0) / room.voicing.decay.t500;
-            double meanEnergy = 0.0;
-            for (double seconds : room.voicing.lines) meanEnergy += std::exp(-kappa * seconds) / 12.0;
-            const double kernelEnergy = meanEnergy / std::max(1.0 - meanEnergy, 1.e-9);
+            double kernelEnergy = 0.0;
+            for (size_t branch = 0; branch < room.tail.size(); ++branch) {
+                double meanEnergy = 0.0;
+                for (double seconds : Voicing(type, branch).lines)
+                    meanEnergy += std::exp(-kappa * seconds) / 12.0;
+                // The 1/sqrt(2) readout sums decorrelated pressure fields, so
+                // their expected energies average rather than add coherently.
+                kernelEnergy += .5 * meanEnergy / std::max(1.0 - meanEnergy, 1.e-9);
+            }
             const double diffuseEnergy = 4.0 * kPiD * kCaptureSpeedOfSound * kReferenceDistance * kReferenceDistance
                 / (volume * kappa) * std::exp(-kappa * 2.0 * MeanFlightSeconds(type));
             room.tailGain = static_cast<float>(std::sqrt(diffuseEnergy / kernelEnergy));
@@ -254,6 +273,8 @@ public:
         return power;
     }
     void FlushTiny() {
+        // Early-scattering delay buffers are flushed on every write, like
+        // FDN delay memory; their only additional state is integer indices.
         for (auto& microphone : mMicrophone) microphone.FlushTiny();
         for (auto& room : mRoom) for (auto& tail : room.tail) tail.FlushStates();
         for (auto& room : mRoom)
@@ -268,6 +289,7 @@ public:
         for (float value : mHistory) if (!normal(value)) return false;
         for (const auto& room : mRoom) for (const auto& tail : room.tail)
             for (float value : tail.memory) if (!normal(value)) return false;
+        for(const auto& room:mRoom)for(float value:room.scatterMemory)if(!normal(value))return false;
         for (const auto& room : mRoom)
             for (const auto& channel : room.filter) for (const auto& filter : channel)
                 for (double value : filter.state) if (!normal(value)) return false;
@@ -313,17 +335,25 @@ private:
         // once commutes with that sum and preserves a wall tail after the last
         // source history empties.
         std::array<std::array<WallState,6>,2> filter{};
-        // Mid/side excitation retains separated-source cancellation differences;
-        // collapsing the two flight paths to mono would discard that information.
+        // Two independently timed diffuse fields, excited by the two retained
+        // microphone flight paths. Identical FDN poles would duplicate a sparse
+        // set of resonances instead of increasing the diffuse modal density.
         std::array<FeedbackNetwork,2> tail;
+        std::array<EarlyReflectionScatter,12> scatter;
+        std::array<size_t,12> scatterOffset{};
+        std::vector<float> scatterMemory;
         float tailGain=1.0f;
         int flush=0;
     };
 
     static WallCoefficients ReflectionCoefficients(int type, int wall, double rate) {
         // Four broad bands of energy absorption, voiced reference materials.
+        // Stronger low/mid absorption prevents struck-bar fundamentals from
+        // pooling in the late field. A gentler upper-mid loss retains the airy
+        // reflections while the top octave still drains faster. These same
+        // materials set first-order reflections, diffuse decay and energy.
         // Floor is less absorbent; ceiling more absorbent than the wall panels.
-        constexpr double absorption[3][4]={{.105,.095,.14,.22},{.15,.15,.29,.50},{.086,.084,.13,.20}};
+        constexpr double absorption[3][4]={{.23,.17,.19,.27},{.30,.23,.26,.40},{.19,.135,.155,.225}};
         const int t=std::clamp(type,0,2), w=std::clamp(wall,0,5);
         const double factor=w==4?.80:w==5?1.20:1.0;
         double gain[4];
@@ -340,15 +370,29 @@ private:
         result.shelf={lowShelf(220.0,gain[0]/gain[1]),highShelf(2200.0,gain[2]/gain[1]),highShelf(7500.0,gain[3]/gain[2])};
         return result;
     }
-    static NetworkVoicing Voicing(int type) {
+    static double ScatteringBudget(int type,int wall,int channel){
+        // Modest5% object/geometry deviation from an empty shoebox. A shared
+        // centre-source wall flight is a declared low-cost approximation:
+        // each actual image path retains its individual onset and attenuation.
+        return .05*Geometry(type,{0.,0.,0.},channel)[static_cast<size_t>(wall+1)].seconds;
+    }
+    static NetworkVoicing Voicing(int type, size_t branch = 0) {
         // Statistical diffuse paths span several wall flights in the smaller
         // rooms. More total delay memory raises modal density without adding
         // feedback lines; short input diffusers retain the initial buildup.
         constexpr double ratios[12]={.43,.53,.61,.71,.79,.89,1.01,1.13,1.27,1.39,1.53,1.71};
         double mean=0.0;for(double r:ratios)mean+=r/12.0;
         NetworkVoicing result{};const double flight=MeanFlightSeconds(type);
-        const double loopFlights=type==2?1.0:2.5;
+        // Wood needs the densest modal field around sustained bar pitches;
+        // Chamber keeps shorter paths for a dense onset in its larger volume.
+        // An incommensurate second path ensemble increases modal density using
+        // the existing second bank. This is statistical diffusion, not a claim
+        // that the twelve lines are measured room eigenmodes. The first field
+        // retains the declared late onset; the longer field arrives after it.
+        constexpr double secondFieldScale=1.4142135623730951;
+        const double loopFlights=type==2?1.0:type==1?2.5:3.5;
         for(size_t i=0;i<result.lines.size();++i)result.lines[i]=loopFlights*flight*ratios[i]/mean;
+        if(branch!=0)for(double& seconds:result.lines)seconds*=secondFieldScale;
         result.diffusers={flight*.131,flight*.217,flight*.307};
         result.diffusion=.61;result.decay={1.0,1.0,.7,.4};
         result.loopDiffusion=true;
@@ -390,21 +434,27 @@ private:
     }
     void ProcessTail(int type,const float early[2][6],const float* input,float* out) {
         auto& room=mRoom[static_cast<size_t>(type)];
-        float midL=0,midR=0,sideL=0,sideR=0;
-        room.tail[0].Process(.5f*(input[0]+input[1]),midL,midR);
-        room.tail[1].Process(.5f*(input[0]-input[1]),sideL,sideR,
+        float firstL=0,firstR=0,secondL=0,secondR=0;
+        room.tail[0].Process(input[0],firstL,firstR);
+        room.tail[1].Process(input[1],secondL,secondR,
                              room.tail[0].ScatteringCoefficients());
         float reflected[2]={};
-        for(int channel=0;channel<2;++channel) for(int wall=0;wall<6;++wall)
-            reflected[channel]+=room.filter[static_cast<size_t>(channel)][static_cast<size_t>(wall)].Process(
+        for(int channel=0;channel<2;++channel) for(int wall=0;wall<6;++wall){
+            const size_t i=static_cast<size_t>(channel*6+wall);
+            const float filtered=room.filter[static_cast<size_t>(channel)][static_cast<size_t>(wall)].Process(
                 early[channel][wall],room.wall[static_cast<size_t>(wall)]);
-        out[0]=reflected[0]+room.tailGain*(midL+sideL);
-        out[1]=reflected[1]+room.tailGain*(midR-sideR);
+            reflected[channel]+=room.scatter[i].Process(filtered,room.scatterMemory.data()+room.scatterOffset[i]);
+        }
+        constexpr float fieldReadout=.7071067811865475f;
+        out[0]=reflected[0]+room.tailGain*fieldReadout*(firstL+secondL);
+        out[1]=reflected[1]+room.tailGain*fieldReadout*(firstR+secondR);
         for(auto& tail:room.tail)tail.FlushStates();
     }
     void ResetRoom(int type, bool resetMotion = true) {
         auto& room=mRoom[static_cast<size_t>(type)];
         for(auto& tail:room.tail)tail.Reset(resetMotion);room.flush=0;
+        if(!room.scatterMemory.empty())for(size_t i=0;i<room.scatter.size();++i)
+            room.scatter[i].Reset(room.scatterMemory.data()+room.scatterOffset[i]);
         for(auto& channel:room.filter)for(auto& filter:channel)filter.state.fill(0.0);
     }
 

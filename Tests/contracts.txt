@@ -8,13 +8,18 @@ KalimbaPiezoTest           # force-driven board strain and one shared physical s
 CaptureGeometryTest       # physical source/receiver placement and receiver-independent mechanics
 CloseCaptureTest          # measured binaural filtering, causal propagation and rate transfer
 CloseEngineArrivalTest    # actual strikes against measured ears, physical flight and electrical timing
+MainPickupAlignmentTest   # source flight in Main only, clean direct pickup and persistent travelling tails
 RoomCaptureTest           # causal direct/images, shared absorption and diffuse room behavior
 RoomScatterMotionTest     # smooth seeded orthogonal mixing with bounded energy and rate-independent timing
 RoomLoopDiffusionTest     # lossless fractional loop scattering, allocation/reset and group-delay bounds
+EarlyReflectionScatterTest # causal energy-preserving early scattering, centroid, spectrum and reset
 RoomMotionTest            # evolving late field, unchanged early paths, decay and reset/idle lifecycle
 RoomMicrophoneTest        # pressure capsule, vent, buffer and output-coupling transfer
 PiezoEngineTest            # complete captures, shared plate sensor, routing and tails
-CaptureRoutingTest         # independent capture coefficients and Piezo-only Drive
+CaptureRoutingTest         # independent capture coefficients, Main Drive and clean direct captures
+DriveBehaviorTest          # subtle clean default, nonlinear color, antialiasing and live preamp state
+RoomLevelTaperTest         # squared engine Room control, smooth automation and unchanged direct capture
+MainVolumeTest            # 85% nominal, upper boost reserve, smooth automation and direct isolation
 CompactCaptureSourceTest   # one emitted pressure with explicit Close/Room reference conversion
 CaptureSceneEqualityTest   # exact lazy/eager ear decimation, transitions, isolation and lifecycle
 HeadroomTest               # smooth overload protection, quiet unity, aligned capture latency

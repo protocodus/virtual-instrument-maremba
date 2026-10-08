@@ -9,10 +9,11 @@
 //   (g++ takes the same flags; on a box without clang's compiler-rt, use g++ for
 //   ASan, or clang++ -fsanitize=undefined,float-cast-overflow -fsanitize-trap=all.)
 // Run:
-//   ./engine_fuzz                     the contract (Tests/contracts.txt): fixed seeds,
-//                                     a few minutes at -O2
+//   ./engine_fuzz [--compact]         enumerated controls + representative regressions
+//   ./engine_fuzz --extended          original exhaustive scenarios and random scopes
+//   ./engine_fuzz --list-controls     JSON inventory only; does not create an engine
 //   ./engine_fuzz --only fuzz --seeds 200 --first 1000 --steps 400
-//   ./engine_fuzz --only fuzz|determinism|reset|denormal|scenarios [--verbose]
+//   ./engine_fuzz --only fuzz|determinism|reset|denormal|denormal-mode|scenarios [--verbose]
 //   ./engine_fuzz --only determinism --determinism-seeds 50
 //   ./engine_fuzz --only reset --seeds 12 --reset-rate 192000 --reset-os 2
 //   ./engine_fuzz --only denormal --tail-rate 96000 --tail-os 1 --tail-seconds 5
@@ -64,6 +65,8 @@
 #include "MarembaEngine.h"
 
 #include <algorithm>
+#include <array>
+#include <cerrno>
 #include <chrono>
 #include <climits>
 #include <cstdarg>
@@ -74,6 +77,7 @@
 #include <cstring>
 #include <limits>
 #include <memory>
+#include <time.h>
 #include <string>
 #include <vector>
 
@@ -81,6 +85,21 @@ namespace maremba {
 struct MarembaEngineTestAccess {
     static double Clock(const MarembaEngine& e) { return e.mClock; }
     static int PendingCount(const MarembaEngine& e) { return e.mPendingCount; }
+    static int Factor(const MarembaEngine& e) { return e.mActiveFactor; }
+    static int Model(const MarembaEngine& e) { return e.mConfiguredModel; }
+    static int Scale(const MarembaEngine& e) { return e.mConfiguredScale; }
+    static float Bend(const MarembaEngine& e) { return e.mBendCents; }
+    static float LimiterReduction(const MarembaEngine& e) {
+        // Read the actual limiter's stored charge without changing the engine.
+        // A tiny probe is below every threshold; the difference from an empty
+        // copy witnesses attenuation accumulated from the rendered instrument.
+        auto charged = e.mLimiter, empty = charged;
+        empty.Reset();
+        float usedL, usedR, cleanL, cleanR;
+        charged.Process(.001f, .001f, usedL, usedR);
+        empty.Process(.001f, .001f, cleanL, cleanR);
+        return 1.0f - usedL / cleanL;
+    }
     static bool NoteActive(const MarembaEngine& e, int note) {
         for (const auto& v : e.mVoices) if (v.IsActive() && v.GetNoteNumber() == note) return true;
         return false;
@@ -96,7 +115,7 @@ struct MarembaEngineTestAccess {
                && e.mKalimbaBody.HasNoSubnormalState() && e.mKalimbaPickup.HasNoSubnormalState()
                && e.mPreamp.HasNoSubnormalState()
                && e.mLimiter.HasNoSubnormalState() && e.mPiezoDecimator.HasNoSubnormalState()
-               && e.mMicMixer.HasNoSubnormalState();
+               && e.mMicMixer.HasNoSubnormalState() && e.mMainPickup.HasNoSubnormalState();
         return ok;
     }
     // One line per active voice: note, model, flags (stuck-voice diagnostics).
@@ -130,12 +149,14 @@ constexpr float kCeiling = 0.94f;
 const double kRates[] = { 22050.0, 44100.0, 48000.0, 88200.0, 96000.0, 176400.0, 192000.0, 44100.5 };
 
 struct Options {
-    int seeds = 24;
-    int determinismSeeds = 8;     // each renders a 3 s performance four times
+    int seeds = 2;
+    int determinismSeeds = 2;     // extended retains eight 3 s performances, four renders each
     uint64_t first = 1;
-    int steps = 160;
+    int steps = 24;
     double drainSeconds = 30.0;   // a sub-audio key (MIDI 0) under DampAll takes up to ~20 s
     bool verbose = false;
+    bool extended = false;
+    bool listControls = false;
     std::string only;
     double tailRate = 44100.0;
     int tailOversampling = 0;
@@ -171,6 +192,7 @@ struct Report {
     }
 };
 Report gReport;
+uint64_t gRenderedCalls = 0, gRenderedFrames = 0;
 
 std::string Fmt(const char* format, ...) __attribute__((format(printf, 1, 2)));
 std::string Fmt(const char* format, ...) {
@@ -180,6 +202,103 @@ std::string Fmt(const char* format, ...) {
     std::vsnprintf(buffer, sizeof(buffer), format, args);
     va_end(args);
     return buffer;
+}
+
+// Independent panel-travel anchors from CMaremba::LoadEngineParameters, with
+// master tune measured at neutral Reason master tune. Do not derive Decay's
+// midpoint by averaging its multiplier endpoints: half travel is natural 1x.
+struct ContinuousControl {
+    const char* name;
+    float EngineParameters::* member;
+    std::array<float, 3> values;
+    float ApiLow() const { return member == &EngineParameters::tuneCents ? -200.f : values[0]; }
+    float ApiHigh() const { return member == &EngineParameters::tuneCents ? 200.f : values[2]; }
+};
+constexpr ContinuousControl kContinuous[] = {
+    {"malletHardness", &EngineParameters::malletHardness, {0,.5f,1}},
+    {"strikePosition", &EngineParameters::strikePosition, {0,.5f,1}},
+    {"resonatorTune", &EngineParameters::resonatorTune, {-50,0,50}},
+    {"resonatorCoupling", &EngineParameters::resonatorCoupling, {0,.5f,1}},
+    {"decay", &EngineParameters::decay, {.1f,1,8}},
+    {"buzzAmount", &EngineParameters::buzzAmount, {0,.5f,1}},
+    {"artifacts", &EngineParameters::artifacts, {0,.5f,1}},
+    {"sympathetic", &EngineParameters::sympathetic, {0,.5f,1}},
+    {"bodyBloom", &EngineParameters::bodyBloom, {0,.5f,1}},
+    {"closeLevel", &EngineParameters::closeLevel, {0,.5f,1}},
+    {"farLevel", &EngineParameters::farLevel, {0,.5f,1}},
+    {"piezoLevel", &EngineParameters::piezoLevel, {0,.5f,1}},
+    {"stereoWidth", &EngineParameters::stereoWidth, {0,1,2}},
+    {"preampDrive", &EngineParameters::preampDrive, {0,.5f,1}},
+    {"warmth", &EngineParameters::warmth, {-1,0,1}},
+    {"compAmount", &EngineParameters::compAmount, {0,.5f,1}},
+    {"compAttack", &EngineParameters::compAttack, {1,25.5f,50}},
+    {"compRelease", &EngineParameters::compRelease, {20,260,500}},
+    {"volume", &EngineParameters::volume, {0,.5f,1}},
+    {"tuneCents", &EngineParameters::tuneCents, {-100,0,100}},
+    {"detune", &EngineParameters::detune, {0,50,100}},
+    {"strikeJitter", &EngineParameters::strikeJitter, {0,50,100}},
+    {"velocityToHardness", &EngineParameters::velocityToHardness, {0,.5f,1}},
+    {"velocityToPosition", &EngineParameters::velocityToPosition, {0,.5f,1}},
+    {"velocityToDecay", &EngineParameters::velocityToDecay, {0,.5f,1}},
+    {"velocityToCarving", &EngineParameters::velocityToCarving, {0,.5f,1}},
+    {"velocityToCoupling", &EngineParameters::velocityToCoupling, {0,.5f,1}},
+    {"velocityToBloom", &EngineParameters::velocityToBloom, {0,.5f,1}},
+    {"velocityToSympathetic", &EngineParameters::velocityToSympathetic, {0,.5f,1}},
+    {"velocityToBuzz", &EngineParameters::velocityToBuzz, {0,.5f,1}},
+    {"velocityToTension", &EngineParameters::velocityToTension, {0,.5f,1}},
+    {"velocityToArtifacts", &EngineParameters::velocityToArtifacts, {0,.5f,1}},
+    {"modWheel", &EngineParameters::modWheel, {0,.5f,1}},
+    {"carving", &EngineParameters::carving, {0,.5f,1}},
+    {"membraneTension", &EngineParameters::membraneTension, {0,.5f,1}},
+};
+struct DiscreteControl { const char* name; int EngineParameters::* member; int count; };
+constexpr DiscreteControl kDiscrete[] = {
+    {"model", &EngineParameters::model, 4},
+    {"malletType", &EngineParameters::malletType, 5},
+    {"roomType", &EngineParameters::roomType, 3},
+    {"oversampling", &EngineParameters::oversampling, 3},
+    {"velocityCurve", &EngineParameters::velocityCurve, 4},
+    {"polyphony", &EngineParameters::polyphony, 3},
+    {"tuningScale", &EngineParameters::tuningScale, 7},
+    {"noteOffMode", &EngineParameters::noteOffMode, 3},
+};
+constexpr size_t kContinuousCount = sizeof(kContinuous)/sizeof(kContinuous[0]);
+constexpr size_t kDiscreteCount = sizeof(kDiscrete)/sizeof(kDiscrete[0]);
+static_assert(kContinuousCount == 35 && kDiscreteCount == 8, "Update declared control coverage deliberately");
+static_assert(maremba::kStrikerCount == 5 && static_cast<int>(maremba::ETuningScale::Count) == 7,
+              "Update exhaustive selector state inventory");
+constexpr float kBendTravel[] = {-200, 0, 200};
+
+void ListControls() {
+    std::printf("{\"continuous\":[");
+    for (size_t i=0;i<kContinuousCount;++i) {
+        const auto& c=kContinuous[i];
+        std::printf("%s{\"name\":\"%s\",\"values\":[%.8g,%.8g,%.8g]}", i ? "," : "",
+                    c.name,c.values[0],c.values[1],c.values[2]);
+    }
+    std::printf("],\"discrete\":[");
+    for (size_t i=0;i<kDiscreteCount;++i) {
+        const auto& c=kDiscrete[i];
+        std::printf("%s{\"name\":\"%s\",\"values\":[",i ? "," : "",c.name);
+        for(int s=0;s<c.count;++s) std::printf("%s%d",s ? "," : "",s);
+        std::printf("]}");
+    }
+    std::printf("],\"ignored\":[\"pitchGlide\"],\"performance\":[{\"name\":\"pitchBend\",\"values\":[-200,0,200]}]}\n");
+}
+
+// Check all target values, including otherwise unchanged baseline controls.
+// This is independent of the production Sanitize implementation.
+void CheckApplied(const MarembaEngine& e,const EngineParameters& expected,const std::string& where) {
+    const auto& actual=e.GetParameters();
+    for(const auto& c:kContinuous)
+        if(!std::isfinite(actual.*c.member) || actual.*c.member != expected.*c.member)
+            gReport.Fail(Fmt("%s: applied %s %.9g, expected %.9g",where.c_str(),c.name,
+                             actual.*c.member,expected.*c.member));
+    for(const auto& c:kDiscrete)
+        if(actual.*c.member != expected.*c.member)
+            gReport.Fail(Fmt("%s: applied %s %d, expected %d",where.c_str(),c.name,
+                             actual.*c.member,expected.*c.member));
+    if(actual.pitchGlide != 0) gReport.Fail(where+": legacy pitchGlide must remain ignored");
 }
 
 // ------------------------------------------------------------ hostile input --
@@ -380,7 +499,8 @@ struct Tracker {
 
 // Render one call and check I1-I4. mask: bit k set = direct out k connected.
 // Returns frames actually rendered.
-int RenderChecked(MarembaEngine& e, Tracker& t, int frameCount, unsigned mask, bool nullMain = false) {
+int RenderChecked(MarembaEngine& e, Tracker& t, int frameCount, unsigned mask, bool nullMain = false,
+                  int missingMain = -1) {
     static Buffers b;
     b.Fill();
     float* direct[5];
@@ -388,15 +508,18 @@ int RenderChecked(MarembaEngine& e, Tracker& t, int frameCount, unsigned mask, b
     const double clockBefore = Access::Clock(e);
     const bool silentBefore = e.IsSilent();
     const auto t0 = std::chrono::steady_clock::now();
-    e.RenderBatch(nullMain ? nullptr : b.ch[0], nullMain ? nullptr : b.ch[1],
+    e.RenderBatch(nullMain || missingMain == 0 ? nullptr : b.ch[0],
+                  nullMain || missingMain == 1 ? nullptr : b.ch[1],
                   direct[0], direct[1], direct[2], direct[3], direct[4], frameCount);
     const double ns = std::chrono::duration<double, std::nano>(std::chrono::steady_clock::now() - t0).count();
     t.worstBatchNs = std::max(t.worstBatchNs, ns);
 
-    const int expected = (nullMain || frameCount <= 0) ? 0 : std::min(frameCount, MarembaEngine::kMaxFrames);
+    const int expected = (nullMain || missingMain >= 0 || frameCount <= 0) ? 0 : std::min(frameCount, MarembaEngine::kMaxFrames);
+    ++gRenderedCalls;
+    gRenderedFrames += static_cast<uint64_t>(expected);
     // I1: exact frame count, finite samples
     for (int c = 0; c < kOuts; ++c) {
-        const bool connected = c < 2 ? !nullMain : ((mask >> (c - 2)) & 1u) != 0;
+        const bool connected = c < 2 ? !(nullMain || missingMain == c) : ((mask >> (c - 2)) & 1u) != 0;
         for (int f = 0; f < kBufFrames; ++f) {
             const float v = b.ch[c][f];
             const bool shouldWrite = connected && f < expected;
@@ -460,6 +583,175 @@ void CheckResetSilent(MarembaEngine& e, const Tracker& t) {
     e.Reset();
     if (!e.IsSilent() || e.GetActiveVoiceCount() != 0)
         gReport.Fail(Fmt("%s: after Reset() IsSilent()=%d active=%d", t.where.c_str(), e.IsSilent(), e.GetActiveVoiceCount()));
+}
+
+// One control changes at a time; all other parameters remain at a playable
+// baseline. Each value is reached both from silence and from a ringing note.
+int ControlCoverage() {
+    auto e = std::make_unique<MarembaEngine>(48000.0);
+    Tracker t; t.rate = 48000.0;
+    const EngineParameters base;
+    unsigned continuous[2][kContinuousCount]{}, discrete[2][kDiscreteCount]{}, bend[2]{};
+    int cases = 0;
+    auto run = [&](const EngineParameters& initial, const EngineParameters& target, int live, bool limiterAxis) {
+        e->SetParameters(initial); e->Reset(); e->SetPitchBendCents(0);
+        if (live) {
+            e->NoteOn(60, .8f); RenderFor(*e, t, .02);
+            if (e->IsSilent()) gReport.Fail(t.where + ": live transition started from silence");
+        }
+        e->SetParameters(target); CheckApplied(*e, target, t.where);
+        if (limiterAxis) {
+            for (int note : {48, 55, 60, 67}) e->NoteOn(note, .9f);
+        } else e->NoteOn(67, .7f);
+        RenderFor(*e, t, .08);
+        if (limiterAxis) {
+            const float reduction = Access::LimiterReduction(*e);
+            if (!std::isfinite(reduction) || reduction <= .001f)
+                gReport.Fail(t.where + ": limiter timing fixture never accumulated meaningful reduction");
+            std::printf("  ACTIVE %s limiter_reduction=%.6f\n", t.where.c_str(), reduction);
+        }
+        CheckApplied(*e, target, t.where);
+        if (Access::Factor(*e) != (2 << target.oversampling)
+            || Access::Model(*e) != target.model || Access::Scale(*e) != target.tuningScale)
+            gReport.Fail(t.where + ": configured model/scale/quality did not reach the applied target");
+        ++cases;
+    };
+    for (int live = 0; live < 2; ++live) {
+        for (size_t i = 0; i < kContinuousCount; ++i)
+            for (int point = 0; point < 3; ++point) {
+                const auto& c = kContinuous[i];
+                auto initial = base, target = base;
+                // Keep this additive velocity route away from its hard ceiling.
+                if (c.member == &EngineParameters::velocityToCarving)
+                    initial.carving = target.carving = .1f;
+                const bool limiterAxis = c.member == &EngineParameters::compAttack
+                    || c.member == &EngineParameters::compRelease;
+                // Timing controls need actual control-capacitor activity; the
+                // ordinary baseline's 5% Limit is deliberately exact bypass.
+                if (limiterAxis) {
+                    initial.compAmount = target.compAmount = 1;
+                    initial.volume = target.volume = 1;
+                }
+                initial.*c.member = c.values[(point + 2) % 3];
+                target.*c.member = c.values[point];
+                t.where = Fmt("control %s value %.8g %s", c.name, c.values[point], live ? "live" : "settled");
+                run(initial, target, live, limiterAxis); continuous[live][i] |= 1u << point;
+            }
+        for (size_t i = 0; i < kDiscreteCount; ++i)
+            for (int state = 0; state < kDiscrete[i].count; ++state) {
+                const auto& c = kDiscrete[i];
+                auto initial = base, target = base;
+                initial.*c.member = (state + c.count - 1) % c.count;
+                target.*c.member = state;
+                t.where = Fmt("selector %s state %d %s", c.name, state, live ? "live" : "settled");
+                run(initial, target, live, false); discrete[live][i] |= 1u << state;
+            }
+        for (int point = 0; point < 3; ++point) {
+            t.where = Fmt("pitch bend %.0f %s", kBendTravel[point], live ? "live" : "settled");
+            e->SetParameters(base); e->Reset(); e->SetPitchBendCents(kBendTravel[(point + 2) % 3]);
+            if (live) { e->NoteOn(60, .8f); RenderFor(*e, t, .02); }
+            e->SetPitchBendCents(kBendTravel[point]);
+            e->NoteOn(67, .7f); RenderFor(*e, t, .08);
+            if (Access::Bend(*e) != kBendTravel[point]) gReport.Fail(t.where + ": bend target not applied");
+            bend[live] |= 1u << point; ++cases;
+        }
+    }
+    for (size_t i = 0; i < kContinuousCount; ++i) {
+        if (continuous[0][i] != 7 || continuous[1][i] != 7)
+            gReport.Fail(Fmt("coverage: missing settled/live value for %s", kContinuous[i].name));
+        std::printf("  COVER continuous %s settled=%u live=%u expected=7\n", kContinuous[i].name, continuous[0][i], continuous[1][i]);
+    }
+    int states = 0;
+    for (size_t i = 0; i < kDiscreteCount; ++i) {
+        const unsigned expected = (1u << kDiscrete[i].count) - 1;
+        if (discrete[0][i] != expected || discrete[1][i] != expected)
+            gReport.Fail(Fmt("coverage: missing settled/live state for %s", kDiscrete[i].name));
+        states += kDiscrete[i].count;
+        std::printf("  COVER discrete %s settled=%u live=%u expected=%u\n", kDiscrete[i].name, discrete[0][i], discrete[1][i], expected);
+    }
+    if (states != 32 || cases != 280 || bend[0] != 7 || bend[1] != 7)
+        gReport.Fail("coverage: expected 35 continuous controls, 32 selector states and three bend values in both modes");
+    std::printf("  COVER totals continuous=35 values=105 discrete=8 states=%d bend=3 modes=2 cases=%d\n", states, cases);
+    CheckResetSilent(*e, t);
+    return cases;
+}
+
+int CompactHostile() {
+    auto e = std::make_unique<MarembaEngine>(48000.0);
+    Tracker t; t.rate = 48000.0;
+    const EngineParameters base;
+    const float bad[] = {std::numeric_limits<float>::quiet_NaN(),
+        std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity(),
+        std::numeric_limits<float>::max(), -std::numeric_limits<float>::max(),
+        std::numeric_limits<float>::denorm_min(), -0.0f};
+    int cases = 0;
+    auto apply = [&](const EngineParameters& input, const EngineParameters& expected) {
+        e->Reset(); e->SetPitchBendCents(0); e->SetParameters(input);
+        CheckApplied(*e, expected, t.where);
+        e->NoteOn(60, .8f); RenderChecked(*e, t, 64, 0x1Fu); ++cases;
+    };
+    for (const auto& c : kContinuous) {
+        std::vector<float> values(std::begin(bad), std::end(bad));
+        values.push_back(c.ApiLow() - 1); values.push_back(c.ApiHigh() + 1);
+        for (float v : values) {
+            auto input = base, expected = base; input.*c.member = v;
+            expected.*c.member = std::isfinite(v) ? std::clamp(v, c.ApiLow(), c.ApiHigh()) : base.*c.member;
+            t.where = Fmt("hostile %s %.8g", c.name, v); apply(input, expected);
+        }
+    }
+    // The tune knob is +/-100 cents; the engine also accepts Reason master
+    // tune summed with it. Keep the wider API endpoints independently covered.
+    for (float v : {-200.f, 200.f}) {
+        auto p = base; p.tuneCents = v; t.where = Fmt("master plus knob tune %.0f", v); apply(p, p);
+    }
+    for (const auto& c : kDiscrete)
+        for (int v : {INT_MIN, INT_MAX, -1, c.count}) {
+            auto input = base, expected = base; input.*c.member = v;
+            expected.*c.member = std::clamp(v, 0, c.count - 1);
+            t.where = Fmt("hostile selector %s %d", c.name, v); apply(input, expected);
+        }
+    for (float v : bad) {
+        auto p = base; p.pitchGlide = v; t.where = "ignored legacy pitchGlide"; apply(p, base);
+    }
+    for (float v : {0.f, .5f, 1.f}) {
+        auto p = base; p.pitchGlide = v; t.where = "ignored finite pitchGlide"; apply(p, base);
+    }
+    std::vector<float> bends(std::begin(bad), std::end(bad));
+    bends.insert(bends.end(), {-1201.f, -1200.f, 1200.f, 1201.f});
+    for (float v : bends) {
+        e->Reset(); e->SetParameters(base); e->SetPitchBendCents(v);
+        const float expected = std::isfinite(v) ? std::clamp(v, -1200.f, 1200.f) : 0.f;
+        t.where = Fmt("hostile bend %.8g", v);
+        if (Access::Bend(*e) != expected) gReport.Fail(t.where + ": sanitized bend mismatch");
+        e->NoteOn(60, .8f); RenderChecked(*e, t, 64, 0x1Fu); ++cases;
+    }
+    e->SetPitchBendCents(0);
+    for (int note : {INT_MIN, INT_MAX, -1, 128, 0, 60, 127}) {
+        e->Reset(); e->NoteOn(note, .8f); t.where = Fmt("hostile note %d", note);
+        if ((note < 0 || note > 127) && e->GetActiveVoiceCount() != 0)
+            gReport.Fail(t.where + ": invalid key started a voice");
+        RenderChecked(*e, t, 64, 0x1Fu); e->NoteOff(note); ++cases;
+    }
+    std::vector<float> velocities(std::begin(bad), std::end(bad));
+    velocities.insert(velocities.end(), {-1.f, 0.f, 1.f, 2.f});
+    for (float v : velocities) {
+        e->Reset(); e->NoteOn(60, v); t.where = Fmt("hostile velocity %.8g", v);
+        RenderChecked(*e, t, 64, 0x1Fu); ++cases;
+    }
+    e->Reset(); e->NoteOn(60, .8f);
+    for (int frames : {INT_MIN, -1, 0, 1, 63, 64, 65, 200, INT_MAX})
+        for (unsigned mask = 0; mask < 32; ++mask) {
+            t.where = Fmt("frame/null contract frames=%d mask=%u", frames, mask);
+            RenderChecked(*e, t, frames, mask);
+            RenderChecked(*e, t, frames, mask, true);
+            RenderChecked(*e, t, frames, mask, false, 0);
+            RenderChecked(*e, t, frames, mask, false, 1); cases += 4;
+        }
+    // Reset/DampAll API commands are exercised while idle and sounding.
+    e->DampAll(); CheckResetSilent(*e, t); e->DampAll();
+    RenderChecked(*e, t, 64, 0x1Fu); cases += 2;
+    std::printf("  HOSTILE continuous=315 selector=32 tune_api=2 legacy=10 bend=11 notes=7 velocity=11 frame_null=1152 api_command_cases=2\n");
+    return cases;
 }
 
 // ------------------------------------------------------------------- fuzz --
@@ -619,25 +911,86 @@ void ResetEquivalenceSeed(uint64_t seed, const Options& o) {
 }
 
 // ------------------------------------------------ long tails / denormals --
-// x86 MXCSR flush-to-zero / denormals-are-zero, to compare the tail's cost
-// with and without subnormal arithmetic (a host may or may not set them).
+// The host may use gradual underflow or hardware flush-to-zero. Exercise both
+// real modes on supported native hosts; a no-op guard would compare scheduling,
+// not denormal arithmetic. Restore the complete original control register.
 #if defined(__SSE__) || defined(__x86_64__)
 #include <xmmintrin.h>
 struct DenormalMode {
-    unsigned saved;
-    explicit DenormalMode(bool flush) : saved(_mm_getcsr()) {
-        _mm_setcsr(flush ? (saved | 0x8040u) : (saved & ~0x8040u));
+    using Control = unsigned;
+    static constexpr Control kMask = 0x8040u; // MXCSR FTZ and DAZ
+    static Control Read() { return _mm_getcsr(); }
+    static void Write(Control value) { _mm_setcsr(value); }
+    Control saved;
+    explicit DenormalMode(bool flush) : saved(Read()) {
+        Write(flush ? saved | kMask : saved & ~kMask);
     }
-    ~DenormalMode() { _mm_setcsr(saved); }
+    ~DenormalMode() { Write(saved); }
+};
+#elif defined(__aarch64__)
+struct DenormalMode {
+    using Control = std::uint64_t;
+    static constexpr Control kMask = Control{1} << 24; // FPCR FZ, single/double precision
+    static Control Read() {
+        Control value;
+        asm volatile("mrs %0, fpcr" : "=r"(value));
+        return value;
+    }
+    static void Write(Control value) {
+        asm volatile("msr fpcr, %0" :: "r"(value) : "memory");
+    }
+    Control saved;
+    explicit DenormalMode(bool flush) : saved(Read()) {
+        Write(flush ? saved | kMask : saved & ~kMask);
+    }
+    ~DenormalMode() { Write(saved); }
 };
 #else
-struct DenormalMode { explicit DenormalMode(bool) {} };
+#error EngineFuzzTest needs a verified hardware denormal-mode guard on this native host
 #endif
+
+std::uint32_t DenormalArithmeticWitness() {
+    // Volatile operands prevent constant folding. Inspect bits because floating
+    // comparisons themselves can treat a subnormal operand as zero in FZ mode.
+    volatile float normal = std::numeric_limits<float>::min(), quarter = .25f;
+    const float value = normal * quarter;
+    std::uint32_t bits = 0;
+    std::memcpy(&bits, &value, sizeof(bits));
+    return bits;
+}
+
+void VerifyDenormalModes() {
+    const auto original = DenormalMode::Read();
+    for (bool flush : {false, true}) {
+        {
+            DenormalMode mode(flush);
+            const auto expected = flush ? DenormalMode::kMask : 0;
+            const auto witness = DenormalArithmeticWitness();
+            if ((DenormalMode::Read() & DenormalMode::kMask) != expected
+                || witness != (flush ? 0u : 0x00200000u))
+                gReport.Fail(Fmt("denormal mode %s not active: arithmetic witness 0x%08x",
+                                 flush ? "flushed" : "gradual", witness));
+        }
+        if (DenormalMode::Read() != original)
+            gReport.Fail("denormal-mode guard failed to restore the original control register");
+    }
+    std::printf("  denormal modes: gradual/flushed arithmetic and exact control restoration checked\n");
+}
+
+double ThreadCpuSeconds() {
+    timespec value{};
+    if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &value) != 0)
+        return std::numeric_limits<double>::quiet_NaN();
+    return static_cast<double>(value.tv_sec) + static_cast<double>(value.tv_nsec) * 1e-9;
+}
+
+struct TailTiming { double wall = 0, cpu = 0; };
 
 // A dense, long-decaying chord (decay 8, every shared tail on, buzz, shaft
 // knock) rendered for `seconds`: no subnormal state anywhere, and the same
-// cost with and without hardware flush-to-zero. Returns the render seconds.
-double RenderTail(int model, double rate, int oversampling, double seconds, bool flush,
+// cost with and without hardware flush-to-zero. Wall and thread-CPU clocks cover
+// the same render/state-check loop; scheduling delays are not DSP execution.
+TailTiming RenderTail(int model, double rate, int oversampling, double seconds, bool flush,
                   int* badVoice, int* badShared, double* silentAt) {
     DenormalMode mode(flush);
     Tracker t;
@@ -663,6 +1016,7 @@ double RenderTail(int model, double rate, int oversampling, double seconds, bool
     *badVoice = *badShared = 0;
     *silentAt = -1.0;
     const auto t0 = std::chrono::steady_clock::now();
+    const double cpu0 = ThreadCpuSeconds();
     for (long b = 0; b < batches; ++b) {
         RenderChecked(e, t, 64, 0x1Fu);
         if (b % 8 == 0) {
@@ -671,22 +1025,33 @@ double RenderTail(int model, double rate, int oversampling, double seconds, bool
         }
         if (e.IsSilent()) { *silentAt = b * 64.0 / rate; break; }
     }
-    return std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    const double cpu = ThreadCpuSeconds() - cpu0;
+    return {std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count(), cpu};
 }
 
 void DenormalTail(int model, double rate, int oversampling, double seconds, const Options& o) {
     int badVoice = 0, badShared = 0, v2 = 0, s2 = 0;
     double silent = 0.0, silent2 = 0.0;
-    const double plain = RenderTail(model, rate, oversampling, seconds, false, &badVoice, &badShared, &silent);
-    const double flushed = RenderTail(model, rate, oversampling, seconds, true, &v2, &s2, &silent2);
+    const auto original = DenormalMode::Read();
+    const auto plain = RenderTail(model, rate, oversampling, seconds, false, &badVoice, &badShared, &silent);
+    const bool plainRestored = DenormalMode::Read() == original;
+    const auto flushed = RenderTail(model, rate, oversampling, seconds, true, &v2, &s2, &silent2);
     const std::string where = Fmt("tail model %d rate %.0f os %d", model, rate, oversampling);
-    if (badVoice || badShared)
-        gReport.Fail(Fmt("%s: subnormal state on %d voice / %d shared checks", where.c_str(), badVoice, badShared));
-    if (plain > 1.5 * flushed + 0.2)
-        gReport.Fail(Fmt("%s: %.2f s without flush-to-zero vs %.2f s with it (subnormal arithmetic)", where.c_str(), plain, flushed));
-    if (o.verbose)
-        std::printf("  %s: %.1f s of tail in %.2f s (FTZ/DAZ: %.2f s), silent at %.1f s\n", where.c_str(), seconds,
-                    plain, flushed, silent);
+    if (!plainRestored || DenormalMode::Read() != original)
+        gReport.Fail(where + ": render failed to restore denormal control register");
+    if (badVoice || badShared || v2 || s2)
+        gReport.Fail(Fmt("%s: subnormal state, gradual %d voice / %d shared, flushed %d voice / %d shared checks",
+                         where.c_str(), badVoice, badShared, v2, s2));
+    if (!std::isfinite(plain.cpu) || !std::isfinite(flushed.cpu) || plain.cpu <= 0 || flushed.cpu <= 0)
+        gReport.Fail(where + ": thread CPU clock failed");
+    // Preserve the original slowdown bound. Thread CPU excludes time spent
+    // descheduled by simultaneous SDK suites or other desktop applications.
+    if (plain.cpu > 1.5 * flushed.cpu + 0.2)
+        gReport.Fail(Fmt("%s: thread CPU %.2f s gradual vs %.2f s flushed (denormal slowdown); wall %.2f / %.2f s",
+                         where.c_str(), plain.cpu, flushed.cpu, plain.wall, flushed.wall));
+    std::printf("  %s: %.1f s tail, thread CPU gradual %.3f / flushed %.3f s, wall %.3f / %.3f s\n",
+                where.c_str(), seconds, plain.cpu, flushed.cpu, plain.wall, flushed.wall);
+    if (o.verbose) std::printf("    silent at gradual %.3f / flushed %.3f s\n", silent, silent2);
 }
 
 // Every model/striker at engine defaults, including the calibrated additive
@@ -832,7 +1197,8 @@ void DeterminismSeed(uint64_t seed, const Options& o) {
 
 // --------------------------------------------------------------- scenarios --
 // Deterministic regressions for the state machines.
-void FreshStrikeOnTheControlGrid();
+int gScenarioCases = 0;
+void FreshStrikeOnTheControlGrid(bool extended);
 
 void MinimumNoteStops(const Options& o) {
     // A constant-Q hand loss used to approach zero below hearing: MIDI 0
@@ -842,6 +1208,11 @@ void MinimumNoteStops(const Options& o) {
     for (double rate : {48000.0, 96000.0})
         for (int model = 0; model < 4; ++model)
             for (int striker : {1, 4}) {
+                // Compact: each model, both striker families and both rate/
+                // quality endpoints. Extended retains all 16 combinations.
+                if (!o.extended && !(rate == (model == 0 ? 96000.0 : 48000.0)
+                    && striker == (model % 2 == 0 ? 4 : 1))) continue;
+                ++gScenarioCases;
                 auto e = std::make_unique<MarembaEngine>(rate);
                 EngineParameters p;
                 p.model = model; p.malletType = striker;
@@ -869,10 +1240,13 @@ void MinimumNoteStops(const Options& o) {
 
 void Scenarios(const Options& o) {
     MinimumNoteStops(o);
-    // S1: every striker x note-off mode, per model: strike, hold, release -> silent.
+    // S1: compact covers each model/mode and every striker; extended takes
+    // the original full model x striker x note-off Cartesian product.
     for (int model = 0; model < 4; ++model)
         for (int mallet = 0; mallet < maremba::kStrikerCount; ++mallet)
             for (int mode = 0; mode < 3; ++mode) {
+                if (!o.extended && mallet != (model + mode) % maremba::kStrikerCount) continue;
+                ++gScenarioCases;
                 Tracker t;
                 t.rate = 44100.0;
                 t.where = Fmt("scenario release model %d mallet %d noteOff %d", model, mallet, mode);
@@ -905,6 +1279,9 @@ void Scenarios(const Options& o) {
     for (int model = 0; model < 4; ++model)
         for (int mallet : {1, 4})
             for (int mode : {0, 2}) {
+                if (!o.extended && (mallet != (model % 2 ? 4 : 1)
+                    || mode != (model % 2 ? 2 : 0))) continue;
+                ++gScenarioCases;
                 Tracker t;
                 t.rate = 44100.0;
                 t.where = Fmt("scenario DampAll-held model %d mallet %d noteOff %d", model, mallet, mode);
@@ -936,6 +1313,7 @@ void Scenarios(const Options& o) {
         Tracker t;
         t.rate = 48000.0;
         t.where = "scenario queued chord";
+        ++gScenarioCases;
         auto e = std::make_unique<MarembaEngine>(t.rate);
         EngineParameters p;
         p.polyphony = 2;
@@ -958,6 +1336,7 @@ void Scenarios(const Options& o) {
     // previous note still rang (Reset() and idle agree).
     {
         const double rate = 44100.0;
+        ++gScenarioCases;
         EngineParameters p;
         p.model = 3;
         p.decay = 0.25f;                      // idle sooner
@@ -1001,6 +1380,7 @@ void Scenarios(const Options& o) {
     // S5 (behaviour): switching Model from a bar instrument to Kalimba while a
     // chord and its sympathetic halo ring must not make the halo louder.
     for (int from : {0, 1, 2}) {
+        ++gScenarioCases;
         const double rate = 44100.0;
         auto run = [&](float sym, std::vector<float>& out) {
             auto e = std::make_unique<MarembaEngine>(rate);
@@ -1035,10 +1415,10 @@ void Scenarios(const Options& o) {
                              from, 10.0 * std::log10(after / before)));
     }
 
-    FreshStrikeOnTheControlGrid();
+    FreshStrikeOnTheControlGrid(o.extended);
 }
 
-void FreshStrikeOnTheControlGrid() {
+void FreshStrikeOnTheControlGrid(bool extended) {
     // The rim's harmonics are scaled at control rate by the tube's swing. A
     // fresh strike's tube starts from rest, so a tick a few samples after
     // the mallet lands sees almost no swing, and the tube grows a thousand-
@@ -1046,6 +1426,9 @@ void FreshStrikeOnTheControlGrid() {
     // strike against the 16-frame control grid, soft and long contacts.
     for (int offset = 0; offset < 16; ++offset)
         for (int note : {36, 41, 48, 55}) {
+            constexpr int notes[] = {36, 41, 48, 55};
+            if (!extended && note != notes[offset % 4]) continue;
+            ++gScenarioCases;
             Tracker t;
             t.rate = 48000.0;
             t.where = Fmt("scenario fresh rosewood strike, note %d, %d frames into the control grid", note, offset);
@@ -1067,63 +1450,154 @@ void FreshStrikeOnTheControlGrid() {
 }
 
 void Usage() {
-    std::printf("EngineFuzzTest [--seeds N] [--determinism-seeds N] [--first S] [--steps K] [--drain SECONDS]\n"
-                "               [--only fuzz|determinism|reset|denormal|scenarios]\n"
+    std::printf("EngineFuzzTest [--compact|--extended] [--list-controls]\n"
+                "               [--seeds N] [--determinism-seeds N] [--first S] [--steps K] [--drain SECONDS]\n"
+                "               [--only controls|hostile|fuzz|drain|determinism|reset|denormal|denormal-mode|scenarios]\n"
                 "               [--tail-rate HZ] [--tail-os 0|1|2] [--tail-seconds S]\n"
-                "               [--reset-rate HZ] [--reset-os 0|1|2] [--verbose]\n");
+                "               [--reset-rate HZ] [--reset-os 0|1|2] [--verbose]\n"
+                "Compact (default): explicit control states, hostile API, representative regressions and true tails.\n"
+                "Extended: additionally retains all original scenarios, 24 x 160 random steps and 8 determinism seeds.\n");
+}
+
+[[noreturn]] void BadArgument(const std::string& arg) {
+    std::fprintf(stderr, "Invalid argument: %s\n", arg.c_str());
+    Usage(); std::exit(2);
+}
+
+uint64_t UnsignedArgument(const std::string& arg, const std::string& value, uint64_t maximum) {
+    if (value.empty() || value.find_first_not_of("0123456789") != std::string::npos) BadArgument(arg);
+    errno = 0; char* end = nullptr;
+    const auto n = std::strtoull(value.c_str(), &end, 10);
+    if (errno || !end || *end || n > maximum) BadArgument(arg);
+    return static_cast<uint64_t>(n);
+}
+
+double NumberArgument(const std::string& arg, const std::string& value) {
+    if (value.empty() || value.find_first_of(" \t\r\n") != std::string::npos) BadArgument(arg);
+    errno = 0; char* end = nullptr;
+    const double n = std::strtod(value.c_str(), &end);
+    if (errno || end == value.c_str() || !end || *end || !std::isfinite(n)) BadArgument(arg);
+    return n;
+}
+
+// Counts are actual completed cases, not just a requested loop size. Checked
+// calls/frames cover RenderChecked; determinism also compares complete raw
+// performances separately, so these are deliberately not total audio frames.
+template<class F> void Phase(const Options& o, const char* name, F run) {
+    const auto start = std::chrono::steady_clock::now();
+    const auto calls = gRenderedCalls, frames = gRenderedFrames;
+    const int failures = gReport.failures;
+    std::printf("[Phase] mode=%s name=%s start\n", o.extended ? "extended" : "compact", name);
+    std::fflush(stdout);
+    const int cases = run();
+    const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+    if (cases <= 0) gReport.Fail(Fmt("phase %s executed no cases", name));
+    std::printf("PHASE mode=%s name=%s cases=%d checked_calls=%llu checked_frames=%llu failures=%d seconds=%.3f\n",
+        o.extended ? "extended" : "compact", name, cases,
+        static_cast<unsigned long long>(gRenderedCalls - calls),
+        static_cast<unsigned long long>(gRenderedFrames - frames), gReport.failures - failures, seconds);
+    std::fflush(stdout);
 }
 
 } // namespace
 
 int main(int argc, char** argv) {
     Options o;
+    bool seedsSet = false, stepsSet = false, determinismSet = false, compactSet = false, onlySet = false;
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
-        auto value = [&]() { if (i + 1 >= argc) { Usage(); std::exit(2); } return std::string(argv[++i]); };
-        if (a == "--seeds") o.seeds = std::atoi(value().c_str());
-        else if (a == "--determinism-seeds") o.determinismSeeds = std::atoi(value().c_str());
-        else if (a == "--first") o.first = std::strtoull(value().c_str(), nullptr, 10);
-        else if (a == "--steps") o.steps = std::atoi(value().c_str());
-        else if (a == "--drain") o.drainSeconds = std::atof(value().c_str());
-        else if (a == "--only") o.only = value();
+        auto value = [&]() {
+            if (i + 1 >= argc) BadArgument(a + " requires a value");
+            return std::string(argv[++i]);
+        };
+        auto count = [&]() {
+            const auto n = UnsignedArgument(a, value(), INT_MAX);
+            if (!n) BadArgument(a + " must be positive");
+            return static_cast<int>(n);
+        };
+        if (a == "--seeds") { o.seeds = count(); seedsSet = true; }
+        else if (a == "--determinism-seeds") { o.determinismSeeds = count(); determinismSet = true; }
+        else if (a == "--first") o.first = UnsignedArgument(a, value(), UINT64_MAX);
+        else if (a == "--steps") { o.steps = count(); stepsSet = true; }
+        else if (a == "--drain") o.drainSeconds = NumberArgument(a, value());
+        else if (a == "--only") { o.only = value(); onlySet = true; }
         else if (a == "--verbose") o.verbose = true;
-        else if (a == "--tail-rate") o.tailRate = std::atof(value().c_str());
-        else if (a == "--reset-rate") o.resetRate = std::atof(value().c_str());
-        else if (a == "--reset-os") o.resetOversampling = std::atoi(value().c_str());
-        else if (a == "--tail-os") o.tailOversampling = std::atoi(value().c_str());
-        else if (a == "--tail-seconds") o.tailSeconds = std::atof(value().c_str());
-        else { Usage(); return 2; }
+        else if (a == "--tail-rate") o.tailRate = NumberArgument(a, value());
+        else if (a == "--reset-rate") o.resetRate = NumberArgument(a, value());
+        else if (a == "--reset-os") {
+            const auto v = value();
+            o.resetOversampling = v == "-1" ? -1 : static_cast<int>(UnsignedArgument(a, v, 2));
+        }
+        else if (a == "--tail-os") o.tailOversampling = static_cast<int>(UnsignedArgument(a, value(), 2));
+        else if (a == "--tail-seconds") o.tailSeconds = NumberArgument(a, value());
+        else if (a == "--extended") o.extended = true;
+        else if (a == "--compact") compactSet = true;
+        else if (a == "--list-controls") o.listControls = true;
+        else if (a == "--help") { Usage(); return 0; }
+        else BadArgument(a);
     }
-    if (!std::isfinite(o.resetRate) || (o.resetRate != 0.0 && (o.resetRate < 22050.0 || o.resetRate > 192000.0))
-        || o.resetOversampling < -1 || o.resetOversampling > 2) {
-        Usage();
-        return 2;
+    if (o.extended && compactSet) BadArgument("--compact and --extended are mutually exclusive");
+    if (o.extended) {
+        if (!seedsSet) o.seeds = 24;
+        if (!stepsSet) o.steps = 160;
+        if (!determinismSet) o.determinismSeeds = 8;
     }
+    const std::vector<std::string> modes = {"controls", "hostile", "fuzz", "drain", "determinism", "reset", "denormal", "denormal-mode", "scenarios"};
+    if (onlySet && (o.only.empty() || std::find(modes.begin(), modes.end(), o.only) == modes.end()))
+        BadArgument("--only " + o.only);
+    if ((o.resetRate != 0.0 && (o.resetRate < 22050.0 || o.resetRate > 192000.0))
+        || o.tailRate < 22050.0 || o.tailRate > 192000.0
+        || o.drainSeconds <= 0.0 || o.drainSeconds > 86400.0
+        // Match RenderTail's batch expression, including boundary rounding.
+        || o.tailSeconds * o.tailRate / 64.0 < 1.0 || o.tailSeconds > 86400.0
+        || o.first > UINT64_MAX - static_cast<uint64_t>(std::max(o.seeds, o.determinismSeeds) - 1))
+        BadArgument("rate, duration or seed range");
+    if (o.listControls) { ListControls(); return 0; }
     const auto want = [&](const char* name) { return o.only.empty() || o.only == name; };
     const auto t0 = std::chrono::steady_clock::now();
+    std::printf("EngineFuzz mode=%s only=%s seeds=%d steps=%d determinism_seeds=%d first=%llu\n",
+        o.extended ? "extended" : "compact", o.only.empty() ? "all" : o.only.c_str(), o.seeds, o.steps,
+        o.determinismSeeds, static_cast<unsigned long long>(o.first));
 
-    if (want("scenarios")) {
-        std::printf("[Scenarios] release, transport stop and queued-note state machines ...\n");
-        Scenarios(o);
-    }
-    if (want("fuzz") || want("drain")) {
-        std::printf("[Fuzz] %d seeds from %llu, %d steps each ...\n", o.seeds, static_cast<unsigned long long>(o.first), o.steps);
-        for (int s = 0; s < o.seeds; ++s) FuzzSeed(o.first + static_cast<uint64_t>(s), o);
-    }
-    if (want("determinism")) {
-        std::printf("[Determinism] the same performance, bit for bit: fresh engines, block sizes, Reset(), %d seeds ...\n", o.determinismSeeds);
+    if (want("controls")) Phase(o, "controls", [&] { return ControlCoverage(); });
+    if (want("hostile")) Phase(o, "hostile", [&] { return CompactHostile(); });
+    if (want("scenarios")) Phase(o, "scenarios", [&] {
+        const int before = gScenarioCases; Scenarios(o); return gScenarioCases - before;
+    });
+    // The random parameter walk (including a drain per seed) is deliberately
+    // opt-in, either as the original extended profile or an explicit old mode.
+    if ((o.extended && o.only.empty()) || o.only == "fuzz" || o.only == "drain")
+        Phase(o, "fuzz", [&] {
+            for (int s = 0; s < o.seeds; ++s) FuzzSeed(o.first + static_cast<uint64_t>(s), o);
+            return o.seeds;
+        });
+    if (want("determinism")) Phase(o, "determinism", [&] {
         for (int s = 0; s < o.determinismSeeds; ++s) DeterminismSeed(o.first + static_cast<uint64_t>(s), o);
-    }
-    if (want("reset")) {
-        std::printf("[Reset] render after Reset() == fresh engine, %d seeds ...\n", o.seeds);
+        return o.determinismSeeds;
+    });
+    if (want("reset")) Phase(o, "reset", [&] {
         for (int s = 0; s < o.seeds; ++s) ResetEquivalenceSeed(o.first + static_cast<uint64_t>(s), o);
-    }
+        return o.seeds;
+    });
+    if (want("denormal") || o.only == "denormal-mode")
+        Phase(o, "denormal-mode", [&] { VerifyDenormalModes(); return 1; });
     if (want("denormal")) {
-        std::printf("[Tails] long decays: no subnormal state, no CPU growth ...\n");
-        for (int model = 0; model < 4; ++model) DenormalTail(model, o.tailRate, o.tailOversampling, o.tailSeconds, o);
-        for (int model = 0; model < 4; ++model)
-            for (int striker = 0; striker < maremba::kStrikerCount; ++striker)
-                VoiceEnds(model, striker, o);
+        Phase(o, "denormal-tails", [&] {
+            for (int model = 0; model < 4; ++model) DenormalTail(model, o.tailRate, o.tailOversampling, o.tailSeconds, o);
+            return 4;
+        });
+        Phase(o, "voice-ends", [&] {
+            int cases = 0;
+            for (int model = 0; model < 4; ++model)
+                for (int striker = 0; striker < maremba::kStrikerCount; ++striker) {
+                    // Six representatives cover every model and striker, plus
+                    // both the wooden shaft and Kalimba's natural pluck.
+                    if (!o.extended && !(striker == model || (model == 0 && striker == 4)
+                        || (model == 3 && striker == 1))) continue;
+                    VoiceEnds(model, striker, o); ++cases;
+                }
+            return cases;
+        });
     }
 
     const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();

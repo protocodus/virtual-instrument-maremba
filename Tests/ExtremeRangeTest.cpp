@@ -1,6 +1,8 @@
 // Deterministic release boundary matrix, complementary to EngineFuzzTest.
-// Default/--full: every MIDI key/velocity/profile plus every boundary velocity
-// at all rates/qualities, dense driven chords and long transport drains.
+// Default/--compact: representative note/velocity/profile axes, exact low-pluck
+// regressions, every quality, hostile API notes and bounded chord/drain cases.
+// --full retains every historical MIDI key/velocity/profile plus every boundary
+// velocity at all rates/qualities, dense driven chords and long transport drains.
 // --stratified uses one
 // rotating endpoint profile per key and velocity for a quicker diagnostic.
 // --chords-only runs the identical 116 dense-chord cases from the full matrix.
@@ -69,6 +71,7 @@ std::uint64_t fullNoteCases = 0, rateCases = 0, rateNoteCases = 0, hostileCases 
 std::uint64_t pluckCases = 0, pluckSurvivalChecks = 0;
 std::uint64_t chordCases = 0, chordBatchPairs = 0, transitionFrames = 0;
 std::uint64_t limiterEngagementCases = 0;
+std::uint64_t polyphonyCases = 0, polyphonyTransitions = 0;
 int maximumActive = 0, maximumLive = 0;
 
 void require(bool condition, const std::string& message) {
@@ -385,22 +388,104 @@ void limiterEngagement() {
                 ++cases; ++limiterEngagementCases;
             }
 }
+
+void compactPolyphony(MarembaEngine& e, int model) {
+    context("polyphony-transitions", model, 48000, 0, 48, 1, 1);
+    auto p = endpoint(model, 0, 1, 48);
+    p.polyphony = 0; p.noteOffMode = 1; p.modWheel = 0;
+    e.SetParameters(p); resetChecked(e); e.SetPitchBendCents(0);
+    for (int note = 48; note < 56; ++note) { e.NoteOn(note, 1); ++noteStarts; }
+    require(Access::Live(e) == 8, "eight-voice fixture did not fill its live pool");
+    forSeconds(e, 48000, .004);
+    p.polyphony = 2; e.SetParameters(p);
+    for (int note = 56; note < 72; ++note) { e.NoteOn(note, 1); ++noteStarts; }
+    require(Access::Live(e) == 24, "8-to-24 transition did not admit the extra voices");
+    ++polyphonyTransitions;
+    forSeconds(e, 48000, .004);
+    p.polyphony = 0; e.SetParameters(p);
+    require(Access::Live(e) == 8, "24-to-8 transition did not enforce the new live limit");
+    ++polyphonyTransitions;
+    forSeconds(e, 48000, .010); // include the existing stealing fade
+    for (int note = 48; note < 72; ++note) e.NoteOff(note);
+    e.DampAll(); forSeconds(e, 48000, .010); resetChecked(e);
+    ++polyphonyCases; ++cases;
+}
+
+void compactMatrix() {
+    // Independent axes, not their Cartesian product. All control midpoints and
+    // every selector/radio state are enumerated by EngineFuzzTest's bounded
+    // control matrix; this suite owns the costly physical boundary witnesses.
+    constexpr std::array<double, 3> rates{{22050, 48000, 192000}};
+    constexpr std::array<int, 5> lowPlucks{{0, 11, 12, 21, 28}};
+    constexpr std::array<int, 5> notes{{0, 21, 60, 108, 127}};
+    limiterEngagement(); // all five historical rates and all three qualities
+    for (double rate : rates) {
+        auto e = std::make_unique<MarembaEngine>(rate);
+        for (int quality = 0; quality < 3; ++quality) {
+            if (rate != 48000 && quality != 0) continue;
+            for (int note : lowPlucks)
+                for (int carving : {0, 1}) for (int buzz : {0, 1}) for (int noteOff : {0, 2})
+                    pluckRegression(*e, rate, quality, note, carving, buzz, noteOff);
+        }
+        std::cout << "PLUCK_RATE_COMPLETE rate=" << rate << " cases=" << cases << " seconds=" << elapsed() << std::endl;
+    }
+    for (int model = 0; model < 4; ++model) {
+        auto e = std::make_unique<MarembaEngine>(48000);
+        for (int note : notes) for (float velocity : kVelocities)
+            for (int profile = 0; profile < 4; ++profile) {
+                attackCase(*e, "representative-notes", 48000, model, 0, note, velocity, profile);
+                ++fullNoteCases;
+            }
+        // Ring mode is the worst release case. Dense chords separately retain
+        // Damp; exact preload fixtures retain both Ring and Dead behavior.
+        drainExtremeChord(*e, model, 0);
+        compactPolyphony(*e, model);
+        std::cout << "MODEL_COMPLETE model=" << model << " cases=" << cases << " seconds=" << elapsed() << std::endl;
+    }
+    for (double rate : rates) {
+        auto e = std::make_unique<MarembaEngine>(rate);
+        for (int model = 0; model < 4; ++model) for (int quality = 0; quality < 3; ++quality) {
+            for (int index = 0; index < 2; ++index) for (int velocity = 0; velocity < 2; ++velocity) {
+                // Rotate maximum and loose-coupled witnesses independently of
+                // the key value; both profiles reach every rate/quality/model.
+                const int profile = 1 + (index + velocity) % 2;
+                attackCase(*e, "rate-quality", rate, model, quality, index == 0 ? 0 : 127,
+                           velocity == 0 ? kVelocities.front() : kVelocities.back(), profile);
+                ++rateCases;
+            }
+            hostileNotes(*e, rate, model, quality);
+        }
+        std::cout << "RATE_COMPLETE rate=" << rate << " cases=" << cases << " seconds=" << elapsed() << std::endl;
+    }
+    for (int model = 0; model < 4; ++model) {
+        auto e = std::make_unique<MarembaEngine>(48000);
+        auto split = std::make_unique<MarembaEngine>(48000);
+        const auto reference = denseChord(*e, model, 48000, 0, 2, 50, 20, 1, 64);
+        const auto alternate = denseChord(*split, model, 48000, 0, 2, 50, 20, 1, 32);
+        require(reference == alternate, "dense chord/limiter transitions depend on host batch size");
+        ++chordBatchPairs;
+        std::cout << "CHORD_MODEL_COMPLETE model=" << model << " cases=" << cases << " seconds=" << elapsed() << std::endl;
+    }
+}
 } // namespace
 
 int main(int argc, char** argv) {
-    const bool full = argc == 1 || (argc == 2 && std::string(argv[1]) == "--full");
+    const bool compact = argc == 1 || (argc == 2 && std::string(argv[1]) == "--compact");
+    const bool full = argc == 2 && std::string(argv[1]) == "--full";
     const bool velocityOnly = argc == 2 && std::string(argv[1]) == "--velocity-only";
     const bool chordsOnly = argc == 2 && std::string(argv[1]) == "--chords-only";
-    if (argc > 2 || (argc == 2 && !full && !velocityOnly && !chordsOnly && std::string(argv[1]) != "--stratified")) {
-        std::cerr << "Usage: ExtremeRangeTest [--full|--stratified|--velocity-only|--chords-only]\n"; return 2;
+    if (argc > 2 || (argc == 2 && !compact && !full && !velocityOnly && !chordsOnly && std::string(argv[1]) != "--stratified")) {
+        std::cerr << "Usage: ExtremeRangeTest [--compact|--full|--stratified|--velocity-only|--chords-only]\n"; return 2;
     }
-    const char* mode = full ? "full" : velocityOnly ? "velocity-only" : chordsOnly ? "chords-only" : "stratified";
-    const char* phase = full ? "complete-matrix" : chordsOnly ? "dense-chords"
+    const char* mode = compact ? "compact" : full ? "full" : velocityOnly ? "velocity-only" : chordsOnly ? "chords-only" : "stratified";
+    const char* phase = compact ? "bounded-boundaries" : full ? "complete-matrix" : chordsOnly ? "dense-chords"
                                                           : velocityOnly ? "velocity" : "stratified-matrix";
-    const std::uint64_t expectedCases = full ? 12140 : velocityOnly ? 5056 : chordsOnly ? 116 : 3156;
+    const std::uint64_t expectedCases = compact ? 996 : full ? 12140 : velocityOnly ? 5056 : chordsOnly ? 116 : 3156;
     std::cout << std::setprecision(9) << "ExtremeRangeTest mode=" << mode << " phase=" << phase
               << " expected_cases=" << expectedCases << " wall_budget_seconds=" << kWallBudgetSeconds << std::endl;
     try {
+        if (compact) compactMatrix();
+        if (!compact) {
         if (!velocityOnly && !chordsOnly) limiterEngagement();
         if (!velocityOnly && !chordsOnly) for (double rate : kRates) {
             auto e = std::make_unique<MarembaEngine>(rate);
@@ -464,11 +549,18 @@ int main(int argc, char** argv) {
             }
             std::cout << "CHORD_MODEL_COMPLETE model=" << model << " cases=" << cases << " seconds=" << elapsed() << std::endl;
         }
+        }
         where = std::string("completed matrix mode=") + mode;
         require(cases == expectedCases, "matrix case count differs from selected mode");
         require(cases == fullNoteCases + rateCases + rateNoteCases + hostileCases + drainCases
-                      + pluckCases + chordCases + limiterEngagementCases,
+                      + pluckCases + chordCases + limiterEngagementCases + polyphonyCases,
                 "phase counts do not sum to the completed matrix");
+        if (compact)
+            require(fullNoteCases == 240 && rateCases == 144 && hostileCases == 216
+                    && rateNoteCases == 0 && pluckCases == 200 && drainCases == 4
+                    && chordCases == 8 && chordBatchPairs == 4 && limiterEngagementCases == 180
+                    && polyphonyCases == 4 && polyphonyTransitions == 8,
+                    "compact boundary category coverage is incomplete");
         if (full || chordsOnly)
             require(chordCases == 116 && chordBatchPairs == 4, "dense-chord phase is incomplete");
         std::cout << "SUMMARY {\"result\":\"pass\",\"mode\":\"" << mode
@@ -482,6 +574,7 @@ int main(int argc, char** argv) {
                   << ",\"limiter_engagement_cases\":" << limiterEngagementCases
                   << ",\"limiter_transition_frames\":" << transitionFrames
                   << ",\"drain_cases\":" << drainCases << ",\"note_starts\":" << noteStarts
+                  << ",\"polyphony_cases\":" << polyphonyCases << ",\"polyphony_transitions\":" << polyphonyTransitions
                   << ",\"output_frames\":" << frames << ",\"output_guard_checks\":" << guardChecks
                   << ",\"max_active_voices\":" << maximumActive << ",\"max_live_voices\":" << maximumLive
                   << ",\"max_limited_main_peak\":" << limitedPeak << ",\"max_bypassed_main_peak\":" << unlimitedPeak

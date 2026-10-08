@@ -42,6 +42,14 @@ constexpr double kMaxVoiceEnergy = 1.0e4;
 // earlier engine did; per-model calibration lives in ModelParams.
 constexpr double kRadiationUnit = 3.32e-4;  // close/far pressure per (m/s^2) of bar surface
 constexpr double kAirUnit = 3.32e-4;        // pressure per unit air state x omega^2
+// Voiced acoustic balance, not additional mechanical damping or a measured
+// radiation model. The fundamental, tuned first upper partial and cavity
+// retain their body; higher bending and transverse pressure no longer dwarf
+// them on hard contacts. Apply the same pressure weight at every microphone.
+// Contact motion, modal energy, decay, cavity exchange and pickup strain keep
+// their physical paths; these fixed readout weights never follow signal level.
+constexpr double kUpperBendingRadiationGain = 0.08;
+constexpr double kTransverseRadiationGain = 0.15;
 constexpr double kStrainUnit = 640.0;       // nominal pickup units at the C4 strain reference, not coulombs
 constexpr double kSupportUnit = 4.0e-3;     // support force per (m/s) at the cords
 constexpr double kFrameDriveUnit = 1100.0;  // frame/mesh drive per unit support force
@@ -933,7 +941,8 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         } else {
             const double direct = BarDirectRadiationScale(fm, geometry.width);
             mRadiationGain[m] = params.radiationGain * kRadiationUnit * omegaSeconds * omegaSeconds
-                              * mode.toDisplacement * direct * acousticArea;
+                              * mode.toDisplacement * direct * acousticArea
+                              * (m >= 2 ? kUpperBendingRadiationGain : 1.0);
             mBridgeGain[m] = 0.0;
             // The cords pass the bar's motion over the felt (about 5% of the
             // length around the nodal point) to the frame, read from the
@@ -994,8 +1003,8 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
             const double gain = params.radiationGain * kRadiationUnit * (kTwoPiD * frequency) * (kTwoPiD * frequency)
                               * direct * edges * 0.5 * key.widthM * acousticArea
                               / (kStateScale * std::sqrt(std::max(inertia, 1.0e-9)));
-            mTorsionClose[n] = gain;
-            mTorsionFar[n] = 0.6 * gain;
+            mTorsionClose[n] = gain * kTransverseRadiationGain;
+            mTorsionFar[n] = 0.6 * gain * kTransverseRadiationGain;
             ++mNumTorsionModes;
         }
         const double lateralHz = f0 * key.lateral * variation.torsion;
@@ -1014,7 +1023,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
                           * std::sin(mLateral.omega) / (std::sqrt(mass) * kTwoPiD * lateralHz);
             // In-plane motion radiates little.
             mLateralRadiation = 0.15 * params.radiationGain * kRadiationUnit * (kTwoPiD * lateralHz) * (kTwoPiD * lateralHz)
-                              * acousticArea / (kStateScale * std::sqrt(mass));
+                              * acousticArea / (kStateScale * std::sqrt(mass)) * kTransverseRadiationGain;
         }
     }
     for (int n = mNumTorsionModes; n < kNumTorsionModes; ++n) mTorsion[n] = ModeState{};
@@ -1095,9 +1104,12 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         mMalletSetup.coreStiffness = mMallet.coreStiffness;
         mMalletSetup.coreExponent = mMallet.coreExponent;
         mMalletSetup.hysteresis = mMallet.hysteresis * character.hysteresisScale;
-        // A fingertip taps a tine far slower than a mallet meets a bar.
-        StartMallet(kMaxMalletSpeed * (mTine ? 0.35 : 1.0) * touch * primaryShare, 0.0);
-        mClickGain = mMallet.click;
+        // A shaft stroke uses the side of the handle, with a shorter swing
+        // than a head strike; do not inject head-strike energy through its
+        // much harder contact. A fingertip taps a tine more slowly again.
+        const double strokeSpeed = kMaxMalletSpeed * (mTine ? 0.35 : shaft ? 0.50 : 1.0);
+        StartMallet(strokeSpeed * touch * primaryShare, 0.0);
+        mClickGain = mMallet.click * (shaft && !mTine ? 0.4 : 1.0);
         if (mDeadStroke) {
             if (mTine) mFingerPending = true;              // the fingertip stays on the tine
             else mContact.Hold(kDeadHoldForce, kDeadGrip); // the head stays pressed into the bar
@@ -1106,7 +1118,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         // A glancing or loose stroke bounces back onto the bar (a held one cannot).
         if (art.reboundGain > 0.0f && !mDeadStroke) {
             mReboundStart = static_cast<int>(art.reboundDelaySec * fs);
-            mReboundVelocity = kMaxMalletSpeed * (mTine ? 0.35 : 1.0) * touch * (0.2 + art.reboundGain);
+            mReboundVelocity = strokeSpeed * touch * (0.2 + art.reboundGain);
             mArtifactEnd = std::max(mArtifactEnd, mReboundStart + 1);
         }
     }

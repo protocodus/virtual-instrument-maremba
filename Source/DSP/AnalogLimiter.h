@@ -49,19 +49,25 @@ public:
         UpdateBallistics();
     }
 
-    // Amount lowers the control threshold from -3 to -18 dBFS. Automatic
-    // makeup gain raises the output by the same amount, so limited material
-    // keeps its -3 dBFS level at every setting and everything below the
-    // threshold comes up: more Amount is louder and denser, never quieter.
-    // The default 0.25 is deliberately gentle (+2.2 dB of makeup).
+    // The first 30% of Limit keeps the musical stage clean. Above that,
+    // remap the remaining travel to the full -3 to -18 dBFS threshold range.
+    // Automatic makeup gain compensates for the lower threshold. Once fully
+    // engaged, sustained overload settles at -3 dBFS while quieter material
+    // comes up. The onset blends this response with the clean signal.
+    // The factory 0.05 setting is therefore unity, with no makeup or reduction.
     // Expensive coefficient/threshold math happens only on parameter changes.
     void SetAmount(float amount) {
         amount = FiniteRange(amount, 0.0f, 1.0f, 0.25f);
         if (amount == mAmount) return;
         mAmount = amount;
-        const double thresholdDb = -3.0 - 15.0 * std::pow(static_cast<double>(amount), 1.4);
+        const double activeAmount = std::max(0.0,
+            (static_cast<double>(amount) - static_cast<double>(0.30f)) / (1.0 - static_cast<double>(0.30f)));
+        const double thresholdDb = -3.0 - 15.0 * std::pow(activeAmount, 1.4);
         mThresholdTarget = static_cast<float>(std::pow(10.0, thresholdDb / 20.0));
-        mEngagementTarget = amount > 0.0f ? 1.0f : 0.0f;
+        // Fade the control's contribution in over 30--37%, avoiding a static
+        // transfer jump just above the clean range as well as live clicks.
+        const double engagement = std::min(1.0, activeAmount * 10.0);
+        mEngagementTarget = static_cast<float>(engagement * engagement * (3.0 - 2.0 * engagement));
         // Configuration before a first strike, and an explicit Reset, are
         // immediately settled. Live bypass changes crossfade over 2 ms.
         if (!mHasProcessed) {

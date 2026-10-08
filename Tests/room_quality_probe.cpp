@@ -36,8 +36,8 @@ double cpuClock() {
 }
 
 int main(int argc, char** argv) {
-    if (argc != 4) {
-        std::cerr << "Usage: room-quality-probe OUTPUT_DIR SAMPLE_RATE ROOM_TYPE\n";
+    if (argc != 4 && argc != 5) {
+        std::cerr << "Usage: room-quality-probe OUTPUT_DIR SAMPLE_RATE ROOM_TYPE [--tones]\n";
         return 2;
     }
     const std::string output = argv[1];
@@ -50,6 +50,38 @@ int main(int argc, char** argv) {
     const maremba::CapturePoint source{.2, -.15, .04};
     if (!room->AddSource(0, source)) return 3;
     maremba::RoomCaptureTestAccess::ExcludeDirect(*room);
+    if (argc == 5) {
+        if (std::string(argv[4]) != "--tones") return 2;
+        // Independent pitched excitation: 80ms Hann-windowed sine bursts,
+        // followed by silence, at every semitone of the five-octave bar range.
+        // The source/receiver and all amplitudes are identical across rooms.
+        std::cout << std::setprecision(12) << "{\"burst_seconds\":0.08,\"render_seconds\":2,\"notes\":[";
+        for (int note = 36; note <= 96; ++note) {
+            room->Reset();
+            const double hz = 440.0 * std::pow(2.0, (note-69)/12.0);
+            double inputEnergy = 0, wetEnergy = 0, lateEnergy = 0, peak = 0;
+            const int burst = static_cast<int>(.08*rate);
+            for (int frame = 0; frame < 2*rate; ++frame) {
+                const float input = frame < burst ? static_cast<float>(
+                    .125 * (1.0-std::cos(maremba::kTwoPiD*frame/burst))
+                    * std::sin(maremba::kTwoPiD*hz*frame/rate)) : 0.f;
+                float left, right; room->Process(&input, 1, left, right);
+                if (!std::isfinite(left) || !std::isfinite(right)) return 5;
+                const double energy = .5*(static_cast<double>(left)*left + static_cast<double>(right)*right);
+                inputEnergy += static_cast<double>(input)*input;
+                wetEnergy += energy;
+                if (frame >= rate/10) lateEnergy += energy;
+                peak = std::max(peak, std::max(std::abs(static_cast<double>(left)), std::abs(static_cast<double>(right))));
+            }
+            if (note > 36) std::cout << ',';
+            std::cout << "{\"note\":" << note << ",\"frequency_hz\":" << hz
+                << ",\"wet_energy_gain_db\":" << 10*std::log10(wetEnergy/inputEnergy)
+                << ",\"late_energy_gain_db\":" << 10*std::log10(lateEnergy/inputEnergy)
+                << ",\"peak_pressure\":" << peak << '}';
+        }
+        std::cout << "]}\n";
+        return 0;
+    }
     const auto decay = maremba::RoomCapture::Decay(type, rate);
     std::vector<Stereo> audio(static_cast<std::size_t>(frames));
     std::vector<double> cpu;

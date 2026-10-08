@@ -26,6 +26,15 @@ struct MarembaVoiceTestAccess {
         const auto& mode = v.mModes[1];
         return {mode.w, mode.r, mode.force / v.mSampleRate};
     }
+    static void IsolateUpperSurfaceReadout(MarembaVoice& v) {
+        // Observe the signed upper bending surface alone. The fundamental,
+        // cavity and transverse fields are unchanged by RestorePointSourceShare
+        // and can dominate the full-source peak after the deliberate voicing.
+        v.mRadiationGain[0] = 0;
+        for (auto& gain : v.mTorsionClose) gain = 0;
+        v.mLateralRadiation = v.mResReadoutGain = 0;
+        v.mClackBpB = v.mSlapB = 0;
+    }
     static double Area(const MarembaVoice& v) {
         const auto key = GetBarKey(v.mModel, 69 + 12 * std::log2(v.mF0 / 440), v.mRadiationCarving);
         const auto reference = GetBarKey(v.mModel, 60, .5);
@@ -33,6 +42,9 @@ struct MarembaVoiceTestAccess {
     }
     static double WorstAreaError(const MarembaVoice& v) {
         constexpr double pi = 3.14159265358979323846, pressureCalibration = 3.32e-4;
+        // Independent declared voicing weights. The geometric pressure and
+        // finite-area conversion must still hold to the original precision.
+        constexpr double upperBendingWeight = .08, transverseWeight = .15;
         const auto key = GetBarKey(v.mModel, 69 + 12 * std::log2(v.mF0 / 440), v.mRadiationCarving);
         const double calibration = GetModelParams(v.mModel).radiationGain * pressureCalibration;
         const double area = Area(v);
@@ -43,12 +55,12 @@ struct MarembaVoiceTestAccess {
         for (int m = 0; m < v.mNumModes; ++m) {
             const double hz = v.mRadiationHz[m], omega = 2 * pi * hz;
             compare(v.mRadiationGain[m], calibration * omega * omega * v.mModes[m].toDisplacement
-                    * BarDirectRadiationScale(hz, key.widthM));
+                    * BarDirectRadiationScale(hz, key.widthM) * (m >= 2 ? upperBendingWeight : 1.));
         }
         const double inertia = key.massKg * (key.widthM * key.widthM + key.thicknessM * key.thicknessM) / 24;
         for (int m = 0; m < v.mNumTorsionModes; ++m) {
             const double omega = v.mTorsion[m].omega * v.mSampleRate;
-            const double unitArea = calibration * omega * omega
+            const double unitArea = transverseWeight * calibration * omega * omega
                 * BarDirectRadiationScale(omega / (2 * pi), key.widthM)
                 * std::min(1., .5 * omega / 343 * key.widthM) * .5 * key.widthM
                 / (MarembaVoice::kStateScale * std::sqrt(std::max(inertia, 1.e-9)));
@@ -57,7 +69,7 @@ struct MarembaVoiceTestAccess {
         }
         if (v.mHasLateral) {
             const double omega = v.mLateral.omega * v.mSampleRate;
-            compare(v.mLateralRadiation, .15 * calibration * omega * omega
+            compare(v.mLateralRadiation, transverseWeight * .15 * calibration * omega * omega
                     / (MarembaVoice::kStateScale * std::sqrt(.25 * key.massKg)));
         }
         return error;
@@ -113,10 +125,13 @@ void areaCalibration() {
 }
 void hardStrikeCrest() {
     // Identical physical strikes with only the old upper-mode point-source
-    // share restored in the comparison. The pre-output source itself must
-    // lose the excess crest: downstream limiting cannot satisfy this gate.
+    // share restored in the comparison. Keep full-source peak/sustain bounds,
+    // then measure cancellation on the affected upper surface itself. Neither
+    // pass includes output limiting, and physical states must remain identical.
+    for (bool upperSurface : {false, true})
     for (int model = 0; model < 3; ++model) for (int factor : {2, 4, 8}) {
         auto actual = strike(model, 60, 1, factor);
+        if (upperSurface) Access::IsolateUpperSurfaceReadout(actual);
         auto pointShare = actual;
         Access::RestorePointSourceShare(pointShare);
         MonoOversampler actualDecimator, pointDecimator;
@@ -143,9 +158,10 @@ void hardStrikeCrest() {
         const double ringRms = std::sqrt(ring / 7680);
         check(samePhysicalState, "acoustic projection changed contact, stored energy or pickup motion");
         check(peak > .1 && peak < 10, "hard C4 source retains excessive acceleration crest or went silent");
-        check(peak < .75 * oldPeak, "signed surface readout failed to remove coherent upper-mode crest");
+        if (upperSurface)
+            check(peak < .75 * oldPeak, "signed surface readout failed to remove coherent upper-mode crest");
         check(ringRms > .05, "crest correction removed the physical C4 sustain");
-        std::cout << "SOURCE model=" << model << " factor=" << factor << " peak=" << peak
+        std::cout << "SOURCE upper_surface=" << upperSurface << " model=" << model << " factor=" << factor << " peak=" << peak
                   << " point_share_peak=" << oldPeak << " ring_rms=" << ringRms << '\n';
     }
 }

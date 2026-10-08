@@ -210,7 +210,8 @@ void roomEnergy(){
         double direct=0,late=0;
         for(const auto& channel:h)for(size_t i=0;i<channel.size();++i){const double e=static_cast<double>(channel[i])*channel[i];if(i<static_cast<size_t>(.009*rate))direct+=e;else if(i>static_cast<size_t>(.04*rate))late+=e;}
         require(direct>0&&late>0&&late/direct<100,"invalid or excessive diffuse energy");
-        require(target.t4k<std::min(target.t125,target.t500)&&target.t10k<target.t4k,"wall absorption does not shorten high-frequency decay");
+        require(target.t125<target.t500&&target.t4k<target.t500&&target.t10k<target.t4k,
+                "wall absorption does not drain bass and top before the midband");
         std::cout<<"ROOM_ENERGY type="<<type<<" rate="<<rate<<" expected_t500="<<target.t500<<" measured_t500="<<measured<<" late_over_direct_db="<<10*std::log10(late/direct)<<'\n';
         room->FlushTiny();require(room->HasNoSubnormalState(),"tail subnormal after flush");
     }
