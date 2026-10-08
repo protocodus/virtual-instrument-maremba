@@ -96,7 +96,7 @@ struct MarembaEngineTestAccess {
                && e.mKalimbaBody.HasNoSubnormalState() && e.mKalimbaPickup.HasNoSubnormalState()
                && e.mPreamp.HasNoSubnormalState()
                && e.mLimiter.HasNoSubnormalState() && e.mPiezoDecimator.HasNoSubnormalState()
-               && e.mMicMixer.HasNoSubnormalState();
+               && e.mMicMixer.HasNoSubnormalState() && e.mMainPickup.HasNoSubnormalState();
         return ok;
     }
     // One line per active voice: note, model, flags (stuck-voice diagnostics).

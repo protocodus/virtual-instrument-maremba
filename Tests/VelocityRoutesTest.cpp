@@ -98,8 +98,8 @@ void check(bool ok, const std::string& message) {
     }
 }
 
-// Direct captures bypass the capture mix coefficients, Main warmth and its
-// musical limiter. They retain acoustic propagation, Piezo Drive and their
+// Direct captures bypass the capture mix coefficients, Main Drive, Warmth and
+// musical limiter. They retain physical capture coloration and their
 // independent output headroom protection, held identical in each comparison.
 std::vector<float> Render(const EngineParameters& p, float velocity, double seconds,
                           const EngineParameters* changeTo = nullptr, double changeAt = 0.0) {

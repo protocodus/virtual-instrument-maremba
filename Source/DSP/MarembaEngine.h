@@ -3,6 +3,7 @@
 #include "MarimbaModel.h"
 #include "MarembaVoice.h"
 #include "CaptureScene.h"
+#include "MainPickupAlignment.h"
 #include "AnalogPreamp.h"
 #include "AnalogLimiter.h"
 #include "OutputHeadroom.h"
@@ -44,7 +45,7 @@ struct EngineParameters {
     float piezoLevel = 0.30f;       // 0..1 independent capture coefficient
     float stereoWidth = 1.0f;       // 0..2 (1 = natural), applied to the main bus
 
-    float preampDrive = 0.05f;      // 0..1 Piezo amplifier only; legacy stored name
+    float preampDrive = 0.10f;      // 0..1 full Main-mix saturation; direct outputs stay clean
     float warmth = 0.10f;           // -1..1 tilt
     float compAmount = 0.05f;       // 0..1 analog limiter; legacy stored name
     float compAttack = 10.0f;       // main limiter control attack, ms, 1..50
@@ -87,14 +88,16 @@ public:
     static constexpr int kMaxFrames = 64;      // largest frameCount RenderBatch accepts
 
     // Calibration of the direct outputs: a capture's fixed gain is its trim times
-    // CaptureScene::kMasterMixScale. Volume, the Level knobs, Width, Warmth and
+    // CaptureScene::kMasterMixScale. Volume, the Level knobs, Drive, Width, Warmth and
     // Limit shape Main only and never reach a direct output. The calibration and
     // its evidence are in MarembaEngine.cpp and docs/OUTPUT_LEVEL.md.
     static constexpr float kCloseStemTrim = 0.28f;
     static constexpr float kRoomStemTrim = 0.385f;
-    static constexpr float kPiezoStemTrim = 0.49f;
-    // Both families use 70% of their original fixed calibration. The direct
-    // outputs retain independent guards and never follow Main controls.
+    // The clean wooden pickup needs 6.02 dB more peak margin after removal of
+    // the old pre-direct saturator. This recording trim does not enter Main.
+    static constexpr float kPiezoStemTrim = 0.245f;
+    // Close/Room and the Kalimba retain 70% of their original calibration.
+    // Direct outputs retain independent guards and never follow Main controls.
     static constexpr float kKalimbaCloseStemTrim = 0.56f;
     static constexpr float kKalimbaRoomStemTrim = 0.546f;
     static constexpr float kKalimbaPiezoStemTrim = 0.581f;
@@ -211,6 +214,7 @@ private:
     // Master volume smoothing (per output frame)
     float mVolumeGain = 0.0f;
     float mVolumeAlpha = 0.0f;
+    float mDriveAlpha = 0.0f; // ten-millisecond smoothing for the nonlinear taper
     // Five-millisecond output-rate smoothing for continuously audible controls.
     // Strike/contact parameters deliberately stay latched to the next note.
     float mBodyGain = 0.0f, mSympatheticGain = 0.0f;
@@ -238,6 +242,7 @@ private:
     std::array<RadiationCacheEntry, 128> mRadiationCache{};
     std::array<float, 128> mKeyDetune{};   // each key's Detune offset (cents), for the sympathetic keys
     CaptureScene mMicMixer;
+    MainPickupAlignment mMainPickup;
     AnalogPreamp mPreamp;
     AnalogLimiter mLimiter;
     OutputHeadroom mOutputHeadroom;

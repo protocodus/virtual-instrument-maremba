@@ -100,8 +100,10 @@ MarembaEngine::MarembaEngine(double sampleRate)
     // Linear acoustic capture runs at host rate after per-source decimation.
     // A host-rate change re-creates the engine and its preallocated histories.
     mMicMixer.Allocate(mBaseSampleRate);
+    mMainPickup.Allocate(mBaseSampleRate);
     mOutputHeadroom.SetSampleRate(mBaseSampleRate);
     mVolumeAlpha = static_cast<float>(1.0 - std::exp(-1.0 / (kVolumeSmoothingSeconds * mBaseSampleRate)));
+    mDriveAlpha = static_cast<float>(1.0 - std::exp(-1.0 / (0.010 * mBaseSampleRate)));
     mQuietFramesNeeded = static_cast<int>(kTailHoldSeconds * mBaseSampleRate);
     Reset();
 }
@@ -194,6 +196,7 @@ void MarembaEngine::Reset() {
 
 void MarembaEngine::ConfigureForRate() {
     mMicMixer.SetSampleRate(mBaseSampleRate);
+    mMainPickup.SetSampleRate(mBaseSampleRate);
     mLimiter.SetSampleRate(mBaseSampleRate);
     mLimiter.SetTimes(mParams.compAttack, mParams.compRelease);
     mLimiter.SetAmount(mParams.compAmount);
@@ -224,6 +227,7 @@ void MarembaEngine::ApplyKalimbaAir() {
 
 void MarembaEngine::FlushTails(bool resetRoomMotion) {
     mMicMixer.Reset(resetRoomMotion);
+    mMainPickup.Reset();
     mPreamp.Reset();
     mLimiter.Reset();
     mOutputHeadroom.Reset();
@@ -341,7 +345,10 @@ void MarembaEngine::SmoothLiveControls() {
     smooth(mFarGain, mParams.farLevel * mParams.farLevel);
     smooth(mPiezoGain, mParams.piezoLevel);
     smooth(mStereoWidth, mParams.stereoWidth);
-    smooth(mDrive, mParams.preampDrive);
+    // The nonlinear input-gain taper needs a gentler sweep than a linear
+    // capture fader. Ten milliseconds keeps live changes free of sharp edges.
+    mDrive += mDriveAlpha * (mParams.preampDrive - mDrive);
+    if (std::abs(mParams.preampDrive - mDrive) < 1.0e-5f) mDrive = mParams.preampDrive;
     const std::array<float, 3> stemTrim = StemTrimsFor(mParams.model);
     for (std::size_t stem = 0; stem < stemTrim.size(); ++stem) smooth(mStemTrim[stem], stemTrim[stem]);
     // Finish the audible fade before clearing a bypassed branch. Re-enabling
@@ -713,6 +720,7 @@ void MarembaEngine::ControlTick() {
     mLimiter.FlushTiny();
     mPiezoDecimator.FlushTiny();
     mMicMixer.FlushTiny();
+    mMainPickup.FlushTiny();
 }
 
 // Held keys roll while the mod wheel is up (mallet models): two mallets
@@ -805,7 +813,6 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         const float bodyInverse = bodyHeadroom > 0.0f ? 1.0f / bodyHeadroom : 0.0f;
         const float meshInverse = meshHeadroom > 0.0f ? 1.0f / meshHeadroom : 0.0f;
         const int factor = mActiveFactor;
-        const auto driveCoefficients = AnalogPreamp::PrepareDrive(mDrive);
         // Host events occur between batches. Within one batch only a roll or
         // a quality switch's queued notes can add/reuse slots. Preserve their
         // ascending summation order, and still check retirement per substep.
@@ -832,6 +839,7 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         }
         bool anyVoice = false;
         mMicMixer.BeginFrame(factor);
+        mMainPickup.BeginFrame(factor);
 
         for (int s = 0; s < factor; ++s) {
             float accPiezo = 0.0f;
@@ -863,7 +871,10 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
                                       voiceEars[0], voiceEars[1], voiceFar);
                         // One Kalimba board sensor reads summed tine force;
                         // per-voice nominal pickups must not bypass it.
-                        if (!cached.tine) accPiezo += voicePiezo;
+                        if (!cached.tine) {
+                            accPiezo += voicePiezo;
+                            mMainPickup.Add(cached.source, s, voicePiezo);
+                        }
 
                         const StrikeRoute& route = mRoutes[static_cast<std::size_t>(v)];
                         const float body = cached.body;
@@ -942,15 +953,10 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
             // Frame sound likewise used half its nominal level per Close ear.
             mMicMixer.AddCompactPressure(kCaptureFrameSource, s, .5f * bodySound);
             accPiezo += boxPickup;
+            mMainPickup.Add(kCaptureBoardSource, s, boxPickup);
 
-            // Drive is the contact pickup's amplifier, before its mix
-            // coefficient and direct tap. Calibrate its input like a mono
-            // pickup at unity in the former stereo preamp, independent of
-            // Close/Room levels. The zero setting is an exact clean bypass.
-            constexpr float piezoPreampScale = CaptureScene::kMasterMixScale * 0.707f;
-            if (mDrive > 0.001f)
-                accPiezo = AnalogPreamp::ApplyDrive(accPiezo * piezoPreampScale, driveCoefficients) / piezoPreampScale;
-
+            // The electrical sensor stays clean, including its direct output.
+            // Main Drive is applied once, after the complete capture mix.
             mSubBufPiezo[s] = accPiezo;
         }
 
@@ -962,13 +968,15 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         float capture[kNumDirectOuts]{};
         mMicMixer.Process(capture[0], capture[1], capture[2], capture[3]);
         capture[4] = mPiezoDecimator.DownsampleFrame(mSubBufPiezo, factor);
+        // Main aligns the electrical arrival to each source's acoustic flight.
+        // The independent raw Piezo capture above keeps its original timing.
+        const float mainPickup = mMainPickup.Process();
         float mixedL = 0.0f, mixedR = 0.0f, preL = 0.0f, preR = 0.0f;
-        CaptureScene::Mix(capture[0], capture[1], capture[2], capture[3], capture[4],
+        CaptureScene::Mix(capture[0], capture[1], capture[2], capture[3], mainPickup,
                           mCloseGain, mFarGain, mPiezoGain, mStereoWidth, mixedL, mixedR);
-        // Drive was oversampled in the electrical path. Warmth is linear;
-        // the musical gain envelope and common output protection follow
-        // complete microphone captures at the host rate.
-        mPreamp.Process(mixedL, mixedR, 0.0f, mParams.warmth, preL, preR);
+        // The Main preamp uses antiderivative antialiasing on the complete
+        // host-rate capture mix. All five direct channels remain untouched.
+        mPreamp.Process(mixedL, mixedR, mDrive, mParams.warmth, preL, preR);
         // Smooth Volume before both dynamics stages, so turning it down buys
         // actual headroom instead of attenuating an already limited signal.
         mVolumeGain += mVolumeAlpha * (volumeTarget - mVolumeGain);

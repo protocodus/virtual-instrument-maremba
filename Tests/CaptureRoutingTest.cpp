@@ -1,6 +1,6 @@
 // Capture coefficients belong after each complete capture. In particular the
 // Room coefficient must not change the wet/dry balance or drain the room, and
-// Piezo Drive must not color either air microphone.
+// Main Drive must not color any direct capture.
 #include "MarembaEngine.h"
 #include "CaptureScene.h"
 #include <algorithm>
@@ -169,27 +169,29 @@ void driveContracts() {
             EngineParameters p;
             p.model = model; p.oversampling = setup.quality; p.roomType = model % 3;
             p.preampDrive = p.compAmount = p.warmth = p.detune = p.strikeJitter = 0;
-            p.closeLevel = .6f; p.farLevel = .4f; p.piezoLevel = 0;
-            const auto airClean = strike(setup.rate, p);
-            p.preampDrive = 1;
-            const auto airDriven = strike(setup.rate, p);
-            for (int channel = 0; channel < 6; ++channel)
-                require(airClean[channel] == airDriven[channel],
-                        "Drive changes an air microphone or the acoustic-only main mix");
-            require(residual(airClean[6], airDriven[6]) > 1e-4,
-                    "Drive does not reach the direct Piezo when its main coefficient is zero");
-
-            p.closeLevel = p.farLevel = 0; p.piezoLevel = 1; p.preampDrive = 0;
-            const auto contactClean = strike(setup.rate, p);
-            p.preampDrive = 1;
-            const auto contactDriven = strike(setup.rate, p);
-            for (int channel = 2; channel < 6; ++channel)
-                require(contactClean[channel] == contactDriven[channel], "Piezo Drive leaks into an acoustic stem");
-            require(contactClean[6] == airClean[6] && contactDriven[6] == airDriven[6],
-                    "capture coefficient changes the pickup drive response");
-            require(energy(contactClean[0]) > 1e-9 && residual(contactClean[0], contactDriven[0]) > 1e-4,
-                    "Drive does not reach the Piezo-only main output");
-            ++driveCases;
+            // Volume follows Drive. Keep Main below its independent output
+            // protector so this tests the preamp, not limiter gain reduction.
+            p.volume = .1f;
+            Audio directReference;
+            for (const auto levels : {std::array<float,3>{1,0,0}, {0,1,0}, {0,0,1}, {.6f,.4f,.3f}}) {
+                p.closeLevel = levels[0]; p.farLevel = levels[1]; p.piezoLevel = levels[2];
+                p.preampDrive = 0;
+                const auto clean = strike(setup.rate, p);
+                if (directReference[0].empty()) directReference = clean;
+                for (float drive : {.1f, .6f, 1.f}) {
+                    p.preampDrive = drive;
+                    const auto driven = strike(setup.rate, p);
+                    for (int channel = 2; channel < 7; ++channel)
+                        require(clean[channel] == driven[channel] && clean[channel] == directReference[channel],
+                                "Main Drive or a capture coefficient changes a direct output");
+                    require(energy(clean[0]) > 1e-9 && residual(clean[0], driven[0]) > 1e-3,
+                            "Drive does not reach an acoustic, Piezo or combined Main mix");
+                    for (int channel = 0; channel < 2; ++channel)
+                        for (float sample : driven[channel])
+                            require(std::abs(sample) < .5f, "Drive routing fixture reaches Main protection");
+                    ++driveCases;
+                }
+            }
         }
 }
 } // namespace

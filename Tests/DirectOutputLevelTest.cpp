@@ -1,7 +1,8 @@
 // The five direct outputs are stems of the instrument, not of the mix. Volume,
 // the three Level coefficients, Width, Warmth and Limit belong to Main and never
 // reach them; what sets a stem's loudness is its fixed calibration. That
-// calibration is 70% of the original recording gain. Capture balance varies
+// calibration is 70% of the original recording gain, except the clean wooden
+// Piezo's 35% gain reserves another 6.02 dB of peak headroom. Capture balance varies
 // naturally by model; the stems need not approach
 // full scale or match each other's peaks. Changing Model while a note rings
 // moves the calibration smoothly (docs/OUTPUT_LEVEL.md).
@@ -41,9 +42,12 @@ constexpr int kMain = 0, kClose = 2, kRoom = 4, kPiezo = 6; // first channel of 
 // probe reports dynamics and verifies every output remains safely contained.
 struct Expectation { std::array<double, 3> chordDb, noteDb; };
 constexpr Expectation kExpected[] = {
-    {{{-14.42, -6.56, -4.66}}, {{-24.80, -16.26, -18.25}}},
-    {{{-16.69, -9.28, -6.61}}, {{-27.68, -20.45, -18.22}}},
-    {{{-15.08, -8.94, -9.29}}, {{-25.82, -19.35, -18.75}}},
+    // f3 Piezo anchors are the independently recorded clean pre-trim peaks
+    // (docs/validation/drive-captures-20261008/direct-output-level-before-trim.log),
+    // minus 20*log10(2).
+    {{{-14.42, -6.56, -10.60}}, {{-24.80, -16.26, -24.46}}},
+    {{{-16.69, -9.28, -12.88}}, {{-27.68, -20.45, -24.43}}},
+    {{{-15.08, -8.94, -15.50}}, {{-25.82, -19.35, -24.96}}},
     {{{-16.37, -14.21, -8.44}}, {{-25.31, -22.82, -19.89}}},
 };
 constexpr double kCalibrationToleranceDb = 0.5;
@@ -78,12 +82,12 @@ EngineParameters defaultPatch(int model) {
     p.roomType = 0;
     p.piezoLevel = .25f;
     p.stereoWidth = 1.0f;
-    p.preampDrive = .05f;
+    p.preampDrive = .10f;
     p.warmth = .1f;
     p.compAmount = .05f;
     p.compAttack = 12.0f;
     p.compRelease = 120.0f;
-    p.volume = .75063051f;
+    p.volume = .69770352f;
     p.velocityToHardness = p.velocityToPosition = .1f;
     p.velocityToDecay = 0.0f;
     p.velocityToCarving = p.velocityToCoupling = p.velocityToBloom = p.velocityToSympathetic = .1f;
