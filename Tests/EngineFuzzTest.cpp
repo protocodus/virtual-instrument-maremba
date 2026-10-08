@@ -12,7 +12,7 @@
 //   ./engine_fuzz                     the contract (Tests/contracts.txt): fixed seeds,
 //                                     a few minutes at -O2
 //   ./engine_fuzz --only fuzz --seeds 200 --first 1000 --steps 400
-//   ./engine_fuzz --only fuzz|determinism|reset|denormal|scenarios [--verbose]
+//   ./engine_fuzz --only fuzz|determinism|reset|denormal|denormal-mode|scenarios [--verbose]
 //   ./engine_fuzz --only determinism --determinism-seeds 50
 //   ./engine_fuzz --only reset --seeds 12 --reset-rate 192000 --reset-os 2
 //   ./engine_fuzz --only denormal --tail-rate 96000 --tail-os 1 --tail-seconds 5
@@ -74,6 +74,7 @@
 #include <cstring>
 #include <limits>
 #include <memory>
+#include <time.h>
 #include <string>
 #include <vector>
 
@@ -619,25 +620,86 @@ void ResetEquivalenceSeed(uint64_t seed, const Options& o) {
 }
 
 // ------------------------------------------------ long tails / denormals --
-// x86 MXCSR flush-to-zero / denormals-are-zero, to compare the tail's cost
-// with and without subnormal arithmetic (a host may or may not set them).
+// The host may use gradual underflow or hardware flush-to-zero. Exercise both
+// real modes on supported native hosts; a no-op guard would compare scheduling,
+// not denormal arithmetic. Restore the complete original control register.
 #if defined(__SSE__) || defined(__x86_64__)
 #include <xmmintrin.h>
 struct DenormalMode {
-    unsigned saved;
-    explicit DenormalMode(bool flush) : saved(_mm_getcsr()) {
-        _mm_setcsr(flush ? (saved | 0x8040u) : (saved & ~0x8040u));
+    using Control = unsigned;
+    static constexpr Control kMask = 0x8040u; // MXCSR FTZ and DAZ
+    static Control Read() { return _mm_getcsr(); }
+    static void Write(Control value) { _mm_setcsr(value); }
+    Control saved;
+    explicit DenormalMode(bool flush) : saved(Read()) {
+        Write(flush ? saved | kMask : saved & ~kMask);
     }
-    ~DenormalMode() { _mm_setcsr(saved); }
+    ~DenormalMode() { Write(saved); }
+};
+#elif defined(__aarch64__)
+struct DenormalMode {
+    using Control = std::uint64_t;
+    static constexpr Control kMask = Control{1} << 24; // FPCR FZ, single/double precision
+    static Control Read() {
+        Control value;
+        asm volatile("mrs %0, fpcr" : "=r"(value));
+        return value;
+    }
+    static void Write(Control value) {
+        asm volatile("msr fpcr, %0" :: "r"(value) : "memory");
+    }
+    Control saved;
+    explicit DenormalMode(bool flush) : saved(Read()) {
+        Write(flush ? saved | kMask : saved & ~kMask);
+    }
+    ~DenormalMode() { Write(saved); }
 };
 #else
-struct DenormalMode { explicit DenormalMode(bool) {} };
+#error EngineFuzzTest needs a verified hardware denormal-mode guard on this native host
 #endif
+
+std::uint32_t DenormalArithmeticWitness() {
+    // Volatile operands prevent constant folding. Inspect bits because floating
+    // comparisons themselves can treat a subnormal operand as zero in FZ mode.
+    volatile float normal = std::numeric_limits<float>::min(), quarter = .25f;
+    const float value = normal * quarter;
+    std::uint32_t bits = 0;
+    std::memcpy(&bits, &value, sizeof(bits));
+    return bits;
+}
+
+void VerifyDenormalModes() {
+    const auto original = DenormalMode::Read();
+    for (bool flush : {false, true}) {
+        {
+            DenormalMode mode(flush);
+            const auto expected = flush ? DenormalMode::kMask : 0;
+            const auto witness = DenormalArithmeticWitness();
+            if ((DenormalMode::Read() & DenormalMode::kMask) != expected
+                || witness != (flush ? 0u : 0x00200000u))
+                gReport.Fail(Fmt("denormal mode %s not active: arithmetic witness 0x%08x",
+                                 flush ? "flushed" : "gradual", witness));
+        }
+        if (DenormalMode::Read() != original)
+            gReport.Fail("denormal-mode guard failed to restore the original control register");
+    }
+    std::printf("  denormal modes: gradual/flushed arithmetic and exact control restoration checked\n");
+}
+
+double ThreadCpuSeconds() {
+    timespec value{};
+    if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &value) != 0)
+        return std::numeric_limits<double>::quiet_NaN();
+    return static_cast<double>(value.tv_sec) + static_cast<double>(value.tv_nsec) * 1e-9;
+}
+
+struct TailTiming { double wall = 0, cpu = 0; };
 
 // A dense, long-decaying chord (decay 8, every shared tail on, buzz, shaft
 // knock) rendered for `seconds`: no subnormal state anywhere, and the same
-// cost with and without hardware flush-to-zero. Returns the render seconds.
-double RenderTail(int model, double rate, int oversampling, double seconds, bool flush,
+// cost with and without hardware flush-to-zero. Wall and thread-CPU clocks cover
+// the same render/state-check loop; scheduling delays are not DSP execution.
+TailTiming RenderTail(int model, double rate, int oversampling, double seconds, bool flush,
                   int* badVoice, int* badShared, double* silentAt) {
     DenormalMode mode(flush);
     Tracker t;
@@ -663,6 +725,7 @@ double RenderTail(int model, double rate, int oversampling, double seconds, bool
     *badVoice = *badShared = 0;
     *silentAt = -1.0;
     const auto t0 = std::chrono::steady_clock::now();
+    const double cpu0 = ThreadCpuSeconds();
     for (long b = 0; b < batches; ++b) {
         RenderChecked(e, t, 64, 0x1Fu);
         if (b % 8 == 0) {
@@ -671,22 +734,33 @@ double RenderTail(int model, double rate, int oversampling, double seconds, bool
         }
         if (e.IsSilent()) { *silentAt = b * 64.0 / rate; break; }
     }
-    return std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    const double cpu = ThreadCpuSeconds() - cpu0;
+    return {std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count(), cpu};
 }
 
 void DenormalTail(int model, double rate, int oversampling, double seconds, const Options& o) {
     int badVoice = 0, badShared = 0, v2 = 0, s2 = 0;
     double silent = 0.0, silent2 = 0.0;
-    const double plain = RenderTail(model, rate, oversampling, seconds, false, &badVoice, &badShared, &silent);
-    const double flushed = RenderTail(model, rate, oversampling, seconds, true, &v2, &s2, &silent2);
+    const auto original = DenormalMode::Read();
+    const auto plain = RenderTail(model, rate, oversampling, seconds, false, &badVoice, &badShared, &silent);
+    const bool plainRestored = DenormalMode::Read() == original;
+    const auto flushed = RenderTail(model, rate, oversampling, seconds, true, &v2, &s2, &silent2);
     const std::string where = Fmt("tail model %d rate %.0f os %d", model, rate, oversampling);
-    if (badVoice || badShared)
-        gReport.Fail(Fmt("%s: subnormal state on %d voice / %d shared checks", where.c_str(), badVoice, badShared));
-    if (plain > 1.5 * flushed + 0.2)
-        gReport.Fail(Fmt("%s: %.2f s without flush-to-zero vs %.2f s with it (subnormal arithmetic)", where.c_str(), plain, flushed));
-    if (o.verbose)
-        std::printf("  %s: %.1f s of tail in %.2f s (FTZ/DAZ: %.2f s), silent at %.1f s\n", where.c_str(), seconds,
-                    plain, flushed, silent);
+    if (!plainRestored || DenormalMode::Read() != original)
+        gReport.Fail(where + ": render failed to restore denormal control register");
+    if (badVoice || badShared || v2 || s2)
+        gReport.Fail(Fmt("%s: subnormal state, gradual %d voice / %d shared, flushed %d voice / %d shared checks",
+                         where.c_str(), badVoice, badShared, v2, s2));
+    if (!std::isfinite(plain.cpu) || !std::isfinite(flushed.cpu) || plain.cpu <= 0 || flushed.cpu <= 0)
+        gReport.Fail(where + ": thread CPU clock failed");
+    // Preserve the original slowdown bound. Thread CPU excludes time spent
+    // descheduled by simultaneous SDK suites or other desktop applications.
+    if (plain.cpu > 1.5 * flushed.cpu + 0.2)
+        gReport.Fail(Fmt("%s: thread CPU %.2f s gradual vs %.2f s flushed (denormal slowdown); wall %.2f / %.2f s",
+                         where.c_str(), plain.cpu, flushed.cpu, plain.wall, flushed.wall));
+    std::printf("  %s: %.1f s tail, thread CPU gradual %.3f / flushed %.3f s, wall %.3f / %.3f s\n",
+                where.c_str(), seconds, plain.cpu, flushed.cpu, plain.wall, flushed.wall);
+    if (o.verbose) std::printf("    silent at gradual %.3f / flushed %.3f s\n", silent, silent2);
 }
 
 // Every model/striker at engine defaults, including the calibrated additive
@@ -1068,7 +1142,7 @@ void FreshStrikeOnTheControlGrid() {
 
 void Usage() {
     std::printf("EngineFuzzTest [--seeds N] [--determinism-seeds N] [--first S] [--steps K] [--drain SECONDS]\n"
-                "               [--only fuzz|determinism|reset|denormal|scenarios]\n"
+                "               [--only fuzz|determinism|reset|denormal|denormal-mode|scenarios]\n"
                 "               [--tail-rate HZ] [--tail-os 0|1|2] [--tail-seconds S]\n"
                 "               [--reset-rate HZ] [--reset-os 0|1|2] [--verbose]\n");
 }
@@ -1118,6 +1192,7 @@ int main(int argc, char** argv) {
         std::printf("[Reset] render after Reset() == fresh engine, %d seeds ...\n", o.seeds);
         for (int s = 0; s < o.seeds; ++s) ResetEquivalenceSeed(o.first + static_cast<uint64_t>(s), o);
     }
+    if (want("denormal") || o.only == "denormal-mode") VerifyDenormalModes();
     if (want("denormal")) {
         std::printf("[Tails] long decays: no subnormal state, no CPU growth ...\n");
         for (int model = 0; model < 4; ++model) DenormalTail(model, o.tailRate, o.tailOversampling, o.tailSeconds, o);
