@@ -36,8 +36,8 @@ constexpr int kMain = 0, kClose = 2, kRoom = 4, kPiezo = 6; // first channel of 
 // Regression anchors for the calibrated normal-playing fixtures below, in
 // dBFS peak. A half-dB tolerance catches unintended gain changes without
 // requiring bit-identical floating point across platforms. These are product
-// calibration measurements for natural Decay, the shorter room and the
-// softened upper-mode acoustic voicing,
+// calibration measurements for natural Decay, the two diffuse Room fields and
+// the softened upper-mode acoustic voicing,
 // not an SDK loudness standard. The separate bank
 // probe reports dynamics and verifies every output remains safely contained.
 struct Expectation { std::array<double, 3> chordDb, noteDb; };
@@ -45,10 +45,14 @@ constexpr Expectation kExpected[] = {
     // f3 Piezo anchors are the independently recorded clean pre-trim peaks
     // (docs/validation/drive-captures-20261008/direct-output-level-before-trim.log),
     // minus 20*log10(2).
-    {{{-14.42, -6.56, -10.60}}, {{-24.80, -16.26, -24.46}}},
-    {{{-16.69, -9.28, -12.88}}, {{-27.68, -20.45, -24.43}}},
-    {{{-15.08, -8.94, -15.50}}, {{-25.82, -19.35, -24.96}}},
-    {{{-16.37, -14.21, -8.44}}, {{-25.31, -22.82, -19.89}}},
+    // f4 Room anchors come from the independent rendered-stem probe in
+    // docs/validation/room-resonance-20261008/direct-level-followup. Restoring
+    // only the old RoomCapture reproduces the former direct audio exactly;
+    // denser diffusion changes resonant peaks, not the fixed recording trims.
+    {{{-14.42, -8.15, -10.60}}, {{-24.80, -18.06, -24.46}}},
+    {{{-16.69, -10.21, -12.88}}, {{-27.68, -21.33, -24.43}}},
+    {{{-15.08, -9.27, -15.50}}, {{-25.82, -21.10, -24.96}}},
+    {{{-16.37, -15.68, -8.44}}, {{-25.31, -24.09, -19.89}}},
 };
 constexpr double kCalibrationToleranceDb = 0.5;
 
@@ -87,7 +91,7 @@ EngineParameters defaultPatch(int model) {
     p.compAmount = .05f;
     p.compAttack = 12.0f;
     p.compRelease = 120.0f;
-    p.volume = .69770352f;
+    p.volume = .85f;
     p.velocityToHardness = p.velocityToPosition = .1f;
     p.velocityToDecay = 0.0f;
     p.velocityToCarving = p.velocityToCoupling = p.velocityToBloom = p.velocityToSympathetic = .1f;
