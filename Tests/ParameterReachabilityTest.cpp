@@ -129,6 +129,7 @@ int main() {
         {"Artifacts VOL", &EngineParameters::velocityToArtifacts, 0, 1, 3},
     };
     const IntControl selectors[] = {
+        {"Invert Piezo", &EngineParameters::invertPiezo, 0, 1},
         {"Striker", &EngineParameters::malletType, 0, 4},
         {"Room Space", &EngineParameters::roomType, 0, 2},
         {"Quality", &EngineParameters::oversampling, 0, 1},

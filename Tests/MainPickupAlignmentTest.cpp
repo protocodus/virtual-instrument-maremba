@@ -37,6 +37,21 @@ std::complex<double> Transform(const std::vector<float>& x, double hz, double ra
     return sum;
 }
 
+// The authored Main image filters mono Mid with its reference allpass. Use
+// the analog network at the bilinear frequency, independently of its sample
+// recurrence, so this gate still isolates the physical pickup flight.
+std::complex<double> MainReference(double hz, double rate) {
+    const std::complex<double> s(0, 2 * rate * std::tan(kPiD * hz / rate));
+    double pole = 2 * kPiD * MainStereo::kFirstPoleHz;
+    std::complex<double> response(1, 0);
+    for (int stage = 0; stage < MainStereo::kStages; ++stage) {
+        response *= (pole - s) / (pole + s);
+        pole *= MainStereo::kPoleRatio * MainStereo::kPoleRatio;
+    }
+    const double field = MainStereo::kGeneratedSideGain; // Width = 1 in this fixture.
+    return response / std::sqrt(1 + field * field);
+}
+
 void PhysicalFlight(double rate, int factor, int source) {
     auto alignment = std::make_unique<MainPickupAlignment>();
     alignment->Allocate(rate);
@@ -185,9 +200,11 @@ void EngineRouting(double rate, int model) {
     for (float sample : muted[0]) Require(sample == 0, "zero pickup mix is not exact mute");
     AnalogPreamp filter; filter.SetSampleRate(rate); filter.Reset();
     std::vector<float> reference(audible[6].size());
+    std::vector<float> mainMid(audible[0].size());
     for (std::size_t i = 0; i < reference.size(); ++i) {
         float right;
         filter.Process(audible[6][i], audible[6][i], 0, 0, reference[i], right);
+        mainMid[i] = .5f * (audible[0][i] + audible[1][i]);
     }
     const auto position = model == 3 ? KalimbaBoardSourcePosition()
                                    : CaptureSourcePosition(static_cast<EMarimbaModel>(model), 60);
@@ -198,7 +215,8 @@ void EngineRouting(double rate, int model) {
     for (double hz : {100., 261.625565, 500., 1000.}) {
         const auto r = Transform(reference, hz, rate);
         Require(std::abs(r) > 1.e-6, "pickup routing fixture is silent at a reference frequency");
-        const auto observed = Transform(audible[0], hz, rate) / (r * scale);
+        const auto expectedMain = MainReference(hz, rate);
+        const auto observed = Transform(mainMid, hz, rate) / (r * scale * expectedMain);
         const auto expected = std::polar(1.0, -2 * kPiD * hz * seconds);
         Require(std::abs(std::abs(observed) - 1) < .01, "Main pickup gain differs from the independent electrical capture");
         Require(std::abs(std::arg(observed / expected)) < .015, "engine bypasses or misroutes Main pickup flight");

@@ -115,7 +115,8 @@ struct MarembaEngineTestAccess {
                && e.mKalimbaBody.HasNoSubnormalState() && e.mKalimbaPickup.HasNoSubnormalState()
                && e.mPreamp.HasNoSubnormalState()
                && e.mLimiter.HasNoSubnormalState() && e.mPiezoDecimator.HasNoSubnormalState()
-               && e.mMicMixer.HasNoSubnormalState() && e.mMainPickup.HasNoSubnormalState();
+               && e.mMicMixer.HasNoSubnormalState() && e.mMainPickup.HasNoSubnormalState()
+               && e.mMainStereo.HasNoSubnormalState();
         return ok;
     }
     // One line per active voice: note, model, flags (stuck-voice diagnostics).
@@ -256,6 +257,7 @@ constexpr DiscreteControl kDiscrete[] = {
     {"model", &EngineParameters::model, 4},
     {"malletType", &EngineParameters::malletType, 5},
     {"roomType", &EngineParameters::roomType, 3},
+    {"invertPiezo", &EngineParameters::invertPiezo, 2},
     {"oversampling", &EngineParameters::oversampling, 3},
     {"velocityCurve", &EngineParameters::velocityCurve, 4},
     {"polyphony", &EngineParameters::polyphony, 3},
@@ -264,7 +266,7 @@ constexpr DiscreteControl kDiscrete[] = {
 };
 constexpr size_t kContinuousCount = sizeof(kContinuous)/sizeof(kContinuous[0]);
 constexpr size_t kDiscreteCount = sizeof(kDiscrete)/sizeof(kDiscrete[0]);
-static_assert(kContinuousCount == 35 && kDiscreteCount == 8, "Update declared control coverage deliberately");
+static_assert(kContinuousCount == 35 && kDiscreteCount == 9, "Update declared control coverage deliberately");
 static_assert(maremba::kStrikerCount == 5 && static_cast<int>(maremba::ETuningScale::Count) == 7,
               "Update exhaustive selector state inventory");
 constexpr float kBendTravel[] = {-200, 0, 200};
@@ -379,6 +381,7 @@ EngineParameters PlausibleParams(Rng& r) {
     p.velocityToBuzz = r.Range(0, 1);
     p.velocityToTension = r.Range(0, 1);
     p.velocityToArtifacts = r.Range(0, 1);
+    p.invertPiezo = r.Int(0, 1);
     return p;
 }
 
@@ -409,7 +412,7 @@ EngineParameters EdgeParams(Rng& r) {
     const I ints[] = {
         {&p.model, 0, 3}, {&p.malletType, 0, maremba::kStrikerCount - 1}, {&p.roomType, 0, 2},
         {&p.oversampling, 0, 2}, {&p.velocityCurve, 0, 3}, {&p.polyphony, 0, 2}, {&p.tuningScale, 0, 6},
-        {&p.noteOffMode, 0, 2},
+        {&p.noteOffMode, 0, 2}, {&p.invertPiezo, 0, 1},
     };
     for (const I& i : ints) {
         const int pick = r.Int(0, 9);
@@ -439,6 +442,7 @@ void Poison(Rng& r, EngineParameters& p, double chance) {
     const I ints[] = {
         {&p.model, 0, 3}, {&p.malletType, 0, maremba::kStrikerCount - 1}, {&p.roomType, 0, 2}, {&p.oversampling, 0, 2},
         {&p.velocityCurve, 0, 3}, {&p.polyphony, 0, 2}, {&p.tuningScale, 0, 6}, {&p.noteOffMode, 0, 2},
+        {&p.invertPiezo, 0, 1},
     };
     for (const I& i : ints) if (r.Chance(chance)) *i.v = HostileInt(r, i.lo, i.hi);
 }
@@ -669,9 +673,9 @@ int ControlCoverage() {
         states += kDiscrete[i].count;
         std::printf("  COVER discrete %s settled=%u live=%u expected=%u\n", kDiscrete[i].name, discrete[0][i], discrete[1][i], expected);
     }
-    if (states != 32 || cases != 280 || bend[0] != 7 || bend[1] != 7)
-        gReport.Fail("coverage: expected 35 continuous controls, 32 selector states and three bend values in both modes");
-    std::printf("  COVER totals continuous=35 values=105 discrete=8 states=%d bend=3 modes=2 cases=%d\n", states, cases);
+    if (states != 34 || cases != 284 || bend[0] != 7 || bend[1] != 7)
+        gReport.Fail("coverage: expected 35 continuous controls, 34 selector states and three bend values in both modes");
+    std::printf("  COVER totals continuous=35 values=105 discrete=9 states=%d bend=3 modes=2 cases=%d\n", states, cases);
     CheckResetSilent(*e, t);
     return cases;
 }

@@ -16,6 +16,8 @@ EarlyReflectionScatterTest # causal energy-preserving early scattering, centroid
 RoomMotionTest            # evolving late field, unchanged early paths, decay and reset/idle lifecycle
 RoomMicrophoneTest        # pressure capsule, vent, buffer and output-coupling transfer
 PiezoEngineTest            # complete captures, shared plate sensor, routing and tails
+PiezoPolarityTest          # inverted Main/direct pickup, untouched microphones and smooth live polarity
+MainStereoTest             # common Main image, quadrature transfer, mono, direct isolation and lifecycle
 CaptureRoutingTest         # independent capture coefficients, Main Drive and clean direct captures
 DriveBehaviorTest          # subtle clean default, nonlinear color, antialiasing and live preamp state
 RoomLevelTaperTest         # squared engine Room control, smooth automation and unchanged direct capture

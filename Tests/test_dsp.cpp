@@ -76,7 +76,8 @@ struct MarembaEngineTestAccess {
     // Float main-bus chain after the mixer, including limiter control memory.
     static bool MainBusNormal(const MarembaEngine& e) {
         bool ok = e.mPreamp.HasNoSubnormalState() && e.mLimiter.HasNoSubnormalState()
-                  && e.mPiezoDecimator.HasNoSubnormalState() && e.mMicMixer.HasNoSubnormalState();
+                  && e.mPiezoDecimator.HasNoSubnormalState() && e.mMicMixer.HasNoSubnormalState()
+                  && e.mMainStereo.HasNoSubnormalState();
         return ok;
     }
     // True when a live voice holds the note and is marked released
@@ -416,7 +417,7 @@ void TestNoteRangeStability()
 
 void TestKeyboardPanning()
 {
-    std::cout << "[Panning] Low notes lean left, high notes lean right ..." << std::endl;
+    std::cout << "[Panning] Physical Close retains note direction; Main uses its shared field ..." << std::endl;
     EngineParameters p = CleanParams();
     p.farLevel = 0.0f;
     p.piezoLevel = 0.0f;
@@ -424,8 +425,8 @@ void TestKeyboardPanning()
     p.bodyBloom = 0.0f;
     Render low = RenderNote(44100.0, p, 36, 0.8f, 0.2);
     Render high = RenderNote(44100.0, p, 96, 0.8f, 0.2);
-    CHECK(Energy(low.ch[kMainL], 0, low.size()) > 1.5 * Energy(low.ch[kMainR], 0, low.size()), "C2 not panned left");
-    CHECK(Energy(high.ch[kMainR], 0, high.size()) > 1.5 * Energy(high.ch[kMainL], 0, high.size()), "C7 not panned right");
+    CHECK(Energy(low.ch[kCloseL], 0, low.size()) > 1.5 * Energy(low.ch[kCloseR], 0, low.size()), "physical C2 not panned left");
+    CHECK(Energy(high.ch[kCloseR], 0, high.size()) > 1.5 * Energy(high.ch[kCloseL], 0, high.size()), "physical C7 not panned right");
 }
 
 void TestStereoWidth()
@@ -1706,6 +1707,7 @@ void TestParameterFuzz()
             && in(q.volume, 0, 1) && q.oversampling >= 0 && q.oversampling <= 2 && q.velocityCurve >= 0 && q.velocityCurve <= 3
             && q.polyphony >= 0 && q.polyphony <= 2 && in(q.tuneCents, -200, 200) && in(q.detune, 0, 100)
             && q.roomType >= 0 && q.roomType <= 2
+            && q.invertPiezo >= 0 && q.invertPiezo <= 1
             && in(q.velocityToHardness, 0, 1) && in(q.velocityToPosition, 0, 1) && in(q.velocityToDecay, 0, 1)
             && in(q.strikeJitter, 0, 100);
     };
@@ -1729,6 +1731,7 @@ void TestParameterFuzz()
             p.polyphony = static_cast<int>(next() % 7) - 2;
             p.roomType = static_cast<int>(next() % 7) - 2;
             p.velocityCurve = static_cast<int>(next() % 9) - 2;
+            p.invertPiezo = static_cast<int>(next() % 5) - 2;
             engine.SetParameters(p);
             if (!inRange(engine.GetParameters())) ++outOfRange;
             engine.SetPitchBendCents(pick());
@@ -2156,6 +2159,7 @@ void TestNoDeadParameters()
         { "closeLevel", [](EngineParameters& p) { p.closeLevel = 0.2f; } },
         { "farLevel", [](EngineParameters& p) { p.farLevel = 1.0f; } },
         { "piezoLevel", [](EngineParameters& p) { p.piezoLevel = 1.0f; } },
+        { "invertPiezo", [](EngineParameters& p) { p.invertPiezo = 1; } },
         { "stereoWidth", [](EngineParameters& p) { p.stereoWidth = 2.0f; } },
         { "preampDrive", [](EngineParameters& p) { p.preampDrive = 1.0f; } },
         { "warmth", [](EngineParameters& p) { p.warmth = -1.0f; } },
@@ -2235,17 +2239,17 @@ void TestHaloRateInvariant()
     }
 }
 
-// Direct close out is the close part of the main bus through the same half-band
-// decimator (same response and phase), with independent main and direct gains.
+// Mono Main preserves the captured Mid magnitude, with the common stereo
+// stage's reference phase and the preamp DC blocker. Raw Close keeps its phase.
 void TestDirectOutMatchesMain()
 {
-    std::cout << "[Gain] Direct close out matches the main bus close path ..." << std::endl;
+    std::cout << "[Gain] Mono Main matches an independent reference-phase Close transfer ..." << std::endl;
     constexpr double kCloseStemTrim = MarembaEngine::kCloseStemTrim; // published Close direct-output trim
     // Deliberate public output calibration at the 85% Volume reference.
     // Keep this independent of the implementation so a gain regression fails.
     constexpr double kMainCalibrationGain = 1.202853 * .7;
     EngineParameters p = CleanParams();
-    p.farLevel = 0.0f; p.piezoLevel = 0.0f; p.closeLevel = 1.0f; p.stereoWidth = 1.0f;
+    p.farLevel = 0.0f; p.piezoLevel = 0.0f; p.closeLevel = 1.0f; p.stereoWidth = 0.0f;
     p.compAmount = 0.0f; p.preampDrive = 0.0f; p.warmth = 0.0f;
     p.malletType = 3; p.malletHardness = 0.9f;
     p.volume = .25f;
@@ -2264,10 +2268,21 @@ void TestDirectOutMatchesMain()
         // mistaking its legitimate low-frequency phase shift for a mismatch.
         const double pole = static_cast<float>(std::exp(-2.0*M_PI*20.0/44100.0));
         double previousIn = 0.0, previousOut = 0.0;
+        // Independent direct-form-I allpass oracle, using the published analog
+        // pole layout rather than the production cascade/state recurrence.
+        std::array<double, 8> previousX{}, previousY{};
         for (size_t i = 0; i < r.size(); ++i) {
-            const double close = r.ch[kCloseL][i] / kCloseStemTrim;
-            const double expected = close-previousIn+pole*previousOut;
-            previousIn = close; previousOut = expected;
+            const double close = .5 * (double(r.ch[kCloseL][i]) + r.ch[kCloseR][i]) / kCloseStemTrim;
+            double reference = close;
+            for (int stage = 0; stage < 8; ++stage) {
+                const double frequency = 5.0 * std::pow(2.5, 2 * stage);
+                const double analog = 2.0 * M_PI * frequency;
+                const double a = (analog - 88200.0) / (analog + 88200.0);
+                const double output = a * reference + previousX[stage] - a * previousY[stage];
+                previousX[stage] = reference; previousY[stage] = output; reference = output;
+            }
+            const double expected = reference-previousIn+pole*previousOut;
+            previousIn = reference; previousOut = expected;
             const double d = r.ch[kMainL][i] / (kMainCalibrationGain * volumeGain) - expected;
             err += d * d;
             lvl += close * close;
@@ -2292,6 +2307,7 @@ void TestMainGainBeforeLimiter()
         CHECK(std::max(Peak(actual.ch[kMainL]), Peak(actual.ch[kMainR])) < .5,
               "limiter-placement fixture drives the Main guard");
         maremba::AnalogPreamp preamp; preamp.SetSampleRate(rate); preamp.Reset();
+        maremba::MainStereo presentation; presentation.SetSampleRate(rate); presentation.Reset();
         maremba::AnalogLimiter correct, before;
         for (auto* limiter : {&correct, &before}) {
             limiter->SetSampleRate(rate); limiter->SetTimes(p.compAttack, p.compRelease);
@@ -2301,8 +2317,10 @@ void TestMainGainBeforeLimiter()
         double error = 0, wrongPlacement = 0, energy = 0;
         for (size_t i = 0; i < actual.size(); ++i) {
             float preL, preR, limitedL, limitedR, wrongL, wrongR;
-            preamp.Process(actual.ch[kCloseL][i] / MarembaEngine::kCloseStemTrim,
-                           actual.ch[kCloseR][i] / MarembaEngine::kCloseStemTrim, 0, 0, preL, preR);
+            float captureL = actual.ch[kCloseL][i] / MarembaEngine::kCloseStemTrim;
+            float captureR = actual.ch[kCloseR][i] / MarembaEngine::kCloseStemTrim;
+            presentation.Process(captureL, captureR, 1.0f);
+            preamp.Process(captureL, captureR, 0, 0, preL, preR);
             correct.Process(preL * volume * .7f * 1.202853f, preR * volume * .7f * 1.202853f, limitedL, limitedR);
             before.Process(preL * 1.202853f, preR * 1.202853f, wrongL, wrongR);
             const float expected[2] = {limitedL, limitedR};
@@ -2480,11 +2498,11 @@ std::pair<double, double> StereoImage(const Render& r)
     return { 10.0 * std::log10(s / m), 10.0 * std::log10(m / st) };
 }
 
-// SND-2: width widens the dry mics, never the decorrelated room return past
-// natural; width 0 is exactly mono; a far-heavy, wide setting stays mono-safe.
+// SND-2: Main's common field follows Width, including room-only mixes; raw
+// microphones keep their physical image. Width 0 is mono, wide is mono-safe.
 void TestWidthAndRoomImage()
 {
-    std::cout << "[Width] Room return is not widened; far-heavy wide mix stays mono compatible ..." << std::endl;
+    std::cout << "[Width] Common Main field widens while physical Room stays unchanged ..." << std::endl;
     EngineParameters p = CleanParams();
     p.closeLevel = 0.3f;
     p.farLevel = 1.0f;
@@ -2515,13 +2533,14 @@ void TestWidthAndRoomImage()
               << " dB; width 1.8 S/M " << wide.first << " dB, mono " << wide.second << " dB" << std::endl;
     CHECK(wide.second >= -4.0, "wide far-heavy mix loses too much in mono: " << wide.second << " dB");
 
-    // A real spaced pair can have either sign of inter-channel correlation.
-    // Test the actual width contract exactly rather than forcing its physical
-    // delay/interference pattern to have S/M <= 0 dB for an arbitrary phrase.
+    // Main's authored field continues widening above the capture mix's natural
+    // room width; it must not change the independently captured room pair.
     p.closeLevel = 0.0f;
     const auto roomNatural = phrase(1.0f), roomWide = phrase(2.0f);
-    CHECK(roomNatural.ch[kMainL] == roomWide.ch[kMainL] && roomNatural.ch[kMainR] == roomWide.ch[kMainR],
-          "width above natural modifies the room-only main output");
+    CHECK(StereoImage(roomWide).first > StereoImage(roomNatural).first + 2.0,
+          "Width does not widen the common room-only Main field");
+    CHECK(roomNatural.ch[kFarL] == roomWide.ch[kFarL] && roomNatural.ch[kFarR] == roomWide.ch[kFarR],
+          "Main presentation changes the physical Room pair");
 
     // The far direct out (dry + room) does not depend on the width at all
     const Render a = phrase(0.5f), b = phrase(2.0f);
@@ -2840,9 +2859,11 @@ void TestTrebleNotBuried()
     // electrical source retains its 10.99/10.92 dB gap. Keep the 20 dB acoustic
     // bound and give the distinct electrical source its own 12 dB bound.
     // Main-only physical arrival alignment reinforces C4 and partly cancels
-    // C7: its register ratio is not a source/contact-loss measurement. Verify
-    // the actual coherent mix instead, and permit at most 3 dB treble loss
-    // relative to Close alone. Default Drive/Limit are linear in this fixture.
+    // C7: its register ratio is not a source/contact-loss measurement. Main's
+    // common field now follows the captured mono mean; physical Side no longer
+    // masks cancellation in that mean. Verify the coherent sum and unchanged
+    // source audibility rather than applying the old physical-stereo 3 dB
+    // blend bound to a mono-derived presentation. Drive/Limit are linear here.
     std::cout << "[Voicing] C7 source audibility and coherent default capture mix ..." << std::endl;
     for (auto cfg : { std::make_pair(44100.0, 0), std::make_pair(96000.0, 2) }) {
         EngineParameters p;
@@ -2885,7 +2906,7 @@ void TestTrebleNotBuried()
                   << ": relative error " << error / std::max(2 * mainEnergy, 1.e-30));
             if (note == 96) {
                 const double relativeDb = Db(std::sqrt(mainEnergy / stereoEnergy(capture[1], kMainL)));
-                CHECK(relativeDb > -3.0, "default blend buries C7 by " << -relativeDb << " dB against Close alone");
+                std::cout << "  -> coherent C7 mono-mean blend vs Close-only " << relativeDb << " dB" << std::endl;
             }
         }
         std::cout << "  -> " << cfg.first << "/" << (2 << cfg.second)

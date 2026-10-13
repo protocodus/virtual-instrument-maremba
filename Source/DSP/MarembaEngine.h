@@ -4,6 +4,7 @@
 #include "MarembaVoice.h"
 #include "CaptureScene.h"
 #include "MainPickupAlignment.h"
+#include "MainStereo.h"
 #include "AnalogPreamp.h"
 #include "AnalogLimiter.h"
 #include "OutputHeadroom.h"
@@ -43,7 +44,8 @@ struct EngineParameters {
     float farLevel = 0.45f;         // 0..1 Room knob; squared coefficient on the complete capture
     int roomType = 0;              // 0: Wood (legacy), 1: Chamber FDN, 2: Hall tank
     float piezoLevel = 0.30f;       // 0..1 independent capture coefficient
-    float stereoWidth = 1.0f;       // 0..2 (1 = natural), applied to the main bus
+    int invertPiezo = 0;           // 0: original polarity, 1: inverted Main and direct Piezo
+    float stereoWidth = 1.0f;       // 0..2 (1 = standard wide presentation), Main only
 
     float preampDrive = 0.10f;      // 0..1 full Main-mix saturation; direct outputs stay clean
     float warmth = 0.10f;           // -1..1 tilt
@@ -219,6 +221,7 @@ private:
     // Strike/contact parameters deliberately stay latched to the next note.
     float mBodyGain = 0.0f, mSympatheticGain = 0.0f;
     float mCloseGain = 0.0f, mFarGain = 0.0f, mPiezoGain = 0.0f;
+    float mPiezoPolarity = 1.0f;    // five-millisecond shared Main/direct polarity transition
     float mStereoWidth = 1.0f, mDrive = 0.0f;
     // The direct outputs' trims for the current Model: exact when idle or after
     // a reset, and smoothed like the controls above when Model changes mid-ring.
@@ -243,6 +246,7 @@ private:
     std::array<float, 128> mKeyDetune{};   // each key's Detune offset (cents), for the sympathetic keys
     CaptureScene mMicMixer;
     MainPickupAlignment mMainPickup;
+    MainStereo mMainStereo;
     AnalogPreamp mPreamp;
     AnalogLimiter mLimiter;
     OutputHeadroom mOutputHeadroom;

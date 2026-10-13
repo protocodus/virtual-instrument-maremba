@@ -128,6 +128,7 @@ EngineParameters MarembaEngine::Sanitize(const EngineParameters& in) {
     p.farLevel = FiniteClamp(in.farLevel, 0.0f, 1.0f, d.farLevel);
     p.roomType = std::clamp(in.roomType, 0, 2);
     p.piezoLevel = FiniteClamp(in.piezoLevel, 0.0f, 1.0f, d.piezoLevel);
+    p.invertPiezo = std::clamp(in.invertPiezo, 0, 1);
     p.stereoWidth = FiniteClamp(in.stereoWidth, 0.0f, 2.0f, d.stereoWidth);
     p.preampDrive = FiniteClamp(in.preampDrive, 0.0f, 1.0f, d.preampDrive);
     p.warmth = FiniteClamp(in.warmth, -1.0f, 1.0f, d.warmth);
@@ -198,6 +199,7 @@ void MarembaEngine::Reset() {
 void MarembaEngine::ConfigureForRate() {
     mMicMixer.SetSampleRate(mBaseSampleRate);
     mMainPickup.SetSampleRate(mBaseSampleRate);
+    mMainStereo.SetSampleRate(mBaseSampleRate);
     mLimiter.SetSampleRate(mBaseSampleRate);
     mLimiter.SetTimes(mParams.compAttack, mParams.compRelease);
     mLimiter.SetAmount(mParams.compAmount);
@@ -229,6 +231,7 @@ void MarembaEngine::ApplyKalimbaAir() {
 void MarembaEngine::FlushTails(bool resetRoomMotion) {
     mMicMixer.Reset(resetRoomMotion);
     mMainPickup.Reset();
+    mMainStereo.Reset();
     mPreamp.Reset();
     mLimiter.Reset();
     mOutputHeadroom.Reset();
@@ -330,6 +333,7 @@ void MarembaEngine::SnapLiveControls() {
     mCloseGain = mParams.closeLevel;
     mFarGain = mParams.farLevel * mParams.farLevel;
     mPiezoGain = mParams.piezoLevel;
+    mPiezoPolarity = mParams.invertPiezo ? -1.0f : 1.0f;
     mStereoWidth = mParams.stereoWidth;
     mDrive = mParams.preampDrive;
     mStemTrim = StemTrimsFor(mParams.model);
@@ -345,6 +349,7 @@ void MarembaEngine::SmoothLiveControls() {
     smooth(mCloseGain, mParams.closeLevel);
     smooth(mFarGain, mParams.farLevel * mParams.farLevel);
     smooth(mPiezoGain, mParams.piezoLevel);
+    smooth(mPiezoPolarity, mParams.invertPiezo ? -1.0f : 1.0f);
     smooth(mStereoWidth, mParams.stereoWidth);
     // The nonlinear input-gain taper needs a gentler sweep than a linear
     // capture fader. Ten milliseconds keeps live changes free of sharp edges.
@@ -722,6 +727,7 @@ void MarembaEngine::ControlTick() {
     mPiezoDecimator.FlushTiny();
     mMicMixer.FlushTiny();
     mMainPickup.FlushTiny();
+    mMainStereo.FlushTiny();
 }
 
 // Held keys roll while the mod wheel is up (mallet models): two mallets
@@ -968,13 +974,18 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         }
         float capture[kNumDirectOuts]{};
         mMicMixer.Process(capture[0], capture[1], capture[2], capture[3]);
-        capture[4] = mPiezoDecimator.DownsampleFrame(mSubBufPiezo, factor);
+        capture[4] = mPiezoDecimator.DownsampleFrame(mSubBufPiezo, factor) * mPiezoPolarity;
         // Main aligns the electrical arrival to each source's acoustic flight.
         // The independent raw Piezo capture above keeps its original timing.
-        const float mainPickup = mMainPickup.Process();
+        // Both electrical paths share the same smooth polarity reversal.
+        // Apply it after their independent timing and before Main saturation.
+        const float mainPickup = mMainPickup.Process() * mPiezoPolarity;
         float mixedL = 0.0f, mixedR = 0.0f, preL = 0.0f, preR = 0.0f;
         CaptureScene::Mix(capture[0], capture[1], capture[2], capture[3], mainPickup,
-                          mCloseGain, mFarGain, mPiezoGain, mStereoWidth, mixedL, mixedR);
+                          mCloseGain, mFarGain, mPiezoGain, 0.0f, mixedL, mixedR);
+        // Main presents the complete mono capture mean through a common wide
+        // field. The direct microphone pairs retain their physical placement.
+        mMainStereo.Process(mixedL, mixedR, mStereoWidth);
         // The Main preamp uses antiderivative antialiasing on the complete
         // host-rate capture mix. All five direct channels remain untouched.
         mPreamp.Process(mixedL, mixedR, mDrive, mParams.warmth, preL, preR);
