@@ -45,7 +45,8 @@ struct EngineParameters {
     int roomType = 0;              // 0: Wood (legacy), 1: Chamber FDN, 2: Hall tank
     float piezoLevel = 0.30f;       // 0..1 independent capture coefficient
     int invertPiezo = 0;           // 0: original polarity, 1: inverted Main and direct Piezo
-    float stereoWidth = 1.0f;       // 0..2 (1 = standard wide presentation), Main only
+    float stereoWidth = 1.0f;       // 0..2 (1 = natural capture width), Main only
+    int gentleWiden = 0;           // optional small added Side; natural capture is the default
 
     float preampDrive = 0.10f;      // 0..1 full Main-mix saturation; direct outputs stay clean
     float warmth = 0.10f;           // -1..1 tilt
@@ -222,7 +223,7 @@ private:
     float mBodyGain = 0.0f, mSympatheticGain = 0.0f;
     float mCloseGain = 0.0f, mFarGain = 0.0f, mPiezoGain = 0.0f;
     float mPiezoPolarity = 1.0f;    // five-millisecond shared Main/direct polarity transition
-    float mStereoWidth = 1.0f, mDrive = 0.0f;
+    float mStereoWidth = 1.0f, mDrive = 0.0f, mGentleWiden = 0.0f;
     // The direct outputs' trims for the current Model: exact when idle or after
     // a reset, and smoothed like the controls above when Model changes mid-ring.
     std::array<float, 3> mStemTrim{};

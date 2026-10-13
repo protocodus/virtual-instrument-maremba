@@ -130,6 +130,7 @@ EngineParameters MarembaEngine::Sanitize(const EngineParameters& in) {
     p.piezoLevel = FiniteClamp(in.piezoLevel, 0.0f, 1.0f, d.piezoLevel);
     p.invertPiezo = std::clamp(in.invertPiezo, 0, 1);
     p.stereoWidth = FiniteClamp(in.stereoWidth, 0.0f, 2.0f, d.stereoWidth);
+    p.gentleWiden = std::clamp(in.gentleWiden, 0, 1);
     p.preampDrive = FiniteClamp(in.preampDrive, 0.0f, 1.0f, d.preampDrive);
     p.warmth = FiniteClamp(in.warmth, -1.0f, 1.0f, d.warmth);
     p.compAmount = FiniteClamp(in.compAmount, 0.0f, 1.0f, d.compAmount);
@@ -335,6 +336,7 @@ void MarembaEngine::SnapLiveControls() {
     mPiezoGain = mParams.piezoLevel;
     mPiezoPolarity = mParams.invertPiezo ? -1.0f : 1.0f;
     mStereoWidth = mParams.stereoWidth;
+    mGentleWiden = static_cast<float>(mParams.gentleWiden);
     mDrive = mParams.preampDrive;
     mStemTrim = StemTrimsFor(mParams.model);
 }
@@ -351,6 +353,7 @@ void MarembaEngine::SmoothLiveControls() {
     smooth(mPiezoGain, mParams.piezoLevel);
     smooth(mPiezoPolarity, mParams.invertPiezo ? -1.0f : 1.0f);
     smooth(mStereoWidth, mParams.stereoWidth);
+    smooth(mGentleWiden, static_cast<float>(mParams.gentleWiden));
     // The nonlinear input-gain taper needs a gentler sweep than a linear
     // capture fader. Ten milliseconds keeps live changes free of sharp edges.
     mDrive += mDriveAlpha * (mParams.preampDrive - mDrive);
@@ -982,10 +985,11 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         const float mainPickup = mMainPickup.Process() * mPiezoPolarity;
         float mixedL = 0.0f, mixedR = 0.0f, preL = 0.0f, preR = 0.0f;
         CaptureScene::Mix(capture[0], capture[1], capture[2], capture[3], mainPickup,
-                          mCloseGain, mFarGain, mPiezoGain, 0.0f, mixedL, mixedR);
-        // Main presents the complete mono capture mean through a common wide
-        // field. The direct microphone pairs retain their physical placement.
-        mMainStereo.Process(mixedL, mixedR, mStereoWidth);
+                          mCloseGain, mFarGain, mPiezoGain, mStereoWidth, mixedL, mixedR);
+        // Keep the modeled Close/Room placement and centered mono pickup.
+        // Optional widening adds a small Side signal without replacing those
+        // cues or filtering the original Mid. Off is an exact bypass.
+        mMainStereo.Process(mixedL, mixedR, mStereoWidth, mGentleWiden);
         // The Main preamp uses antiderivative antialiasing on the complete
         // host-rate capture mix. All five direct channels remain untouched.
         mPreamp.Process(mixedL, mixedR, mDrive, mParams.warmth, preL, preR);

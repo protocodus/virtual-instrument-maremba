@@ -6,21 +6,18 @@
 
 namespace maremba {
 
-// A common presentation for the Main bus, after the physical capture mix.
-// Two interleaved allpass cascades have unit magnitude and approximately 90
-// degrees differential phase across the instrument band. Deriving Side from
-// the complete Mid (including the aligned pickup) keeps relative width steady
-// when the pickup polarity changes. Main uses the captures' mono mean; keeping
-// natural Side here would reintroduce large image changes when Mid cancels.
-// Raw Close, Room and Piezo never pass through this stage. Mono fold-down has
-// the original Mid spectrum with the reference cascade's phase response and
-// fixed Width energy compensation. This is an authored Main effect.
+// Optional gentle widening after the physical Main capture mix. Preserve the
+// original L/R, Mid and natural Side. Two unit-magnitude allpass branches supply
+// only a small additional Side: their half-difference is bounded by the input
+// magnitude at every frequency and cancels at DC. No compensation, model gain
+// or polarity-dependent adjustment replaces the physical recording scene.
+// Off is an exact bypass; histories remain warm for smooth live re-enabling.
 class MainStereo {
 public:
     static constexpr int kStages = 8;
     static constexpr double kFirstPoleHz = 5.0;
     static constexpr double kPoleRatio = 2.5;
-    static constexpr float kGeneratedSideGain = .5f;
+    static constexpr float kGeneratedSideGain = .15f;
 
     MainStereo() { SetSampleRate(44100.0); }
     void SetSampleRate(double rate) {
@@ -37,21 +34,18 @@ public:
     }
     void Reset() { mMid.fill(0.0); mWide.fill(0.0); }
 
-    // Width scales the generated field after its filter history, so reducing
-    // Width to zero smoothly extinguishes every Side tail and gives exact mono.
-    void Process(float& left, float& right, float width) {
+    // The engine smooths wet and Width before this call. Both scale after the
+    // histories, so Off/Width zero extinguish all added Side without tail snaps.
+    void Process(float& left, float& right, float width, float wet = 0.0f) {
         const double mid = .5 * (double(left) + right);
         const double reference = Cascade(mid, mReference, mMid);
         const double wide = Cascade(mid, mQuadrature, mWide);
         const double amount = std::isfinite(width) ? std::clamp(width, 0.0f, 2.0f) : 0.0f;
-        const double side = kGeneratedSideGain * amount * wide;
-        // Fixed equal-power compensation prevents creating the common field
-        // from simply making narrow presets louder. It follows Width alone,
-        // with no envelope detector or model/polarity-dependent adjustment.
-        const double field = kGeneratedSideGain * amount;
-        const double gain = 1.0 / std::sqrt(1.0 + field * field);
-        left = static_cast<float>(gain * (reference - side));
-        right = static_cast<float>(gain * (reference + side));
+        const double blend = std::isfinite(wet) ? std::clamp(wet, 0.0f, 1.0f) : 0.0f;
+        if (blend == 0.0 || amount == 0.0) return;
+        const double side = kGeneratedSideGain * amount * blend * .5 * (wide - reference);
+        left = static_cast<float>(double(left) - side);
+        right = static_cast<float>(double(right) + side);
     }
     void FlushTiny() {
         for (auto* state : {&mMid, &mWide})

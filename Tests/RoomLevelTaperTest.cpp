@@ -3,7 +3,6 @@
 #include "MarembaEngine.h"
 #include "OutputHeadroom.h"
 #include "AnalogPreamp.h"
-#include "MainStereo.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -83,15 +82,9 @@ void checkStatic(double rate) {
     const int latency = OutputHeadroom::LatencyFrames(rate);
     const int up = static_cast<int>(rate*.06)+latency;
     const int down = static_cast<int>(rate*.16)+latency;
-    // The common Main image and DC blocker follow the coefficient, so a
-    // changing gain does not commute through either filter history. Rebuild
-    // that verified public signal chain from the unchanged direct Room, which
-    // already carries the same lookahead delay. MainStereo has a separate
-    // independent analog-network oracle in MainStereoTest.
-    MainStereo fullStereo, movingStereo, steppedStereo;
-    for (auto* stereo : {&fullStereo, &movingStereo, &steppedStereo}) {
-        stereo->SetSampleRate(rate); stereo->Reset();
-    }
+    // The main DC blocker follows the coefficient, so a changing gain does
+    // not commute through it. Reconstruct that public signal chain from the
+    // unchanged direct Room, which already has the same lookahead delay.
     AnalogPreamp fullFilter, movingFilter, steppedFilter;
     for (auto* filter : {&fullFilter, &movingFilter, &steppedFilter}) {
         filter->SetSampleRate(rate); filter->Reset();
@@ -100,9 +93,8 @@ void checkStatic(double rate) {
     for (auto& channel : expected) channel.resize(reference[0].size());
     double referenceDot = 0, fullEnergy = 0;
     for (size_t i = 0; i < reference[0].size(); ++i) {
-        float fullL = reference[2][i], fullR = reference[3][i];
-        fullStereo.Process(fullL, fullR, 1);
-        fullFilter.Process(fullL, fullR, 0, 0, fullL, fullR);
+        float fullL, fullR;
+        fullFilter.Process(reference[2][i], reference[3][i], 0, 0, fullL, fullR);
         referenceDot += double(reference[0][i])*fullL+double(reference[1][i])*fullR;
         fullEnergy += double(fullL)*fullL+double(fullR)*fullR;
         const int frame = static_cast<int>(i);
@@ -112,12 +104,10 @@ void checkStatic(double rate) {
         const double coefficient = frame < up ? 0 : frame < down
             ? .75*.75*(1-std::exp(-(frame-up+1)/(rate*.005)))
             : .25*.25+(.75*.75-.25*.25)*std::exp(-(frame-down+1)/(rate*.005));
-        float movingL = reference[2][i]*coefficient, movingR = reference[3][i]*coefficient;
-        movingStereo.Process(movingL, movingR, 1);
-        movingFilter.Process(movingL, movingR, 0, 0, expected[0][i], expected[1][i]);
-        float steppedL = reference[2][i]*target, steppedR = reference[3][i]*target;
-        steppedStereo.Process(steppedL, steppedR, 1);
-        steppedFilter.Process(steppedL, steppedR, 0, 0, expected[2][i], expected[3][i]);
+        movingFilter.Process(reference[2][i]*coefficient, reference[3][i]*coefficient,
+                             0, 0, expected[0][i], expected[1][i]);
+        steppedFilter.Process(reference[2][i]*target, reference[3][i]*target,
+                              0, 0, expected[2][i], expected[3][i]);
     }
     require(fullEnergy > 1.e-9, "room automation reference is silent");
     const double mainScale = referenceDot/fullEnergy; // fixed calibration cancels
