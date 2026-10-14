@@ -91,11 +91,11 @@ EngineParameters parameters(const Case& c) {
     const float depth = c.profile == 2 ? 1.f : 0.f;
     p.velocityToHardness = p.velocityToPosition = p.velocityToDecay = depth;
     p.velocityToCarving = p.velocityToCoupling = p.velocityToBloom = depth;
-    p.velocityToSympathetic = p.velocityToBuzz = p.velocityToTension = p.velocityToArtifacts = depth;
+    p.velocityToSympathetic = p.velocityToBuzz = p.velocityToTension = p.velocityToArtifacts = p.velocityToVariance = depth;
     if (c.profile == 2) {
-        // All ten VOL depths are at full scale. The nine additional controls
+        // All eleven VOL depths are at full scale. The ten additional controls
         // start at minimum; Hardness stays at 1 as required for this matrix.
-        p.strikePosition = p.carving = p.membraneTension = 0;
+        p.strikePosition = p.carving = p.membraneTension = p.strikeJitter = 0;
         p.resonatorCoupling = p.bodyBloom = p.sympathetic = p.artifacts = p.buzzAmount = 0;
         p.decay = .1f;
     }

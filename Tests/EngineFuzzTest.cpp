@@ -248,6 +248,7 @@ constexpr ContinuousControl kContinuous[] = {
     {"velocityToBuzz", &EngineParameters::velocityToBuzz, {0,.5f,1}},
     {"velocityToTension", &EngineParameters::velocityToTension, {0,.5f,1}},
     {"velocityToArtifacts", &EngineParameters::velocityToArtifacts, {0,.5f,1}},
+    {"velocityToVariance", &EngineParameters::velocityToVariance, {0,.5f,1}},
     {"modWheel", &EngineParameters::modWheel, {0,.5f,1}},
     {"carving", &EngineParameters::carving, {0,.5f,1}},
     {"membraneTension", &EngineParameters::membraneTension, {0,.5f,1}},
@@ -267,7 +268,7 @@ constexpr DiscreteControl kDiscrete[] = {
 };
 constexpr size_t kContinuousCount = sizeof(kContinuous)/sizeof(kContinuous[0]);
 constexpr size_t kDiscreteCount = sizeof(kDiscrete)/sizeof(kDiscrete[0]);
-static_assert(kContinuousCount == 35 && kDiscreteCount == 10, "Update declared control coverage deliberately");
+static_assert(kContinuousCount == 36 && kDiscreteCount == 10, "Update declared control coverage deliberately");
 static_assert(maremba::kStrikerCount == 5 && static_cast<int>(maremba::ETuningScale::Count) == 7,
               "Update exhaustive selector state inventory");
 constexpr float kBendTravel[] = {-200, 0, 200};
@@ -382,6 +383,7 @@ EngineParameters PlausibleParams(Rng& r) {
     p.velocityToBuzz = r.Range(0, 1);
     p.velocityToTension = r.Range(0, 1);
     p.velocityToArtifacts = r.Range(0, 1);
+    p.velocityToVariance = r.Range(0, 1);
     p.invertPiezo = r.Int(0, 1);
     p.gentleWiden = r.Int(0, 1);
     return p;
@@ -407,7 +409,7 @@ EngineParameters EdgeParams(Rng& r) {
         {&p.velocityToHardness, 0, 1}, {&p.velocityToPosition, 0, 1}, {&p.velocityToDecay, 0, 1},
         {&p.velocityToCarving, 0, 1}, {&p.velocityToCoupling, 0, 1}, {&p.velocityToBloom, 0, 1},
         {&p.velocityToSympathetic, 0, 1}, {&p.velocityToBuzz, 0, 1}, {&p.velocityToTension, 0, 1},
-        {&p.velocityToArtifacts, 0, 1}, {&p.modWheel, 0, 1}, {&p.carving, 0, 1}, {&p.membraneTension, 0, 1},
+        {&p.velocityToArtifacts, 0, 1}, {&p.velocityToVariance, 0, 1}, {&p.modWheel, 0, 1}, {&p.carving, 0, 1}, {&p.membraneTension, 0, 1},
     };
     for (const F& f : floats) *f.v = edge(f.lo, f.hi, *f.v);
     struct I { int* v; int lo, hi; };
@@ -436,7 +438,7 @@ void Poison(Rng& r, EngineParameters& p, double chance) {
         {&p.velocityToHardness, 0, 1}, {&p.velocityToPosition, 0, 1}, {&p.velocityToDecay, 0, 1},
         {&p.velocityToCarving, 0, 1}, {&p.velocityToCoupling, 0, 1}, {&p.velocityToBloom, 0, 1},
         {&p.velocityToSympathetic, 0, 1}, {&p.velocityToBuzz, 0, 1}, {&p.velocityToTension, 0, 1},
-        {&p.velocityToArtifacts, 0, 1},
+        {&p.velocityToArtifacts, 0, 1}, {&p.velocityToVariance, 0, 1},
         {&p.modWheel, 0, 1}, {&p.carving, 0, 1}, {&p.membraneTension, 0, 1},
     };
     for (const F& f : floats) if (r.Chance(chance)) *f.v = HostileFloat(r, f.lo, f.hi);
@@ -676,9 +678,9 @@ int ControlCoverage() {
         states += kDiscrete[i].count;
         std::printf("  COVER discrete %s settled=%u live=%u expected=%u\n", kDiscrete[i].name, discrete[0][i], discrete[1][i], expected);
     }
-    if (states != 36 || cases != 288 || bend[0] != 7 || bend[1] != 7)
-        gReport.Fail("coverage: expected 35 continuous controls, 36 selector states and three bend values in both modes");
-    std::printf("  COVER totals continuous=35 values=105 discrete=10 states=%d bend=3 modes=2 cases=%d\n", states, cases);
+    if (states != 36 || cases != 294 || bend[0] != 7 || bend[1] != 7)
+        gReport.Fail("coverage: expected 36 continuous controls, 36 selector states and three bend values in both modes");
+    std::printf("  COVER totals continuous=36 values=108 discrete=10 states=%d bend=3 modes=2 cases=%d\n", states, cases);
     CheckResetSilent(*e, t);
     return cases;
 }

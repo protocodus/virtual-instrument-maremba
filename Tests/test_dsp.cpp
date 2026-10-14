@@ -1709,7 +1709,7 @@ void TestParameterFuzz()
             && q.roomType >= 0 && q.roomType <= 2
             && q.invertPiezo >= 0 && q.invertPiezo <= 1
             && q.gentleWiden >= 0 && q.gentleWiden <= 1
-            && in(q.velocityToHardness, 0, 1) && in(q.velocityToPosition, 0, 1) && in(q.velocityToDecay, 0, 1)
+            && in(q.velocityToHardness, 0, 1) && in(q.velocityToPosition, 0, 1) && in(q.velocityToDecay, 0, 1) && in(q.velocityToVariance, 0, 1)
             && in(q.strikeJitter, 0, 100);
     };
     for (double sr : { 44100.0, 192000.0 }) {
@@ -1722,7 +1722,7 @@ void TestParameterFuzz()
                                 &p.buzzAmount, &p.artifacts, &p.sympathetic, &p.pitchGlide, &p.bodyBloom, &p.closeLevel,
                                 &p.farLevel, &p.piezoLevel, &p.stereoWidth, &p.preampDrive, &p.warmth, &p.compAmount,
                                 &p.compAttack, &p.compRelease, &p.volume, &p.tuneCents, &p.detune, &p.strikeJitter,
-                                &p.velocityToHardness, &p.velocityToPosition, &p.velocityToDecay,
+                                &p.velocityToHardness, &p.velocityToPosition, &p.velocityToDecay, &p.velocityToVariance,
                                 &p.carving, &p.membraneTension };
             for (float* f : fields) if (next() % 3 == 0) *f = pick();
             p.model = static_cast<int>(next() % 9) - 2;
@@ -3300,14 +3300,15 @@ void TestVelocityDepths()
 {
     std::cout << "[Velocity routes] Defaults, additive range, MIDI endpoints, curve and strike boundaries ..." << std::endl;
     EngineParameters defaults;
-    CHECK(defaults.velocityToHardness==.20f && defaults.velocityToPosition==0.0f && defaults.velocityToDecay==0.0f,
-          "velocity sensitivities must default to 20% / 0% / 0%");
+    CHECK(defaults.velocityToHardness==.20f && defaults.velocityToPosition==0.0f && defaults.velocityToDecay==0.0f && defaults.velocityToVariance==0.0f,
+          "velocity sensitivities must default to 20% Hardness and zero Position/Decay/Variance");
     using Field = float EngineParameters::*;
     struct Route { Field depth, knob; float minimum, range; };
-    const std::array<Route,3> routes{{
+    const std::array<Route,4> routes{{
         {&EngineParameters::velocityToHardness,&EngineParameters::malletHardness,0,1},
         {&EngineParameters::velocityToPosition,&EngineParameters::strikePosition,0,1},
-        {&EngineParameters::velocityToDecay,&EngineParameters::decay,.1f,7.9f}}};
+        {&EngineParameters::velocityToDecay,&EngineParameters::decay,.1f,7.9f},
+        {&EngineParameters::velocityToVariance,&EngineParameters::strikeJitter,0,100}}};
     auto p=CleanParams();
     p.sympathetic=p.bodyBloom=p.farLevel=p.preampDrive=p.compAmount=p.warmth=0;
     // Binary-exact endpoints make the range contract independent of curve
@@ -3345,10 +3346,10 @@ void TestVelocityDepths()
         MarembaEngine e(44100);e.SetParameters(p);e.NoteOn(60,.4f);
         Render r;RenderFrames(e,r,4410);
         auto q=p;
-        if(change) q.velocityToHardness=q.velocityToPosition=q.velocityToDecay=1;
+        if(change) q.velocityToHardness=q.velocityToPosition=q.velocityToDecay=q.velocityToVariance=1;
         e.SetParameters(q);
         CHECK(e.GetParameters().malletHardness==p.malletHardness && e.GetParameters().strikePosition==p.strikePosition
-              && e.GetParameters().decay==p.decay, "per-note modulation changed the stored base knobs");
+              && e.GetParameters().decay==p.decay && e.GetParameters().strikeJitter==p.strikeJitter, "per-note modulation changed the stored base knobs");
         if(restrike)e.NoteOn(60,.4f);
         RenderFrames(e,r,8820);return r;
     };

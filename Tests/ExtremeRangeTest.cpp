@@ -121,7 +121,7 @@ EngineParameters endpoint(int model, int quality, int profile, int note) {
     const float depth = profile >= 2 ? 1 : 0;
     p.velocityToHardness = p.velocityToPosition = p.velocityToDecay = depth;
     p.velocityToCarving = p.velocityToCoupling = p.velocityToBloom = depth;
-    p.velocityToSympathetic = p.velocityToBuzz = p.velocityToTension = p.velocityToArtifacts = depth;
+    p.velocityToSympathetic = p.velocityToBuzz = p.velocityToTension = p.velocityToArtifacts = p.velocityToVariance = depth;
     if (profile == 3) p.closeLevel = p.farLevel = p.piezoLevel = p.volume = 0;
     return p;
 }

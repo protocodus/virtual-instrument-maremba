@@ -1,4 +1,4 @@
-// Ten per-strike VOL routes add a calibrated fraction of the full knob range.
+// Eleven per-strike VOL routes add a calibrated fraction of the full knob range.
 #include "MarembaEngine.h"
 #include <algorithm>
 #include <array>
@@ -210,6 +210,7 @@ int main() {
         {"Buzz", &EngineParameters::velocityToBuzz, &EngineParameters::buzzAmount, .20f, 0, 1, true},
         {"Tension", &EngineParameters::velocityToTension, &EngineParameters::membraneTension, .25f, 0, 1, true},
         {"Artifacts", &EngineParameters::velocityToArtifacts, &EngineParameters::artifacts, .20f, 0, 1, true},
+        {"Variance", &EngineParameters::velocityToVariance, &EngineParameters::strikeJitter, 25.0f, 0, 100, true},
     };
     const char* models[] = {"Rosewood", "Padauk", "Balafon", "Kalimba"};
     struct Case { float base, depth, velocity; };
@@ -288,6 +289,67 @@ int main() {
         }
         check(audibleSomewhere, std::string(route.name) + ": the route changes no instrument's sound");
     }
+
+    // Variance is sampled only for a new strike. An automated depth leaves
+    // the existing ring exactly intact; restrikes and notes queued during a
+    // quality change use the newly selected depth without rewriting its knob.
+    // The independent reference turns the physical Variance knob from 20 to
+    // 70: full MIDI velocity and 50% VOL add exactly 50 of its 100-point range.
+    using Capture = std::array<std::vector<float>, 7>;
+    const auto varianceSequence = [&](int model, int mode, bool queued) {
+        EngineParameters p;
+        p.model = model; p.strikeJitter = 20; p.velocityToVariance = 0;
+        p.volume = .15f; p.velocityCurve = 1;
+        p.velocityToHardness = p.velocityToPosition = p.velocityToDecay = 0;
+        auto engine = std::make_unique<maremba::MarembaEngine>(48000);
+        engine->SetParameters(p); engine->Reset(); engine->NoteOn(60, .6f);
+        Capture audio;
+        constexpr int frames = 7680;
+        for (auto& channel : audio) channel.resize(frames);
+        for (int frame = 0; frame < frames; ++frame) {
+            if (queued && frame == 1024) {
+                p.oversampling = 1;
+                if (mode == 3) p.strikeJitter = 70;
+                engine->SetParameters(p);
+            }
+            if (queued && frame == 1056) engine->NoteOn(64, 1);
+            if (frame == (queued ? 1088 : 2048)) {
+                if (mode == 1 || mode == 2) p.velocityToVariance = .5f;
+                if (!queued && mode == 3) p.strikeJitter = 70;
+                engine->SetParameters(p);
+            }
+            if (!queued && frame == 4096 && mode >= 2) engine->NoteOn(60, 1);
+            engine->RenderBatch(&audio[0][frame], &audio[1][frame], &audio[2][frame],
+                                &audio[3][frame], &audio[4][frame], &audio[5][frame],
+                                &audio[6][frame], 1);
+            for (auto& channel : audio)
+                check(std::isfinite(channel[frame]), "Variance strike-boundary fixture is nonfinite");
+        }
+        check(engine->GetParameters().velocityToVariance == ((mode == 1 || mode == 2) ? .5f : 0.f),
+              "Variance VOL mutates its stored depth");
+        check(engine->GetParameters().strikeJitter == (mode == 3 ? 70.f : 20.f),
+              "Variance VOL mutates the stored Variance knob");
+        return audio;
+    };
+    int varianceBoundaries = 0;
+    for (int model = 0; model < 4; ++model) {
+        const auto original = varianceSequence(model, 0, false);
+        check(original == varianceSequence(model, 1, false),
+              "Variance depth automation alters an already-ringing note");
+        const auto restruck = varianceSequence(model, 2, false);
+        check(restruck == varianceSequence(model, 3, false),
+              "Variance restrike does not use the newly selected full-range depth");
+        check(Difference(varianceSequence(model, 4, false)[2], restruck[2]) > 1e-3,
+              "Variance VOL has no audible response on the next restrike");
+        const auto pending = varianceSequence(model, 2, true);
+        check(pending == varianceSequence(model, 3, true),
+              "a queued strike does not use Variance depth selected before it starts");
+        check(Rms(pending[2]) > 1e-5 && Difference(varianceSequence(model, 4, true)[2], pending[2]) > 1e-3,
+              "queued Variance fixture is inaudible or ignores the new depth");
+        varianceBoundaries += 5;
+    }
+    std::cout << "Variance strike boundaries: " << varianceBoundaries
+              << " all-model live, restrike and queued audio comparisons\n";
 
     // Buzz and Tension follow live knob movement with the offset captured at
     // the strike; later changes to VOL apply to the next strike only.

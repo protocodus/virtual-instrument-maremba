@@ -127,6 +127,7 @@ int main() {
         {"Buzz VOL", &EngineParameters::velocityToBuzz, 0, 1, 1},
         {"Tension VOL", &EngineParameters::velocityToTension, 0, 1, 3},
         {"Artifacts VOL", &EngineParameters::velocityToArtifacts, 0, 1, 3},
+        {"Variance VOL", &EngineParameters::velocityToVariance, 0, 1, 3},
     };
     const IntControl selectors[] = {
         {"Invert Piezo", &EngineParameters::invertPiezo, 0, 1},

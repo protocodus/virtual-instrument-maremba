@@ -153,6 +153,7 @@ EngineParameters MarembaEngine::Sanitize(const EngineParameters& in) {
     p.velocityToBuzz = FiniteClamp(in.velocityToBuzz, 0.0f, 1.0f, d.velocityToBuzz);
     p.velocityToTension = FiniteClamp(in.velocityToTension, 0.0f, 1.0f, d.velocityToTension);
     p.velocityToArtifacts = FiniteClamp(in.velocityToArtifacts, 0.0f, 1.0f, d.velocityToArtifacts);
+    p.velocityToVariance = FiniteClamp(in.velocityToVariance, 0.0f, 1.0f, d.velocityToVariance);
     p.tuningScale = std::clamp(in.tuningScale, 0, static_cast<int>(ETuningScale::Count) - 1);
     p.noteOffMode = std::clamp(in.noteOffMode, 0, 2);
     p.modWheel = FiniteClamp(in.modWheel, 0.0f, 1.0f, d.modWheel);
@@ -629,6 +630,9 @@ int MarembaEngine::TriggerNote(int noteNumber, float velocity, float positionOff
     const float carving = modulate(mParams.carving, mParams.velocityToCarving);
     const float coupling = modulate(mParams.resonatorCoupling, mParams.velocityToCoupling);
     const float artifacts = modulate(mParams.artifacts, mParams.velocityToArtifacts);
+    const float varianceOffset = velocityOffset(mParams.velocityToVariance);
+    const float variance = varianceOffset > 0.0f
+        ? std::min(100.0f, mParams.strikeJitter + 100.0f * varianceOffset) : mParams.strikeJitter;
     // Bloom and Sympathetic are shared resonances: a strike's velocity sets
     // how hard it drives them, which is its own Bloom or Sympathetic level.
     // The kalimba box's air coupling follows Coupling as the voice's loading
@@ -651,7 +655,7 @@ int MarembaEngine::TriggerNote(int noteNumber, float velocity, float positionOff
                           InternalRate(), mPrng,
                           mAppliedGlobalCents, keyDetuneCents,
                           mParams.malletType,
-                          mParams.strikeJitter,
+                          variance,
                           positionOffset,
                           StrikeOptions{carving, std::min(1.0f, mParams.membraneTension + route.tension), mParams.noteOffMode == 2,
                                         &mRadiationCache[static_cast<std::size_t>(std::clamp(noteNumber, 0, 127))]});

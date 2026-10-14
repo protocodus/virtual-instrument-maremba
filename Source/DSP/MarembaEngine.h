@@ -64,7 +64,7 @@ struct EngineParameters {
     float velocityToHardness = 0.20f; // 0..1: added fraction of the control's full range
     float velocityToPosition = 0.0f;  // 0..1 depth, applied per strike after the velocity curve
     float velocityToDecay = 0.0f;     // MIDI 1 adds zero; MIDI 127 adds depth in normalized Decay travel
-    // The same per-strike law for seven more controls; 0 leaves them fixed.
+    // The same per-strike law for eight more controls; 0 leaves them fixed.
     float velocityToCarving = 0.0f;
     float velocityToCoupling = 0.0f;
     float velocityToBloom = 0.0f;       // the strike's drive into the frame (or kalimba box) resonances
@@ -72,6 +72,7 @@ struct EngineParameters {
     float velocityToBuzz = 0.0f;
     float velocityToTension = 0.0f;
     float velocityToArtifacts = 0.0f;
+    float velocityToVariance = 0.0f;  // adds velocity travel across the full 0..100 Variance range
 
     int tuningScale = 0;            // ETuningScale: Equal, Bala, Timbila, Pentatonic, Sambla, Gyil, Valimba
     int noteOffMode = 0;            // 0: Ring (bars ring freely), 1: Damp (hand/finger stops the key),
