@@ -101,6 +101,10 @@ public:
         const double free = mPosition + mVelocity * dt + push - freeDisplacement - mStepCompliance * mForce;
         double force = 0.0;
         if (free > 0.0) {
+            // Fibre slip changes the contact law itself. Include it in the
+            // implicit balance: scaling the force afterwards would leave a
+            // different compression from the one used to compute that force.
+            const double textureScale = std::max(0.0, 1.0 + texture);
             // h(d) = d + A Phi(d) - free is increasing in the compression d,
             // which lies in [0, free]: safeguarded Newton on d (a bracket that
             // stays small at any rate, unlike one on the force).
@@ -111,10 +115,10 @@ public:
             double d = std::clamp(free - mStepCompliance * mForce, lo, hi);
             for (int iteration = 0; iteration < 60; ++iteration) {
                 double slope = 0.0;
-                const double h = d + mStepCompliance * Law(d, slope) - free;
+                const double h = d + mStepCompliance * (textureScale * Law(d, slope)) - free;
                 if (h == 0.0) break;   // on the root
                 if (h > 0.0) { hi = d; hHi = h; hiKnown = true; } else { lo = d; hLo = h; }
-                double next = d - h / (1.0 + mStepCompliance * slope);
+                double next = d - h / (1.0 + mStepCompliance * (textureScale * slope));
                 // A step that leaves the bracket (at a kink of the law) goes
                 // to its upper end if that is still unevaluated (a rebound
                 // whose damping cancels the force puts the root there), else
@@ -132,7 +136,7 @@ public:
                 if (done || hi - lo <= 1.0e-14 * free) break;
             }
             double slope = 0.0;
-            force = Law(d, slope) * std::max(0.0, 1.0 + texture);
+            force = Law(d, slope) * textureScale;
         }
         const double compression = free - mStepCompliance * force;
         const double applied = .5 * (mForce + force);

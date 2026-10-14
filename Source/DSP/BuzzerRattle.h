@@ -94,18 +94,10 @@ public:
             // Height above the board: preload pulls down, the board's own
             // acceleration drives the relative motion the other way.
             const double relative = -mPreload - acceleration;
-            if (mHeight <= 0.0 && relative <= 0.0) {
+            if (mHeight <= 0.0 && mVelocity <= 0.0 && relative <= 0.0) {
                 mHeight = mVelocity = 0.0;      // pressed onto the board
             } else {
-                mVelocity += relative * mStep;
-                mHeight += mVelocity * mStep;
-                if (mHeight < 0.0) {
-                    if (mVelocity < 0.0) {
-                        impact = -(1.0 + kRestitution) * mVelocity;
-                        mVelocity *= -kRestitution;
-                    }
-                    mHeight = 0.0;
-                }
+                AdvanceFlight(relative, impact);
             }
         }
         // Resting buzzers with silent rings (flushed to exact zero at the
@@ -123,6 +115,52 @@ public:
     }
 
 private:
+    // Acceleration is constant over this sample. Locate a landing within the
+    // interval, then keep its upward restitution velocity for the remaining
+    // flight. Simply projecting height to zero after Euler integration loses
+    // the rebound; retaining that velocity without locating contact instead
+    // produces a perpetual one-sample bounce on a stationary board.
+    void AdvanceFlight(double acceleration, double& impact) {
+        double remaining = mStep;
+        for (int event = 0; event < 8; ++event) {
+            const double endHeight = mHeight + mVelocity * remaining
+                                   + 0.5 * acceleration * remaining * remaining;
+            bool lands = endHeight < 0.0
+                      || (endHeight == 0.0 && mVelocity + acceleration * remaining < 0.0);
+            // An upward-accelerating board can be crossed on the downward
+            // part of a flight even if the endpoint has risen above it again.
+            if (!lands && acceleration > 0.0 && mVelocity < 0.0) {
+                const double turn = -mVelocity / acceleration;
+                lands = turn < remaining && mHeight - mVelocity * mVelocity / (2.0 * acceleration) < 0.0;
+            }
+            if (!lands) {
+                mHeight = std::max(endHeight, 0.0);
+                mVelocity += acceleration * remaining;
+                return;
+            }
+            double contactTime = 0.0;
+            if (mHeight > 0.0) {
+                const double speed = std::sqrt(std::max(0.0, mVelocity * mVelocity - 2.0 * acceleration * mHeight));
+                // Rationalized first downward root; no cancellation when a
+                // descending buzzer starts close to the board.
+                contactTime = 2.0 * mHeight / (speed - mVelocity);
+            } else if (mVelocity > 0.0 && acceleration < 0.0) {
+                contactTime = -2.0 * mVelocity / acceleration;
+            }
+            contactTime = std::clamp(contactTime, 0.0, remaining);
+            mVelocity += acceleration * contactTime;
+            impact += -(1.0 + kRestitution) * std::min(mVelocity, 0.0);
+            mVelocity = -kRestitution * std::min(mVelocity, 0.0);
+            mHeight = 0.0;
+            remaining -= contactTime;
+            if (remaining <= 0.0) return;
+        }
+        // Inelastic collapse: bound realtime work and discard the remaining
+        // tiny rebound passively. After eight landings its kinetic energy is
+        // at most restitution^16 (5.1e-8) of the first incoming energy.
+        mHeight = mVelocity = 0.0;
+    }
+
     static constexpr int kModes = 2;
     static constexpr double kRestitution = 0.35;
     struct Ring { double y1 = 0.0, y2 = 0.0, c = 0.0, s = 0.0, b = 0.0; };

@@ -88,6 +88,35 @@ int main() {
         }
     }
 
+    // A constant fibre-slip factor is the same physical contact as a head
+    // with proportionally changed shell and core stiffness. Compare whole
+    // force histories against that independently configured head, including
+    // hysteresis and a moving compliant bar. Applying texture after solving
+    // the contact balance breaks this equivalence in a rate-dependent way.
+    for (int type : {0, 1}) for (double rate : {88200.0, 192000.0, 1536000.0})
+    for (double texture : {-0.16, 0.16}) {
+        auto texturedSetup = setupFor(type, 4.0, rate, 2.0e-10);
+        texturedSetup.hysteresis = maremba::GetMalletSpec(type).hysteresis;
+        auto referenceSetup = texturedSetup;
+        referenceSetup.stiffness *= 1.0 + texture;
+        referenceSetup.coreStiffness *= 1.0 + texture;
+        maremba::MalletContact textured, reference;
+        textured.Start(texturedSetup, 0.0);
+        reference.Start(referenceSetup, 0.0);
+        double error = 0.0, peak = 0.0;
+        for (int n = 0; n < static_cast<int>(.01 * rate); ++n) {
+            const double surface = 1.0e-5 * std::sin(2.0 * pi * 262.0 * n / rate);
+            const double force = textured.Step(surface, texture);
+            const double expectedForce = reference.Step(surface);
+            error = std::max(error, std::abs(force - expectedForce));
+            peak = std::max(peak, std::abs(expectedForce));
+        }
+        std::cout << "TEXTURE type=" << type << " rate=" << rate
+                  << " scale=" << 1.0 + texture << " relative_error=" << error / peak << '\n';
+        require(peak > 0.0 && error < peak * 1.0e-10,
+                "textured contact force is inconsistent with its compression");
+    }
+
     // 2. Passivity against one ringing bar mode: head energy plus mode energy
     //    after the contact never exceeds what was there before it.
     for (int type = 0; type < 4; ++type) for (double phase : {0.0, .7, 1.9, 3.3}) {

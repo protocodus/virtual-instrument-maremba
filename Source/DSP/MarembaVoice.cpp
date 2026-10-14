@@ -718,6 +718,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     mSampleRate = sampleRate > 8000.0 ? sampleRate : kReferenceRate;
     mDt = 1.0 / mSampleRate;
     mNoiseScale = std::sqrt(mSampleRate / kReferenceRate);
+    mSlapNoisePole = PoleAtRate(.995, mSampleRate);
     mTriggerGlobalCents = globalCents;
     mPitchRatio = 1.0;
 
@@ -1752,9 +1753,9 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
             buzz = y;
         }
         // Each slap also rattles the membrane edge: a short broadband burst.
-        mSlapNoise = std::max(mSlapNoise * 0.995, std::sqrt(std::max(slapTotal, 0.0)));
+        mSlapNoise = std::max(mSlapNoise * mSlapNoisePole, std::sqrt(std::max(slapTotal, 0.0)));
     } else {
-        mSlapNoise *= 0.995;
+        mSlapNoise *= mSlapNoisePole;
     }
     double slapSound = 0.0;
     if (mSlapNoise > 1.0e-9 || std::abs(mSlapY1) + std::abs(mSlapY2) > 1.0e-12) {

@@ -41,6 +41,9 @@ KalimbaMountShapesTest     # the yielding bridge's mode shapes
 KalimbaBridgeReactionTest  # signed box drive agrees with the yielding mount and its losses
 MalletContactTest          # Hertzian head: passivity, contact times
 SlackMembraneStretchTest   # the stretched membrane
+BuzzerRattlePhysicsTest    # ballistic landing, restitution and passive settling
+MembraneEdgeDecayTest      # membrane-edge envelope decay across internal rates
+KalimbaHoleCoverContinuityTest # smooth empirical cover joins and unchanged outer regions
 Round3ResponseTest         # restrikes, clamp-bridge tine, neighbour halo
 Round4ResponseTest         # resonator bloom, wood damping, torsion, buzzers
 Round5ResponseTest         # tunings, Note Off, rolls, hole cover, decay

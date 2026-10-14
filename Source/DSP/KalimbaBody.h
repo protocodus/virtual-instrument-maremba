@@ -92,8 +92,8 @@ struct KalimbaPlatePickup {
 // flows through a 3 cm front hole (two thirds of its conductance) and small
 // back holes (a third; a 0.8 L box: 299 Hz front hole alone, 366 Hz with two
 // 10 mm back holes). A palm (radius four times the hole's) at height h adds
-// end correction b dE with E_d = 0.61 (r/b)^0.18 (b/h)^0.39 once that
-// exceeds 0.65 (Benade & Murday 1967), and closer still the radial flow
+// end correction b dE with E_d = 0.61 (r/b)^0.18 (b/h)^0.39, blending its
+// empirical onset from 0.61 to 0.65 (Benade & Murday 1967), and closer still the radial flow
 // through the gap, (b^2 / 2h) ln(r/b). The wheel lowers the palm from 40 mm
 // to 1 mm on a log scale: about -40 cents at 20 mm, -230 at 5 mm and more
 // than -600 as it closes. The covered hole radiates less (its flow and its
@@ -109,7 +109,13 @@ inline HoleCover KalimbaHoleCover(double cover) {
     const double height = 0.040 * std::pow(0.001 / 0.040, c);
     const double open = kBoard + 2.0 * 0.61 * kHoleRadius;
     const double ed = 0.61 * std::pow(kPalmRatio, 0.18) * std::pow(kHoleRadius / height, 0.39);
-    double added = ed >= 0.65 ? (ed - 0.61) * kHoleRadius : 0.0;
+    // Smooth the numerical transition of this empirical approximation. Its
+    // old hard switch at .65 introduced a finite pitch/radiation jump during
+    // a continuous palm movement. Keep both outside regions unchanged and
+    // meet their slopes; this blend is not a new measured hand correction.
+    const double onset = std::clamp((ed - 0.61) / (0.65 - 0.61), 0.0, 1.0);
+    const double blend = onset * onset * (3.0 - 2.0 * onset);
+    double added = std::max(ed - 0.61, 0.0) * kHoleRadius * blend;
     const double gap = kHoleRadius * kHoleRadius / (2.0 * height) * std::log(kPalmRatio);
     added = std::max(added, gap * std::clamp((0.005 - height) / 0.004, 0.0, 1.0));
     const double front = open / (open + added);            // front hole's conductance re open

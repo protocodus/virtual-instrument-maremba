@@ -327,6 +327,7 @@ private:
     bool mMembraneTaut[kMaxMembranes]{};
     FastPRNG mSlapPrng;              // one draw per slap: the same sequence at every rate
     double mSlapNoise = 0.0, mSlapY1 = 0.0, mSlapY2 = 0.0, mSlapC = 0.0, mSlapS = 0.0, mSlapB = 0.0;
+    double mSlapNoisePole = .995; // membrane-edge decay in physical time
     double mSlapNoiseGain = 0.0;
     // The buzz's own share of the note's fundamental belongs to the air's
     // radiation: a fourth-order high-pass at 1.5 f0 (at least 350 Hz; two
