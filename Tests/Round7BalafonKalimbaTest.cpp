@@ -2,7 +2,7 @@
 // Fixed seeds; the source probe observes real engine-configured mechanics.
 //  1. A pluck starts from the tine's continuous motion: no step at the
 //     thumb's touch in the board's sound (every technique), re-plucks click-free.
-//  2. Buzzers answer the ring: the default Buzz is clean for every technique;
+//  2. Buzzers answer the ring: low Buzz is clean for every technique;
 //     at full Buzz a forte pick rattles a treble tine, a flesh pluck rattles
 //     no more than a pick.
 //  3. The usual thumb pluck tinks as a measured box alto does (Holdaway:
@@ -294,7 +294,7 @@ int main() {
         check(worst < 20, "a re-pluck clicks");
     }
 
-    // 2. Buzzers: default Buzz clean for every technique; full Buzz rattles a
+    // 2. Buzzers: low Buzz clean for every technique; full Buzz rattles a
     //    forte picked C6; flesh no louder than a pick.
     {
         const auto rattle = [&](int technique, int note, float velocity, float buzz) {
@@ -308,7 +308,7 @@ int main() {
         };
         for (int technique = 0; technique < 4; ++technique)
             for (int note : {60, 72, 84, 96})
-                check(rattle(technique, note, 1.0f, 0.15f) < -60, "default Buzz rattles technique " + std::to_string(technique) + " note " + std::to_string(note));
+                check(rattle(technique, note, 1.0f, 0.15f) < -60, "low Buzz rattles technique " + std::to_string(technique) + " note " + std::to_string(note));
         const double pick = rattle(3, 84, 1.0f, 1.0f), flesh = rattle(0, 84, 1.0f, 1.0f);
         std::cout << "BUZZERS C6 full Buzz pick_db=" << pick << " flesh_db=" << flesh << '\n';
         check(pick > -30, "loose buzzers do not rattle under a forte pick");

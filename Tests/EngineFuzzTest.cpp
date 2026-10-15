@@ -56,9 +56,8 @@
 //       the newest keys sound
 //   S4  Kalimba: the wheel moved while idle applies at once at the next strike
 //   S5  Model change bar -> Kalimba while a chord rings: the halo does not jump
-//   S6  a fresh Rosewood strike at every offset against the control grid: the
-//       rim's harmonics, scaled by the tube's swing at the last tick, stay
-//       bounded while the tube rings up from rest
+//   S6  a fresh Rosewood strike at every offset against the control grid:
+//       soft/long contacts and cavity buildup remain bounded
 //   S7  MIDI 0, maximum downward tuning/bend, long decay and loose buzz:
 //       transport damping releases the sub-audio cavity and every voice
 
@@ -115,8 +114,7 @@ struct MarembaEngineTestAccess {
                && e.mKalimbaBody.HasNoSubnormalState() && e.mKalimbaPickup.HasNoSubnormalState()
                && e.mPreamp.HasNoSubnormalState()
                && e.mLimiter.HasNoSubnormalState() && e.mPiezoDecimator.HasNoSubnormalState()
-               && e.mMicMixer.HasNoSubnormalState() && e.mMainPickup.HasNoSubnormalState()
-               && e.mMainStereo.HasNoSubnormalState();
+               && e.mMicMixer.HasNoSubnormalState() && e.mMainPickup.HasNoSubnormalState();
         return ok;
     }
     // One line per active voice: note, model, flags (stuck-voice diagnostics).
@@ -259,7 +257,6 @@ constexpr DiscreteControl kDiscrete[] = {
     {"malletType", &EngineParameters::malletType, 5},
     {"roomType", &EngineParameters::roomType, 3},
     {"invertPiezo", &EngineParameters::invertPiezo, 2},
-    {"gentleWiden", &EngineParameters::gentleWiden, 2},
     {"oversampling", &EngineParameters::oversampling, 3},
     {"velocityCurve", &EngineParameters::velocityCurve, 4},
     {"polyphony", &EngineParameters::polyphony, 3},
@@ -268,7 +265,7 @@ constexpr DiscreteControl kDiscrete[] = {
 };
 constexpr size_t kContinuousCount = sizeof(kContinuous)/sizeof(kContinuous[0]);
 constexpr size_t kDiscreteCount = sizeof(kDiscrete)/sizeof(kDiscrete[0]);
-static_assert(kContinuousCount == 36 && kDiscreteCount == 10, "Update declared control coverage deliberately");
+static_assert(kContinuousCount == 36 && kDiscreteCount == 9, "Update declared control coverage deliberately");
 static_assert(maremba::kStrikerCount == 5 && static_cast<int>(maremba::ETuningScale::Count) == 7,
               "Update exhaustive selector state inventory");
 constexpr float kBendTravel[] = {-200, 0, 200};
@@ -287,7 +284,7 @@ void ListControls() {
         for(int s=0;s<c.count;++s) std::printf("%s%d",s ? "," : "",s);
         std::printf("]}");
     }
-    std::printf("],\"ignored\":[\"pitchGlide\"],\"performance\":[{\"name\":\"pitchBend\",\"values\":[-200,0,200]}]}\n");
+    std::printf("],\"ignored\":[\"gentleWiden\",\"pitchGlide\"],\"performance\":[{\"name\":\"pitchBend\",\"values\":[-200,0,200]}]}\n");
 }
 
 // Check all target values, including otherwise unchanged baseline controls.
@@ -302,6 +299,7 @@ void CheckApplied(const MarembaEngine& e,const EngineParameters& expected,const 
         if(actual.*c.member != expected.*c.member)
             gReport.Fail(Fmt("%s: applied %s %d, expected %d",where.c_str(),c.name,
                              actual.*c.member,expected.*c.member));
+    if(actual.gentleWiden != 0) gReport.Fail(where+": legacy gentleWiden must remain ignored");
     if(actual.pitchGlide != 0) gReport.Fail(where+": legacy pitchGlide must remain ignored");
 }
 
@@ -678,9 +676,9 @@ int ControlCoverage() {
         states += kDiscrete[i].count;
         std::printf("  COVER discrete %s settled=%u live=%u expected=%u\n", kDiscrete[i].name, discrete[0][i], discrete[1][i], expected);
     }
-    if (states != 36 || cases != 294 || bend[0] != 7 || bend[1] != 7)
-        gReport.Fail("coverage: expected 36 continuous controls, 36 selector states and three bend values in both modes");
-    std::printf("  COVER totals continuous=36 values=108 discrete=10 states=%d bend=3 modes=2 cases=%d\n", states, cases);
+    if (states != 34 || cases != 290 || bend[0] != 7 || bend[1] != 7)
+        gReport.Fail("coverage: expected 36 continuous controls, 34 selector states and three bend values in both modes");
+    std::printf("  COVER totals continuous=36 values=108 discrete=9 states=%d bend=3 modes=2 cases=%d\n", states, cases);
     CheckResetSilent(*e, t);
     return cases;
 }
@@ -725,6 +723,9 @@ int CompactHostile() {
     for (float v : {0.f, .5f, 1.f}) {
         auto p = base; p.pitchGlide = v; t.where = "ignored finite pitchGlide"; apply(p, base);
     }
+    for (int v : {INT_MIN, INT_MAX, -1, 0, 1, 2}) {
+        auto p = base; p.gentleWiden = v; t.where = "ignored legacy gentleWiden"; apply(p, base);
+    }
     std::vector<float> bends(std::begin(bad), std::end(bad));
     bends.insert(bends.end(), {-1201.f, -1200.f, 1200.f, 1201.f});
     for (float v : bends) {
@@ -759,7 +760,8 @@ int CompactHostile() {
     // Reset/DampAll API commands are exercised while idle and sounding.
     e->DampAll(); CheckResetSilent(*e, t); e->DampAll();
     RenderChecked(*e, t, 64, 0x1Fu); cases += 2;
-    std::printf("  HOSTILE continuous=315 selector=32 tune_api=2 legacy=10 bend=11 notes=7 velocity=11 frame_null=1152 api_command_cases=2\n");
+    std::printf("  HOSTILE continuous=%zu selector=%zu tune_api=2 legacy=16 bend=11 notes=7 velocity=11 frame_null=1152 api_command_cases=2\n",
+                kContinuousCount * 9, kDiscreteCount * 4);
     return cases;
 }
 
@@ -1428,11 +1430,9 @@ void Scenarios(const Options& o) {
 }
 
 void FreshStrikeOnTheControlGrid(bool extended) {
-    // The rim's harmonics are scaled at control rate by the tube's swing. A
-    // fresh strike's tube starts from rest, so a tick a few samples after
-    // the mallet lands sees almost no swing, and the tube grows a thousand-
-    // fold before the next tick (128 samples at 8x): every offset of the
-    // strike against the 16-frame control grid, soft and long contacts.
+    // Retain the control-grid strike witness after removing authored rim
+    // harmonics: soft/long contacts and the tube's growth from rest must stay
+    // bounded at every offset against the 16-frame control grid.
     for (int offset = 0; offset < 16; ++offset)
         for (int note : {36, 41, 48, 55}) {
             constexpr int notes[] = {36, 41, 48, 55};

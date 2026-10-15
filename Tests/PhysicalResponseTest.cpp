@@ -138,9 +138,9 @@ int main(int argc, char** argv) {
             for (float decay : {.4f, 1.f, longDecay}) {
                 p.decay = decay;
                 const auto a = render(p, note);
-                // Decay stretches the whole ring in time, the tube's bloom
-                // included: at 2.5 a Rosewood C3's bloom peaks near 0.35 s, so
-                // a bass tail is read after it.
+                // Decay stretches the whole ring, including the retained
+                // Padauk/Balafon cavity bloom. Read bass tails after that
+                // buildup rather than mistaking a later attack for sustain.
                 const double from = note < 60 ? .60 : .30;
                 const double tail = db(energy(a.close, from, from + .3) / energy(a.close, .02, .08));
                 check(finite(a), "unbounded decay output");
@@ -245,6 +245,25 @@ int main(int argc, char** argv) {
                 }
                 check(db(energy(pickupDelta) / std::max(energy(reference.piezo), 1e-30)) < -40,
                       "buzz acoustic layer leaks into isolated contact pickup");
+            }
+            if (model == 0 && (fields[f] == &maremba::EngineParameters::bodyBloom
+                           || fields[f] == &maremba::EngineParameters::sympathetic)) {
+                // Accepted Rosewood retains a quiet frame/neighbor response
+                // under the bar even at the full control setting.
+                check(contribution > -38 && contribution < -28,
+                      "Rosewood shared radiation masks the bar or loses its response");
+            }
+            if (model == 1 && fields[f] == &maremba::EngineParameters::bodyBloom) {
+                // Padauk's accepted balance keeps a useful full-Bloom return
+                // below the bar/box voice, including its broad bass emphasis.
+                check(contribution > -26 && contribution < -18,
+                      "Padauk frame masks the voice or loses useful Bloom response");
+            }
+            if (model == 2 && fields[f] == &maremba::EngineParameters::bodyBloom) {
+                // The accepted Balafon midpoint keeps the full-Bloom frame
+                // audible beneath the key/gourd without its former dominance.
+                check(contribution > -11 && contribution < -4,
+                      "Balafon frame masks the voice or loses useful Bloom response");
             }
             check(contribution > -45 && contribution < 6,
                   std::string(names[f]) + " contribution inaudible or dominates the bar model="

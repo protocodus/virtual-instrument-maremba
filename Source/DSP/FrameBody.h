@@ -48,7 +48,11 @@ public:
         static constexpr double secondRatio[4] = {2.85, 2.35, 3.15, 1.83};
         static constexpr double thirdRatio[4] = {5.2, 4.1, 5.6, 3.47};
         const double frequencies[3] = {f1, f1 * secondRatio[index], f1 * thirdRatio[index]};
-        const double weights[3] = {0.15, 0.10, index == 3 ? 0.055 : 0.035};
+        // Keep each frame beneath its instrument's accepted bar/cavity balance.
+        // Calibrate radiation here, retaining Bloom's full control range.
+        const double radiationScale = GetModelParams(model).frameRadiationGain;
+        const double weights[3] = {0.15 * radiationScale, 0.10 * radiationScale,
+                                  (index == 3 ? 0.055 : 0.035) * radiationScale};
         for (int i = 0; i < 3; ++i) {
             auto& mode = mModes[i];
             const double frequency = std::min(frequencies[i], fs * 0.1);

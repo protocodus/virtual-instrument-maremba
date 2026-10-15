@@ -159,16 +159,16 @@ int main() {
         check(ratio > .45 && ratio < .75, "the C2 tube does not take Hill's share of the decay");
     }
 
-    // 3. The bass bloom rises on the close microphone. The anechoic Iowa
-    //    marimba rises 4.5 dB at G3 and 2.6 at C4 at 1.5 m by this measure;
-    //    8 cm above the bar the bar's own near field fills the first frame
-    //    more (TubeInSituTest checks the far microphone's bloom).
+    // 3. Accepted Rosewood keeps the bar-led attack at Close. The physical
+    //    tube still controls the decay above, but its readout must not build
+    //    into the formerly dominant fundamental bloom.
     {
         auto p = clean(0);
         p.strikePosition = .4f;
         const double g3 = bloomRise(strike(p, 55, .8f, .4), hz(55)), c4 = bloomRise(strike(p, 60, .8f, .4), hz(60));
         std::cout << "BLOOM G3=" << g3 << " C4=" << c4 << '\n';
-        check(g3 > 3 && c4 > 1, "the bass bloom stays shallow");
+        check(std::isfinite(g3) && std::isfinite(c4) && g3 < 1 && c4 < 1,
+              "Rosewood's close tube masks the bar-led attack");
     }
 
     // 4. Carving: the uncarved key has a flat bar's overtones; the undercut

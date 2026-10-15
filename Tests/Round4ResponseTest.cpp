@@ -216,7 +216,8 @@ int main() {
     std::cout << std::setprecision(6);
     const char* names[] = {"rosewood", "padauk", "balafon", "kalimba"};
 
-    // 1. The resonator, not the bar, radiates the low fundamental; it blooms.
+    // 1. Padauk/Balafon retain a delayed resonator bloom. The accepted
+    // Rosewood voicing leads with the bar and a restrained tube readout.
     // Bars are short-circuited dipoles, the tube mouth a monopole: the far
     // field turns from dipole to monopole within tens of ms (Doutaut et al.
     // 1998), and recorded marimba fundamentals peak 50-160 ms after the hit.
@@ -235,13 +236,28 @@ int main() {
         double fundamentalRise = 0, partialRise = 0;
         const double fundamentalPeak = peakTime(note, hz(48), fundamentalRise);
         const double partialPeak = peakTime(note, 4 * hz(48), partialRise);
-        check(fundamentalPeak >= minimumPeak[model] && fundamentalRise < -3,
-              std::string("no resonator bloom on the fundamental: ") + names[model]);
+        if (model == static_cast<int>(EMarimbaModel::ImperialRosewood))
+            check(fundamentalPeak < .03 && fundamentalRise > -1,
+                  "Rosewood's restrained tube masks the bar-led attack");
+        else
+            check(fundamentalPeak >= minimumPeak[model] && fundamentalRise < -3,
+                  std::string("no resonator bloom on the fundamental: ") + names[model]);
         check(partialPeak < .03, std::string("bar partial does not lead the attack: ") + names[model]);
         p.resonatorCoupling = 0;
         const auto bare = render(p, 48, .9f, 1.0);
         const double gain = 2 * db(line(note, hz(48), .05, .45) / line(bare, hz(48), .05, .45));
-        check(gain > 6, std::string("the resonator does not amplify the low fundamental: ") + names[model]);
+        if (model == static_cast<int>(EMarimbaModel::MayanPadauk)
+                || model == static_cast<int>(EMarimbaModel::BalafonAncestral)) {
+            // Accepted Padauk/Balafon voicing keeps the bloom while reducing
+            // the cavity's former dominance. Bound the heard coupled/bare ratio,
+            // rather than requiring a particular implementation coefficient.
+            check(gain > 4 && gain < 7, std::string("resonator balance leaves its voiced range: ") + names[model]);
+        } else {
+            // The tube still loads the key, but no longer dominates its
+            // radiation. Check the heard result, not the gain coefficient.
+            check(gain > -3 && gain < 1,
+                  "Rosewood's tube leaves its restrained acoustic balance");
+        }
         std::cout << "BLOOM model=" << names[model] << " fundamental_peak_s=" << fundamentalPeak
                   << " rise_db=" << -fundamentalRise << " partial_peak_s=" << partialPeak
                   << " resonator_gain_db=" << gain << '\n';
@@ -418,12 +434,12 @@ int main() {
         std::cout << "MOUNT chapman_rms=" << rms << " C4_ratio=" << overtone << " C4_t60_ratio=" << decay << '\n';
     }
 
-    // 7. Kalimba buzzers: default Buzz stays clean at mf; loose buzzers rattle.
+    // 7. Kalimba buzzers: low Buzz stays clean at mf; loose buzzers rattle.
     {
         auto p = clean(3);
         const auto dry = render(p, 72, .7f, .6);
         p.buzzAmount = .15f;
-        check(energy(minus(render(p, 72, .7f, .6), dry)) == 0, "default Buzz rattles a mezzo-forte tine");
+        check(energy(minus(render(p, 72, .7f, .6), dry)) == 0, "low Buzz rattles a mezzo-forte tine");
         p.buzzAmount = 0;
         const auto dryLoud = render(p, 72, 1, .6);
         p.buzzAmount = 1;

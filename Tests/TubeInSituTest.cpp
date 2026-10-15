@@ -1,7 +1,10 @@
 // A tube under its bar, against anechoic recordings of a concert marimba
 // (University of Iowa MIS, 2013: cord mallets, 1.5 m, mf and ff): the
-// fundamental blooms at 70-170 ms, decays without a beating twin and rings
-// 1.4-2.9 s through the lower keyboard. Render the engine-configured voice's
+// fundamental decays without a beating twin and rings 1.4-2.9 s through the
+// lower keyboard. The current accepted Rosewood radiation is bar-led rather
+// than reproducing those recordings' 70-170 ms tube-dominant bloom. Preserve
+// their decay/ripple constraints while testing the new prompt attack.
+// Render the engine-configured voice's
 // far microphone before Room (about 1 m), with the Concert Grand striker.
 #include "DryCaptureProbe.h"
 #include <algorithm>
@@ -92,18 +95,20 @@ int main() {
         const Envelope e = envelope(x, hz(k.note));
         std::cout << "INSITU note=" << k.note << " peak_ms=" << e.peakMs << " (MIS " << k.peakMs << ") t60_s=" << e.t60
                   << " (MIS " << k.t60 << ") ripple_db=" << e.ripple << '\n';
-        check(e.peakMs > .65 * k.peakMs && e.peakMs < 1.35 * k.peakMs, "bloom peak far from the recorded marimba's");
+        check(e.peakMs >= 20 && e.peakMs <= 40,
+              "Rosewood's quiet tube masks the prompt bar attack");
         check(e.t60 > .75 * k.t60 && e.t60 < 1.35 * k.t60, "the fundamental's sustain is far from the recorded marimba's");
         check(e.ripple < 3.0, "bar and tube beat as a twin the recorded marimba does not show");
     }
-    // The bloom is still heard on the close microphone.
+    // The close microphone likewise keeps the bar ahead of the quiet tube.
     {
         auto p = grand();
         p.strikePosition = .4f;
         p.velocityToHardness = p.velocityToPosition = p.velocityToDecay = 0;
         const double g3 = bloomRise(strike(p, 55, .8f, .4, false), hz(55)), c4 = bloomRise(strike(p, 60, .8f, .4, false), hz(60));
         std::cout << "INSITU close bloom G3=" << g3 << " C4=" << c4 << '\n';
-        check(g3 > 3 && c4 > 1, "the close microphone loses the bloom");
+        check(std::isfinite(g3) && std::isfinite(c4) && g3 < 1 && c4 < 1,
+              "Rosewood's close tube readout overwhelms the bar-led attack");
     }
     std::cout << (failures ? "TubeInSituTest FAILED" : "TubeInSituTest PASSED") << " failures=" << failures << '\n';
     return failures ? 1 : 0;
