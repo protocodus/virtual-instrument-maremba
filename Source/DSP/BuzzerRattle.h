@@ -43,7 +43,7 @@ public:
         amount = std::clamp(amount, 0.0, 1.0);
         mActive = amount > 0.001;
         if (!mActive) mHeight = mVelocity = 0.0;   // taken off: no late landing
-        // Tightens quickly toward low settings, so the default Buzz only
+        // Tightens quickly toward low settings, so low nonzero Buzz only
         // rattles on the hardest treble strokes; a pluck's release jolts the
         // board far harder than its ring does.
         // A tighter retaining wire increases the load needed for lift-off.

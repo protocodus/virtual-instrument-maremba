@@ -17,7 +17,7 @@ RoomMotionTest            # evolving late field, unchanged early paths, decay an
 RoomMicrophoneTest        # pressure capsule, vent, buffer and output-coupling transfer
 PiezoEngineTest            # complete captures, shared plate sensor, routing and tails
 PiezoPolarityTest          # inverted Main/direct pickup, untouched microphones and smooth live polarity
-MainStereoTest             # common Main image, quadrature transfer, mono, direct isolation and lifecycle
+LegacyStereoSpreadTest     # removed switch is inert; natural width, direct isolation and reset survive
 CaptureRoutingTest         # independent capture coefficients, Main Drive and clean direct captures
 DriveBehaviorTest          # subtle clean default, nonlinear color, antialiasing and live preamp state
 RoomLevelTaperTest         # squared engine Room control, smooth automation and unchanged direct capture
@@ -32,6 +32,7 @@ ClickFilterCalibrationTest # unity-centre impact and membrane-noise filters at 3
 CollisionResponseTest      # mounting collisions driven by vibration
 EngineRealismTest          # earlier engine realism contracts
 PhysicalResponseTest       # coupled air, membranes, body and halo layers
+FrameBodyModelTransitionTest # base/velocity frame tails keep aging during Kalimba model selection
 CavityPhysicsTest          # bar-air junction energy and tuning
 Round2ResponseTest         # directional radiation, multimode air coupling
 ModalRadiationTest         # radiation geometry and projections
@@ -39,7 +40,9 @@ AcousticReadoutTest        # finite bar area, signed surface pressure and source
 KalimbaModesTest           # the supported-beam tine
 KalimbaMountShapesTest     # the yielding bridge's mode shapes
 KalimbaBridgeReactionTest  # signed box drive agrees with the yielding mount and its losses
+KalimbaBridgeSpectrumTest  # no generated even harmonic at the board pickup; signed pluck/restrike preload
 MalletContactTest          # Hertzian head: passivity, contact times
+ContactComplianceUpdateTest # preserve active contact through coupled note-on tuning and live retuning
 SlackMembraneStretchTest   # the stretched membrane
 BuzzerRattlePhysicsTest    # ballistic landing, restitution and passive settling
 MembraneEdgeDecayTest      # membrane-edge envelope decay across internal rates
@@ -50,7 +53,7 @@ Round5ResponseTest         # tunings, Note Off, rolls, hole cover, decay
 MaterialGeometryTest       # one geometry for tuning, contact and radiation
 Round6ResponseTest         # tube law, Carving, Tension, dead stroke, hand, shaft
 TubeInSituTest             # the tube under its bar against recordings
-RimHarmonicsTest           # the rim's odd harmonics
+RosewoodSpectrumTest       # isolated coupled tube has no authored 3f/5f layer at soft/medium/hard strikes
 CharleoRegisterTest        # the charleo through the treble
 Round7BalafonKalimbaTest   # continuous pluck, tink, bridge stereo, degree-key halo
 BuzzRangeTest              # the Buzz knob's physical range on every path

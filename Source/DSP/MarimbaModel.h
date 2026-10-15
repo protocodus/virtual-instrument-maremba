@@ -361,27 +361,40 @@ struct ModelParams {
     double radiationGain;     // calibration of direct bar/tine radiation
     double airGain;           // calibration of the resonator mouth
     double pickupGain;        // calibration of the contact transducer strain
+    // Shared-source radiation, separate from the mechanical bar/air junction.
+    // Applied to new excitation so existing tails survive live model changes.
+    double frameRadiationGain;
+    double sympatheticRadiationGain;
 };
 
 inline ModelParams GetModelParams(EMarimbaModel model) {
     switch (model) {
         case EMarimbaModel::MayanPadauk:
+            // Keep the box fundamental below its former dominant balance;
+            // the coupled-pitch calibration uses this same mouth readout.
+            // The neighbor return follows the quieter voice at full Sympathetic.
             return {"Mayan Padauk 4.3", "Hormigo (Platymiscium) bars",
                     "Tapered cedar boxes with charleo membranes",
-                    2800.0, 1600.0, 110.0, 1.2, 14.0, 22.0, 1.0, 3.2, 1.0};
+                    2800.0, 1600.0, 110.0, 1.2, 14.0, 22.0, 1.0, 1.6, 1.0, 0.125, 0.625};
         case EMarimbaModel::BalafonAncestral:
+            // Leave room for the key beneath the gourd; pitch calibration uses
+            // this same radiation balance before tuning the coupled system.
             return {"Balafon Ancestral", "Fire-cured vene (Pterocarpus erinaceus) keys",
                     "Calabash gourds with spider-silk mirlitons",
-                    4800.0, 3200.0, 145.0, 1.2, 12.0, 20.0, 1.0, 14.0, 2.0};
+                    4800.0, 3200.0, 145.0, 1.2, 12.0, 20.0, 1.0, 7.0, 2.0,
+                    0.3535533905932738, 0.7071067811865476};
         case EMarimbaModel::KalimbaArtisan:
             return {"Kalimba Artisan 17-Key", "Spring-steel tines on a hardwood bridge",
                     "Hollow acacia soundbox with front and rear holes",
-                    5400.0, 3500.0, 245.0, 1.6, 22.0, 30.0, 1.0, 1.0, 1.0};
+                    5400.0, 3500.0, 245.0, 1.6, 22.0, 30.0, 1.0, 1.0, 1.0, 1.0, 1.0};
         case EMarimbaModel::ImperialRosewood:
         default:
+            // Mechanical tube loading remains; pitch calibration follows this
+            // restrained acoustic mouth balance.
             return {"Imperial Rosewood 5.0", "Honduran rosewood (Dalbergia stevensonii) bars",
                     "Drawn brass tubes, matched to their bars",
-                    4200.0, 2800.0, 86.0, 1.2, 15.0, 24.0, 1.0, 10.4, 1.0};
+                    4200.0, 2800.0, 86.0, 1.2, 15.0, 24.0, 1.0, 0.1648288920159558, 1.0,
+                    0.03162277660168379, 0.125};
     }
 }
 

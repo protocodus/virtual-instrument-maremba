@@ -12,8 +12,8 @@ namespace maremba {
 
 // Unstruck keys that ring along. Every receiver is a real key of the
 // instrument with the key's own loss (Q = 1/eta), so only energy that lands
-// within a few tenths of a hertz of its pitch builds up: coincident partials,
-// the kalimba's 2 f1 bridge line, and the brief broadband attack. Wooden bars
+// within a few tenths of a hertz of its pitch builds up: coincident partials
+// and the brief broadband attack. Wooden bars
 // share cords and frame, so they are driven by the summed support force; a
 // kalimba's tines share one bridge, so each tine hears the others' bridge
 // reaction weighted by how close they sit on it (physical neighbours are a
@@ -56,6 +56,7 @@ public:
         if (tine != mTine) Reset();
         mTine = tine;
         const MaterialLoss loss = GetMaterialLoss(model);
+        const double radiationScale = GetModelParams(model).sympatheticRadiationGain;
         mCount = mTine ? kTines : kNumResonators;
         const bool degreesOnly = model == EMarimbaModel::BalafonAncestral && tuningScale != 0;
         mAllPresent = true;
@@ -83,8 +84,10 @@ public:
             mW[i] = w;
             mC[i] = 2.0 * r * std::cos(w);
             mS[i] = r * r;
-            // Force-to-velocity band-pass with unity centre gain at every rate.
-            mB[i] = ResonatorDenominatorAt(r, w) / (2.0 * std::sin(w));
+            // Rate-invariant band-pass with each model's radiation calibration.
+            // Weight new excitation, preserving stored tail amplitude/phase
+            // across live Model changes, as FrameBody does.
+            mB[i] = radiationScale * ResonatorDenominatorAt(r, w) / (2.0 * std::sin(w));
             const double pan = mTine ? 0.5 + 0.40 * kTineSide[i] : 0.12 + 0.76 * (static_cast<double>(i) / (mCount - 1));
             mPanL[i] = 1.0 - pan;
             mPanR[i] = pan;

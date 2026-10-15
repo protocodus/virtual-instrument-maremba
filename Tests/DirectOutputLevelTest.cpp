@@ -42,18 +42,14 @@ constexpr int kMain = 0, kClose = 2, kRoom = 4, kPiezo = 6; // first channel of 
 // probe reports dynamics and verifies every output remains safely contained.
 struct Expectation { std::array<double, 3> chordDb, noteDb; };
 constexpr Expectation kExpected[] = {
-    // f3 Piezo anchors are the independently recorded clean pre-trim peaks
-    // (docs/validation/drive-captures-20261008/direct-output-level-before-trim.log),
-    // minus 20*log10(2).
-    // Room anchors come from the independent rendered-stem probe in
-    // docs/validation/room-patterns-20261008/early-scatter-b. All12 Close/Piezo
-    // fixtures remain byte-identical; passive early scattering changes the
-    // interference of wall paths with the unmodified direct/diffuse fields.
+    // Remeasured 2026-10-15 for the accepted cavity/frame/halo balances and
+    // linear Kalimba bridge. Wooden Piezo anchors retain their former values;
+    // only the microphones and Kalimba's changed bridge need new anchors.
     // Fixed recording trims and the half-dB tolerance are unchanged.
-    {{{-14.42, -7.87, -10.60}}, {{-24.80, -19.97, -24.46}}},
-    {{{-16.69, -10.79, -12.88}}, {{-27.68, -22.28, -24.43}}},
-    {{{-15.08, -9.46, -15.50}}, {{-25.82, -22.32, -24.96}}},
-    {{{-16.37, -16.77, -8.44}}, {{-25.31, -25.32, -19.89}}},
+    {{{-22.59, -24.92, -10.60}}, {{-30.16, -31.99, -24.46}}},
+    {{{-21.36, -18.20, -12.88}}, {{-30.29, -27.55, -24.43}}},
+    {{{-20.25, -14.94, -15.50}}, {{-29.93, -26.97, -24.96}}},
+    {{{-16.17, -16.61, -8.57}}, {{-25.53, -25.42, -20.06}}},
 };
 constexpr double kCalibrationToleranceDb = 0.5;
 
@@ -68,7 +64,7 @@ void require(bool okay, const char* message) {
     }
 }
 
-// The factory default patch, "Concert Grand Rosewood", as the wrapper maps it.
+// Fixed normal-playing calibration fixture, in the wrapper's physical units.
 EngineParameters defaultPatch(int model) {
     EngineParameters p;
     p.model = model;

@@ -4,7 +4,6 @@
 #include "MarembaVoice.h"
 #include "CaptureScene.h"
 #include "MainPickupAlignment.h"
-#include "MainStereo.h"
 #include "AnalogPreamp.h"
 #include "AnalogLimiter.h"
 #include "OutputHeadroom.h"
@@ -32,7 +31,7 @@ struct EngineParameters {
     float resonatorTune = 0.0f;     // cents, -50..+50
     float resonatorCoupling = 0.70f;// 0..1
     float decay = 1.00f;            // nominal 0.1..8.0 control; Kalimba compresses 1..8 to 1x..2x sustain
-    float buzzAmount = 0.15f;       // stored knob 0..1; voice maps to physical 0..0.7
+    float buzzAmount = 0.0f;        // stored knob 0..1; voice maps to physical 0..0.7
     float artifacts = 0.35f;        // 0..1
 
     // Shared acoustic response
@@ -46,7 +45,7 @@ struct EngineParameters {
     float piezoLevel = 0.30f;       // 0..1 independent capture coefficient
     int invertPiezo = 0;           // 0: original polarity, 1: inverted Main and direct Piezo
     float stereoWidth = 1.0f;       // 0..2 (1 = natural capture width), Main only
-    int gentleWiden = 0;           // optional small added Side; natural capture is the default
+    int gentleWiden = 0;           // legacy input, ignored and sanitized to 0
 
     float preampDrive = 0.10f;      // 0..1 full Main-mix saturation; direct outputs stay clean
     float warmth = 0.10f;           // -1..1 tilt
@@ -224,7 +223,7 @@ private:
     float mBodyGain = 0.0f, mSympatheticGain = 0.0f;
     float mCloseGain = 0.0f, mFarGain = 0.0f, mPiezoGain = 0.0f;
     float mPiezoPolarity = 1.0f;    // five-millisecond shared Main/direct polarity transition
-    float mStereoWidth = 1.0f, mDrive = 0.0f, mGentleWiden = 0.0f;
+    float mStereoWidth = 1.0f, mDrive = 0.0f;
     // The direct outputs' trims for the current Model: exact when idle or after
     // a reset, and smoothed like the controls above when Model changes mid-ring.
     std::array<float, 3> mStemTrim{};
@@ -248,7 +247,6 @@ private:
     std::array<float, 128> mKeyDetune{};   // each key's Detune offset (cents), for the sympathetic keys
     CaptureScene mMicMixer;
     MainPickupAlignment mMainPickup;
-    MainStereo mMainStereo;
     AnalogPreamp mPreamp;
     AnalogLimiter mLimiter;
     OutputHeadroom mOutputHeadroom;

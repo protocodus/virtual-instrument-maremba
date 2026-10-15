@@ -37,7 +37,7 @@
   },
   "geometry_dependency_sha256": {
     "CaptureGeometry.h": "84c53c1ed620e738ec36e309cbceca00c923b4f87aaf6c27698d7088a6a0e27f",
-    "MarimbaModel.h": "715a5c383fa7e1ea43b3899d6e2459d9ef915035b73d644a40d8e89af92e9c5a",
+    "MarimbaModel.h": "0e2245339b7f9a187931b1cf7b2b347c54a14a220f57eae4a94a639f8e4a2d21",
     "BarModes.h": "0818d691457b6c49a9c8508c809615760fb4fb1a38892b9defcd57a4f918b2ce"
   },
   "generation_environment": {
@@ -5857,5 +5857,15 @@
       "max_magnitude_error_db": 0.08405144027043218
     }
   ],
-  "limits": "Measured at1.2m, diffuse-field equalized and LF extended. Scene distance/flight adapts that directional response; no individualized/nearfield-perfect/exacthardware/SPL claim. Extra allpass phase discarded, residual ITD retained separately. No second capsule/head filter."
+  "limits": "Measured at1.2m, diffuse-field equalized and LF extended. Scene distance/flight adapts that directional response; no individualized/nearfield-perfect/exacthardware/SPL claim. Extra allpass phase discarded, residual ITD retained separately. No second capsule/head filter.",
+  "dependency_refresh_20261015": {
+    "reason": "Only model radiation calibration/metadata changed; compiled head and all source positions are byte-identical to original geometry dependency, and every emitted source equals the original HRTF receipt profile position. No filter regeneration required.",
+    "old_marimba_model_sha256": "715a5c383fa7e1ea43b3899d6e2459d9ef915035b73d644a40d8e89af92e9c5a",
+    "new_marimba_model_sha256": "0e2245339b7f9a187931b1cf7b2b347c54a14a220f57eae4a94a639f8e4a2d21",
+    "compiled_geometry_sha256": "61f53b35a7f8fd8378ab702a3cc0805f481603917005adbe4cc91d9d48f997e1",
+    "head_and_all_sources_identical": true,
+    "source_count": 515,
+    "profile_positions_match_existing_receipt": true,
+    "header_sha256_unchanged": true
+  }
 }

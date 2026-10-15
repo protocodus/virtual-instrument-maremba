@@ -76,8 +76,7 @@ struct MarembaEngineTestAccess {
     // Float main-bus chain after the mixer, including limiter control memory.
     static bool MainBusNormal(const MarembaEngine& e) {
         bool ok = e.mPreamp.HasNoSubnormalState() && e.mLimiter.HasNoSubnormalState()
-                  && e.mPiezoDecimator.HasNoSubnormalState() && e.mMicMixer.HasNoSubnormalState()
-                  && e.mMainStereo.HasNoSubnormalState();
+                  && e.mPiezoDecimator.HasNoSubnormalState() && e.mMicMixer.HasNoSubnormalState();
         return ok;
     }
     // True when a live voice holds the note and is marked released
@@ -884,7 +883,10 @@ void TestSympatheticHalo()
         const double rel = difference / std::max(reference, 1e-30);
         std::cout << "  -> " << (first == kMainL ? "Main" : "Close") << " 0.5-1.5 s halo "
                   << 10.0 * std::log10(rel) << " dB re bar, " << Db(rms) << " dBFS" << std::endl;
-        CHECK(reference > 1e-6 && std::isfinite(rms) && rms > 1e-6,
+        // The accepted quiet Rosewood return can fall below -120 dBFS in
+        // this late direct-capture fixture. Keep the relative -40 dB bound
+        // above float roundoff rather than requiring the old source level.
+        CHECK(reference > 1e-6 && std::isfinite(rms) && rms > 1e-7,
               "halo tail fixture is silent or numerically negligible");
         CHECK(rel > 1e-4, "sympathetic halo inaudible in the ringing tail");
     }
@@ -915,8 +917,12 @@ void TestBodyBloom()
     const double sourceDb = Db(source.body / std::max(source.voiceLeft, 1e-30));
     const double calibrationDb = Db(source.body / std::max(source.referenceVoiceLeft, 1e-30));
     CHECK(source.finite && source.voiceLeft > 1e-8, "Bloom source reference is invalid or silent");
-    CHECK(source.referenceVoiceLeft > 1e-8 && calibrationDb > -18.0 && calibrationDb < -8.0,
+    // The accepted frame is 30 dB quieter against this fixed pre-voicing
+    // pressure reference. Also bound its balance against the current bar.
+    CHECK(source.referenceVoiceLeft > 1e-8 && calibrationDb > -48.0 && calibrationDb < -38.0,
           "body source bloom calibration out of range: " << calibrationDb);
+    CHECK(sourceDb > -32.0 && sourceDb < -22.0,
+          "Rosewood frame leaves its restrained voiced balance: " << sourceDb);
     // Ear filtering need not preserve this relative peak. It must deliver the
     // independently predicted frame source, at the same trim and output delay.
     const int delay = maremba::OutputHeadroom::LatencyFrames(44100.0);
@@ -1520,10 +1526,9 @@ void TestRateInvariance()
             const size_t half = static_cast<size_t>(0.5 * sr);
             const double t60 = 60.0 * 0.9 / Db(Rms(r.ch[kCloseL], static_cast<size_t>(0.3 * sr), static_cast<size_t>(0.4 * sr))
                                             / Rms(r.ch[kCloseL], static_cast<size_t>(1.2 * sr), static_cast<size_t>(1.3 * sr)));
-            // The same line at every rate and factor. (TestPitchAccuracy holds
-            // the key's pitch; a low or middle key's tube and bar couple past
-            // critical, their twin lines beat, and this longer window reads
-            // the pair up to a couple of cents away.)
+            // The same line at every rate and factor. TestPitchAccuracy holds
+            // the key's pitch; allow this longer capture window to include
+            // the brief coupled bar/cavity transient.
             const double f = EstimateFrequency(r.ch[kCloseL], r.ch[kCloseR], static_cast<size_t>(0.15 * sr),
                                                static_cast<size_t>(0.6 * sr), sr, NoteHz(note));
             if (c == 0) refCents = Cents(f, NoteHz(note));
@@ -1708,7 +1713,7 @@ void TestParameterFuzz()
             && q.polyphony >= 0 && q.polyphony <= 2 && in(q.tuneCents, -200, 200) && in(q.detune, 0, 100)
             && q.roomType >= 0 && q.roomType <= 2
             && q.invertPiezo >= 0 && q.invertPiezo <= 1
-            && q.gentleWiden >= 0 && q.gentleWiden <= 1
+            && q.gentleWiden == 0
             && in(q.velocityToHardness, 0, 1) && in(q.velocityToPosition, 0, 1) && in(q.velocityToDecay, 0, 1) && in(q.velocityToVariance, 0, 1)
             && in(q.strikeJitter, 0, 100);
     };
@@ -2132,10 +2137,10 @@ void TestStealSparesJustStruckNote()
 void TestNoDeadParameters()
 {
     std::cout << "[Knobs] Every active engine parameter changes the output ..." << std::endl;
-    auto render = [](const EngineParameters& p) {
+    auto render = [](const EngineParameters& p, int transpose = 0) {
         MarembaEngine e(44100.0);
         e.SetParameters(p);
-        for (int n : { 48, 55, 60, 64 }) e.NoteOn(n, 0.6f);
+        for (int n : { 48, 55, 60, 64 }) e.NoteOn(n + transpose, 0.6f);
         Render r;
         RenderFrames(e, r, 44100 / 2, &p);
         return r;
@@ -2144,7 +2149,9 @@ void TestNoDeadParameters()
     base.compAmount = 1.0f;
     base.preampDrive = 0.5f;
     const Render ref = render(base);
-    const double refEnergy = Energy(ref.ch[kMainL], 0, ref.size());
+    // The quiet Rosewood halo is most exposed in the bass. Exercise it there
+    // without lowering the common control-reachability threshold.
+    const Render bassRef = render(base, -12);
     struct Knob { const char* name; void (*set)(EngineParameters&); };
     const Knob knobs[] = {
         { "model", [](EngineParameters& p) { p.model = 1; } },
@@ -2163,7 +2170,6 @@ void TestNoDeadParameters()
         { "piezoLevel", [](EngineParameters& p) { p.piezoLevel = 1.0f; } },
         { "invertPiezo", [](EngineParameters& p) { p.invertPiezo = 1; } },
         { "stereoWidth", [](EngineParameters& p) { p.stereoWidth = 2.0f; } },
-        { "gentleWiden", [](EngineParameters& p) { p.gentleWiden = 1; } },
         { "preampDrive", [](EngineParameters& p) { p.preampDrive = 1.0f; } },
         { "warmth", [](EngineParameters& p) { p.warmth = -1.0f; } },
         { "compAmount", [](EngineParameters& p) { p.compAmount = 0.2f; } },
@@ -2182,8 +2188,11 @@ void TestNoDeadParameters()
     for (const auto& k : knobs) {
         EngineParameters p = base;
         k.set(p);
-        const Render r = render(p);
-        const double rel = DiffEnergy(r.ch[kMainL], ref.ch[kMainL], 0, ref.size()) / refEnergy;
+        const bool halo = std::string(k.name) == "sympathetic";
+        const Render& reference = halo ? bassRef : ref;
+        const Render r = render(p, halo ? -12 : 0);
+        const double refEnergy = Energy(reference.ch[kMainL], 0, reference.size());
+        const double rel = DiffEnergy(r.ch[kMainL], reference.ch[kMainL], 0, reference.size()) / refEnergy;
         CHECK(rel > 1e-5, k.name << " has no effect on the output (" << rel << ")");
     }
 
@@ -2291,6 +2300,9 @@ void TestMainGainBeforeLimiter()
     std::cout << "[Gain] Calibrated Volume buys headroom before musical limiting ..." << std::endl;
     for (double rate : {44100.0, 96000.0}) {
         EngineParameters p = CleanParams();
+        // A hard stroke reaches the detector even with the restrained
+        // Rosewood tube. Quiet strokes cannot distinguish the two orderings.
+        p.malletType = 3; p.malletHardness = .9f;
         p.closeLevel = 1; p.farLevel = p.piezoLevel = 0; p.stereoWidth = 1;
         p.preampDrive = p.warmth = 0; p.compAmount = 1; p.volume = .1f;
         const Render actual = RenderNote(rate, p, 60, .9f, .5);
@@ -2487,16 +2499,20 @@ std::pair<double, double> StereoImage(const Render& r)
     return { 10.0 * std::log10(s / m), 10.0 * std::log10(m / st) };
 }
 
-// SND-2: width widens the dry mics, never the decorrelated room return past
-// natural; width 0 is exactly mono; a far-heavy, wide setting stays mono-safe.
+// SND-2: Width scales Close's side and caps Room at its natural side.
+// Physical microphone correlation depends on source balance and note; factory
+// patch mono/headroom limits are covered separately by AllPatchRenderTest.
 void TestWidthAndRoomImage()
 {
-    std::cout << "[Width] Room return is not widened; far-heavy wide mix stays mono compatible ..." << std::endl;
+    std::cout << "[Width] Independent capture reconstruction, exact mono and natural Room cap ..." << std::endl;
     EngineParameters p = CleanParams();
     p.closeLevel = 0.3f;
     p.farLevel = 1.0f;
     p.piezoLevel = 0.0f;
     p.decay = 2.0f;
+    // Isolate the width law from tone and independent Main/direct protection.
+    p.preampDrive = p.warmth = p.compAmount = 0.0f;
+    p.volume = 0.25f;
     auto phrase = [&](float width) {
         EngineParameters q = p;
         q.stereoWidth = width;
@@ -2516,23 +2532,55 @@ void TestWidthAndRoomImage()
     for (size_t i = 0; i < mono.size(); ++i) maxDiff = std::max(maxDiff, static_cast<double>(std::fabs(mono.ch[kMainL][i] - mono.ch[kMainR][i])));
     CHECK(maxDiff == 0.0, "width 0 with the room is not exactly mono: " << maxDiff);
 
-    const auto natural = StereoImage(phrase(1.0f));
-    const auto wide = StereoImage(phrase(1.8f));
-    std::cout << "  -> far-heavy phrase: width 1 S/M " << natural.first << " dB, mono " << natural.second
-              << " dB; width 1.8 S/M " << wide.first << " dB, mono " << wide.second << " dB" << std::endl;
-    CHECK(wide.second >= -4.0, "wide far-heavy mix loses too much in mono: " << wide.second << " dB");
+    // Derive Main from the actual direct microphones, their published trims,
+    // independent M/S arithmetic and the documented 20 Hz DC blocker. Never
+    // call CaptureScene::Mix here: a narrowed image, widened Room or changed
+    // mono component must fail even if its aggregate S/M ratio looks plausible.
+    const double pole = static_cast<float>(std::exp(-2.0*M_PI*20.0/44100.0));
+    const double volumeGain = (static_cast<double>(p.volume)/.85)*(p.volume/.85);
+    const double mainGain = 1.202853*.7*volumeGain;
+    auto checkTransfer = [&](const Render& r, float width) {
+        double previousIn[2]{}, previousOut[2]{}, error = 0.0, energy = 0.0;
+        for (int channel = 0; channel < kNumChannels; ++channel)
+            CHECK(Peak(r.ch[channel]) < .75, "width fixture reaches output protection on channel " << channel);
+        for (int channel = kCloseL; channel < kNumChannels; ++channel)
+            CHECK(r.ch[channel] == mono.ch[channel], "width changes direct capture " << channel);
+        for (size_t i = 0; i < r.size(); ++i) {
+            const double closeL = r.ch[kCloseL][i]/MarembaEngine::kCloseStemTrim;
+            const double closeR = r.ch[kCloseR][i]/MarembaEngine::kCloseStemTrim;
+            const double roomL = r.ch[kFarL][i]/MarembaEngine::kRoomStemTrim;
+            const double roomR = r.ch[kFarR][i]/MarembaEngine::kRoomStemTrim;
+            const double mid = .5*(p.closeLevel*(closeL+closeR)+roomL+roomR);
+            const double side = .5*(p.closeLevel*(closeR-closeL)*width
+                                   +(roomR-roomL)*std::min(width,1.0f));
+            for (int channel = 0; channel < 2; ++channel) {
+                const double input = mid+(channel == kMainL ? -side : side);
+                const double dc = input-previousIn[channel]+pole*previousOut[channel];
+                previousIn[channel] = input; previousOut[channel] = dc;
+                const double expected = dc*mainGain;
+                const double difference = r.ch[channel][i]-expected;
+                error += difference*difference;
+                energy += expected*expected;
+            }
+        }
+        CHECK(energy > 1e-8, "width reconstruction fixture rendered silence");
+        std::cout << "  -> width " << width << ": direct reconstruction " << Db(std::sqrt(error/std::max(energy,1e-30))) << " dB" << std::endl;
+        CHECK(error < 1e-8*energy, "Width differs from the independent capture M/S law at " << width);
+    };
+    checkTransfer(mono, 0.0f);
+    const Render natural = phrase(1.0f), wide = phrase(1.8f);
+    checkTransfer(natural, 1.0f);
+    checkTransfer(wide, 1.8f);
+    const auto naturalImage = StereoImage(natural), wideImage = StereoImage(wide);
+    std::cout << "  -> far-heavy phrase: width 1 S/M " << naturalImage.first << " dB, mono " << naturalImage.second
+              << " dB; width 1.8 S/M " << wideImage.first << " dB, mono " << wideImage.second << " dB" << std::endl;
 
     // A real spaced pair can have either sign of inter-channel correlation.
-    // Test the actual width contract exactly rather than forcing its physical
-    // delay/interference pattern to have S/M <= 0 dB for an arbitrary phrase.
+    // Width above natural must leave the entire Room-only output untouched.
     p.closeLevel = 0.0f;
     const auto roomNatural = phrase(1.0f), roomWide = phrase(2.0f);
     CHECK(roomNatural.ch[kMainL] == roomWide.ch[kMainL] && roomNatural.ch[kMainR] == roomWide.ch[kMainR],
           "width above natural modifies the room-only main output");
-
-    // The far direct out (dry + room) does not depend on the width at all
-    const Render a = phrase(0.5f), b = phrase(2.0f);
-    CHECK(DiffEnergy(a.ch[kFarL], b.ch[kFarL], 0, a.size()) == 0.0, "width leaks into the far direct out");
 }
 
 // SND-3: Room is a coefficient on a continuously captured space. Turning it
@@ -3361,7 +3409,7 @@ void TestVelocityDepths()
 
 void TestCharacterRangeAndLiveBuzz()
 {
-    std::cout << "[Character] Medium-velocity audibility and live Buzz ..." << std::endl;
+    std::cout << "[Character] Restrained Rosewood Bloom and live Buzz ..." << std::endl;
     EngineParameters p = CleanParams();
     p.sympathetic = p.bodyBloom = p.farLevel = p.piezoLevel = 0;
     p.compAmount = p.preampDrive = p.warmth = 0;
@@ -3376,7 +3424,13 @@ void TestCharacterRangeAndLiveBuzz()
         const double relative = DiffEnergy(dry.ch[kCloseL], wet.ch[kCloseL], 0, end) / Energy(dry.ch[kCloseL], 0, end);
         std::cout << "  -> " << (field == &EngineParameters::bodyBloom ? "Bloom" : "Buzz")
                   << " difference " << 10*std::log10(relative) << " dB re dry" << std::endl;
-        CHECK(relative > .005, "character endpoint remains too subtle at normal velocity");
+        if (field == &EngineParameters::bodyBloom) {
+            const double levelDb = 10 * std::log10(relative);
+            CHECK(levelDb > -36 && levelDb < -26,
+                  "Rosewood Bloom leaves its accepted quiet support range");
+        } else {
+            CHECK(relative > .005, "Buzz endpoint remains too subtle at normal velocity");
+        }
     }
     auto live = [&](bool change) {
         MarembaEngine e(44100); e.SetParameters(p); e.NoteOn(60, .72f);
@@ -3433,16 +3487,32 @@ void TestWarmthRange()
 
 void TestWoodModelSeparation()
 {
-    std::cout << "[Models] Padauk has a shorter ring than Rosewood at matched settings ..." << std::endl;
+    std::cout << "[Models] Padauk wood has a shorter ring than Rosewood without cavity masking ..." << std::endl;
     auto p = CleanParams();
     p.sympathetic=p.bodyBloom=p.farLevel=p.preampDrive=p.compAmount=p.warmth=0;
+    // Compare the material loss in the bare bars. Different accepted cavity
+    // readouts have different onset envelopes and cannot establish wood decay.
+    p.resonatorCoupling = 0;
     for (int note : {48,60,72}) {
-        p.model=0; auto rose = RenderNote(44100,p,note,.72f,.6);
-        p.model=1; auto padauk = RenderNote(44100,p,note,.72f,.6);
-        auto envelope = [](const Render& r) { return Db(Rms(r.ch[kCloseL],8820,22050)/Rms(r.ch[kCloseL],0,4410)); };
-        const double delta=envelope(padauk)-envelope(rose);
-        std::cout << "  -> note " << note << " Padauk late/early " << delta << " dB below Rosewood" << std::endl;
-        CHECK(delta < -4, "Padauk and Rosewood decay remain too similar");
+        p.model=0; auto rose = RenderNote(44100,p,note,.72f,1.4);
+        p.model=1; auto padauk = RenderNote(44100,p,note,.72f,1.4);
+        auto sustain = [note](const Render& r) {
+            auto amplitude = [&](int from, int to) {
+                std::vector<double> window(to-from);
+                for (int i=from; i<to; ++i)
+                    window[i-from] = double(r.ch[kCloseL][i])+r.ch[kCloseR][i];
+                return std::sqrt(GoertzelPower(HannWindowed(window),44100,NoteHz(note)));
+            };
+            // Equal 200 ms fundamental windows, after the impact/upper-mode
+            // transient. This measures loss, not the attack's spectral mix.
+            return 60.0*.8/Db(amplitude(13230,22050)/amplitude(48510,57330));
+        };
+        const double roseT60=sustain(rose), padaukT60=sustain(padauk);
+        const double ratio=padaukT60/roseT60;
+        std::cout << "  -> note " << note << " fundamental T60 Rosewood " << roseT60
+                  << " s, Padauk " << padaukT60 << " s, ratio " << ratio << std::endl;
+        CHECK(std::isfinite(ratio) && roseT60>0 && padaukT60>0 && ratio>.55 && ratio<.9,
+              "Padauk/Rosewood material decay separation is lost or excessive");
     }
 }
 

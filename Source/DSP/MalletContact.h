@@ -47,7 +47,7 @@ public:
         // Trapezoidal rule: over each step the head and the bar both feel the
         // mean of the previous and the new force, so a lossless contact keeps
         // its energy and delivers the same impulse at any rate.
-        mStepCompliance = .25 * mSetup.dt * mSetup.dt / mSetup.mass + .5 * std::max(setup.compliance, 0.0);
+        SetCompliance(setup.compliance);
         mPosition = barDisplacement;
         mVelocity = std::max(setup.velocity, 0.0);
         mPrevious = 0.0;
@@ -61,6 +61,14 @@ public:
         mLimit = static_cast<int>(kTrackingSeconds / mSetup.dt);
         mHold = mGrip = 0.0;
         mLifting = false;
+    }
+
+    // Retuning changes the bar's instantaneous driving-point response while
+    // the head can still be touching it. Keep that implicit response current
+    // without restarting the head, its hysteresis history, or a held stroke.
+    void SetCompliance(double compliance) {
+        mSetup.compliance = std::max(compliance, 0.0);
+        mStepCompliance = .25 * mSetup.dt * mSetup.dt / mSetup.mass + .5 * mSetup.compliance;
     }
 
     // A dead stroke: the hand keeps pressing the head into the bar with

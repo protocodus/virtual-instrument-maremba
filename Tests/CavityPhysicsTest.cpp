@@ -10,6 +10,18 @@
 
 namespace maremba {
 struct MarembaVoiceTestAccess {
+    static void DisableCoupling(MarembaVoice& voice) {
+        voice.mCavityAngleRamp = false;
+        for (int i = 0; i < voice.mNumCavityModes; ++i) {
+            voice.mCavitySin[i] = 0.0;
+            voice.mCavityCos[i] = 1.0;
+            voice.mCavityAngle[i] = voice.mCavityAngleTarget[i] = voice.mCavityRate[i] = 0.0;
+        }
+    }
+    static void MuteAirReadout(MarembaVoice& voice) {
+        for (auto& gain : voice.mCavityReadout) gain = 0.0;
+    }
+    static double Fundamental(const MarembaVoice& voice) { return voice.mModes[0].y1; }
     static void DisableUpperAir(MarembaVoice& voice) { voice.mNumCavityModes = 1; }
     static int CavityModes(const MarembaVoice& voice) { return voice.mNumCavityModes; }
     static int CavityBar(const MarembaVoice& voice, int cavity) { return voice.mCavityBarIndex[cavity][0]; }
@@ -80,6 +92,49 @@ double relativeDifference(const std::vector<double>& x, const std::vector<double
     }
     return difference / std::max(energy, 1.e-30);
 }
+
+// Rosewood deliberately radiates a quiet tube, while its mechanical loading
+// remains active. Start all copies after identical tuning/contact setup so a
+// tuning difference cannot impersonate the missing physical junction.
+void rosewoodBalance(int note) {
+    using Access = maremba::MarembaVoiceTestAccess;
+    maremba::MarembaVoice voice;
+    trigger(voice, 0, note, 96000, 0, .35f);
+    auto uncoupled = voice, muted = voice;
+    Access::DisableCoupling(uncoupled);
+    Access::MuteAirReadout(muted);
+    double mechanical = 0.0, loadingDifference = 0.0;
+    double acoustic = 0.0, radiationDifference = 0.0;
+    for (int n = 0; n < 11520; ++n) {
+        float close, far, piezo, bareClose, bareFar, barePiezo;
+        float mutedClose, mutedFar, mutedPiezo;
+        voice.ProcessSample(close, far, piezo);
+        uncoupled.ProcessSample(bareClose, bareFar, barePiezo);
+        muted.ProcessSample(mutedClose, mutedFar, mutedPiezo);
+        const double x = Access::Fundamental(voice);
+        const double difference = x - Access::Fundamental(uncoupled);
+        mechanical += x * x;
+        loadingDifference += difference * difference;
+        acoustic += static_cast<double>(close) * close;
+        const double radiation = static_cast<double>(close) - mutedClose;
+        radiationDifference += radiation * radiation;
+        require(piezo == mutedPiezo && voice.GetMechanicalSample() == muted.GetMechanicalSample()
+                && x == Access::Fundamental(muted), "air readout ablation changed mechanics");
+        if ((n & 31) == 31) {
+            voice.UpdateEnvelope(); uncoupled.UpdateEnvelope(); muted.UpdateEnvelope();
+        }
+    }
+    const double loading = loadingDifference / std::max(mechanical, 1.e-30);
+    const double radiation = radiationDifference / std::max(acoustic, 1.e-30);
+    require(loading > 2.e-4, "quiet Rosewood tube lost its mechanical loading");
+    // The accepted readout sits between -40 and -32 dB in these fixtures.
+    // Keep margin for integration changes while rejecting silence or the old
+    // dominant tube balance; this is a source ratio, not an audibility claim.
+    require(radiation > std::pow(10.0, -45.0 / 10.0) && radiation < std::pow(10.0, -25.0 / 10.0),
+            "Rosewood tube radiation left its restrained balance");
+    std::cout << "ROSEWOOD_BALANCE note=" << note << " mechanical_loading_db=" << 10 * std::log10(loading)
+              << " air_radiation_db=" << 10 * std::log10(radiation) << '\n';
+}
 }
 int main() {
     double worstJunctionError = 0;
@@ -110,8 +165,11 @@ int main() {
                 "kalimba tine carries a per-key air cavity");
     }
 
-    // The air mode must shape the rendered sound: an otherwise identical
-    // voice without any resonator coupling differs audibly on every model.
+    for (int note : {48, 60, 72, 84}) rosewoodBalance(note);
+
+    // Coupling must shape the rendered sound. Rosewood's intentionally quiet
+    // readout has a lower output floor, with separate mechanical and radiation
+    // checks above; retain the existing floor for the other wooden models.
     // (Struck off the fundamental's node: a balafon key carved to its own
     // overtone may carry that node anywhere from 0.20 to 0.25.)
     for (int model = 0; model < 3; ++model) {
@@ -134,7 +192,8 @@ int main() {
             std::cout << "AIR_ABLATION model=" << model << " note=" << note
                       << " air_to_coupled_db=" << 10 * std::log10(std::max(difference, 1.e-30)) << '\n';
         }
-        require(weakestDifference > 2.e-3, "the resonator's air mode has no meaningful acoustic contribution");
+        const double floor = model == 0 ? 1.e-4 : 2.e-3;
+        require(weakestDifference > floor, "the resonator's air mode has no meaningful acoustic contribution");
     }
 
     // With pressure removed the nonlinear membrane's positive elastic and
