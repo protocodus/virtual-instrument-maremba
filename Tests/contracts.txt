@@ -33,6 +33,7 @@ CollisionResponseTest      # mounting collisions driven by vibration
 EngineRealismTest          # earlier engine realism contracts
 PhysicalResponseTest       # coupled air, membranes, body and halo layers
 FrameBodyModelTransitionTest # base/velocity frame tails keep aging during Kalimba model selection
+QueuedNoteReleaseTest      # queued Quality-transition releases retain Ring/Damp/Dead and event-time mode
 CavityPhysicsTest          # bar-air junction energy and tuning
 Round2ResponseTest         # directional radiation, multimode air coupling
 ModalRadiationTest         # radiation geometry and projections

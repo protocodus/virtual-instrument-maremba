@@ -442,6 +442,7 @@ void MarembaEngine::StartPendingNotes() {
         const int slot = TriggerNote(pending.note, pending.velocity);
         if (i < damped) mVoices[slot].StartDamping();
         if (pending.released) mVoices[slot].Release();
+        if (pending.releaseDamped) mVoices[slot].StartReleaseDamping();
     }
 }
 
@@ -537,7 +538,7 @@ void MarembaEngine::NoteOn(int noteNumber, float velocity) {
             --mPendingCount;
             if (mDampedPendingCount > 0) --mDampedPendingCount;
         }
-        mPendingNotes[mPendingCount++] = { noteNumber, velocity, false };
+        mPendingNotes[mPendingCount++] = { noteNumber, velocity, false, false };
         return;
     }
     TriggerNote(noteNumber, velocity);
@@ -676,7 +677,10 @@ void MarembaEngine::NoteOff(int noteNumber) {
         }
     }
     for (int i = 0; i < mPendingCount; ++i) {
-        if (mPendingNotes[i].note == noteNumber) mPendingNotes[i].released = true;
+        if (mPendingNotes[i].note == noteNumber) {
+            mPendingNotes[i].released = true;
+            if (mParams.noteOffMode == 1) mPendingNotes[i].releaseDamped = true;
+        }
     }
 }
 
