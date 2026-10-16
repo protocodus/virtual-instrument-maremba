@@ -162,6 +162,7 @@ private:
         int note;
         float velocity;
         bool released;   // key released while queued: the voice starts released
+        bool releaseDamped; // retain Damp at NoteOff, even if the selector changes before drain
     };
 
     static EngineParameters Sanitize(const EngineParameters& params);
