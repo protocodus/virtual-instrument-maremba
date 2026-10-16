@@ -166,7 +166,7 @@ def main():
     parser.add_argument('--write', action='store_true')
     args = parser.parse_args()
     data = table()
-    path = ROOT/'DSP/KalimbaMountShapes.h'
+    path = ROOT/'Source/DSP/KalimbaMountShapes.h'
     source = path.read_text()
     for name, block in [('SHAPES',render(data)), ('RADIATION',render_radiation(data))]:
         pattern = re.compile(r'// BEGIN GENERATED MOUNT '+name+r'.*?// END GENERATED MOUNT '+name, re.S)

@@ -1,5 +1,5 @@
 // Public-engine Sigmoid response, independent of optional velocity routes.
-// Compile with -I DSP and DSP/*.cpp. --measure prints the complete matrix;
+// Compile with -I Source/DSP and Source/DSP/*.cpp. --measure prints the complete matrix;
 // gates use broad margins from the measured physical response, not audio goldens.
 // Loudness is measured on the final main output at Volume=.8. Tone and dynamics
 // use direct Close, so safety gain reduction cannot imitate a velocity change.

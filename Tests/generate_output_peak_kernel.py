@@ -55,7 +55,7 @@ static constexpr int kTaps = 32;
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path,
-                        default=Path(__file__).resolve().parents[1] / "DSP/OutputPeakKernel.h")
+                        default=Path(__file__).resolve().parents[1] / "Source/DSP/OutputPeakKernel.h")
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     expected = generated_header()

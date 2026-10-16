@@ -1,7 +1,7 @@
 // Physical motion -> acoustic pressure, before captures, preamp or protection.
 // The emitting face uses a fixed C4 reference; opposite modal lobes contribute
 // signed pressure rather than an extra coherent point source. Compile with
-// -I DSP and DSP/*.cpp. This is a relative voicing calibration, not absolute SPL.
+// -I Source/DSP and Source/DSP/*.cpp. This is a relative voicing calibration, not absolute SPL.
 #include "MarembaVoice.h"
 #include "Oversampler.h"
 #include <algorithm>

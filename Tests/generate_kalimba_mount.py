@@ -21,7 +21,7 @@ agree. Stored per mode: the frequency ratio and the bridge loss relative to
 the fundamental's, Gamma_n / Gamma_1 = (w_n / w_1) * (rho_n / rho_1), where
 rho is the fraction of modal energy stored in the bridge spring. A bridge
 with a frequency-independent loss factor dissipates Gamma = eta * w * rho / 2.
-Run with --write to replace the generated block in DSP/KalimbaModes.h.
+Run with --write to replace the generated block in Source/DSP/KalimbaModes.h.
 """
 import argparse
 from pathlib import Path
@@ -122,7 +122,7 @@ def main():
     args = parser.parse_args()
     check_chapman()
     block = render(table())
-    path = ROOT / 'DSP/KalimbaModes.h'
+    path = ROOT / 'Source/DSP/KalimbaModes.h'
     text = path.read_text()
     pattern = re.compile(r'// BEGIN GENERATED KALIMBA MOUNT.*?// END GENERATED KALIMBA MOUNT', re.S)
     if args.write:
@@ -130,7 +130,7 @@ def main():
         print('wrote', path)
     else:
         current = pattern.search(text)
-        assert current and current.group(0) == block, 'DSP/KalimbaModes.h mount table is stale'
+        assert current and current.group(0) == block, 'Source/DSP/KalimbaModes.h mount table is stale'
         print('mount table matches')
 
 

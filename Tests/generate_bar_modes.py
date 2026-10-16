@@ -29,8 +29,8 @@ The run-time table stores anchors every three semitones: bending ratios,
 modal-mass fractions, half-bar shapes of the first shaped modes, torsional and
 lateral ratios, and the bar's geometry and mass. Usage:
 
-    python3 Tests/generate_bar_modes.py            # rewrite DSP/BarModes.h
-    python3 Tests/generate_bar_modes.py --check    # compare with DSP/BarModes.h
+    python3 Tests/generate_bar_modes.py            # rewrite Source/DSP/BarModes.h
+    python3 Tests/generate_bar_modes.py --check    # compare with Source/DSP/BarModes.h
     python3 Tests/generate_bar_modes.py --bork     # validation against Bork et al. 1999
 """
 
@@ -50,7 +50,7 @@ from scipy.linalg import eigh
 trapezoid = getattr(np, "trapezoid", None) or np.trapz
 
 PROJECT = Path(__file__).resolve().parent.parent
-HEADER = PROJECT / "DSP" / "BarModes.h"
+HEADER = PROJECT / "Source" / "DSP" / "BarModes.h"
 
 N_BEND = 16          # stored bending modes
 N_SHAPED = 6         # modes whose sampled shapes are stored
@@ -592,7 +592,7 @@ def render_header(models):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--check", action="store_true", help="fail if DSP/BarModes.h differs from a fresh run")
+    parser.add_argument("--check", action="store_true", help="fail if Source/DSP/BarModes.h differs from a fresh run")
     parser.add_argument("--bork", action="store_true", help="validate against Bork et al.'s C3 bar and exit")
     parser.add_argument("--validate-pickup", action="store_true", help="validate strain integration against analytical fields and exit")
     parser.add_argument("--verbose", action="store_true")
@@ -610,9 +610,9 @@ def main():
     if args.check:
         current = HEADER.read_text() if HEADER.exists() else ""
         if current != text:
-            print("DSP/BarModes.h is stale: run Tests/generate_bar_modes.py", file=sys.stderr)
+            print("Source/DSP/BarModes.h is stale: run Tests/generate_bar_modes.py", file=sys.stderr)
             sys.exit(1)
-        print("PASS: DSP/BarModes.h matches the generator")
+        print("PASS: Source/DSP/BarModes.h matches the generator")
         return
     HEADER.write_text(text)
     print(f"wrote {HEADER.relative_to(PROJECT)} ({len(text) // 1024} KB)")

@@ -1,0 +1,133 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch/PR cancels the older, still-running check.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_PACKAGES: numpy==1.26.4 scipy==1.14.1 mpmath==1.3.0
+
+jobs:
+  dsp-tests:
+    name: DSP tests (Linux)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ninja and the Python check dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ninja-build
+          python3 -m pip install --disable-pip-version-check $PYTHON_PACKAGES
+
+      - name: Configure
+        run: |
+          cmake -S . -B build-dsp -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_CXX_FLAGS=-Werror \
+            -DBUILD_TESTING=ON \
+            -DMAREMBA_REQUIRE_PYTHON_TESTS=ON \
+            "-DPython3_EXECUTABLE=$(command -v python3)"
+
+      - name: Build
+        run: cmake --build build-dsp --parallel
+
+      - name: Unit tests
+        run: ctest --test-dir build-dsp -L unit --parallel 4 --output-on-failure
+
+  # The contract tolerances were set against Apple's libm; glibc and MSVC pass
+  # them too, but macOS is the reference.
+  dsp-tests-macos:
+    name: DSP tests (macOS)
+    runs-on: macos-15
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Configure
+        run: |
+          cmake -S . -B build-dsp \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_FLAGS=-Werror \
+            -DBUILD_TESTING=ON
+
+      - name: Build
+        run: cmake --build build-dsp --parallel
+
+      - name: Unit and fuzz tests
+        run: ctest --test-dir build-dsp -L 'unit|fuzz' --parallel 3 --output-on-failure
+
+  dsp-tests-windows:
+    name: DSP tests (Windows)
+    runs-on: windows-2025
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # The engine tests keep several engines on the stack; give main 32 MB.
+      - name: Configure
+        run: |
+          cmake -S . -B build-win -A x64 -DBUILD_TESTING=ON "-DCMAKE_EXE_LINKER_FLAGS=/STACK:33554432"
+
+      - name: Build
+        run: cmake --build build-win --config Release --parallel
+
+      - name: Unit tests
+        run: ctest --test-dir build-win -C Release -L unit --parallel 4 --output-on-failure
+
+  sanitizers:
+    name: Sanitizers and C++17 (Linux)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Ninja
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ninja-build
+
+      # The Python checks exercise generators, not the engine's memory safety.
+      - name: Configure ASan + UBSan
+        run: |
+          cmake -S . -B build-asan -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            "-DCMAKE_CXX_FLAGS=-O1 -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -D_GLIBCXX_ASSERTIONS" \
+            "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined" \
+            -DCMAKE_DISABLE_FIND_PACKAGE_Python3=TRUE \
+            -DBUILD_TESTING=ON
+
+      - name: Build the C++17 DSP target and the sanitized tests
+        run: cmake --build build-asan --parallel --target MarembaDSPCxx17 MarembaEngineTests MarembaTouchResponseTests MarembaEngineFuzzTests
+
+      # ASan keeps each engine in its own padded stack slot, so the engine
+      # tests need more than the default 8 MB main stack.
+      - name: Engine, touch and fuzz tests under ASan + UBSan
+        run: |
+          ulimit -s 65536
+          ctest --test-dir build-asan -R '^Maremba[.](Engine|TouchResponse|EngineFuzz)$' --output-on-failure

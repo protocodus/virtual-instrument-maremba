@@ -1,5 +1,5 @@
 // Independent public-audio touch-response probe. No DSP internals or exact
-// implementation constants are used. Compile with -I DSP and DSP/*.cpp.
+// implementation constants are used. Compile with -I Source/DSP and Source/DSP/*.cpp.
 // --measure records the complete matrix without enforcing acceptance gates.
 #include "MarembaVoice.h"
 #include <algorithm>

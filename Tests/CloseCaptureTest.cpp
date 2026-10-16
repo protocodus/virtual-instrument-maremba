@@ -1,4 +1,4 @@
-#include "../DSP/CloseCapture.h"
+#include "CloseCapture.h"
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>

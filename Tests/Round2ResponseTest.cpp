@@ -1,6 +1,6 @@
 // Public-audio continuity, shared-response and causal radiation regressions. These complement
 // PhysicalResponseTest's level/decay/idle controls and CavityPhysicsTest's
-// junction invariants. Build with -I DSP and DSP/*.cpp.
+// junction invariants. Build with -I Source/DSP and Source/DSP/*.cpp.
 #include "MarembaVoice.h"
 #include "FrameBody.h"
 #include "SympatheticMesh.h"
