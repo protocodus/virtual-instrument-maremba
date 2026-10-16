@@ -11,6 +11,7 @@
 
 namespace maremba {
 struct MarembaEngineTestAccess {
+    static float MainModelGain(const MarembaEngine& engine) { return engine.mMainModelGain; }
     static void Fade(MarembaEngine& engine) {
         for (auto& voice : engine.mVoices) if (voice.IsActive()) voice.StartFade(.003);
     }
@@ -123,11 +124,23 @@ void SlotReusePreservesFlight() {
     // flight. Inspect the old wave after the common 2 ms output lookahead,
     // when clearing a per-key queue would already have become audible.
     double oldWaveEnergy = 0;
+    std::array<float, 160> recordingGains{};
+    const float oldRecordingGain = MarembaEngineTestAccess::MainModelGain(*reference);
+    const int outputDelay = OutputHeadroom::LatencyFrames(48000);
     for (int i = 0; i < 160; ++i) {
         float actualL, actualR, expectedL, expectedR;
         changed->RenderBatch(&actualL, &actualR, nullptr, nullptr, nullptr, nullptr, nullptr, 1);
         reference->RenderBatch(&expectedL, &expectedR, nullptr, nullptr, nullptr, nullptr, nullptr, 1);
-        Require(actualL == expectedL && actualR == expectedR, "model change or slot reuse erases a travelling pickup wave");
+        // Model selection now changes a smooth recording gain. Remove only
+        // that scalar at the output's known delay: the old travelling waveform
+        // must still survive the model change and reuse of its physical slot.
+        recordingGains[i] = MarembaEngineTestAccess::MainModelGain(*changed);
+        const double ratio = i < outputDelay ? 1.0 : recordingGains[i-outputDelay] / oldRecordingGain;
+        const auto matches = [ratio](double actual, double expected) {
+            return std::abs(actual - expected*ratio) <= 1.e-12 + std::abs(expected*ratio)*1.e-6;
+        };
+        Require(matches(actualL, expectedL) && matches(actualR, expectedR),
+                "model change or slot reuse erases a travelling pickup wave");
         if (i >= 96) oldWaveEnergy += double(expectedL)*expectedL + double(expectedR)*expectedR;
     }
     Require(oldWaveEnergy > 1.e-12, "slot-reuse arrival window contains no old pickup sound");
@@ -194,7 +207,8 @@ void EngineRouting(double rate, int model) {
     const double seconds = CaptureDistance(position, CloseHeadCentre()) / kCaptureSpeedOfSound;
     const double trim = model == 3 ? MarembaEngine::kKalimbaPiezoStemTrim : MarembaEngine::kPiezoStemTrim;
     // Independent declared Main calibration and default-off Volume transfer.
-    const double scale = .707 * (.08 / .85) * (.08 / .85) * .7 * 1.202853 / trim;
+    constexpr double modelGain[] = {1.726411287, 1.638942302, 1.816753899, 1.414657906};
+    const double scale = .707 * (.08 / .85) * (.08 / .85) * .7 * 1.202853 * modelGain[model] / trim;
     for (double hz : {100., 261.625565, 500., 1000.}) {
         const auto r = Transform(reference, hz, rate);
         Require(std::abs(r) > 1.e-6, "pickup routing fixture is silent at a reference frequency");

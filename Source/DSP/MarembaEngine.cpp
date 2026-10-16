@@ -4,6 +4,7 @@
 #include "DspMath.h"
 #include "DecayControl.h"
 #include "MainVolume.h"
+#include "MainCalibration.h"
 
 namespace maremba {
 
@@ -336,6 +337,7 @@ void MarembaEngine::SnapLiveControls() {
     mPiezoPolarity = mParams.invertPiezo ? -1.0f : 1.0f;
     mStereoWidth = mParams.stereoWidth;
     mDrive = mParams.preampDrive;
+    mMainModelGain = kMainModelCalibration[static_cast<std::size_t>(mParams.model)];
     mStemTrim = StemTrimsFor(mParams.model);
 }
 
@@ -351,6 +353,7 @@ void MarembaEngine::SmoothLiveControls() {
     smooth(mPiezoGain, mParams.piezoLevel);
     smooth(mPiezoPolarity, mParams.invertPiezo ? -1.0f : 1.0f);
     smooth(mStereoWidth, mParams.stereoWidth);
+    smooth(mMainModelGain, kMainModelCalibration[static_cast<std::size_t>(mParams.model)]);
     // The nonlinear input-gain taper needs a gentler sweep than a linear
     // capture fader. Ten milliseconds keeps live changes free of sharp edges.
     mDrive += mDriveAlpha * (mParams.preampDrive - mDrive);
@@ -1000,8 +1003,8 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         // Smooth Volume before both dynamics stages, so turning it down buys
         // actual headroom instead of attenuating an already limited signal.
         mVolumeGain += mVolumeAlpha * (volumeTarget - mVolumeGain);
-        preL *= mVolumeGain * kMainOutputCalibrationGain;
-        preR *= mVolumeGain * kMainOutputCalibrationGain;
+        preL *= mVolumeGain * kMainOutputCalibrationGain * mMainModelGain;
+        preR *= mVolumeGain * kMainOutputCalibrationGain * mMainModelGain;
         float mainL = 0.0f, mainR = 0.0f;
         mLimiter.Process(preL * kMainCalibrationGain, preR * kMainCalibrationGain, mainL, mainR);
 

@@ -225,6 +225,7 @@ private:
     float mCloseGain = 0.0f, mFarGain = 0.0f, mPiezoGain = 0.0f;
     float mPiezoPolarity = 1.0f;    // five-millisecond shared Main/direct polarity transition
     float mStereoWidth = 1.0f, mDrive = 0.0f;
+    float mMainModelGain = 1.0f; // fixed model recording gain; smoothed on live selection
     // The direct outputs' trims for the current Model: exact when idle or after
     // a reset, and smoothed like the controls above when Model changes mid-ring.
     std::array<float, 3> mStemTrim{};

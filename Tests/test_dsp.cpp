@@ -2259,7 +2259,7 @@ void TestDirectOutMatchesMain()
     constexpr double kCloseStemTrim = MarembaEngine::kCloseStemTrim; // published Close direct-output trim
     // Deliberate public output calibration at the 85% Volume reference.
     // Keep this independent of the implementation so a gain regression fails.
-    constexpr double kMainCalibrationGain = 1.202853 * .7;
+    constexpr double kMainCalibrationGain = 1.202853 * .7 * 1.726411287;
     EngineParameters p = CleanParams();
     p.farLevel = 0.0f; p.piezoLevel = 0.0f; p.closeLevel = 1.0f; p.stereoWidth = 1.0f;
     p.compAmount = 0.0f; p.preampDrive = 0.0f; p.warmth = 0.0f;
@@ -2322,10 +2322,10 @@ void TestMainGainBeforeLimiter()
             float preL, preR, limitedL, limitedR, wrongL, wrongR;
             preamp.Process(actual.ch[kCloseL][i] / MarembaEngine::kCloseStemTrim,
                            actual.ch[kCloseR][i] / MarembaEngine::kCloseStemTrim, 0, 0, preL, preR);
-            correct.Process(preL * volume * .7f * 1.202853f, preR * volume * .7f * 1.202853f, limitedL, limitedR);
+            correct.Process(preL * volume * .7f * 1.726411287f * 1.202853f, preR * volume * .7f * 1.726411287f * 1.202853f, limitedL, limitedR);
             before.Process(preL * 1.202853f, preR * 1.202853f, wrongL, wrongR);
             const float expected[2] = {limitedL, limitedR};
-            const float incorrect[2] = {wrongL * volume * .7f, wrongR * volume * .7f};
+            const float incorrect[2] = {wrongL * volume * .7f * 1.726411287f, wrongR * volume * .7f * 1.726411287f};
             for (int channel = 0; channel < 2; ++channel) {
                 const double difference = actual.ch[channel][i] - expected[channel];
                 const double wrong = actual.ch[channel][i] - incorrect[channel];
@@ -2334,7 +2334,7 @@ void TestMainGainBeforeLimiter()
             }
         }
         CHECK(energy > 1.e-6 && error < 1.e-8 * energy,
-              "Main does not match Volume -> recording gain 0.842 -> limiter");
+              "Main does not match Volume -> model/recording gain -> limiter");
         CHECK(wrongPlacement > 1.e-3 * energy,
               "limiter-placement fixture cannot distinguish gain placed after the detector");
         std::cout << "  -> " << rate << " Hz: correct path " << Db(std::sqrt(error/energy))
@@ -2538,7 +2538,7 @@ void TestWidthAndRoomImage()
     // mono component must fail even if its aggregate S/M ratio looks plausible.
     const double pole = static_cast<float>(std::exp(-2.0*M_PI*20.0/44100.0));
     const double volumeGain = (static_cast<double>(p.volume)/.85)*(p.volume/.85);
-    const double mainGain = 1.202853*.7*volumeGain;
+    const double mainGain = 1.202853*.7*1.726411287*volumeGain;
     auto checkTransfer = [&](const Render& r, float width) {
         double previousIn[2]{}, previousOut[2]{}, error = 0.0, energy = 0.0;
         for (int channel = 0; channel < kNumChannels; ++channel)
