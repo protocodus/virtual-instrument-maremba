@@ -172,7 +172,15 @@ Result renderCase(const Case& c) {
 
 void run(const Case& c) {
     const auto elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
-    require(elapsed < 900, "hard-hit matrix exceeded 900-second wall-time bound");
+    // A hang guard, not a speed contract. ASan + UBSan run the matrix about
+    // twice as slowly, so instrumented builds get the room CTest's 1800 s
+    // timeout leaves.
+#ifdef MAREMBA_SANITIZED
+    constexpr double kWallBound = 1700;
+#else
+    constexpr double kWallBound = 900;
+#endif
+    require(elapsed < kWallBound, "hard-hit matrix exceeded its wall-time bound");
     Result r = renderCase(c);
     const std::size_t index = results.size();
     const int group = c.rateIndex * 3 + c.quality;

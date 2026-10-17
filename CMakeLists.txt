@@ -57,6 +57,7 @@ if(MAREMBA_ENABLE_SANITIZERS)
     endif()
     add_compile_options(-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer)
     add_link_options(-fsanitize=address,undefined)
+    add_compile_definitions(MAREMBA_SANITIZED)
 endif()
 
 include(CTest)

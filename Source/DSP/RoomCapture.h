@@ -452,7 +452,8 @@ private:
     }
     void ResetRoom(int type, bool resetMotion = true) {
         auto& room=mRoom[static_cast<size_t>(type)];
-        for(auto& tail:room.tail)tail.Reset(resetMotion);room.flush=0;
+        for(auto& tail:room.tail)tail.Reset(resetMotion);
+        room.flush=0;
         if(!room.scatterMemory.empty())for(size_t i=0;i<room.scatter.size();++i)
             room.scatter[i].Reset(room.scatterMemory.data()+room.scatterOffset[i]);
         for(auto& channel:room.filter)for(auto& filter:channel)filter.state.fill(0.0);
