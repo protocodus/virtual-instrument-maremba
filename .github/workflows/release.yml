@@ -1,0 +1,267 @@
+name: Release
+
+# A v* tag runs every tier, validates and packages every format, and drafts a
+# GitHub release. A manual run builds and validates the same packages without
+# drafting one. macOS signing and notarization use the MACOS_* secrets when
+# they exist; without them the bundles are signed ad hoc.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  BUILD_NUMBER: ${{ github.run_number }}
+  # The table checks compare generated text exactly, so these are the versions
+  # that reproduce the committed tables.
+  PYTHON_PACKAGES: numpy==2.5.3 scipy==1.18.1 mpmath==1.4.1
+  PLUGINVAL_VERSION: v1.0.4
+  PLUGINVAL_LINUX_SHA256: c01c49d8063965c4c2dea8324468336768f5c9139e0b1caebde14c2400b55352
+  PLUGINVAL_MACOS_SHA256: 3c4c533bda0c5059eea3ddaea752d757ee2025041f0f47e6bcb0e87f6082b29f
+  PLUGINVAL_WINDOWS_SHA256: c08e61ce3b96db41636f8ec7e76f4c7e2c13ebdac7fa1b5a1f52b4f32ec715ab
+
+jobs:
+  macos:
+    name: macOS universal (VST3, AU, CLAP, Standalone)
+    runs-on: macos-15
+    outputs:
+      signing: ${{ steps.signing.outputs.state || 'ad-hoc signed, pkg unsigned, not notarized' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Build universal plug-in and run every tier
+        env:
+          BUILD_UNIVERSAL: "ON"
+        run: ./scripts/build-macos.sh
+
+      - name: Validate the AU with auval
+        run: |
+          set -euo pipefail
+          components="$HOME/Library/Audio/Plug-Ins/Components"
+          mkdir -p "$components"
+          ditto "build-macos/Maremba_artefacts/Release/AU/Maremba.component" "$components/Maremba.component"
+          killall -9 AudioComponentRegistrar 2>/dev/null || true
+          auval -strict -v aumu Mrb1 Mrmb
+
+      - name: Validate the VST3 with pluginval
+        working-directory: build-macos
+        run: |
+          set -euo pipefail
+          curl -sSfL -o pluginval.zip "https://github.com/Tracktion/pluginval/releases/download/${PLUGINVAL_VERSION}/pluginval_macOS.zip"
+          echo "${PLUGINVAL_MACOS_SHA256}  pluginval.zip" | shasum -a 256 -c -
+          ditto -x -k pluginval.zip .
+          pluginval.app/Contents/MacOS/pluginval --strictness-level 10 \
+            --random-seed 0x4d524d42 --timeout-ms 120000 \
+            --validate "Maremba_artefacts/Release/VST3/Maremba.vst3"
+
+      - name: Import Developer ID identities
+        id: signing
+        env:
+          CERTIFICATES_P12: ${{ secrets.MACOS_CERTIFICATES_P12 }}
+          CERTIFICATES_PASSWORD: ${{ secrets.MACOS_CERTIFICATES_PASSWORD }}
+          APP_IDENTITY: ${{ secrets.MACOS_APP_SIGN_IDENTITY }}
+          INSTALLER_IDENTITY: ${{ secrets.MACOS_INSTALLER_SIGN_IDENTITY }}
+          NOTARY_APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
+          NOTARY_TEAM_ID: ${{ secrets.MACOS_NOTARY_TEAM_ID }}
+          NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$CERTIFICATES_P12" ]]; then
+            echo "::notice::No MACOS_CERTIFICATES_P12 secret: the macOS bundles are signed ad hoc and the pkg is unsigned."
+            exit 0
+          fi
+          if [[ -z "$APP_IDENTITY" || -z "$INSTALLER_IDENTITY" ]]; then
+            echo "::error::MACOS_CERTIFICATES_P12 needs MACOS_APP_SIGN_IDENTITY and MACOS_INSTALLER_SIGN_IDENTITY."
+            exit 1
+          fi
+          keychain="$RUNNER_TEMP/maremba-signing.keychain-db"
+          keychain_password="$(uuidgen)"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          echo -n "$CERTIFICATES_P12" | base64 --decode -o "$RUNNER_TEMP/certificates.p12"
+          security import "$RUNNER_TEMP/certificates.p12" -P "$CERTIFICATES_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$keychain"
+          rm -f "$RUNNER_TEMP/certificates.p12"
+          security set-key-partition-list -S apple-tool:,apple: -k "$keychain_password" "$keychain"
+          security list-keychains -d user -s "$keychain"
+          security default-keychain -s "$keychain"
+          {
+            echo "APP_SIGN_IDENTITY=$APP_IDENTITY"
+            echo "INSTALLER_SIGN_IDENTITY=$INSTALLER_IDENTITY"
+          } >> "$GITHUB_ENV"
+          state="Developer ID signed, not notarized"
+          if [[ -n "$NOTARY_PASSWORD" ]]; then
+            xcrun notarytool store-credentials maremba-notary --apple-id "$NOTARY_APPLE_ID" \
+              --team-id "$NOTARY_TEAM_ID" --password "$NOTARY_PASSWORD" --keychain "$keychain"
+            {
+              echo "NOTARY_PROFILE=maremba-notary"
+              echo "COMMERCIAL_RELEASE=1"
+            } >> "$GITHUB_ENV"
+            state="Developer ID signed, notarized and stapled"
+          else
+            echo "::notice::No MACOS_NOTARY_PASSWORD secret: the macOS package is not notarized."
+          fi
+          echo "state=$state" >> "$GITHUB_OUTPUT"
+
+      - name: Package macOS formats
+        run: ./scripts/sign-and-package-macos.sh
+
+      - name: Upload macOS packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-macos
+          path: |
+            build-macos/dist/Maremba-*-build.${{ github.run_number }}-macOS-universal.zip
+            build-macos/dist/Maremba-*-build.${{ github.run_number }}-macOS-universal.pkg
+          if-no-files-found: error
+          retention-days: 30
+
+  linux:
+    name: Linux x64 (VST3, CLAP, Standalone)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install JUCE Linux dependencies and the Python check packages
+        run: |
+          python3 -m pip install --disable-pip-version-check $PYTHON_PACKAGES
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build pkg-config \
+            libasound2-dev \
+            libfreetype-dev libfontconfig1-dev \
+            libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
+            libxinerama-dev libxrandr-dev libxrender-dev \
+            xvfb
+
+      - name: Configure and build
+        run: |
+          cmake -S . -B build-plugin -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DMAREMBA_BUILD_PLUGIN=ON -DBUILD_TESTING=ON \
+            -DMAREMBA_REQUIRE_PYTHON_TESTS=ON "-DPython3_EXECUTABLE=$(command -v python3)"
+          cmake --build build-plugin --parallel
+
+      - name: Run every tier
+        run: xvfb-run -a ctest --test-dir build-plugin --output-on-failure
+
+      - name: Validate the VST3 with pluginval
+        working-directory: build-plugin
+        run: |
+          set -euo pipefail
+          curl -sSfL -o pluginval.zip "https://github.com/Tracktion/pluginval/releases/download/${PLUGINVAL_VERSION}/pluginval_Linux.zip"
+          echo "${PLUGINVAL_LINUX_SHA256}  pluginval.zip" | sha256sum -c -
+          unzip -q -o pluginval.zip
+          xvfb-run -a ./pluginval --strictness-level 10 --random-seed 0x4d524d42 \
+            --timeout-ms 120000 --validate "Maremba_artefacts/Release/VST3/Maremba.vst3"
+
+      - name: Package Linux formats
+        run: python3 scripts/package-linux.py --build-dir build-plugin
+
+      - name: Upload Linux package
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: build-plugin/dist/Maremba-*-build.${{ github.run_number }}-Linux-x64.tar.gz
+          if-no-files-found: error
+          retention-days: 30
+
+  windows:
+    name: Windows x64 (VST3, CLAP, Standalone)
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # /STACK as in CI: the test suites expect more than Windows' 1 MB.
+      - name: Configure and build
+        run: |
+          cmake -S . -B build-plugin -A x64 -DMAREMBA_BUILD_PLUGIN=ON -DBUILD_TESTING=ON "-DCMAKE_EXE_LINKER_FLAGS=/STACK:33554432"
+          cmake --build build-plugin --config Release --parallel
+
+      - name: Run every tier
+        run: ctest --test-dir build-plugin -C Release --output-on-failure
+
+      - name: Validate the VST3 with pluginval
+        working-directory: build-plugin
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSfL -o pluginval.zip "https://github.com/Tracktion/pluginval/releases/download/${PLUGINVAL_VERSION}/pluginval_Windows.zip"
+          echo "${PLUGINVAL_WINDOWS_SHA256}  pluginval.zip" | sha256sum -c -
+          7z x -y pluginval.zip
+          ./pluginval.exe --strictness-level 10 --random-seed 0x4d524d42 \
+            --timeout-ms 120000 --validate "Maremba_artefacts/Release/VST3/Maremba.vst3"
+
+      - name: Package Windows formats
+        run: python scripts/package-windows.py --build-dir build-plugin
+
+      - name: Upload Windows package
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: build-plugin/dist/Maremba-*-build.${{ github.run_number }}-Windows-x64.zip
+          if-no-files-found: error
+          retention-days: 30
+
+  draft-release:
+    name: Draft the GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [macos, linux, windows]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: release
+          merge-multiple: true
+
+      - name: Check the tag names the built version and write SHA256SUMS
+        working-directory: release
+        run: |
+          set -euo pipefail
+          versions="$(ls Maremba-* | sed -E 's/^Maremba-([0-9.]+)-build\..*/\1/' | sort -u)"
+          if [[ "$(ls Maremba-* | wc -l)" != 4 || "v$versions" != "$GITHUB_REF_NAME" ]]; then
+            echo "error: tag $GITHUB_REF_NAME does not match the four packages:" >&2
+            ls -l >&2
+            exit 1
+          fi
+          sha256sum Maremba-* > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Create the draft release
+        working-directory: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MACOS_SIGNING: ${{ needs.macos.outputs.signing }}
+        run: |
+          set -euo pipefail
+          {
+            echo "Drafted by the release workflow from ${GITHUB_SHA}:"
+            echo "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo
+            echo "- macOS universal: ${MACOS_SIGNING}."
+            echo "- Windows x64: not Authenticode-signed."
+            echo "- Linux x64: not signed."
+            echo
+            echo "Every test tier passed on each platform; the VST3 passed pluginval at strictness 10 and the AU passed auval -strict. CLAP and Standalone are built and packaged but checked by neither validator."
+          } > "$RUNNER_TEMP/notes.md"
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft --verify-tag \
+            --title "Maremba ${GITHUB_REF_NAME#v}" --notes-file "$RUNNER_TEMP/notes.md" -- *

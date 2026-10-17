@@ -9,19 +9,20 @@ on:
 permissions:
   contents: read
 
+env:
+  BUILD_NUMBER: ${{ github.run_number }}
+  # The table checks compare generated text exactly, so these are the versions
+  # that reproduce the committed tables.
+  PYTHON_PACKAGES: numpy==2.5.3 scipy==1.18.1 mpmath==1.4.1
+
 # A newer push to the same branch/PR cancels the older, still-running check.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  # The table checks compare generated text exactly, so these are the versions
-  # that reproduce the committed tables.
-  PYTHON_PACKAGES: numpy==2.5.3 scipy==1.18.1 mpmath==1.4.1
-
 jobs:
   dsp-tests:
-    name: DSP tests (Linux)
+    name: DSP unit and audio tiers, Linux package
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
@@ -33,32 +34,71 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install Ninja and the Python check dependencies
+      - name: Install Ninja, JUCE Linux dependencies and the Python check packages
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends ninja-build
           python3 -m pip install --disable-pip-version-check $PYTHON_PACKAGES
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build pkg-config \
+            libasound2-dev \
+            libfreetype-dev libfontconfig1-dev \
+            libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
+            libxinerama-dev libxrandr-dev libxrender-dev
 
-      - name: Configure
-        run: |
-          cmake -S . -B build-dsp -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_COMPILER=clang++ \
-            -DCMAKE_CXX_FLAGS=-Werror \
-            -DBUILD_TESTING=ON \
-            -DMAREMBA_REQUIRE_PYTHON_TESTS=ON \
-            "-DPython3_EXECUTABLE=$(command -v python3)"
+      - name: Configure DSP build
+        run: >-
+          cmake -S . -B build-dsp -G Ninja -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_FLAGS=-Werror
+          -DMAREMBA_BUILD_PLUGIN=OFF -DBUILD_TESTING=ON -DMAREMBA_REQUIRE_PYTHON_TESTS=ON
+          "-DPython3_EXECUTABLE=$(command -v python3)"
 
-      - name: Build
+      - name: Build DSP engine, tools and tests
         run: cmake --build build-dsp --parallel
 
-      - name: Unit tests
-        run: ctest --test-dir build-dsp -L unit --parallel 4 --output-on-failure
+      - name: Unit tier
+        run: ctest --test-dir build-dsp -L '^unit$' --no-tests=error --parallel 4 --output-on-failure
 
-  # The contract tolerances were set against Apple's libm; glibc and MSVC pass
-  # them too, but macOS is the reference.
-  dsp-tests-macos:
-    name: DSP tests (macOS)
+      - name: Audio tier
+        run: ctest --test-dir build-dsp -L '^audio$' --no-tests=error --output-on-failure
+
+      - name: Render the demos for review
+        run: |
+          set -euo pipefail
+          mkdir -p build-dsp/demo-audio
+          ./build-dsp/MarembaRenderDemos --jobs 4 build-dsp/demo-audio
+
+      - name: Upload demo audio
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-audio-maremba-build-${{ github.run_number }}
+          path: build-dsp/demo-audio/*.wav
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Configure Linux plug-in build
+        run: >-
+          cmake -S . -B build-plugin -G Ninja -DCMAKE_BUILD_TYPE=Release
+          -DMAREMBA_BUILD_PLUGIN=ON -DMAREMBA_BUILD_TOOLS=OFF -DBUILD_TESTING=OFF
+
+      - name: Build Linux VST3, CLAP and standalone
+        run: cmake --build build-plugin --parallel --target Maremba_VST3 Maremba_CLAP Maremba_Standalone
+
+      - name: Package Linux VST3, CLAP and standalone
+        run: python3 scripts/package-linux.py --build-dir build-plugin
+
+      - name: Upload Linux package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-linux-maremba-build-${{ github.run_number }}
+          path: build-plugin/dist/Maremba-*-build.${{ github.run_number }}-Linux-x64.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  # The contract tolerances were set against Apple's libm, so macOS runs the
+  # whole suite: every unit contract, the processor, the render tier and the
+  # fuzz matrix.
+  plugin-macos:
+    name: Plug-in unit and render tiers, macOS universal package
     runs-on: macos-15
     timeout-minutes: 120
     steps:
@@ -66,22 +106,37 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Configure
-        run: |
-          cmake -S . -B build-dsp \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_FLAGS=-Werror \
-            -DBUILD_TESTING=ON
+      - name: Build universal plug-in and run tests
+        env:
+          BUILD_UNIVERSAL: "ON"
+        run: ./scripts/build-macos.sh
 
-      - name: Build
-        run: cmake --build build-dsp --parallel
+      - name: Render the editor screenshot for review
+        run: ./build-macos/Release/MarembaEditorSnapshot "${{ runner.temp }}/maremba.png"
 
-      - name: Unit and fuzz tests
-        run: ctest --test-dir build-dsp -L 'unit|fuzz' --parallel 3 --output-on-failure
+      - name: Upload the rendered editor screenshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-screenshot-maremba-build-${{ github.run_number }}
+          path: ${{ runner.temp }}/maremba.png
+          if-no-files-found: error
+          retention-days: 7
 
+      - name: Package macOS VST3, Audio Unit, CLAP and standalone
+        run: ./scripts/sign-and-package-macos.sh
+
+      - name: Upload macOS packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-macos-maremba-build-${{ github.run_number }}
+          path: |
+            build-macos/dist/Maremba-*-build.${{ github.run_number }}-macOS-universal.zip
+            build-macos/dist/Maremba-*-build.${{ github.run_number }}-macOS-universal.pkg
+          if-no-files-found: error
+          retention-days: 7
 
   dsp-tests-windows:
-    name: DSP tests (Windows)
+    name: DSP unit tier, Windows package
     runs-on: windows-2025
     timeout-minutes: 120
     steps:
@@ -90,21 +145,41 @@ jobs:
           persist-credentials: false
 
       # The engine tests keep several engines on the stack; give main 32 MB.
-      - name: Configure
+      - name: Configure DSP tests
         run: |
-          cmake -S . -B build-win -A x64 -DBUILD_TESTING=ON "-DCMAKE_EXE_LINKER_FLAGS=/STACK:33554432"
+          cmake -S "." -B "build-win" -A x64 "-DMAREMBA_BUILD_PLUGIN=OFF" -DBUILD_TESTING=ON "-DCMAKE_EXE_LINKER_FLAGS=/STACK:33554432"
 
-      - name: Build
-        run: cmake --build build-win --config Release --parallel
+      - name: Build and run the unit tier
+        run: |
+          cmake --build "build-win" --config Release --parallel
+          ctest --test-dir "build-win" -C Release -L "^unit$" --no-tests=error --parallel 4 --output-on-failure
 
-      - name: Unit tests
-        run: ctest --test-dir build-win -C Release -L unit --parallel 4 --output-on-failure
+      - name: Configure Windows plug-in build
+        run: |
+          cmake -S "." -B "build-plugin" -A x64 "-DMAREMBA_BUILD_PLUGIN=ON" "-DMAREMBA_BUILD_TOOLS=OFF" -DBUILD_TESTING=OFF
 
+      - name: Build Windows VST3, CLAP and standalone
+        run: |
+          cmake --build "build-plugin" --config Release --parallel --target "Maremba_VST3" "Maremba_CLAP" "Maremba_Standalone"
+
+      - name: Package Windows VST3, CLAP and standalone
+        run: python scripts/package-windows.py --build-dir build-plugin
+
+      - name: Upload Windows package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-windows-maremba-build-${{ github.run_number }}
+          path: build-plugin/dist/Maremba-*-build.${{ github.run_number }}-Windows-x64.zip
+          if-no-files-found: error
+          retention-days: 7
 
   sanitizers:
-    name: Sanitizers and C++17 (Linux)
+    name: Unit and fuzz tiers under ASan + UBSan, C++17 DSP
     runs-on: ubuntu-24.04
     timeout-minutes: 120
+    env:
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
     steps:
       - uses: actions/checkout@v4
         with:
@@ -116,22 +191,24 @@ jobs:
           sudo apt-get install -y --no-install-recommends ninja-build
 
       # The Python checks exercise generators, not the engine's memory safety.
-      - name: Configure ASan + UBSan
-        run: |
-          cmake -S . -B build-asan -G Ninja \
-            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-            -DCMAKE_CXX_COMPILER=clang++ \
-            "-DCMAKE_CXX_FLAGS=-O1 -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -D_GLIBCXX_ASSERTIONS" \
-            "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined" \
-            -DCMAKE_DISABLE_FIND_PACKAGE_Python3=TRUE \
-            -DBUILD_TESTING=ON
+      - name: Configure instrumented DSP and tests
+        run: >-
+          cmake -S . -B build-sanitize -G Ninja
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+          -DMAREMBA_BUILD_PLUGIN=OFF
+          -DMAREMBA_ENABLE_SANITIZERS=ON
+          -DCMAKE_DISABLE_FIND_PACKAGE_Python3=TRUE
+          -DBUILD_TESTING=ON
 
-      - name: Build the C++17 DSP target and the sanitized tests
-        run: cmake --build build-asan --parallel --target MarembaDSPCxx17 MarembaEngineTests MarembaTouchResponseTests MarembaEngineFuzzTests
+      # The default build includes MarembaDSPCxx17 (the Rack toolchain's C++17
+      # check) and the libFuzzer harness, whose short run is Maremba.DspFuzz.
+      - name: Build
+        run: cmake --build build-sanitize --parallel
 
       # ASan keeps each engine in its own padded stack slot, so the engine
       # tests need more than the default 8 MB main stack.
-      - name: Engine, touch and fuzz tests under ASan + UBSan
+      - name: Unit and fuzz tiers
         run: |
           ulimit -s 65536
-          ctest --test-dir build-asan -R '^Maremba[.](Engine|TouchResponse|EngineFuzz)$' --output-on-failure
+          ctest --test-dir build-sanitize -L '^(unit|fuzz)$' --no-tests=error --parallel 4 --output-on-failure
