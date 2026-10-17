@@ -3,14 +3,19 @@
 Maremba is a physically modelled mallet-percussion instrument by Protocodus:
 a concert rosewood marimba, a Guatemalan padauk marimba, a West African balafon
 and a 17-key box kalimba, played through modelled close microphones, a room and
-a contact pickup. This repository owns its DSP engine, a JUCE-free C++17 library
-in `Source/DSP/`. The Reason Rack Extension builds this engine through a thin
-adapter; a VST3/AU/CLAP/Standalone plug-in is not built yet.
+a contact pickup. It runs as a VST3, CLAP and Standalone plug-in on macOS,
+Windows and Linux, plus an Audio Unit on macOS, and as a Reason Rack Extension,
+both built from the JUCE-free C++17 engine in `Source/DSP/`.
+
+![Maremba](Docs/screenshots/maremba.png)
 
 ## Audio demos
 
+One demo per factory preset, rendered by every main build from
+`Docs/audio/midi/` through the shipping engine.
+
 <!-- audio-demos-begin -->
-No preset demos are rendered from this repository yet.
+No preset demos are rendered yet; the next main build writes this table.
 <!-- audio-demos-end -->
 
 ## Version history
@@ -23,18 +28,25 @@ No preset demos are rendered from this repository yet.
   with their history carried over.
 - The physics, behaviour and fuzz contracts and the table generators moved with
   it and run under CTest.
+- First plug-in: VST3, AU, CLAP and Standalone, with the Rack Extension's 20
+  factory patches as its presets and its controls as parameters (same names,
+  same values, same sound). MIDI CC 1 is the mod wheel; the Close, Room and
+  Piezo direct outputs are optional extra buses.
 
 ## Downloads
 
 <!-- build-download-begin -->
-No builds yet: this repository has no plug-in target.
+No builds yet; the next main build links its packages here.
 <!-- build-download-end -->
 
 ---
 
 ## How it works
 
-`MarembaEngine` (`Source/DSP/MarembaEngine.h`) takes physical, already
+Every front end stores the same 48 controls (`Source/DSP/MarembaControls.h`)
+and maps them to the engine the same way; the plug-in and the demo renderer
+play MIDI through `Source/DSP/MarembaPlayer.h`. `MarembaEngine`
+(`Source/DSP/MarembaEngine.h`) takes physical, already
 de-normalised `EngineParameters`, MIDI-style note events, pitch bend and mod
 wheel, and renders a stereo Main pair plus five direct outputs (Close L/R,
 Room L/R, Piezo). Every field is clamped again inside the engine, so any finite
@@ -70,8 +82,10 @@ value is safe. It runs internally at 2×, 4× or 8× the host rate.
 
 ## Known gaps
 
-- No JUCE plug-in, editor screenshot, factory preset bank or preset demos yet,
-  so the `audio` and `render` test tiers are empty.
+- The plug-in has no sustain pedal and no MPE; the engine has neither.
+- The render tier checks the screenshot's size and that it is not blank, not
+  pixel identity with the committed image: the image is rendered on macOS, and
+  fonts differ between platforms.
 - Three table generators no longer reproduce the shipped tables, exactly as in
   the Rack repository before the move, so their checks are not registered in
   CTest. `generate_bar_modes.py` writes overtone ratios up to about 5% away
@@ -86,21 +100,34 @@ value is safe. It runs internally at 2×, 4× or 8× the host rate.
 
 ## Build
 
-CMake 3.22+ and a C++17/C++20 compiler. Python 3 with NumPy, SciPy and mpmath
-adds the generator and measurement checks.
+CMake 3.22+ and a C++20 compiler. Python 3 with NumPy, SciPy and mpmath adds
+the generator and measurement checks. The plug-in build fetches JUCE 8.0.14 and
+clap-juce-extensions at pinned commits (`MAREMBA_JUCE_PATH` and
+`MAREMBA_CLAP_JUCE_EXTENSIONS_PATH` point at local checkouts instead); on Linux
+it needs JUCE's usual ALSA, FreeType, fontconfig and X11 development packages.
 
 ```sh
-cmake -S . -B build-dsp -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+cmake -S . -B build-dsp -DCMAKE_BUILD_TYPE=Release -DMAREMBA_BUILD_PLUGIN=OFF -DBUILD_TESTING=ON
 cmake --build build-dsp --parallel
-ctest --test-dir build-dsp -L unit --output-on-failure
-ctest --test-dir build-dsp -L fuzz --output-on-failure
+ctest --test-dir build-dsp -L unit --output-on-failure    # also: audio, fuzz
+
+cmake -S . -B build-plugin -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+cmake --build build-plugin --parallel
+ctest --test-dir build-plugin -L 'unit|render' --output-on-failure
 ```
 
-`Tests/contracts.txt` lists the physics and behaviour contracts; each becomes a
-`Maremba.<Suite>` CTest test. `EngineFuzzTest --extended` and
-`ExtremeRangeTest --full` run the long matrices.
+`scripts/build-macos.sh` builds the universal macOS plug-in, and the
+`scripts/package-*` scripts write the distribution packages. Every test is a
+`Maremba.<Suite>` CTest test with one tier label: `unit`, `audio` (every preset
+demo renders, finite, below 0 dBFS and byte-identical on a second render),
+`render` (the editor screenshot) or `fuzz` (the bounded parameter matrices and,
+with `-DMAREMBA_ENABLE_SANITIZERS=ON` under Clang, a time-boxed libFuzzer run of
+`Tests/DspFuzz.cpp`). `Tests/contracts.txt` lists the physics and behaviour
+contracts. `EngineFuzzTest --extended` and `ExtremeRangeTest --full` run the
+long matrices.
 
 ## Licensing
 
-MIT, see [`LICENSE`](LICENSE). The measured head responses are Apache-2.0, see
-[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+MIT, see [`LICENSE`](LICENSE). The plug-in builds with JUCE (AGPLv3 or a
+commercial JUCE licence) and clap-juce-extensions (MIT), and the measured head
+responses are Apache-2.0; see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
