@@ -22,7 +22,9 @@ env:
   # that reproduce the committed tables.
   PYTHON_PACKAGES: numpy==2.5.3 scipy==1.18.1 mpmath==1.4.1
   PLUGINVAL_VERSION: v1.0.4
+  PLUGINVAL_LINUX_SHA256: c01c49d8063965c4c2dea8324468336768f5c9139e0b1caebde14c2400b55352
   PLUGINVAL_MACOS_SHA256: 3c4c533bda0c5059eea3ddaea752d757ee2025041f0f47e6bcb0e87f6082b29f
+  PLUGINVAL_WINDOWS_SHA256: c08e61ce3b96db41636f8ec7e76f4c7e2c13ebdac7fa1b5a1f52b4f32ec715ab
 
 jobs:
   # Render into a staging tree holding a copy of the README, so the renderer
@@ -153,7 +155,8 @@ jobs:
             libasound2-dev \
             libfreetype-dev libfontconfig1-dev \
             libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
-            libxinerama-dev libxrandr-dev libxrender-dev
+            libxinerama-dev libxrandr-dev libxrender-dev \
+            xvfb
 
       - name: Configure, build and run the unit tier
         run: |
@@ -162,6 +165,16 @@ jobs:
             -DMAREMBA_REQUIRE_PYTHON_TESTS=ON "-DPython3_EXECUTABLE=$(command -v python3)"
           cmake --build build-plugin --parallel
           ctest --test-dir build-plugin -L '^unit$' --no-tests=error --output-on-failure
+
+      - name: Validate the VST3 with pluginval
+        working-directory: build-plugin
+        run: |
+          set -euo pipefail
+          curl -sSfL -o pluginval.zip "https://github.com/Tracktion/pluginval/releases/download/${PLUGINVAL_VERSION}/pluginval_Linux.zip"
+          echo "${PLUGINVAL_LINUX_SHA256}  pluginval.zip" | sha256sum -c -
+          unzip -q -o pluginval.zip
+          xvfb-run -a ./pluginval --strictness-level 10 --random-seed 0x4d524d42 \
+            --timeout-ms 120000 --validate "Maremba_artefacts/Release/VST3/Maremba.vst3"
 
       - name: Package Linux VST3, CLAP and standalone
         run: python3 scripts/package-linux.py --build-dir build-plugin
@@ -186,6 +199,17 @@ jobs:
         run: |
           cmake -S . -B build-plugin -A x64 -DMAREMBA_BUILD_PLUGIN=ON -DMAREMBA_BUILD_TOOLS=OFF -DBUILD_TESTING=OFF
           cmake --build build-plugin --config Release --parallel --target Maremba_VST3 Maremba_CLAP Maremba_Standalone
+
+      - name: Validate the VST3 with pluginval
+        working-directory: build-plugin
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSfL -o pluginval.zip "https://github.com/Tracktion/pluginval/releases/download/${PLUGINVAL_VERSION}/pluginval_Windows.zip"
+          echo "${PLUGINVAL_WINDOWS_SHA256}  pluginval.zip" | sha256sum -c -
+          7z x -y pluginval.zip
+          ./pluginval.exe --strictness-level 10 --random-seed 0x4d524d42 \
+            --timeout-ms 120000 --validate "Maremba_artefacts/Release/VST3/Maremba.vst3"
 
       - name: Package Windows VST3, CLAP and standalone
         run: python scripts/package-windows.py --build-dir build-plugin
