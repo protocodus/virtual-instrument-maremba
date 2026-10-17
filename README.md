@@ -80,6 +80,11 @@ value is safe. It runs internally at 2×, 4× or 8× the host rate.
   `generate_kalimba_shapes.py` differs from `KalimbaMountShapes.h` in the tenth
   significant digit. The shipped tables are what the contracts test; each
   check is registered again once its generator matches them.
+- CI builds and tests on Linux and macOS with Clang, as the Rack Extension
+  compiles the engine. MSVC does not build it yet: it rejects an uncaptured
+  `constexpr` local in `ModalRadiation.h`'s `BarDirectRadiationScale`, and
+  `Tests/test_dsp.cpp` uses POSIX timing and allocation. A Windows plug-in
+  needs both fixed first.
 - The modelling research, references and validation reports for this engine are
   still in the Rack repository's device documentation, which is private.
   Comments in `Source/DSP` that cite `docs/...` refer to those documents.
