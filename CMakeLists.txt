@@ -283,6 +283,15 @@ if(BUILD_TESTING)
                  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
         set_tests_properties(Maremba.OutputPeakKernel Maremba.CloseHrtf PROPERTIES LABELS unit)
 
+        # Tools/Demos/run_benchmark.py builds its renderer with clang++.
+        find_program(MAREMBA_CLANGXX clang++)
+        if(MAREMBA_CLANGXX)
+            add_test(NAME Maremba.DemoRenderer
+                     COMMAND "${Python3_EXECUTABLE}" Tests/test_demo_renderer.py
+                     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+            set_tests_properties(Maremba.DemoRenderer PROPERTIES LABELS unit TIMEOUT 1800)
+        endif()
+
         execute_process(
             COMMAND "${Python3_EXECUTABLE}" -c "import numpy, scipy, mpmath"
             RESULT_VARIABLE MAREMBA_PYTHON_NUMERIC_RESULT
@@ -293,7 +302,8 @@ if(BUILD_TESTING)
             # on unchanged source (see README, Known gaps).
             foreach(check IN ITEMS
                     "KalimbaMountTable|generate_kalimba_mount.py"
-                    "RoomTemporalQualityTool|test_room_temporal_quality.py")
+                    "RoomTemporalQualityTool|test_room_temporal_quality.py"
+                    "CalibrationTools|test_calibration_tools.py")
                 string(REPLACE "|" ";" check "${check}")
                 list(POP_FRONT check name script)
                 add_test(NAME Maremba.${name}

@@ -1,0 +1,9 @@
+PASS 01_Rosewood_Afterglow: 71 exact MIDI/events, explicit parameters, hashed WAV/AAC, embedded AAC bytes and natural tail
+PASS 02_Padauk_Amber_Steps: 82 exact MIDI/events, explicit parameters, hashed WAV/AAC, embedded AAC bytes and natural tail
+PASS 03_Balafon_Sun_Weave: 81 exact MIDI/events, explicit parameters, hashed WAV/AAC, embedded AAC bytes and natural tail
+PASS 04_Kalimba_Firefly_Window: 61 exact MIDI/events, explicit parameters, hashed WAV/AAC, embedded AAC bytes and natural tail
+PASS HTML player JavaScript syntax (node --check)
+PASS current device version, full DSP source set, renderer and composer hashes
+PASS Buzz 0%, Drive 1%, limiter disabled and one common gain across all four tracks
+SCOPE: browser layout/playback checks are recorded separately in Maremba_Player_Validation.json when performed.
+LIMIT: no model-accessible listening tool; no subjective audition claimed.

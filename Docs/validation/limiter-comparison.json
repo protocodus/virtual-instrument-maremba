@@ -1,0 +1,2369 @@
+{
+  "schema_version": 1,
+  "baseline_revision": "7b001722c19ad5bf7dab252788a38b6d59964fe9",
+  "purpose": "Main-output musical comparison; raw measurements precede any playback attenuation.",
+  "inputs_sha256": {
+    "Demos/render_limiter_comparison.cpp": "c09121f670a584b46c865d111dbdc57857f8652fa7b2d7d182695869425d205e",
+    "Demos/compare_limiter.py": "1aff8f5effb14fc3e4cb8a0d213865f23ae22842fff48062901b50b44d07232d",
+    "Docs/validation/limiter-baseline-source-sha256.txt": "d71251a6f6f39c6b13bb4cfad7f02484f8ed66faca0fa48c90d1b9f9405e7952"
+  },
+  "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+  "compiler_flags": [
+    "-std=c++17",
+    "-O3",
+    "-Wall",
+    "-Wextra",
+    "-Werror"
+  ],
+  "encoder": "ffmpeg version 8.1.1 Copyright (c) 2000-2026 the FFmpeg developers",
+  "baseline": {
+    "source_sha256": {
+      "DSP/AcousticRoom.h": "16ccb9f656b7f604bf5a9445ee416a337af9ccc9355ce84c4e1fb6e5fe7f3953",
+      "DSP/AnalogPreamp.h": "96dfba04a09894334985bc20e6d300c7ea3fd336f3dfdcfb074ddf8a8c83716a",
+      "DSP/Compressor.h": "b977ef1462c5aade127481963a2b4a8dc65270ccd88e54930c0b1e802cacbff3",
+      "DSP/ContactExcitation.h": "cac875971f3188d7536f8a8fc78a591beeef33b8b849ee803198b0730a1b2725",
+      "DSP/DspMath.h": "14207a2b4641f31b72da94759f4933e308840409a4b88e44d2281409df498b5e",
+      "DSP/FrameBody.h": "927eebbaa27a465b94759cac38eb45414d26730d03992cde112468e8962df0b1",
+      "DSP/MarembaEngine.cpp": "e42b4450cabb19aa545078cb8676450bdb7cf6f883bff2a3596d16bd6d443476",
+      "DSP/MarembaEngine.h": "87da1fa87c53e332a33daf1e2f8b666c2b0ca266401db827287165ba45477e3a",
+      "DSP/MarembaVoice.cpp": "ede18a044bf1f670b95a668248f89f5e83e2b491bf44bc7684b189803f5f73a9",
+      "DSP/MarembaVoice.h": "11c5a518576392d8b334a028e5651435bc6fb1a3e108abcfef9133ec14b30a50",
+      "DSP/MarimbaModel.h": "10f32e90e8f980cbd2d7265d9022b25971e9cc150b9d19b8df860b0244779e62",
+      "DSP/MicMixer.h": "b06fc45ca4a56e67e4c1a8ccb66a3561d2d7de9560e5090b47a293600f688a62",
+      "DSP/ModalExcitation.h": "fea245afd29bed32dbbc957ee008e59c3b328468cb6ec8cb4b78f7c4a5eb0437",
+      "DSP/Oversampler.h": "ea1acddef65086501ec8519732fd52437e7795946d9bbdd35ccaec7b83f0e145",
+      "DSP/RandomArtifacts.h": "b615a0b1d041e28ca816789978a0197b98f136635492cc9840b7dc14fc139191",
+      "DSP/SympatheticMesh.h": "752a48c56b66dbf17cbeec7628a3cece76a9f8a87a0619000414548d4b397b06"
+    },
+    "binary_sha256": "efae48d235fe6c7060fdf1faa6fab66d8860fb091635df5e3f90fb877ffd9016",
+    "rows": [
+      {
+        "program": "factory_like",
+        "amount": 0,
+        "sample_rate": 44100,
+        "frames": 253575,
+        "channels": 7,
+        "attack_ms": 12,
+        "release_ms": 120,
+        "oversampling": 2,
+        "events": [
+          [
+            3528,
+            60,
+            32
+          ],
+          [
+            18522,
+            64,
+            64
+          ],
+          [
+            33516,
+            67,
+            96
+          ],
+          [
+            48510,
+            72,
+            127
+          ],
+          [
+            66150,
+            48,
+            127
+          ],
+          [
+            66150,
+            52,
+            127
+          ],
+          [
+            66150,
+            55,
+            127
+          ],
+          [
+            66150,
+            60,
+            127
+          ],
+          [
+            66150,
+            64,
+            127
+          ],
+          [
+            66150,
+            67,
+            127
+          ],
+          [
+            74970,
+            60,
+            32
+          ],
+          [
+            99225,
+            45,
+            127
+          ],
+          [
+            99225,
+            52,
+            127
+          ],
+          [
+            99225,
+            57,
+            127
+          ],
+          [
+            99225,
+            60,
+            127
+          ],
+          [
+            99225,
+            64,
+            127
+          ],
+          [
+            99225,
+            69,
+            127
+          ],
+          [
+            99225,
+            72,
+            127
+          ],
+          [
+            99225,
+            76,
+            127
+          ],
+          [
+            108045,
+            64,
+            32
+          ],
+          [
+            136710,
+            60,
+            64
+          ],
+          [
+            160965,
+            67,
+            48
+          ],
+          [
+            187425,
+            60,
+            32
+          ],
+          [
+            202860,
+            64,
+            48
+          ]
+        ],
+        "key": "factory_like_0",
+        "raw_file": "baseline_factory_like_0.f32",
+        "raw_sha256": "14bf529ab33c25cb5d28eb601a8a53823fd7fc24aa0d183ecfb80a61250fb343",
+        "main": {
+          "peak": 0.69917231798172,
+          "peak_dbfs": -3.108315497226431,
+          "rms": 0.10917843488597535,
+          "rms_dbfs": -19.237262715211237,
+          "crest_db": 16.128947217984802,
+          "samples_above_full_scale": 0,
+          "samples_above_0_98": 0
+        },
+        "first_nonzero_frame": 3528,
+        "channel_sha256": {
+          "main_left": "911618d901d09e914f4e5f7ebe343929af7e339205485f8312804947344471b6",
+          "main_right": "5d8118bf472f20208f5d4915cdd13d8f131390f54fc0e93ed34d830a2a5a3da6",
+          "close_left": "7f4fe263e78fc8191e40730c6569ba0ac1bcda034ec4b6729a6cfe5a5e3ecddf",
+          "close_right": "209485b854be9eea5cb5fe2fa168a0ac0eb1093ae9f0da279c0d13bdef70babb",
+          "room_left": "2dc708cce252288c3f46a15ffee43d160c6fa9bed71281f949e320fc3f78d988",
+          "room_right": "ea8f6fc535ed3c778a9d492325d1d54d961c9020a89e511544abf0ecdd003bf5",
+          "piezo": "1b2394d429eab92dfb9dca88f3201353d8d94da2c3748ddc1474b89b4ed60a74"
+        },
+        "post_accent_windows": {
+          "early": {
+            "peak": 0.6027811169624329,
+            "peak_dbfs": -4.396807221622797,
+            "rms": 0.14995079136301584,
+            "rms_dbfs": -16.481024758317947,
+            "crest_db": 12.084217536695153,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": 0.0
+          },
+          "middle": {
+            "peak": 0.18798001110553741,
+            "peak_dbfs": -14.51776658154551,
+            "rms": 0.07170520669811872,
+            "rms_dbfs": -22.88898615912302,
+            "crest_db": 8.371219577577511,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": 0.0
+          },
+          "late": {
+            "peak": 0.062093060463666916,
+            "peak_dbfs": -24.13913867947703,
+            "rms": 0.0272269795792869,
+            "rms_dbfs": -31.30001068756394,
+            "crest_db": 7.160872008086908,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": 0.0
+          }
+        }
+      },
+      {
+        "program": "factory_like",
+        "amount": 0.25,
+        "sample_rate": 44100,
+        "frames": 253575,
+        "channels": 7,
+        "attack_ms": 12,
+        "release_ms": 120,
+        "oversampling": 2,
+        "events": [
+          [
+            3528,
+            60,
+            32
+          ],
+          [
+            18522,
+            64,
+            64
+          ],
+          [
+            33516,
+            67,
+            96
+          ],
+          [
+            48510,
+            72,
+            127
+          ],
+          [
+            66150,
+            48,
+            127
+          ],
+          [
+            66150,
+            52,
+            127
+          ],
+          [
+            66150,
+            55,
+            127
+          ],
+          [
+            66150,
+            60,
+            127
+          ],
+          [
+            66150,
+            64,
+            127
+          ],
+          [
+            66150,
+            67,
+            127
+          ],
+          [
+            74970,
+            60,
+            32
+          ],
+          [
+            99225,
+            45,
+            127
+          ],
+          [
+            99225,
+            52,
+            127
+          ],
+          [
+            99225,
+            57,
+            127
+          ],
+          [
+            99225,
+            60,
+            127
+          ],
+          [
+            99225,
+            64,
+            127
+          ],
+          [
+            99225,
+            69,
+            127
+          ],
+          [
+            99225,
+            72,
+            127
+          ],
+          [
+            99225,
+            76,
+            127
+          ],
+          [
+            108045,
+            64,
+            32
+          ],
+          [
+            136710,
+            60,
+            64
+          ],
+          [
+            160965,
+            67,
+            48
+          ],
+          [
+            187425,
+            60,
+            32
+          ],
+          [
+            202860,
+            64,
+            48
+          ]
+        ],
+        "key": "factory_like_0.25",
+        "raw_file": "baseline_factory_like_0.25.f32",
+        "raw_sha256": "b96c0351d7a911f99996a8b53580f1a2b39865f8c07bb9e69575a3401a74f6e3",
+        "main": {
+          "peak": 0.6848872303962708,
+          "peak_dbfs": -3.287618621199486,
+          "rms": 0.10006323361015942,
+          "rms_dbfs": -19.994509334197595,
+          "crest_db": 16.70689071299811,
+          "samples_above_full_scale": 0,
+          "samples_above_0_98": 0
+        },
+        "first_nonzero_frame": 3528,
+        "channel_sha256": {
+          "main_left": "c66260502646de78084a5df33721364467d1ac524e163731a628c26070e9f8cb",
+          "main_right": "0538138fb30c9e1c73dfa3a55f4b2e7890a6e65df25837643b8ea3f7251a61f2",
+          "close_left": "7f4fe263e78fc8191e40730c6569ba0ac1bcda034ec4b6729a6cfe5a5e3ecddf",
+          "close_right": "209485b854be9eea5cb5fe2fa168a0ac0eb1093ae9f0da279c0d13bdef70babb",
+          "room_left": "2dc708cce252288c3f46a15ffee43d160c6fa9bed71281f949e320fc3f78d988",
+          "room_right": "ea8f6fc535ed3c778a9d492325d1d54d961c9020a89e511544abf0ecdd003bf5",
+          "piezo": "1b2394d429eab92dfb9dca88f3201353d8d94da2c3748ddc1474b89b4ed60a74"
+        },
+        "post_accent_windows": {
+          "early": {
+            "peak": 0.5550315976142883,
+            "peak_dbfs": -5.113645841009262,
+            "rms": 0.13606968093778604,
+            "rms_dbfs": -17.3247726712879,
+            "crest_db": 12.21112683027864,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": -0.8437479129699523
+          },
+          "middle": {
+            "peak": 0.18797998130321503,
+            "peak_dbfs": -14.517767958605244,
+            "rms": 0.07170518150331114,
+            "rms_dbfs": -22.88898921105421,
+            "crest_db": 8.371221252448965,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": -3.051931187386619e-06
+          },
+          "late": {
+            "peak": 0.06209303438663483,
+            "peak_dbfs": -24.139142327264217,
+            "rms": 0.02722696983709815,
+            "rms_dbfs": -31.300013795495584,
+            "crest_db": 7.160871468231367,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": -3.1079316463464244e-06
+          }
+        }
+      },
+      {
+        "program": "factory_like",
+        "amount": 1,
+        "sample_rate": 44100,
+        "frames": 253575,
+        "channels": 7,
+        "attack_ms": 12,
+        "release_ms": 120,
+        "oversampling": 2,
+        "events": [
+          [
+            3528,
+            60,
+            32
+          ],
+          [
+            18522,
+            64,
+            64
+          ],
+          [
+            33516,
+            67,
+            96
+          ],
+          [
+            48510,
+            72,
+            127
+          ],
+          [
+            66150,
+            48,
+            127
+          ],
+          [
+            66150,
+            52,
+            127
+          ],
+          [
+            66150,
+            55,
+            127
+          ],
+          [
+            66150,
+            60,
+            127
+          ],
+          [
+            66150,
+            64,
+            127
+          ],
+          [
+            66150,
+            67,
+            127
+          ],
+          [
+            74970,
+            60,
+            32
+          ],
+          [
+            99225,
+            45,
+            127
+          ],
+          [
+            99225,
+            52,
+            127
+          ],
+          [
+            99225,
+            57,
+            127
+          ],
+          [
+            99225,
+            60,
+            127
+          ],
+          [
+            99225,
+            64,
+            127
+          ],
+          [
+            99225,
+            69,
+            127
+          ],
+          [
+            99225,
+            72,
+            127
+          ],
+          [
+            99225,
+            76,
+            127
+          ],
+          [
+            108045,
+            64,
+            32
+          ],
+          [
+            136710,
+            60,
+            64
+          ],
+          [
+            160965,
+            67,
+            48
+          ],
+          [
+            187425,
+            60,
+            32
+          ],
+          [
+            202860,
+            64,
+            48
+          ]
+        ],
+        "key": "factory_like_1",
+        "raw_file": "baseline_factory_like_1.f32",
+        "raw_sha256": "80c10e12b794f57500ae8c8006fee804663fd39835273576defe5130a673285c",
+        "main": {
+          "peak": 0.6220566630363464,
+          "peak_dbfs": -4.1234010739267255,
+          "rms": 0.06243040890130885,
+          "rms_dbfs": -24.092076411096937,
+          "crest_db": 19.96867533717021,
+          "samples_above_full_scale": 0,
+          "samples_above_0_98": 0
+        },
+        "first_nonzero_frame": 3528,
+        "channel_sha256": {
+          "main_left": "c3f15433398d91e308465d85c83cb4adb7cfb99cf6a4b62bc72bb896228f38fb",
+          "main_right": "0f2c859489434ce65d2e0b3a72615cb1ccee17142861711c2dbd2cc4f4f76c47",
+          "close_left": "7f4fe263e78fc8191e40730c6569ba0ac1bcda034ec4b6729a6cfe5a5e3ecddf",
+          "close_right": "209485b854be9eea5cb5fe2fa168a0ac0eb1093ae9f0da279c0d13bdef70babb",
+          "room_left": "2dc708cce252288c3f46a15ffee43d160c6fa9bed71281f949e320fc3f78d988",
+          "room_right": "ea8f6fc535ed3c778a9d492325d1d54d961c9020a89e511544abf0ecdd003bf5",
+          "piezo": "1b2394d429eab92dfb9dca88f3201353d8d94da2c3748ddc1474b89b4ed60a74"
+        },
+        "post_accent_windows": {
+          "early": {
+            "peak": 0.3085244297981262,
+            "peak_dbfs": -10.214208833168714,
+            "rms": 0.07719845602398825,
+            "rms_dbfs": -22.247827710116233,
+            "crest_db": 12.033618876947516,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": -5.766802951798281
+          },
+          "middle": {
+            "peak": 0.14555035531520844,
+            "peak_dbfs": -16.73973460062213,
+            "rms": 0.049234179537313745,
+            "rms_dbfs": -26.154665899639276,
+            "crest_db": 9.414931299017145,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": -3.265679740516252
+          },
+          "late": {
+            "peak": 0.05443006753921509,
+            "peak_dbfs": -25.283222535819014,
+            "rms": 0.024083576265763493,
+            "rms_dbfs": -32.365580450307256,
+            "crest_db": 7.082357914488245,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": -1.0655697627433205
+          }
+        }
+      },
+      {
+        "program": "driven",
+        "amount": 0,
+        "sample_rate": 44100,
+        "frames": 253575,
+        "channels": 7,
+        "attack_ms": 12,
+        "release_ms": 120,
+        "oversampling": 2,
+        "events": [
+          [
+            3528,
+            60,
+            32
+          ],
+          [
+            18522,
+            64,
+            64
+          ],
+          [
+            33516,
+            67,
+            96
+          ],
+          [
+            48510,
+            72,
+            127
+          ],
+          [
+            66150,
+            48,
+            127
+          ],
+          [
+            66150,
+            52,
+            127
+          ],
+          [
+            66150,
+            55,
+            127
+          ],
+          [
+            66150,
+            60,
+            127
+          ],
+          [
+            66150,
+            64,
+            127
+          ],
+          [
+            66150,
+            67,
+            127
+          ],
+          [
+            74970,
+            60,
+            32
+          ],
+          [
+            99225,
+            45,
+            127
+          ],
+          [
+            99225,
+            52,
+            127
+          ],
+          [
+            99225,
+            57,
+            127
+          ],
+          [
+            99225,
+            60,
+            127
+          ],
+          [
+            99225,
+            64,
+            127
+          ],
+          [
+            99225,
+            69,
+            127
+          ],
+          [
+            99225,
+            72,
+            127
+          ],
+          [
+            99225,
+            76,
+            127
+          ],
+          [
+            108045,
+            64,
+            32
+          ],
+          [
+            136710,
+            60,
+            64
+          ],
+          [
+            160965,
+            67,
+            48
+          ],
+          [
+            187425,
+            60,
+            32
+          ],
+          [
+            202860,
+            64,
+            48
+          ]
+        ],
+        "key": "driven_0",
+        "raw_file": "baseline_driven_0.f32",
+        "raw_sha256": "d50d0437c6d1298232615e9368d90094c1b6d8589ed33afde53ca9ec0c01e303",
+        "main": {
+          "peak": 1.113710880279541,
+          "peak_dbfs": 0.9354492495027465,
+          "rms": 0.3541082155427032,
+          "rms_dbfs": -9.017279944167235,
+          "crest_db": 9.952729193669983,
+          "samples_above_full_scale": 525,
+          "samples_above_0_98": 909
+        },
+        "first_nonzero_frame": 3528,
+        "channel_sha256": {
+          "main_left": "66d1211daaa503f249f12e2b6ae0931db2e5c6c420d735b81d5527d5bacc8fc5",
+          "main_right": "803d4dd4ea56a6310a07ed2858abe31868a5dc3dec71204fc5b6aa90c7e36fd4",
+          "close_left": "6d049f80d11bf9b8d62d52304742932f0f7bbe107efbf37443630ea505231487",
+          "close_right": "a630517635f2379a2c38293d6bea3484ee25f7d6c5bca742bc5407e856754722",
+          "room_left": "6b2191ae6372830dec6dcdedfefdd7ac8e7e21ac6fc2bb7c68a8810bee698f66",
+          "room_right": "8e651061f66f1698bb60da3d4029d2c8790889f61bd7467eecff8f7eb0726112",
+          "piezo": "f3aefe38466865275a9b9fa277f2de6b4f3e7cc38862e583d792c372c70293b7"
+        },
+        "post_accent_windows": {
+          "early": {
+            "peak": 1.0259381532669067,
+            "peak_dbfs": 0.2224236189373387,
+            "rms": 0.6062928839464238,
+            "rms_dbfs": -4.346350580903092,
+            "crest_db": 4.56877419984043,
+            "samples_above_full_scale": 33,
+            "samples_above_0_98": 102,
+            "rms_db_relative_to_dry": 0.0
+          },
+          "middle": {
+            "peak": 0.84416663646698,
+            "peak_dbfs": -1.4714363244807285,
+            "rms": 0.3670864198076194,
+            "rms_dbfs": -8.704633634447967,
+            "crest_db": 7.233197309967237,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": 0.0
+          },
+          "late": {
+            "peak": 0.387604683637619,
+            "peak_dbfs": -8.232219675475822,
+            "rms": 0.1386154353313235,
+            "rms_dbfs": -17.163768135324368,
+            "crest_db": 8.931548459848543,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": 0.0
+          }
+        }
+      },
+      {
+        "program": "driven",
+        "amount": 0.25,
+        "sample_rate": 44100,
+        "frames": 253575,
+        "channels": 7,
+        "attack_ms": 12,
+        "release_ms": 120,
+        "oversampling": 2,
+        "events": [
+          [
+            3528,
+            60,
+            32
+          ],
+          [
+            18522,
+            64,
+            64
+          ],
+          [
+            33516,
+            67,
+            96
+          ],
+          [
+            48510,
+            72,
+            127
+          ],
+          [
+            66150,
+            48,
+            127
+          ],
+          [
+            66150,
+            52,
+            127
+          ],
+          [
+            66150,
+            55,
+            127
+          ],
+          [
+            66150,
+            60,
+            127
+          ],
+          [
+            66150,
+            64,
+            127
+          ],
+          [
+            66150,
+            67,
+            127
+          ],
+          [
+            74970,
+            60,
+            32
+          ],
+          [
+            99225,
+            45,
+            127
+          ],
+          [
+            99225,
+            52,
+            127
+          ],
+          [
+            99225,
+            57,
+            127
+          ],
+          [
+            99225,
+            60,
+            127
+          ],
+          [
+            99225,
+            64,
+            127
+          ],
+          [
+            99225,
+            69,
+            127
+          ],
+          [
+            99225,
+            72,
+            127
+          ],
+          [
+            99225,
+            76,
+            127
+          ],
+          [
+            108045,
+            64,
+            32
+          ],
+          [
+            136710,
+            60,
+            64
+          ],
+          [
+            160965,
+            67,
+            48
+          ],
+          [
+            187425,
+            60,
+            32
+          ],
+          [
+            202860,
+            64,
+            48
+          ]
+        ],
+        "key": "driven_0.25",
+        "raw_file": "baseline_driven_0.25.f32",
+        "raw_sha256": "af00ef780cbc98b7290ef4d646b02c767d0a0923b4fec383fdd57707dd021b16",
+        "main": {
+          "peak": 1.0769321918487549,
+          "peak_dbfs": 0.6437671832669455,
+          "rms": 0.32828014032509395,
+          "rms_dbfs": -9.675107792145258,
+          "crest_db": 10.318874975412202,
+          "samples_above_full_scale": 241,
+          "samples_above_0_98": 404
+        },
+        "first_nonzero_frame": 3528,
+        "channel_sha256": {
+          "main_left": "7b721743f724b7425dd27bc13442088a37f9e0ce045a9eb939b7ecd002b020f3",
+          "main_right": "54d75070f8c610c94c4e117901283d384d2c4bf6bc5572b0d2aa62456c958cb1",
+          "close_left": "6d049f80d11bf9b8d62d52304742932f0f7bbe107efbf37443630ea505231487",
+          "close_right": "a630517635f2379a2c38293d6bea3484ee25f7d6c5bca742bc5407e856754722",
+          "room_left": "6b2191ae6372830dec6dcdedfefdd7ac8e7e21ac6fc2bb7c68a8810bee698f66",
+          "room_right": "8e651061f66f1698bb60da3d4029d2c8790889f61bd7467eecff8f7eb0726112",
+          "piezo": "f3aefe38466865275a9b9fa277f2de6b4f3e7cc38862e583d792c372c70293b7"
+        },
+        "post_accent_windows": {
+          "early": {
+            "peak": 0.9803838729858398,
+            "peak_dbfs": -0.17207682744580322,
+            "rms": 0.5515937888439033,
+            "rms_dbfs": -5.1676126557978055,
+            "crest_db": 4.995535828352002,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 2,
+            "rms_db_relative_to_dry": -0.8212620748947135
+          },
+          "middle": {
+            "peak": 0.8369811773300171,
+            "peak_dbfs": -1.545686172837923,
+            "rms": 0.34125500684349824,
+            "rms_dbfs": -9.338419359987771,
+            "crest_db": 7.7927331871498495,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": -0.633785725539805
+          },
+          "late": {
+            "peak": 0.38760459423065186,
+            "peak_dbfs": -8.232221679009763,
+            "rms": 0.13861538543947272,
+            "rms_dbfs": -17.16377126163701,
+            "crest_db": 8.931549582627245,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": -3.1263126418874987e-06
+          }
+        }
+      },
+      {
+        "program": "driven",
+        "amount": 1,
+        "sample_rate": 44100,
+        "frames": 253575,
+        "channels": 7,
+        "attack_ms": 12,
+        "release_ms": 120,
+        "oversampling": 2,
+        "events": [
+          [
+            3528,
+            60,
+            32
+          ],
+          [
+            18522,
+            64,
+            64
+          ],
+          [
+            33516,
+            67,
+            96
+          ],
+          [
+            48510,
+            72,
+            127
+          ],
+          [
+            66150,
+            48,
+            127
+          ],
+          [
+            66150,
+            52,
+            127
+          ],
+          [
+            66150,
+            55,
+            127
+          ],
+          [
+            66150,
+            60,
+            127
+          ],
+          [
+            66150,
+            64,
+            127
+          ],
+          [
+            66150,
+            67,
+            127
+          ],
+          [
+            74970,
+            60,
+            32
+          ],
+          [
+            99225,
+            45,
+            127
+          ],
+          [
+            99225,
+            52,
+            127
+          ],
+          [
+            99225,
+            57,
+            127
+          ],
+          [
+            99225,
+            60,
+            127
+          ],
+          [
+            99225,
+            64,
+            127
+          ],
+          [
+            99225,
+            69,
+            127
+          ],
+          [
+            99225,
+            72,
+            127
+          ],
+          [
+            99225,
+            76,
+            127
+          ],
+          [
+            108045,
+            64,
+            32
+          ],
+          [
+            136710,
+            60,
+            64
+          ],
+          [
+            160965,
+            67,
+            48
+          ],
+          [
+            187425,
+            60,
+            32
+          ],
+          [
+            202860,
+            64,
+            48
+          ]
+        ],
+        "key": "driven_1",
+        "raw_file": "baseline_driven_1.f32",
+        "raw_sha256": "9182711771ed7077ded3f38ae65dcd7eb90421a59c0df16c10f2fad7e239c128",
+        "main": {
+          "peak": 0.9790082573890686,
+          "peak_dbfs": -0.1842729029896676,
+          "rms": 0.2218845210546181,
+          "rms_dbfs": -13.077459872894028,
+          "crest_db": 12.89318696990436,
+          "samples_above_full_scale": 0,
+          "samples_above_0_98": 0
+        },
+        "first_nonzero_frame": 3528,
+        "channel_sha256": {
+          "main_left": "75425da073ff7a14cf64a949ca435badbb1acc0d65c5d38ad85ab0176ce98a28",
+          "main_right": "fff167705c2225bd00c64df981cb2e5fbd8df1923de1fe1ddbc5596d18695d36",
+          "close_left": "6d049f80d11bf9b8d62d52304742932f0f7bbe107efbf37443630ea505231487",
+          "close_right": "a630517635f2379a2c38293d6bea3484ee25f7d6c5bca742bc5407e856754722",
+          "room_left": "6b2191ae6372830dec6dcdedfefdd7ac8e7e21ac6fc2bb7c68a8810bee698f66",
+          "room_right": "8e651061f66f1698bb60da3d4029d2c8790889f61bd7467eecff8f7eb0726112",
+          "piezo": "f3aefe38466865275a9b9fa277f2de6b4f3e7cc38862e583d792c372c70293b7"
+        },
+        "post_accent_windows": {
+          "early": {
+            "peak": 0.9256235957145691,
+            "peak_dbfs": -0.6713116602527603,
+            "rms": 0.3639529380707919,
+            "rms_dbfs": -8.779095407104,
+            "crest_db": 8.10778374685124,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": -4.432744826200907
+          },
+          "middle": {
+            "peak": 0.49943310022354126,
+            "peak_dbfs": -6.030453558153201,
+            "rms": 0.18843747668672378,
+            "rms_dbfs": -14.496654398203688,
+            "crest_db": 8.466200840050487,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": -5.792020763755721
+          },
+          "late": {
+            "peak": 0.25286197662353516,
+            "peak_dbfs": -11.942329430042902,
+            "rms": 0.0949778678346672,
+            "rms_dbfs": -20.44755168308427,
+            "crest_db": 8.50522225304137,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": -3.2837835477599064
+          }
+        }
+      }
+    ]
+  },
+  "current": {
+    "source_sha256": {
+      "DSP/AcousticRoom.h": "16ccb9f656b7f604bf5a9445ee416a337af9ccc9355ce84c4e1fb6e5fe7f3953",
+      "DSP/AnalogLimiter.h": "49a968affc528562cbecad531b2bbff9bcb794b4efb145d3aab19a3db9984053",
+      "DSP/AnalogPreamp.h": "96dfba04a09894334985bc20e6d300c7ea3fd336f3dfdcfb074ddf8a8c83716a",
+      "DSP/ContactExcitation.h": "cac875971f3188d7536f8a8fc78a591beeef33b8b849ee803198b0730a1b2725",
+      "DSP/DspMath.h": "14207a2b4641f31b72da94759f4933e308840409a4b88e44d2281409df498b5e",
+      "DSP/FrameBody.h": "927eebbaa27a465b94759cac38eb45414d26730d03992cde112468e8962df0b1",
+      "DSP/MarembaEngine.cpp": "074c0a7606bb3985dc34d2978ce518401cbc0d7832095e4ab5c96ca5ecfa2c7d",
+      "DSP/MarembaEngine.h": "d7d2b0126f0c952b53c3223e022d0ff2aa1b9630c313bec4e39c422d22b4f47e",
+      "DSP/MarembaVoice.cpp": "ede18a044bf1f670b95a668248f89f5e83e2b491bf44bc7684b189803f5f73a9",
+      "DSP/MarembaVoice.h": "11c5a518576392d8b334a028e5651435bc6fb1a3e108abcfef9133ec14b30a50",
+      "DSP/MarimbaModel.h": "10f32e90e8f980cbd2d7265d9022b25971e9cc150b9d19b8df860b0244779e62",
+      "DSP/MicMixer.h": "b06fc45ca4a56e67e4c1a8ccb66a3561d2d7de9560e5090b47a293600f688a62",
+      "DSP/ModalExcitation.h": "fea245afd29bed32dbbc957ee008e59c3b328468cb6ec8cb4b78f7c4a5eb0437",
+      "DSP/Oversampler.h": "ea1acddef65086501ec8519732fd52437e7795946d9bbdd35ccaec7b83f0e145",
+      "DSP/RandomArtifacts.h": "b615a0b1d041e28ca816789978a0197b98f136635492cc9840b7dc14fc139191",
+      "DSP/SympatheticMesh.h": "752a48c56b66dbf17cbeec7628a3cece76a9f8a87a0619000414548d4b397b06"
+    },
+    "binary_sha256": "6a967a0579bce9ac2fed49f8f7b10dde0cb0dacbb251ac7cc21d4bc29d48958c",
+    "rows": [
+      {
+        "program": "factory_like",
+        "amount": 0,
+        "sample_rate": 44100,
+        "frames": 253575,
+        "channels": 7,
+        "attack_ms": 12,
+        "release_ms": 120,
+        "oversampling": 2,
+        "events": [
+          [
+            3528,
+            60,
+            32
+          ],
+          [
+            18522,
+            64,
+            64
+          ],
+          [
+            33516,
+            67,
+            96
+          ],
+          [
+            48510,
+            72,
+            127
+          ],
+          [
+            66150,
+            48,
+            127
+          ],
+          [
+            66150,
+            52,
+            127
+          ],
+          [
+            66150,
+            55,
+            127
+          ],
+          [
+            66150,
+            60,
+            127
+          ],
+          [
+            66150,
+            64,
+            127
+          ],
+          [
+            66150,
+            67,
+            127
+          ],
+          [
+            74970,
+            60,
+            32
+          ],
+          [
+            99225,
+            45,
+            127
+          ],
+          [
+            99225,
+            52,
+            127
+          ],
+          [
+            99225,
+            57,
+            127
+          ],
+          [
+            99225,
+            60,
+            127
+          ],
+          [
+            99225,
+            64,
+            127
+          ],
+          [
+            99225,
+            69,
+            127
+          ],
+          [
+            99225,
+            72,
+            127
+          ],
+          [
+            99225,
+            76,
+            127
+          ],
+          [
+            108045,
+            64,
+            32
+          ],
+          [
+            136710,
+            60,
+            64
+          ],
+          [
+            160965,
+            67,
+            48
+          ],
+          [
+            187425,
+            60,
+            32
+          ],
+          [
+            202860,
+            64,
+            48
+          ]
+        ],
+        "key": "factory_like_0",
+        "raw_file": "current_factory_like_0.f32",
+        "raw_sha256": "14bf529ab33c25cb5d28eb601a8a53823fd7fc24aa0d183ecfb80a61250fb343",
+        "main": {
+          "peak": 0.69917231798172,
+          "peak_dbfs": -3.108315497226431,
+          "rms": 0.10917843488597535,
+          "rms_dbfs": -19.237262715211237,
+          "crest_db": 16.128947217984802,
+          "samples_above_full_scale": 0,
+          "samples_above_0_98": 0
+        },
+        "first_nonzero_frame": 3528,
+        "channel_sha256": {
+          "main_left": "911618d901d09e914f4e5f7ebe343929af7e339205485f8312804947344471b6",
+          "main_right": "5d8118bf472f20208f5d4915cdd13d8f131390f54fc0e93ed34d830a2a5a3da6",
+          "close_left": "7f4fe263e78fc8191e40730c6569ba0ac1bcda034ec4b6729a6cfe5a5e3ecddf",
+          "close_right": "209485b854be9eea5cb5fe2fa168a0ac0eb1093ae9f0da279c0d13bdef70babb",
+          "room_left": "2dc708cce252288c3f46a15ffee43d160c6fa9bed71281f949e320fc3f78d988",
+          "room_right": "ea8f6fc535ed3c778a9d492325d1d54d961c9020a89e511544abf0ecdd003bf5",
+          "piezo": "1b2394d429eab92dfb9dca88f3201353d8d94da2c3748ddc1474b89b4ed60a74"
+        },
+        "post_accent_windows": {
+          "early": {
+            "peak": 0.6027811169624329,
+            "peak_dbfs": -4.396807221622797,
+            "rms": 0.14995079136301584,
+            "rms_dbfs": -16.481024758317947,
+            "crest_db": 12.084217536695153,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": 0.0
+          },
+          "middle": {
+            "peak": 0.18798001110553741,
+            "peak_dbfs": -14.51776658154551,
+            "rms": 0.07170520669811872,
+            "rms_dbfs": -22.88898615912302,
+            "crest_db": 8.371219577577511,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": 0.0
+          },
+          "late": {
+            "peak": 0.062093060463666916,
+            "peak_dbfs": -24.13913867947703,
+            "rms": 0.0272269795792869,
+            "rms_dbfs": -31.30001068756394,
+            "crest_db": 7.160872008086908,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": 0.0
+          }
+        }
+      },
+      {
+        "program": "factory_like",
+        "amount": 0.25,
+        "sample_rate": 44100,
+        "frames": 253575,
+        "channels": 7,
+        "attack_ms": 12,
+        "release_ms": 120,
+        "oversampling": 2,
+        "events": [
+          [
+            3528,
+            60,
+            32
+          ],
+          [
+            18522,
+            64,
+            64
+          ],
+          [
+            33516,
+            67,
+            96
+          ],
+          [
+            48510,
+            72,
+            127
+          ],
+          [
+            66150,
+            48,
+            127
+          ],
+          [
+            66150,
+            52,
+            127
+          ],
+          [
+            66150,
+            55,
+            127
+          ],
+          [
+            66150,
+            60,
+            127
+          ],
+          [
+            66150,
+            64,
+            127
+          ],
+          [
+            66150,
+            67,
+            127
+          ],
+          [
+            74970,
+            60,
+            32
+          ],
+          [
+            99225,
+            45,
+            127
+          ],
+          [
+            99225,
+            52,
+            127
+          ],
+          [
+            99225,
+            57,
+            127
+          ],
+          [
+            99225,
+            60,
+            127
+          ],
+          [
+            99225,
+            64,
+            127
+          ],
+          [
+            99225,
+            69,
+            127
+          ],
+          [
+            99225,
+            72,
+            127
+          ],
+          [
+            99225,
+            76,
+            127
+          ],
+          [
+            108045,
+            64,
+            32
+          ],
+          [
+            136710,
+            60,
+            64
+          ],
+          [
+            160965,
+            67,
+            48
+          ],
+          [
+            187425,
+            60,
+            32
+          ],
+          [
+            202860,
+            64,
+            48
+          ]
+        ],
+        "key": "factory_like_0.25",
+        "raw_file": "current_factory_like_0.25.f32",
+        "raw_sha256": "dde579c96b17dc19c1339f48f41993dfcf0c5290af1aab8c2091f2a710f12ed1",
+        "main": {
+          "peak": 0.5846889019012451,
+          "peak_dbfs": -4.661502990324334,
+          "rms": 0.08293510560394175,
+          "rms_dbfs": -21.625231960081514,
+          "crest_db": 16.963728969757177,
+          "samples_above_full_scale": 0,
+          "samples_above_0_98": 0
+        },
+        "first_nonzero_frame": 3528,
+        "channel_sha256": {
+          "main_left": "e10b580f6c48a330f1c7c57ac415475db129fe606eefa3507730f3acd7c68f66",
+          "main_right": "4a5cbb118e73a6e609ec1e83c3665e20b38588c5bad512d91bdc50c8af7166b8",
+          "close_left": "7f4fe263e78fc8191e40730c6569ba0ac1bcda034ec4b6729a6cfe5a5e3ecddf",
+          "close_right": "209485b854be9eea5cb5fe2fa168a0ac0eb1093ae9f0da279c0d13bdef70babb",
+          "room_left": "2dc708cce252288c3f46a15ffee43d160c6fa9bed71281f949e320fc3f78d988",
+          "room_right": "ea8f6fc535ed3c778a9d492325d1d54d961c9020a89e511544abf0ecdd003bf5",
+          "piezo": "1b2394d429eab92dfb9dca88f3201353d8d94da2c3748ddc1474b89b4ed60a74"
+        },
+        "post_accent_windows": {
+          "early": {
+            "peak": 0.4348352253437042,
+            "peak_dbfs": -7.2335056324353655,
+            "rms": 0.11530393390453235,
+            "rms_dbfs": -18.763117506510905,
+            "crest_db": 11.529611874075542,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": -2.2820927481929587
+          },
+          "middle": {
+            "peak": 0.1826879233121872,
+            "peak_dbfs": -14.765803219586296,
+            "rms": 0.0696826995608248,
+            "rms_dbfs": -23.137500655513158,
+            "crest_db": 8.37169743592686,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": -0.24851449639013362
+          },
+          "late": {
+            "peak": 0.06193339824676514,
+            "peak_dbfs": -24.161501797409638,
+            "rms": 0.027157585574397063,
+            "rms_dbfs": -31.322176866274162,
+            "crest_db": 7.160675068864522,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": -0.022166178710223305
+          }
+        }
+      },
+      {
+        "program": "factory_like",
+        "amount": 1,
+        "sample_rate": 44100,
+        "frames": 253575,
+        "channels": 7,
+        "attack_ms": 12,
+        "release_ms": 120,
+        "oversampling": 2,
+        "events": [
+          [
+            3528,
+            60,
+            32
+          ],
+          [
+            18522,
+            64,
+            64
+          ],
+          [
+            33516,
+            67,
+            96
+          ],
+          [
+            48510,
+            72,
+            127
+          ],
+          [
+            66150,
+            48,
+            127
+          ],
+          [
+            66150,
+            52,
+            127
+          ],
+          [
+            66150,
+            55,
+            127
+          ],
+          [
+            66150,
+            60,
+            127
+          ],
+          [
+            66150,
+            64,
+            127
+          ],
+          [
+            66150,
+            67,
+            127
+          ],
+          [
+            74970,
+            60,
+            32
+          ],
+          [
+            99225,
+            45,
+            127
+          ],
+          [
+            99225,
+            52,
+            127
+          ],
+          [
+            99225,
+            57,
+            127
+          ],
+          [
+            99225,
+            60,
+            127
+          ],
+          [
+            99225,
+            64,
+            127
+          ],
+          [
+            99225,
+            69,
+            127
+          ],
+          [
+            99225,
+            72,
+            127
+          ],
+          [
+            99225,
+            76,
+            127
+          ],
+          [
+            108045,
+            64,
+            32
+          ],
+          [
+            136710,
+            60,
+            64
+          ],
+          [
+            160965,
+            67,
+            48
+          ],
+          [
+            187425,
+            60,
+            32
+          ],
+          [
+            202860,
+            64,
+            48
+          ]
+        ],
+        "key": "factory_like_1",
+        "raw_file": "current_factory_like_1.f32",
+        "raw_sha256": "bf5c76fd09ec0622def1545202d1e25c80b0b134f65c4757d9a08a346fd54c2e",
+        "main": {
+          "peak": 0.4126140773296356,
+          "peak_dbfs": -7.689119182018008,
+          "rms": 0.03324982448888957,
+          "rms_dbfs": -29.56421285606442,
+          "crest_db": 21.875093674046408,
+          "samples_above_full_scale": 0,
+          "samples_above_0_98": 0
+        },
+        "first_nonzero_frame": 3528,
+        "channel_sha256": {
+          "main_left": "3d4281736bce5557fc12e96f48c9d31ee30e1d256338d30e403b74e90f5c2751",
+          "main_right": "5203ff17d3b466d5fd3de44e1e60c84c02b0c94ed3f7885c829cf96076440615",
+          "close_left": "7f4fe263e78fc8191e40730c6569ba0ac1bcda034ec4b6729a6cfe5a5e3ecddf",
+          "close_right": "209485b854be9eea5cb5fe2fa168a0ac0eb1093ae9f0da279c0d13bdef70babb",
+          "room_left": "2dc708cce252288c3f46a15ffee43d160c6fa9bed71281f949e320fc3f78d988",
+          "room_right": "ea8f6fc535ed3c778a9d492325d1d54d961c9020a89e511544abf0ecdd003bf5",
+          "piezo": "1b2394d429eab92dfb9dca88f3201353d8d94da2c3748ddc1474b89b4ed60a74"
+        },
+        "post_accent_windows": {
+          "early": {
+            "peak": 0.1128951907157898,
+            "peak_dbfs": -18.946491168600986,
+            "rms": 0.0343053092474194,
+            "rms_dbfs": -29.292773226886993,
+            "crest_db": 10.346282058286002,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": -12.811748468569043
+          },
+          "middle": {
+            "peak": 0.1140739843249321,
+            "peak_dbfs": -18.856267786901096,
+            "rms": 0.044013255468045076,
+            "rms_dbfs": -27.12833014770532,
+            "crest_db": 8.272062360804227,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": -4.2393439885823
+          },
+          "late": {
+            "peak": 0.059632495045661926,
+            "peak_dbfs": -24.49034038464518,
+            "rms": 0.026158092469117305,
+            "rms_dbfs": -31.647878586421427,
+            "crest_db": 7.157538201776247,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": -0.34786789885748765
+          }
+        }
+      },
+      {
+        "program": "driven",
+        "amount": 0,
+        "sample_rate": 44100,
+        "frames": 253575,
+        "channels": 7,
+        "attack_ms": 12,
+        "release_ms": 120,
+        "oversampling": 2,
+        "events": [
+          [
+            3528,
+            60,
+            32
+          ],
+          [
+            18522,
+            64,
+            64
+          ],
+          [
+            33516,
+            67,
+            96
+          ],
+          [
+            48510,
+            72,
+            127
+          ],
+          [
+            66150,
+            48,
+            127
+          ],
+          [
+            66150,
+            52,
+            127
+          ],
+          [
+            66150,
+            55,
+            127
+          ],
+          [
+            66150,
+            60,
+            127
+          ],
+          [
+            66150,
+            64,
+            127
+          ],
+          [
+            66150,
+            67,
+            127
+          ],
+          [
+            74970,
+            60,
+            32
+          ],
+          [
+            99225,
+            45,
+            127
+          ],
+          [
+            99225,
+            52,
+            127
+          ],
+          [
+            99225,
+            57,
+            127
+          ],
+          [
+            99225,
+            60,
+            127
+          ],
+          [
+            99225,
+            64,
+            127
+          ],
+          [
+            99225,
+            69,
+            127
+          ],
+          [
+            99225,
+            72,
+            127
+          ],
+          [
+            99225,
+            76,
+            127
+          ],
+          [
+            108045,
+            64,
+            32
+          ],
+          [
+            136710,
+            60,
+            64
+          ],
+          [
+            160965,
+            67,
+            48
+          ],
+          [
+            187425,
+            60,
+            32
+          ],
+          [
+            202860,
+            64,
+            48
+          ]
+        ],
+        "key": "driven_0",
+        "raw_file": "current_driven_0.f32",
+        "raw_sha256": "d50d0437c6d1298232615e9368d90094c1b6d8589ed33afde53ca9ec0c01e303",
+        "main": {
+          "peak": 1.113710880279541,
+          "peak_dbfs": 0.9354492495027465,
+          "rms": 0.3541082155427032,
+          "rms_dbfs": -9.017279944167235,
+          "crest_db": 9.952729193669983,
+          "samples_above_full_scale": 525,
+          "samples_above_0_98": 909
+        },
+        "first_nonzero_frame": 3528,
+        "channel_sha256": {
+          "main_left": "66d1211daaa503f249f12e2b6ae0931db2e5c6c420d735b81d5527d5bacc8fc5",
+          "main_right": "803d4dd4ea56a6310a07ed2858abe31868a5dc3dec71204fc5b6aa90c7e36fd4",
+          "close_left": "6d049f80d11bf9b8d62d52304742932f0f7bbe107efbf37443630ea505231487",
+          "close_right": "a630517635f2379a2c38293d6bea3484ee25f7d6c5bca742bc5407e856754722",
+          "room_left": "6b2191ae6372830dec6dcdedfefdd7ac8e7e21ac6fc2bb7c68a8810bee698f66",
+          "room_right": "8e651061f66f1698bb60da3d4029d2c8790889f61bd7467eecff8f7eb0726112",
+          "piezo": "f3aefe38466865275a9b9fa277f2de6b4f3e7cc38862e583d792c372c70293b7"
+        },
+        "post_accent_windows": {
+          "early": {
+            "peak": 1.0259381532669067,
+            "peak_dbfs": 0.2224236189373387,
+            "rms": 0.6062928839464238,
+            "rms_dbfs": -4.346350580903092,
+            "crest_db": 4.56877419984043,
+            "samples_above_full_scale": 33,
+            "samples_above_0_98": 102,
+            "rms_db_relative_to_dry": 0.0
+          },
+          "middle": {
+            "peak": 0.84416663646698,
+            "peak_dbfs": -1.4714363244807285,
+            "rms": 0.3670864198076194,
+            "rms_dbfs": -8.704633634447967,
+            "crest_db": 7.233197309967237,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": 0.0
+          },
+          "late": {
+            "peak": 0.387604683637619,
+            "peak_dbfs": -8.232219675475822,
+            "rms": 0.1386154353313235,
+            "rms_dbfs": -17.163768135324368,
+            "crest_db": 8.931548459848543,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": 0.0
+          }
+        }
+      },
+      {
+        "program": "driven",
+        "amount": 0.25,
+        "sample_rate": 44100,
+        "frames": 253575,
+        "channels": 7,
+        "attack_ms": 12,
+        "release_ms": 120,
+        "oversampling": 2,
+        "events": [
+          [
+            3528,
+            60,
+            32
+          ],
+          [
+            18522,
+            64,
+            64
+          ],
+          [
+            33516,
+            67,
+            96
+          ],
+          [
+            48510,
+            72,
+            127
+          ],
+          [
+            66150,
+            48,
+            127
+          ],
+          [
+            66150,
+            52,
+            127
+          ],
+          [
+            66150,
+            55,
+            127
+          ],
+          [
+            66150,
+            60,
+            127
+          ],
+          [
+            66150,
+            64,
+            127
+          ],
+          [
+            66150,
+            67,
+            127
+          ],
+          [
+            74970,
+            60,
+            32
+          ],
+          [
+            99225,
+            45,
+            127
+          ],
+          [
+            99225,
+            52,
+            127
+          ],
+          [
+            99225,
+            57,
+            127
+          ],
+          [
+            99225,
+            60,
+            127
+          ],
+          [
+            99225,
+            64,
+            127
+          ],
+          [
+            99225,
+            69,
+            127
+          ],
+          [
+            99225,
+            72,
+            127
+          ],
+          [
+            99225,
+            76,
+            127
+          ],
+          [
+            108045,
+            64,
+            32
+          ],
+          [
+            136710,
+            60,
+            64
+          ],
+          [
+            160965,
+            67,
+            48
+          ],
+          [
+            187425,
+            60,
+            32
+          ],
+          [
+            202860,
+            64,
+            48
+          ]
+        ],
+        "key": "driven_0.25",
+        "raw_file": "current_driven_0.25.f32",
+        "raw_sha256": "a1157810f1a8d27539b0fadb491046fbb791b0daa44e6245c43baee10d5b4298",
+        "main": {
+          "peak": 0.8293585777282715,
+          "peak_dbfs": -1.625153184920451,
+          "rms": 0.24992019176086844,
+          "rms_dbfs": -12.043973091470804,
+          "crest_db": 10.418819906550352,
+          "samples_above_full_scale": 0,
+          "samples_above_0_98": 0
+        },
+        "first_nonzero_frame": 3528,
+        "channel_sha256": {
+          "main_left": "fe6509ed1bc46b891840215d1295332d789042e81af93faa363953f2de7eef1d",
+          "main_right": "248b7052165469d20f9323639177e4868ed3eb6b75bc74e55b1641412df28a38",
+          "close_left": "6d049f80d11bf9b8d62d52304742932f0f7bbe107efbf37443630ea505231487",
+          "close_right": "a630517635f2379a2c38293d6bea3484ee25f7d6c5bca742bc5407e856754722",
+          "room_left": "6b2191ae6372830dec6dcdedfefdd7ac8e7e21ac6fc2bb7c68a8810bee698f66",
+          "room_right": "8e651061f66f1698bb60da3d4029d2c8790889f61bd7467eecff8f7eb0726112",
+          "piezo": "f3aefe38466865275a9b9fa277f2de6b4f3e7cc38862e583d792c372c70293b7"
+        },
+        "post_accent_windows": {
+          "early": {
+            "peak": 0.659201979637146,
+            "peak_dbfs": -3.6196299417467936,
+            "rms": 0.38924885533555853,
+            "rms_dbfs": -8.195453117762366,
+            "crest_db": 4.575823176015572,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": -3.8491025368592737
+          },
+          "middle": {
+            "peak": 0.7063776850700378,
+            "peak_dbfs": -3.019260577172086,
+            "rms": 0.29447424429774516,
+            "rms_dbfs": -10.619053681273806,
+            "crest_db": 7.599793104101722,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": -1.9144200468258399
+          },
+          "late": {
+            "peak": 0.3835706114768982,
+            "peak_dbfs": -8.323093502517157,
+            "rms": 0.13722686140539053,
+            "rms_dbfs": -17.25121739090772,
+            "crest_db": 8.928123888390564,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": -0.08744925558335334
+          }
+        }
+      },
+      {
+        "program": "driven",
+        "amount": 1,
+        "sample_rate": 44100,
+        "frames": 253575,
+        "channels": 7,
+        "attack_ms": 12,
+        "release_ms": 120,
+        "oversampling": 2,
+        "events": [
+          [
+            3528,
+            60,
+            32
+          ],
+          [
+            18522,
+            64,
+            64
+          ],
+          [
+            33516,
+            67,
+            96
+          ],
+          [
+            48510,
+            72,
+            127
+          ],
+          [
+            66150,
+            48,
+            127
+          ],
+          [
+            66150,
+            52,
+            127
+          ],
+          [
+            66150,
+            55,
+            127
+          ],
+          [
+            66150,
+            60,
+            127
+          ],
+          [
+            66150,
+            64,
+            127
+          ],
+          [
+            66150,
+            67,
+            127
+          ],
+          [
+            74970,
+            60,
+            32
+          ],
+          [
+            99225,
+            45,
+            127
+          ],
+          [
+            99225,
+            52,
+            127
+          ],
+          [
+            99225,
+            57,
+            127
+          ],
+          [
+            99225,
+            60,
+            127
+          ],
+          [
+            99225,
+            64,
+            127
+          ],
+          [
+            99225,
+            69,
+            127
+          ],
+          [
+            99225,
+            72,
+            127
+          ],
+          [
+            99225,
+            76,
+            127
+          ],
+          [
+            108045,
+            64,
+            32
+          ],
+          [
+            136710,
+            60,
+            64
+          ],
+          [
+            160965,
+            67,
+            48
+          ],
+          [
+            187425,
+            60,
+            32
+          ],
+          [
+            202860,
+            64,
+            48
+          ]
+        ],
+        "key": "driven_1",
+        "raw_file": "current_driven_1.f32",
+        "raw_sha256": "b033a283453793de6f313675aaa597caab76330b24c968401fabe61cb4b88bec",
+        "main": {
+          "peak": 0.4487082362174988,
+          "peak_dbfs": -6.960719174928745,
+          "rms": 0.07102172815574723,
+          "rms_dbfs": -22.972175286316453,
+          "crest_db": 16.01145611138771,
+          "samples_above_full_scale": 0,
+          "samples_above_0_98": 0
+        },
+        "first_nonzero_frame": 3528,
+        "channel_sha256": {
+          "main_left": "76c30a6243554f7f9940fcc108199d7d9a21ef1cc16e2e4b20c0ac226f557f27",
+          "main_right": "5835c4863bd34e7f576de5ca540e6df14b3b0ebe93060e2097a8ae377618c956",
+          "close_left": "6d049f80d11bf9b8d62d52304742932f0f7bbe107efbf37443630ea505231487",
+          "close_right": "a630517635f2379a2c38293d6bea3484ee25f7d6c5bca742bc5407e856754722",
+          "room_left": "6b2191ae6372830dec6dcdedfefdd7ac8e7e21ac6fc2bb7c68a8810bee698f66",
+          "room_right": "8e651061f66f1698bb60da3d4029d2c8790889f61bd7467eecff8f7eb0726112",
+          "piezo": "f3aefe38466865275a9b9fa277f2de6b4f3e7cc38862e583d792c372c70293b7"
+        },
+        "post_accent_windows": {
+          "early": {
+            "peak": 0.1528894305229187,
+            "peak_dbfs": -16.31245073965881,
+            "rms": 0.0902861558780329,
+            "rms_dbfs": -20.887576751584668,
+            "crest_db": 4.575126011925856,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": -16.541226170681572
+          },
+          "middle": {
+            "peak": 0.2742045521736145,
+            "peak_dbfs": -11.23850679198986,
+            "rms": 0.08056710937159196,
+            "rms_dbfs": -21.876844358368185,
+            "crest_db": 10.638337566378326,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": -13.17221072392022
+          },
+          "late": {
+            "peak": 0.19679294526576996,
+            "peak_dbfs": -14.119809488730095,
+            "rms": 0.07784337380084866,
+            "rms_dbfs": -22.17556699247674,
+            "crest_db": 8.055757503746646,
+            "samples_above_full_scale": 0,
+            "samples_above_0_98": 0,
+            "rms_db_relative_to_dry": -5.0117988571523755
+          }
+        }
+      }
+    ]
+  },
+  "checks": [
+    {
+      "program": "factory_like",
+      "amount_zero_all_seven_channels_bit_identical": true,
+      "direct_stems_bit_identical_all_versions_and_amounts": true,
+      "processed_onset_matches_dry_sample": true,
+      "first_nonzero_frame": 3528,
+      "comparison_alignment_offset_samples": 0
+    },
+    {
+      "program": "driven",
+      "amount_zero_all_seven_channels_bit_identical": true,
+      "direct_stems_bit_identical_all_versions_and_amounts": true,
+      "processed_onset_matches_dry_sample": true,
+      "first_nonzero_frame": 3528,
+      "comparison_alignment_offset_samples": 0
+    }
+  ],
+  "auditions": [
+    {
+      "key": "factory_like_0.25",
+      "program": "factory_like",
+      "amount": 0.25,
+      "wav": "Audio/limiter_comparison/factory_like_0.25_before_after.wav",
+      "aac": "Audio/limiter_comparison/factory_like_0.25_before_after.m4a",
+      "wav_sha256": "0eb8871ee52094cace71c1180134d837a7223ea6315b5844948c9b00ad827b5c",
+      "aac_sha256": "c6bcfecf647250efa9b74238f35aea5738590ebe6558544e48ee4c214eb04197",
+      "duration_seconds": 12,
+      "common_gain": 1.0,
+      "common_gain_db": 0.0,
+      "aac_decoded_peak": 0.6820023655891418
+    },
+    {
+      "key": "factory_like_1",
+      "program": "factory_like",
+      "amount": 1.0,
+      "wav": "Audio/limiter_comparison/factory_like_1_before_after.wav",
+      "aac": "Audio/limiter_comparison/factory_like_1_before_after.m4a",
+      "wav_sha256": "3f5c71e146ea123b3ca235b63ad07d20c4e959bb4548e3238601b609715de712",
+      "aac_sha256": "56fa56956dbfa8551cb6394111d200e1515bca1c981af4a110d3f1d9077f0ccb",
+      "duration_seconds": 12,
+      "common_gain": 1.0,
+      "common_gain_db": 0.0,
+      "aac_decoded_peak": 0.622451901435852
+    },
+    {
+      "key": "driven_0.25",
+      "program": "driven",
+      "amount": 0.25,
+      "wav": "Audio/limiter_comparison/driven_0.25_before_after.wav",
+      "aac": "Audio/limiter_comparison/driven_0.25_before_after.m4a",
+      "wav_sha256": "1b4766909f82fe83a622c0bdafd6c66888aa391f893ac2846f6b1d6a3ff84cd6",
+      "aac_sha256": "13664205e33e66ff3fccb09de87e887c0ea09b3c9940e9485c446ad32535ab5b",
+      "duration_seconds": 12,
+      "common_gain": 0.6356638845141244,
+      "common_gain_db": -3.9354492495027458,
+      "aac_decoded_peak": 0.6942111849784851
+    },
+    {
+      "key": "driven_1",
+      "program": "driven",
+      "amount": 1.0,
+      "wav": "Audio/limiter_comparison/driven_1_before_after.wav",
+      "aac": "Audio/limiter_comparison/driven_1_before_after.m4a",
+      "wav_sha256": "1767c3776f5d4bb7d4ba5607a0c14fe3688582ea07310dabf36da2a6a686b2cf",
+      "aac_sha256": "1b51238332300068cd6812de1fae83d4bd8e4ae4dd21c3b6eff48e370ae63072",
+      "duration_seconds": 12,
+      "common_gain": 0.6356638845141244,
+      "common_gain_db": -3.9354492495027458,
+      "aac_decoded_peak": 0.6224796175956726
+    }
+  ]
+}

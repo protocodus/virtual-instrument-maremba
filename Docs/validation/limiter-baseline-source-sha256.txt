@@ -1,0 +1,22 @@
+# Maremba limiter baseline: source bytes before limiter edits
+# Git HEAD 7b001722c19ad5bf7dab252788a38b6d59964fe9
+# Compiler: Apple clang version 21.0.0 (clang-2100.1.1.101)
+# Build: clang++ -std=c++17 -O3 -Wall -Wextra -Werror Tests/test_dsp.cpp DSP/*.cpp -o /tmp/maremba-limiter-baseline-dsp
+16ccb9f656b7f604bf5a9445ee416a337af9ccc9355ce84c4e1fb6e5fe7f3953  DSP/AcousticRoom.h
+96dfba04a09894334985bc20e6d300c7ea3fd336f3dfdcfb074ddf8a8c83716a  DSP/AnalogPreamp.h
+b977ef1462c5aade127481963a2b4a8dc65270ccd88e54930c0b1e802cacbff3  DSP/Compressor.h
+cac875971f3188d7536f8a8fc78a591beeef33b8b849ee803198b0730a1b2725  DSP/ContactExcitation.h
+14207a2b4641f31b72da94759f4933e308840409a4b88e44d2281409df498b5e  DSP/DspMath.h
+927eebbaa27a465b94759cac38eb45414d26730d03992cde112468e8962df0b1  DSP/FrameBody.h
+e42b4450cabb19aa545078cb8676450bdb7cf6f883bff2a3596d16bd6d443476  DSP/MarembaEngine.cpp
+87da1fa87c53e332a33daf1e2f8b666c2b0ca266401db827287165ba45477e3a  DSP/MarembaEngine.h
+ede18a044bf1f670b95a668248f89f5e83e2b491bf44bc7684b189803f5f73a9  DSP/MarembaVoice.cpp
+11c5a518576392d8b334a028e5651435bc6fb1a3e108abcfef9133ec14b30a50  DSP/MarembaVoice.h
+10f32e90e8f980cbd2d7265d9022b25971e9cc150b9d19b8df860b0244779e62  DSP/MarimbaModel.h
+b06fc45ca4a56e67e4c1a8ccb66a3561d2d7de9560e5090b47a293600f688a62  DSP/MicMixer.h
+fea245afd29bed32dbbc957ee008e59c3b328468cb6ec8cb4b78f7c4a5eb0437  DSP/ModalExcitation.h
+ea1acddef65086501ec8519732fd52437e7795946d9bbdd35ccaec7b83f0e145  DSP/Oversampler.h
+b615a0b1d041e28ca816789978a0197b98f136635492cc9840b7dc14fc139191  DSP/RandomArtifacts.h
+752a48c56b66dbf17cbeec7628a3cece76a9f8a87a0619000414548d4b397b06  DSP/SympatheticMesh.h
+1fc2f8ad1c8496dbf0d837b5e53a68eb0bcaf33d15073e6dc103391be9ce697c  Tests/test_dsp.cpp
+# Binary SHA256 e3c51c5c0c04135a88d3250b0877fc8639fb8778a72206e60bece103c689bce7  /tmp/maremba-limiter-baseline-dsp

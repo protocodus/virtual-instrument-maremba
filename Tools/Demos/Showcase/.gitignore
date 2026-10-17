@@ -1,0 +1,6 @@
+.build/
+*.f32
+__pycache__/
+*.wav
+*.m4a
+Maremba_Showcase.html

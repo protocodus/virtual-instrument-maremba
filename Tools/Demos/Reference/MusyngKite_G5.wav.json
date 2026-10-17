@@ -1,0 +1,715 @@
+[
+  {
+    "file": "Tools/Demos/Reference/MusyngKite_G5.wav",
+    "note": {
+      "name": "G5",
+      "midi": 79,
+      "nominal_hz": 783.9908719634985,
+      "source": "--note"
+    },
+    "f0_hz": 789.7025,
+    "f0_cents_re_nominal": 12.57,
+    "partials": [
+      {
+        "rank": 9,
+        "freq_hz": 645.9867,
+        "freq_std_hz": 0.194,
+        "ratio": 0.81801,
+        "t60_s": 0.3347,
+        "t60_re_f0": 0.6611,
+        "sigma_per_s": 20.639,
+        "eta": 0.01017,
+        "amp": 0.00278953,
+        "amp_dbfs": -51.09,
+        "phase_rad": 1.0196,
+        "level_20ms_db": -30.04,
+        "level_100ms_db": -62.45,
+        "snr_db": 27.6,
+        "t60_rel_std": 0.05892,
+        "window": "200-603 ms",
+        "per_window": [
+          {
+            "window": "200-603 ms",
+            "freq_hz": 645.987,
+            "t60_s": 0.3347,
+            "amp_dbfs": -51.09,
+            "snr_db": 27.6
+          }
+        ],
+        "sub_poles": [
+          {
+            "freq_hz": 651.751,
+            "ratio": 0.82531,
+            "t60_s": 0.0719,
+            "amp_dbfs": -39.2,
+            "window": "20-120 ms"
+          },
+          {
+            "freq_hz": 628.448,
+            "ratio": 0.7958,
+            "t60_s": 0.1937,
+            "amp_dbfs": -54.53,
+            "window": "50-400 ms"
+          },
+          {
+            "freq_hz": 634.973,
+            "ratio": 0.80407,
+            "t60_s": 0.4696,
+            "amp_dbfs": -64.47,
+            "window": "200-603 ms"
+          },
+          {
+            "freq_hz": 606.926,
+            "ratio": 0.76855,
+            "t60_s": 0.1827,
+            "amp_dbfs": -59.37,
+            "window": "50-400 ms"
+          }
+        ]
+      },
+      {
+        "rank": 2,
+        "freq_hz": 700.5118,
+        "freq_std_hz": 0.547,
+        "ratio": 0.88706,
+        "t60_s": 0.0915,
+        "t60_re_f0": 0.1807,
+        "sigma_per_s": 75.5203,
+        "eta": 0.034316,
+        "amp": 0.0510437,
+        "amp_dbfs": -25.84,
+        "phase_rad": 1.8442,
+        "level_20ms_db": -14.42,
+        "level_100ms_db": -55.25,
+        "snr_db": 29.6,
+        "t60_rel_std": 0.04553,
+        "window": "20-120 ms",
+        "per_window": [
+          {
+            "window": "20-120 ms",
+            "freq_hz": 700.512,
+            "t60_s": 0.0915,
+            "amp_dbfs": -25.84,
+            "snr_db": 29.6
+          }
+        ],
+        "sub_poles": [
+          {
+            "freq_hz": 684.697,
+            "ratio": 0.86703,
+            "t60_s": 0.1443,
+            "amp_dbfs": -43.44,
+            "window": "20-120 ms"
+          },
+          {
+            "freq_hz": 716.574,
+            "ratio": 0.9074,
+            "t60_s": 0.2574,
+            "amp_dbfs": -52.81,
+            "window": "50-400 ms"
+          },
+          {
+            "freq_hz": 728.079,
+            "ratio": 0.92197,
+            "t60_s": 0.2309,
+            "amp_dbfs": -52.72,
+            "window": "50-400 ms"
+          },
+          {
+            "freq_hz": 707.175,
+            "ratio": 0.8955,
+            "t60_s": 0.4859,
+            "amp_dbfs": -66.57,
+            "window": "50-400 ms"
+          },
+          {
+            "freq_hz": 663.227,
+            "ratio": 0.83984,
+            "t60_s": 0.3081,
+            "amp_dbfs": -65.35,
+            "window": "50-400 ms"
+          }
+        ]
+      },
+      {
+        "rank": 1,
+        "freq_hz": 789.7025,
+        "freq_std_hz": 0.00337,
+        "ratio": 1.0,
+        "t60_s": 0.5063,
+        "t60_re_f0": 1.0,
+        "sigma_per_s": 13.644,
+        "eta": 0.0055,
+        "amp": 0.176132,
+        "amp_dbfs": -15.08,
+        "phase_rad": -2.1529,
+        "level_20ms_db": 0.0,
+        "level_100ms_db": 0.0,
+        "snr_db": 59.3,
+        "t60_rel_std": 0.00155,
+        "window": "50-400 ms",
+        "per_window": [
+          {
+            "window": "20-120 ms",
+            "freq_hz": 789.476,
+            "t60_s": 0.5545,
+            "amp_dbfs": -15.67,
+            "snr_db": 58.3
+          },
+          {
+            "window": "50-400 ms",
+            "freq_hz": 789.703,
+            "t60_s": 0.5063,
+            "amp_dbfs": -15.08,
+            "snr_db": 59.3
+          },
+          {
+            "window": "200-603 ms",
+            "freq_hz": 789.837,
+            "t60_s": 0.5304,
+            "amp_dbfs": -16.47,
+            "snr_db": 57.2
+          }
+        ],
+        "sub_poles": [
+          {
+            "freq_hz": 798.462,
+            "ratio": 1.01109,
+            "t60_s": 0.1988,
+            "amp_dbfs": -33.01,
+            "window": "50-400 ms"
+          },
+          {
+            "freq_hz": 821.03,
+            "ratio": 1.03967,
+            "t60_s": 0.0828,
+            "amp_dbfs": -24.15,
+            "window": "20-120 ms"
+          },
+          {
+            "freq_hz": 775.567,
+            "ratio": 0.9821,
+            "t60_s": 0.1785,
+            "amp_dbfs": -45.45,
+            "window": "20-120 ms"
+          },
+          {
+            "freq_hz": 752.369,
+            "ratio": 0.95272,
+            "t60_s": 0.5026,
+            "amp_dbfs": -65.34,
+            "window": "50-400 ms"
+          },
+          {
+            "freq_hz": 813.488,
+            "ratio": 1.03012,
+            "t60_s": 0.8198,
+            "amp_dbfs": -68.64,
+            "window": "200-603 ms"
+          },
+          {
+            "freq_hz": 805.539,
+            "ratio": 1.02005,
+            "t60_s": 1.4442,
+            "amp_dbfs": -82.07,
+            "window": "200-603 ms"
+          }
+        ]
+      },
+      {
+        "rank": 3,
+        "freq_hz": 844.1017,
+        "freq_std_hz": 0.151,
+        "ratio": 1.06889,
+        "t60_s": 0.3979,
+        "t60_re_f0": 0.786,
+        "sigma_per_s": 17.3591,
+        "eta": 0.006546,
+        "amp": 0.00645741,
+        "amp_dbfs": -43.8,
+        "phase_rad": -0.6552,
+        "level_20ms_db": -13.43,
+        "level_100ms_db": -70.14,
+        "snr_db": 28.3,
+        "t60_rel_std": 0.05464,
+        "window": "200-603 ms",
+        "per_window": [
+          {
+            "window": "200-603 ms",
+            "freq_hz": 844.102,
+            "t60_s": 0.3979,
+            "amp_dbfs": -43.8,
+            "snr_db": 28.3
+          }
+        ],
+        "sub_poles": [
+          {
+            "freq_hz": 829.753,
+            "ratio": 1.05072,
+            "t60_s": 0.4613,
+            "amp_dbfs": -53.92,
+            "window": "200-603 ms"
+          },
+          {
+            "freq_hz": 868.22,
+            "ratio": 1.09943,
+            "t60_s": 0.6127,
+            "amp_dbfs": -67.43,
+            "window": "200-603 ms"
+          }
+        ]
+      },
+      {
+        "rank": 4,
+        "freq_hz": 853.7027,
+        "freq_std_hz": 0.24,
+        "ratio": 1.08104,
+        "t60_s": 0.3589,
+        "t60_re_f0": 0.7089,
+        "sigma_per_s": 19.2474,
+        "eta": 0.007177,
+        "amp": 0.00691038,
+        "amp_dbfs": -43.21,
+        "phase_rad": 1.7838,
+        "level_20ms_db": -21.34,
+        "level_100ms_db": -33.45,
+        "snr_db": 25.1,
+        "t60_rel_std": 0.07847,
+        "window": "200-603 ms",
+        "per_window": [
+          {
+            "window": "200-603 ms",
+            "freq_hz": 853.703,
+            "t60_s": 0.3589,
+            "amp_dbfs": -43.21,
+            "snr_db": 25.1
+          }
+        ],
+        "sub_poles": [
+          {
+            "freq_hz": 886.769,
+            "ratio": 1.12292,
+            "t60_s": 0.4688,
+            "amp_dbfs": -56.47,
+            "window": "200-603 ms"
+          }
+        ]
+      },
+      {
+        "rank": 7,
+        "freq_hz": 907.7009,
+        "freq_std_hz": 0.435,
+        "ratio": 1.14942,
+        "t60_s": 0.364,
+        "t60_re_f0": 0.7189,
+        "sigma_per_s": 18.9794,
+        "eta": 0.006656,
+        "amp": 0.00354448,
+        "amp_dbfs": -49.01,
+        "phase_rad": -1.8111,
+        "level_20ms_db": -27.09,
+        "level_100ms_db": -39.02,
+        "snr_db": 19.8,
+        "t60_rel_std": 0.14397,
+        "window": "200-603 ms",
+        "per_window": [
+          {
+            "window": "200-603 ms",
+            "freq_hz": 907.701,
+            "t60_s": 0.364,
+            "amp_dbfs": -49.01,
+            "snr_db": 19.8
+          }
+        ],
+        "sub_poles": [
+          {
+            "freq_hz": 938.666,
+            "ratio": 1.18863,
+            "t60_s": 0.1512,
+            "amp_dbfs": -49.1,
+            "window": "50-400 ms"
+          },
+          {
+            "freq_hz": 918.664,
+            "ratio": 1.1633,
+            "t60_s": 0.5163,
+            "amp_dbfs": -62.84,
+            "window": "200-603 ms"
+          },
+          {
+            "freq_hz": 929.949,
+            "ratio": 1.17759,
+            "t60_s": 2.5464,
+            "amp_dbfs": -95.34,
+            "window": "50-400 ms"
+          }
+        ]
+      },
+      {
+        "rank": 10,
+        "freq_hz": 986.6183,
+        "freq_std_hz": 0.714,
+        "ratio": 1.24935,
+        "t60_s": 0.0861,
+        "t60_re_f0": 0.1701,
+        "sigma_per_s": 80.2087,
+        "eta": 0.025877,
+        "amp": 0.0158939,
+        "amp_dbfs": -35.98,
+        "phase_rad": 1.4902,
+        "level_20ms_db": -24.7,
+        "level_100ms_db": -79.17,
+        "snr_db": 28.1,
+        "t60_rel_std": 0.05595,
+        "window": "50-400 ms",
+        "per_window": [
+          {
+            "window": "50-400 ms",
+            "freq_hz": 986.618,
+            "t60_s": 0.0861,
+            "amp_dbfs": -35.98,
+            "snr_db": 28.1
+          }
+        ],
+        "sub_poles": [
+          {
+            "freq_hz": 1018.923,
+            "ratio": 1.29026,
+            "t60_s": 0.3033,
+            "amp_dbfs": -60.14,
+            "window": "50-400 ms"
+          },
+          {
+            "freq_hz": 968.885,
+            "ratio": 1.2269,
+            "t60_s": 0.1884,
+            "amp_dbfs": -58.3,
+            "window": "50-400 ms"
+          },
+          {
+            "freq_hz": 952.961,
+            "ratio": 1.20673,
+            "t60_s": 0.4079,
+            "amp_dbfs": -79.87,
+            "window": "50-400 ms"
+          }
+        ]
+      },
+      {
+        "rank": 11,
+        "freq_hz": 1174.01,
+        "freq_std_hz": 0.128,
+        "ratio": 1.48665,
+        "t60_s": 0.1008,
+        "t60_re_f0": 0.199,
+        "sigma_per_s": 68.5517,
+        "eta": 0.018586,
+        "amp": 0.0115795,
+        "amp_dbfs": -38.73,
+        "phase_rad": -0.1638,
+        "level_20ms_db": -47.71,
+        "level_100ms_db": -61.83,
+        "snr_db": 41.6,
+        "t60_rel_std": 0.01177,
+        "window": "50-400 ms",
+        "per_window": [
+          {
+            "window": "20-120 ms",
+            "freq_hz": 1168.845,
+            "t60_s": 0.312,
+            "amp_dbfs": -69.08,
+            "snr_db": 15.0
+          },
+          {
+            "window": "50-400 ms",
+            "freq_hz": 1174.01,
+            "t60_s": 0.1008,
+            "amp_dbfs": -38.73,
+            "snr_db": 41.6
+          }
+        ],
+        "sub_poles": [
+          {
+            "freq_hz": 1209.103,
+            "ratio": 1.53109,
+            "t60_s": 0.1562,
+            "amp_dbfs": -55.67,
+            "window": "50-400 ms"
+          },
+          {
+            "freq_hz": 1185.35,
+            "ratio": 1.50101,
+            "t60_s": 0.3931,
+            "amp_dbfs": -83.11,
+            "window": "50-400 ms"
+          },
+          {
+            "freq_hz": 1155.97,
+            "ratio": 1.4638,
+            "t60_s": 0.3484,
+            "amp_dbfs": -82.48,
+            "window": "50-400 ms"
+          },
+          {
+            "freq_hz": 1196.814,
+            "ratio": 1.51553,
+            "t60_s": 0.3214,
+            "amp_dbfs": -85.16,
+            "window": "50-400 ms"
+          },
+          {
+            "freq_hz": 1146.206,
+            "ratio": 1.45144,
+            "t60_s": 0.4454,
+            "amp_dbfs": -89.07,
+            "window": "50-400 ms"
+          }
+        ]
+      },
+      {
+        "rank": 6,
+        "freq_hz": 1461.7171,
+        "freq_std_hz": 0.112,
+        "ratio": 1.85097,
+        "t60_s": 0.0873,
+        "t60_re_f0": 0.1723,
+        "sigma_per_s": 79.1701,
+        "eta": 0.01724,
+        "amp": 0.0273264,
+        "amp_dbfs": -31.27,
+        "phase_rad": 0.1363,
+        "level_20ms_db": -40.75,
+        "level_100ms_db": -70.72,
+        "snr_db": 44.1,
+        "t60_rel_std": 0.00886,
+        "window": "50-400 ms",
+        "per_window": [
+          {
+            "window": "50-400 ms",
+            "freq_hz": 1461.717,
+            "t60_s": 0.0873,
+            "amp_dbfs": -31.27,
+            "snr_db": 44.1
+          }
+        ],
+        "sub_poles": [
+          {
+            "freq_hz": 1493.386,
+            "ratio": 1.89107,
+            "t60_s": 0.0505,
+            "amp_dbfs": -29.3,
+            "window": "20-120 ms"
+          },
+          {
+            "freq_hz": 1478.103,
+            "ratio": 1.87172,
+            "t60_s": 0.1716,
+            "amp_dbfs": -54.49,
+            "window": "50-400 ms"
+          },
+          {
+            "freq_hz": 1439.912,
+            "ratio": 1.82336,
+            "t60_s": 0.3043,
+            "amp_dbfs": -75.29,
+            "window": "50-400 ms"
+          }
+        ]
+      },
+      {
+        "rank": 8,
+        "freq_hz": 1615.315,
+        "freq_std_hz": 0.121,
+        "ratio": 2.04547,
+        "t60_s": 0.0853,
+        "t60_re_f0": 0.1684,
+        "sigma_per_s": 81.001,
+        "eta": 0.015962,
+        "amp": 0.0241871,
+        "amp_dbfs": -32.33,
+        "phase_rad": -2.2009,
+        "level_20ms_db": -48.04,
+        "level_100ms_db": -73.6,
+        "snr_db": 43.5,
+        "t60_rel_std": 0.00935,
+        "window": "50-400 ms",
+        "per_window": [
+          {
+            "window": "50-400 ms",
+            "freq_hz": 1615.315,
+            "t60_s": 0.0853,
+            "amp_dbfs": -32.33,
+            "snr_db": 43.5
+          }
+        ],
+        "sub_poles": [
+          {
+            "freq_hz": 1601.16,
+            "ratio": 2.02755,
+            "t60_s": 0.1151,
+            "amp_dbfs": -45.22,
+            "window": "50-400 ms"
+          },
+          {
+            "freq_hz": 1641.745,
+            "ratio": 2.07894,
+            "t60_s": 0.0666,
+            "amp_dbfs": -35.26,
+            "window": "20-120 ms"
+          },
+          {
+            "freq_hz": 1587.069,
+            "ratio": 2.0097,
+            "t60_s": 0.2782,
+            "amp_dbfs": -74.88,
+            "window": "50-400 ms"
+          }
+        ]
+      },
+      {
+        "rank": 12,
+        "freq_hz": 1781.2894,
+        "freq_std_hz": 0.204,
+        "ratio": 2.25565,
+        "t60_s": 0.0895,
+        "t60_re_f0": 0.1768,
+        "sigma_per_s": 77.1574,
+        "eta": 0.013788,
+        "amp": 0.0111591,
+        "amp_dbfs": -39.05,
+        "phase_rad": -0.9363,
+        "level_20ms_db": -48.71,
+        "level_100ms_db": -72.4,
+        "snr_db": 38.6,
+        "t60_rel_std": 0.01663,
+        "window": "50-400 ms",
+        "per_window": [
+          {
+            "window": "20-120 ms",
+            "freq_hz": 1785.435,
+            "t60_s": 0.1544,
+            "amp_dbfs": -65.35,
+            "snr_db": 17.5
+          },
+          {
+            "window": "50-400 ms",
+            "freq_hz": 1781.289,
+            "t60_s": 0.0895,
+            "amp_dbfs": -39.05,
+            "snr_db": 38.6
+          }
+        ],
+        "sub_poles": [
+          {
+            "freq_hz": 1744.052,
+            "ratio": 2.20849,
+            "t60_s": 0.1016,
+            "amp_dbfs": -51.96,
+            "window": "50-400 ms"
+          },
+          {
+            "freq_hz": 1763.856,
+            "ratio": 2.23357,
+            "t60_s": 0.1523,
+            "amp_dbfs": -65.77,
+            "window": "20-120 ms"
+          }
+        ]
+      },
+      {
+        "rank": 5,
+        "freq_hz": 1830.0269,
+        "freq_std_hz": 0.133,
+        "ratio": 2.31736,
+        "t60_s": 0.0779,
+        "t60_re_f0": 0.1538,
+        "sigma_per_s": 88.7188,
+        "eta": 0.015432,
+        "amp": 0.0374271,
+        "amp_dbfs": -28.54,
+        "phase_rad": -1.7753,
+        "level_20ms_db": -45.12,
+        "level_100ms_db": -73.23,
+        "snr_db": 43.6,
+        "t60_rel_std": 0.00943,
+        "window": "50-400 ms",
+        "per_window": [
+          {
+            "window": "50-400 ms",
+            "freq_hz": 1830.027,
+            "t60_s": 0.0779,
+            "amp_dbfs": -28.54,
+            "snr_db": 43.6
+          }
+        ],
+        "sub_poles": [
+          {
+            "freq_hz": 1797.084,
+            "ratio": 2.27565,
+            "t60_s": 0.1448,
+            "amp_dbfs": -55.62,
+            "window": "50-400 ms"
+          },
+          {
+            "freq_hz": 1850.461,
+            "ratio": 2.34324,
+            "t60_s": 0.1634,
+            "amp_dbfs": -62.99,
+            "window": "20-120 ms"
+          }
+        ]
+      }
+    ],
+    "bloom": {
+      "peak_ms": 40.8,
+      "peak_db_re_20ms": 1.8,
+      "rise_tau_ms": 25.0,
+      "equivalent_q": 62.0,
+      "resolution_ms": 6.6,
+      "envelope_db_re_peak": {
+        "2": -4.48,
+        "5": -4.21,
+        "10": -3.59,
+        "20": -1.8,
+        "30": -0.46,
+        "50": -0.32,
+        "75": -2.68,
+        "100": -5.37,
+        "150": -11.61,
+        "200": -18.07,
+        "300": -29.24,
+        "500": -50.19
+      }
+    },
+    "attack": {
+      "centroid_hz": 819.8,
+      "centroid_re_f0": 1.038
+    },
+    "noise_floor": {
+      "rms_dbfs": -79.96,
+      "db_re_peak": -59.46,
+      "method": "quietest 20 ms tail frames (upper bound)"
+    },
+    "metadata": {
+      "channels": 2,
+      "format": "PCM 16-bit",
+      "duration_s": 3.1289,
+      "sha256": "031b901df739a14cadf97b7f9140f455c1842f17cf5c1fafa365d4cdf8dae488",
+      "sample_rate": 44100,
+      "onset_s": 0.00193,
+      "end_s": 0.6585,
+      "digital_silence_from_s": 0.6585,
+      "peak_dbfs": -20.5,
+      "windows": [
+        "20-120 ms",
+        "50-400 ms",
+        "200-603 ms"
+      ],
+      "partials_found": 81,
+      "max_partials": 12,
+      "fmax_hz": 16000.0,
+      "tool": "fit_modal_reference.py 1.0.0"
+    },
+    "warnings": []
+  }
+]

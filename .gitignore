@@ -20,3 +20,8 @@ compile_commands.json
 # Python tooling caches
 __pycache__/
 *.pyc
+
+# Demo and review tools write their audio, binaries and pages here
+/Tools/Demos/Audio/
+/Tools/Demos/*.wav
+/Tools/Demos/maremba_renderer

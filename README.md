@@ -149,6 +149,15 @@ with `-DMAREMBA_ENABLE_SANITIZERS=ON` under Clang, a time-boxed libFuzzer run of
 contracts. `EngineFuzzTest --extended` and `ExtremeRangeTest --full` run the
 long matrices.
 
+`Tools/Demos/` holds the offline research tools, which drive the engine directly
+(they need clang++, and some need ffmpeg). `run_benchmark.py` renders the repertoire, touch and idiom studies
+behind [`Docs/audio/demo-player.html`](Docs/audio/demo-player.html). The
+`build_*_review.py` and `compare_*.py` scripts build A/B listening and review
+pages. `fit_modal_reference.py` measures recordings such as the reference notes
+in `Tools/Demos/Reference/`. The CPU and optimization fixtures sit in `Tools/`. The
+MIDI, events and reference audio carry their own licences
+([third-party notices](THIRD_PARTY_NOTICES.md#demo-and-reference-material)).
+
 ## Licensing
 
 MIT, see [`LICENSE`](LICENSE). The plug-in builds with JUCE (AGPLv3 or a
