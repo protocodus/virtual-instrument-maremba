@@ -1,5 +1,5 @@
 // Natural stroke variation and physical touch response at Variance=Artifacts=0.
-// Compile with -I DSP and DSP/*.cpp. --physical-only runs the quick velocity
+// Compile with -I Source/DSP and Source/DSP/*.cpp. --physical-only runs the quick velocity
 // matrix; the default also exercises public-engine silence/reuse and Reset.
 #include "MarembaEngine.h"
 #include <algorithm>

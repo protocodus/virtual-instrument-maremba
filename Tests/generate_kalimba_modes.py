@@ -2,7 +2,7 @@
 """Generate/check the fixed clamped-supported-free tine modes, independently FEM-check.
 
 Development-only dependencies: mpmath, numpy, scipy. No dependency enters DSP.
-Run with --write to replace the generated array in DSP/KalimbaModes.h and the
+Run with --write to replace the generated array in Source/DSP/KalimbaModes.h and the
 tine-only radiation cache; without it, check their agreement. --skip-fem only
 skips the independent Hermite beam discretization, never the analytical solve.
 """
@@ -93,7 +93,7 @@ def fem_roots(elements_per_free_span):
 
 def check_radiation_cache(rows, write):
     """Reuse the existing quadrature abscissae; never modify any bar shape."""
-    path = ROOT/'DSP/ModalRadiation.h'
+    path = ROOT/'Source/DSP/ModalRadiation.h'
     text = path.read_text()
     begin = text.index('static constexpr ModalRadiationNode kModalRadiationNodes[32] = {')
     end = text.index('\n};',begin)
@@ -138,7 +138,7 @@ def main():
                   '     {'+', '.join(map(fmt,playing))+'}},']
     lines.append('};')
     table = '\n'.join(lines)
-    path = ROOT/'DSP/KalimbaModes.h'
+    path = ROOT/'Source/DSP/KalimbaModes.h'
     original = path.read_text()
     begin = original.index('// BEGIN GENERATED KALIMBA MODES') + len('// BEGIN GENERATED KALIMBA MODES')
     end = original.index('// END GENERATED KALIMBA MODES')

@@ -1,0 +1,5 @@
+# Generators and receipts hash these files, so check them out with LF on every
+# platform, including Windows runners where core.autocrlf is on.
+* text=auto eol=lf
+# Preserve the upstream license bytes (CRLF); the generation receipt pins their hash.
+ThirdParty/SADIE-II-LICENSE.txt -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

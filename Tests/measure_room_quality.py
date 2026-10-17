@@ -227,7 +227,7 @@ def check(results):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source-dsp", type=Path, default=ROOT/"DSP")
+    parser.add_argument("--source-dsp", type=Path, default=ROOT/"Source/DSP")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--rates", type=int, nargs="+", choices=RATES, default=list(RATES))
     parser.add_argument("--baseline", type=Path, help="Earlier metrics.json; descriptive deltas only")

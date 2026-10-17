@@ -1,5 +1,5 @@
-#include "../DSP/CaptureGeometry.h"
-#include "../DSP/MarembaVoice.h"
+#include "CaptureGeometry.h"
+#include "MarembaVoice.h"
 #include <cassert>
 #include <cmath>
 #include <cstdio>

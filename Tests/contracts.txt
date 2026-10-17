@@ -1,6 +1,6 @@
-# Physics and behaviour contracts: each is Tests/<name>.cpp, compiled with every
-# DSP/*.cpp and run. Tests/run_all_tests.sh and the CI maremba-dsp job both read
-# this list, so a contract added here runs everywhere.
+# Physics and behaviour contracts: each is Tests/<name>.cpp, linked with the
+# engine and registered by CMakeLists.txt as Maremba.<name without Test>, so a
+# contract added here runs everywhere.
 PiezoPickupTest            # attached-transducer pickup: strain, mounting, loading
 PiezoGeometryTest          # generated signed Timoshenko surface strain over fixed electrodes
 PiezoReferenceCircuitTest  # SI charge, finite-bandwidth amplifier, rails and source-derived headroom

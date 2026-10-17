@@ -1,7 +1,7 @@
 // A real engine strike, independently observed before acoustic capture. The
 // reference uses the frozen measured FIR and an analytic propagation phase;
 // it does not call CloseCapture or duplicate its FFT/delay implementation.
-#include "../DSP/MarembaEngine.h"
+#include "MarembaEngine.h"
 #include <array>
 #include <cmath>
 #include <complex>

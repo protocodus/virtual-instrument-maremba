@@ -2,8 +2,8 @@
 // (RoomBank types 0 Wood, 1 Chamber, 2 Hall) at internal rates 88.2, 96, 192 and
 // 384 kHz, wet output only.
 //
-//   clang++ -std=c++17 -O3 -Wall -Wextra -Werror -I Examples/Maremba/DSP \
-//       Examples/Maremba/Tests/RoomQualityTest.cpp -o /tmp/room_quality && /tmp/room_quality
+//   clang++ -std=c++17 -O3 -Wall -Wextra -Werror -I Source/DSP \
+//       Tests/RoomQualityTest.cpp -o /tmp/room_quality && /tmp/room_quality
 //
 // Checks per room and rate: broadband T60 (Schroeder backward integral, linear
 // fit from -5 to -35 dB) and third-octave band T60s near their targets; normalized

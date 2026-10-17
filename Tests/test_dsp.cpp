@@ -1,16 +1,16 @@
 // Maremba DSP verification suite.
 //
-// Build & run (from Examples/Maremba):
-//   clang++ -std=c++17 -O3 -Wall -Wextra -Werror Tests/test_dsp.cpp DSP/*.cpp -o Tests/test_dsp && ./Tests/test_dsp
+// Build & run (from the repository root):
+//   clang++ -std=c++17 -O3 -Wall -Wextra -Werror Tests/test_dsp.cpp Source/DSP/*.cpp -o Tests/test_dsp && ./Tests/test_dsp
 //
 // Active feature tests compare identical seeds with the feature on and off.
 // Compatibility tests separately require removed controls to remain inert.
 
-#include "../DSP/MarembaEngine.h"
-#include "../DSP/ModalExcitation.h"
-#include "../DSP/ContactExcitation.h"
-#include "../DSP/BarModes.h"
-#include "../DSP/RoomAlgorithms.h"
+#include "MarembaEngine.h"
+#include "ModalExcitation.h"
+#include "ContactExcitation.h"
+#include "BarModes.h"
+#include "RoomAlgorithms.h"
 
 #include <algorithm>
 #include <array>

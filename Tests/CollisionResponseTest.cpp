@@ -1,6 +1,6 @@
 // Isolated mechanical-audio regressions: repeated impacts must not take over
 // a resonant note, and treble contacts must survive changes in sample rate.
-#include "../DSP/MarembaVoice.h"
+#include "MarembaVoice.h"
 #include <algorithm>
 #include <array>
 #include <cmath>

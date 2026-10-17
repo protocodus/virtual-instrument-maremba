@@ -23,7 +23,7 @@ import scipy
 from scipy.signal import resample_poly
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCES = ("DSP/OutputHeadroom.h", "DSP/OutputPeakKernel.h",
+SOURCES = ("Source/DSP/OutputHeadroom.h", "Source/DSP/OutputPeakKernel.h",
            "Tests/OutputHeadroomReconstructionProbe.cpp",
            "Tests/generate_output_peak_kernel.py", "Tests/measure_output_headroom.py")
 

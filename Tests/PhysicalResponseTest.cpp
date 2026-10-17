@@ -1,7 +1,7 @@
 // Perceptual response contracts through the public engine audio outputs.
 // Complements TouchResponseTest (contact/velocity/position) and the mechanical
 // artifact tests. No private states, modal coefficients, or exact waveforms.
-// Build with -I DSP, this file and DSP/*.cpp. --measure reports without gating.
+// Build with -I Source/DSP, this file and Source/DSP/*.cpp. --measure reports without gating.
 #include "MarembaEngine.h"
 #include <algorithm>
 #include <array>

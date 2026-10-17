@@ -1,6 +1,6 @@
 // Event-plan contracts for realistic playing imperfections. Audio differentiation
 // and host lifecycle are covered separately by EngineRealismTest / test_dsp.
-#include "../DSP/RandomArtifacts.h"
+#include "RandomArtifacts.h"
 #include <array>
 #include <cmath>
 #include <cstdio>

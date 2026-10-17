@@ -2,10 +2,10 @@
 // API, with invariants checked after every call, plus deterministic scenarios
 // for the note-off / transport / oversampling / model-switch state machines.
 //
-// Build (from Examples/Maremba):
-//   clang++ -std=c++17 -O2 -IDSP Tests/EngineFuzzTest.cpp DSP/*.cpp -o engine_fuzz
+// Build (from the repository root):
+//   clang++ -std=c++17 -O2 -ISource/DSP Tests/EngineFuzzTest.cpp Source/DSP/*.cpp -o engine_fuzz
 //   clang++ -std=c++17 -O1 -g -fsanitize=address,undefined -fno-sanitize-recover=all
-//       -D_GLIBCXX_ASSERTIONS -IDSP Tests/EngineFuzzTest.cpp DSP/*.cpp -o engine_fuzz_asan
+//       -D_GLIBCXX_ASSERTIONS -ISource/DSP Tests/EngineFuzzTest.cpp Source/DSP/*.cpp -o engine_fuzz_asan
 //   (g++ takes the same flags; on a box without clang's compiler-rt, use g++ for
 //   ASan, or clang++ -fsanitize=undefined,float-cast-overflow -fsanitize-trap=all.)
 // Run:

@@ -1,7 +1,7 @@
 // Public-audio regression tests for mechanical artifacts and contact pickup.
 // Uses no private DSP state, coefficient values, or implementation event flags.
-// Compile: clang++ -std=c++17 -O3 -Wall -Wextra -Werror -I DSP \
-//   Tests/EngineRealismTest.cpp DSP/MarembaVoice.cpp -o /tmp/maremba-realism
+// Compile: clang++ -std=c++17 -O3 -Wall -Wextra -Werror -I Source/DSP \
+//   Tests/EngineRealismTest.cpp Source/DSP/MarembaVoice.cpp -o /tmp/maremba-realism
 #include "MarembaVoice.h"
 #include <algorithm>
 #include <array>

@@ -1,4 +1,4 @@
-#include "../DSP/PiezoPickup.h"
+#include "PiezoPickup.h"
 #include <array>
 #include <cmath>
 #include <complex>
