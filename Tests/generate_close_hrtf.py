@@ -120,7 +120,7 @@ def main():
     parser.add_argument("--check", action="store_true", help="check frozen hashes and license texts without SOFA/dependencies")
     parser.add_argument("--header", type=pathlib.Path, default=DSP / "MeasuredCloseHrtf.h")
     parser.add_argument("--receipt", type=pathlib.Path,
-                        default=ROOT / "Docs/validation/capture-20260927/close-hrtf-generation.json")
+                        default=ROOT / "Tests/close-hrtf-generation.json")
     args = parser.parse_args()
     license_names = ("SADIE-II-LICENSE.txt", "SADIE-II-NOTICE.txt")
     if args.check:

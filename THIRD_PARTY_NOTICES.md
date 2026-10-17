@@ -63,7 +63,7 @@ licensed under the Apache License, Version 2.0.
 - Notice and description of the modifications:
   [`ThirdParty/SADIE-II-NOTICE.txt`](ThirdParty/SADIE-II-NOTICE.txt)
 - Generation receipt (source hash, processing, error bounds):
-  [`Docs/validation/capture-20260927/close-hrtf-generation.json`](Docs/validation/capture-20260927/close-hrtf-generation.json),
+  [`Tests/close-hrtf-generation.json`](Tests/close-hrtf-generation.json),
   checked by `Tests/generate_close_hrtf.py --check`
 
 Every distributed build that contains the DSP must carry both files.

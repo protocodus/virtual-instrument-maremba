@@ -29,7 +29,7 @@
     "NCProperties": "version=1|netcdflibversion=4.6.1|hdf5libversion=1.8.12",
     "_NCProperties": "version=2,netcdf=4.8.1,hdf5=1.10.8"
   },
-  "generator_sha256": "fd92ae1e5ac35cf2cbe1403fe51c3c757c3c91c4a23b678983b0787f91f2c075",
+  "generator_sha256": "44ae1711d7dbe4af32e4e80e8776486d2d3ad681e18a67c860439126d2390994",
   "geometry_sha256": "84c53c1ed620e738ec36e309cbceca00c923b4f87aaf6c27698d7088a6a0e27f",
   "license_sha256": {
     "SADIE-II-LICENSE.txt": "49bbe9114e49214df2ccc324cb3ac8d1d1aa1c3a0947f94c286765e86647b32e",
@@ -5872,6 +5872,12 @@
     "reason": "Moved with the DSP from the Rack repository (Examples/Maremba) to virtual-instrument-maremba. Only the generator's paths changed: Source/DSP, ThirdParty/ licence texts and this receipt under Docs/; the Rack package copy of the licences is now checked by the Rack adapter. No filter regeneration.",
     "old_generator_sha256": "0de5c85d2a1ae68f77698ed4685cfe363c208877e8330e115107cdd3afc8b02f",
     "new_generator_sha256": "fd92ae1e5ac35cf2cbe1403fe51c3c757c3c91c4a23b678983b0787f91f2c075",
+    "header_sha256_unchanged": true
+  },
+  "relocation_20261017": {
+    "reason": "This receipt moved from Docs/validation/capture-20260927/ to Tests/, beside its generator, when the obsolete archived evidence was removed. Only the generator's default --receipt path changed. No filter regeneration.",
+    "old_generator_sha256": "fd92ae1e5ac35cf2cbe1403fe51c3c757c3c91c4a23b678983b0787f91f2c075",
+    "new_generator_sha256": "44ae1711d7dbe4af32e4e80e8776486d2d3ad681e18a67c860439126d2390994",
     "header_sha256_unchanged": true
   }
 }

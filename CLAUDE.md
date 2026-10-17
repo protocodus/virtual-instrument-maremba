@@ -38,7 +38,7 @@ Change them only through their `Tests/generate_*.py` script, and keep each
 registered check passing. Three generators no longer match their shipped
 tables (README, Known gaps): bring a generator back to its table before using
 it to change one. `MeasuredCloseHrtf.h` is derived from SADIE II
-(Apache-2.0); its receipt under `Docs/validation/` must stay consistent.
+(Apache-2.0); its receipt, `Tests/close-hrtf-generation.json`, must stay consistent.
 
 ## Documentation layout
 
