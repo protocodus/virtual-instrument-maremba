@@ -283,9 +283,11 @@ if(BUILD_TESTING)
                  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
         set_tests_properties(Maremba.OutputPeakKernel Maremba.CloseHrtf PROPERTIES LABELS unit)
 
-        # Tools/Demos/run_benchmark.py builds its renderer with clang++.
+        # Tools/Demos/run_benchmark.py builds its renderer with clang++ as a
+        # POSIX tool (extensionless binary, filenames Windows rejects), so the
+        # contract runs on macOS and Linux, where the Rack CI ran it before.
         find_program(MAREMBA_CLANGXX clang++)
-        if(MAREMBA_CLANGXX)
+        if(MAREMBA_CLANGXX AND NOT WIN32)
             add_test(NAME Maremba.DemoRenderer
                      COMMAND "${Python3_EXECUTABLE}" Tests/test_demo_renderer.py
                      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
