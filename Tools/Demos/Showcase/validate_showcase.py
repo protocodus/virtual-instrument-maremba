@@ -28,8 +28,8 @@ def main():
     spec = importlib.util.spec_from_file_location("existing_demo_parser", HERE.parent / "run_benchmark.py")
     parser = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(parser)
-    version = re.search(r'version_number\s*=\s*"([^"]+)"', (PROJECT / "info.lua").read_text()).group(1)
-    assert manifest["device_version"] == version
+    version = re.search(r"project\(Maremba VERSION ([0-9.]+)", (PROJECT / "CMakeLists.txt").read_text()).group(1)
+    assert manifest["engine_version"] == version
     assert manifest["adapter_sha256"] == sha(HERE / "render_showcase.cpp")
     assert manifest["composer_sha256"] == sha(HERE / "build_showcase.py")
     assert manifest["format_version"] == 2

@@ -23,6 +23,12 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 PROJECT = HERE.parents[2]
+
+
+def engine_version():
+    # The showcase renders the engine alone, so it carries the engine's X.Y.Z;
+    # a Rack release checks that against its own X.Y.Z<stage>N.
+    return re.search(r"project\(Maremba VERSION ([0-9.]+)", (PROJECT / "CMakeLists.txt").read_text()).group(1)
 RATE = 48000
 PPQ = 960
 BASE = dict(model=0, malletType=0, malletHardness=.43, strikePosition=.48,
@@ -251,7 +257,7 @@ def main():
                 argument = Path("<OUTPUT>") / argument.relative_to(output)
         portable_compile_args.append(str(argument))
     manifest = dict(format_version=2, generated_utc=datetime.now(timezone.utc).isoformat(),
-                    device_version=re.search(r'version_number\s*=\s*"([^"]+)"', (PROJECT / "info.lua").read_text()).group(1),
+                    engine_version=engine_version(),
                     repository_head=run(["git", "rev-parse", "HEAD"], cwd=PROJECT, text=True).stdout.strip(),
                     dsp_source_sha256=source_digest, dsp_files=before,
                     adapter_sha256=sha(HERE / "render_showcase.cpp"), composer_sha256=sha(__file__),
@@ -352,14 +358,14 @@ def main():
     for track in manifest['tracks']:
         html_tracks.append(track | dict(audio="data:audio/mp4;base64," + base64.b64encode((output / (track['slug'] + '.m4a')).read_bytes()).decode()))
     template = (HERE / "player_template.html").read_text()
-    (output / "Maremba_Showcase.html").write_text(template.replace("/*TRACKS*/[]", json.dumps(html_tracks)).replace("__VERSION__", manifest['device_version']).replace("__DSP_SHA__", source_digest))
+    (output / "Maremba_Showcase.html").write_text(template.replace("/*TRACKS*/[]", json.dumps(html_tracks)).replace("__VERSION__", manifest['engine_version']).replace("__DSP_SHA__", source_digest))
     rows = ["| Instrument / piece | Length | Notes / velocity | WAV LUFS / dBTP | AAC dBTP | Final 0.5 s RMS |",
             "|---|---:|---|---|---:|---:|"]
     for t in manifest['tracks']:
         rows.append(f"| {t['instrument']} — {t['title']} | {t['duration_seconds']:.2f} s | {t['note_count']} / {t['velocity_range'][0]}–{t['velocity_range'][1]} | {t['wav_loudness']['input_i']:.1f} / {t['wav_loudness']['input_tp']:.1f} | {t['aac_loudness']['input_tp']:.1f} | {t['wav_metrics']['end_rms_dbfs']:.1f} dBFS |")
     report = f"""# Maremba — four small worlds
 
-Original release showcases for **{manifest['device_version']}**. Open `Maremba_Showcase.html`: all four AAC previews are embedded, so it works offline as a single file. The adjacent WAVs are the 48 kHz, stereo, 24-bit delivery masters. AAC previews use 192 kbit/s.
+Original release showcases for **{manifest['engine_version']}**. Open `Maremba_Showcase.html`: all four AAC previews are embedded, so it works offline as a single file. The adjacent WAVs are the 48 kHz, stereo, 24-bit delivery masters. AAC previews use 192 kbit/s.
 
 """ + "\n".join(rows) + f"""
 
@@ -378,8 +384,8 @@ Validation: every raw engine sample and decoded PCM/AAC sample is finite. Decode
 Rebuild from the current checkout:
 
 ```sh
-python3 Tools/Demos/Showcase/build_showcase.py --output Release/validation/{manifest['device_version']}/media/Showcase
-python3 Tools/Demos/Showcase/validate_showcase.py --input Release/validation/{manifest['device_version']}/media/Showcase
+python3 Tools/Demos/Showcase/build_showcase.py --output Release/validation/{manifest['engine_version']}/media/Showcase
+python3 Tools/Demos/Showcase/validate_showcase.py --input Release/validation/{manifest['engine_version']}/media/Showcase
 ```
 
 Requires Python 3 with NumPy, clang++ and ffmpeg. `--compose-only` regenerates the original MIDI/events/parameter files without rendering. `--output` keeps previous delivered audio untouched. Existing demos outside that output folder are preserved.
