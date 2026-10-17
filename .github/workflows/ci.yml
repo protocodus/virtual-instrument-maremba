@@ -15,7 +15,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYTHON_PACKAGES: numpy==1.26.4 scipy==1.14.1 mpmath==1.3.0
+  # The table checks compare generated text exactly, so these are the versions
+  # that reproduce the committed tables.
+  PYTHON_PACKAGES: numpy==2.5.3 scipy==1.18.1 mpmath==1.4.1
 
 jobs:
   dsp-tests:
