@@ -227,7 +227,8 @@ inline ModalRadiationCoefficient ProjectModalSurface(const double* shapeAtNodes,
 // fundamentals lose the direct radiation that the resonator must supply.
 // Relative amplitude only; not an absolute SPL or radiation-damping model.
 inline double BarDirectRadiationScale(double frequencyHz, double width) {
-    constexpr double kEdgePath = 1.6;
+    // static: MSVC will not use a plain constexpr local in an uncaptured lambda.
+    static constexpr double kEdgePath = 1.6;
     const auto efficiency = [](double frequency, double barWidth) {
         const double kd = 2.0 * 3.14159265358979323846 * std::max(frequency, 0.0) / 343.0
                         * kEdgePath * barWidth;

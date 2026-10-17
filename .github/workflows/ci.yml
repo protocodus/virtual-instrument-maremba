@@ -77,6 +77,28 @@ jobs:
       - name: Unit and fuzz tests
         run: ctest --test-dir build-dsp -L 'unit|fuzz' --parallel 3 --output-on-failure
 
+
+  dsp-tests-windows:
+    name: DSP tests (Windows)
+    runs-on: windows-2025
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # The engine tests keep several engines on the stack; give main 32 MB.
+      - name: Configure
+        run: |
+          cmake -S . -B build-win -A x64 -DBUILD_TESTING=ON "-DCMAKE_EXE_LINKER_FLAGS=/STACK:33554432"
+
+      - name: Build
+        run: cmake --build build-win --config Release --parallel
+
+      - name: Unit tests
+        run: ctest --test-dir build-win -C Release -L unit --parallel 4 --output-on-failure
+
+
   sanitizers:
     name: Sanitizers and C++17 (Linux)
     runs-on: ubuntu-24.04

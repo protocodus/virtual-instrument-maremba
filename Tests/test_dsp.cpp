@@ -26,6 +26,11 @@
 #include <new>
 #include <string>
 #include <vector>
+#ifdef _WIN32
+#define NOMINMAX
+#include <malloc.h>
+#include <windows.h>
+#endif
 
 // ─── Private engine state for the tests (MarembaEngine befriends this) ──────
 namespace maremba {
@@ -121,14 +126,27 @@ void* operator new[](std::size_t size, const std::nothrow_t& tag) noexcept { ret
 void operator delete(void* memory, const std::nothrow_t&) noexcept { std::free(memory); }
 void operator delete[](void* memory, const std::nothrow_t&) noexcept { std::free(memory); }
 
-// C++17 over-aligned allocation (alignas(32/64) types, SIMD buffers)
+// C++17 over-aligned allocation (alignas(32/64) types, SIMD buffers).
+// Windows has no posix_memalign, and its aligned blocks need _aligned_free.
+static void AlignedFree(void* memory) noexcept
+{
+#ifdef _WIN32
+    _aligned_free(memory);
+#else
+    std::free(memory);
+#endif
+}
 void* operator new(std::size_t size, std::align_val_t align, const std::nothrow_t&) noexcept
 {
     if (gCountAllocations) ++gAllocationCount;
     const std::size_t alignment = std::max(static_cast<std::size_t>(align), sizeof(void*));
+#ifdef _WIN32
+    return _aligned_malloc(size == 0 ? 1 : size, alignment);
+#else
     void* memory = nullptr;
     if (posix_memalign(&memory, alignment, size == 0 ? 1 : size) != 0) return nullptr;
     return memory;
+#endif
 }
 void* operator new(std::size_t size, std::align_val_t align)
 {
@@ -138,12 +156,12 @@ void* operator new(std::size_t size, std::align_val_t align)
 }
 void* operator new[](std::size_t size, std::align_val_t align) { return ::operator new(size, align); }
 void* operator new[](std::size_t size, std::align_val_t align, const std::nothrow_t& tag) noexcept { return ::operator new(size, align, tag); }
-void operator delete(void* memory, std::align_val_t) noexcept { std::free(memory); }
-void operator delete[](void* memory, std::align_val_t) noexcept { std::free(memory); }
-void operator delete(void* memory, std::size_t, std::align_val_t) noexcept { std::free(memory); }
-void operator delete[](void* memory, std::size_t, std::align_val_t) noexcept { std::free(memory); }
-void operator delete(void* memory, std::align_val_t, const std::nothrow_t&) noexcept { std::free(memory); }
-void operator delete[](void* memory, std::align_val_t, const std::nothrow_t&) noexcept { std::free(memory); }
+void operator delete(void* memory, std::align_val_t) noexcept { AlignedFree(memory); }
+void operator delete[](void* memory, std::align_val_t) noexcept { AlignedFree(memory); }
+void operator delete(void* memory, std::size_t, std::align_val_t) noexcept { AlignedFree(memory); }
+void operator delete[](void* memory, std::size_t, std::align_val_t) noexcept { AlignedFree(memory); }
+void operator delete(void* memory, std::align_val_t, const std::nothrow_t&) noexcept { AlignedFree(memory); }
+void operator delete[](void* memory, std::align_val_t, const std::nothrow_t&) noexcept { AlignedFree(memory); }
 
 namespace {
 
@@ -3582,6 +3600,22 @@ void TestRoomAlgorithms()
     CHECK(AllFinite(r) && e.IsSilent(), "Hall never lets the engine idle");
 }
 
+double ThreadCpuMicros()
+{
+#ifdef _WIN32
+    FILETIME creation, exited, kernel, user;
+    GetThreadTimes(GetCurrentThread(), &creation, &exited, &kernel, &user);
+    const auto ticks = [](FILETIME time) {
+        return (static_cast<std::uint64_t>(time.dwHighDateTime) << 32) | time.dwLowDateTime;
+    };
+    return static_cast<double>(ticks(kernel) + ticks(user)) * 0.1; // 100 ns units
+#else
+    timespec value{};
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &value);
+    return 1e6 * static_cast<double>(value.tv_sec) + 1e-3 * static_cast<double>(value.tv_nsec);
+#endif
+}
+
 // Opt-in native timing probe, so machine scheduling cannot make correctness
 // tests flaky. Each block includes parameter delivery and periodic note-on.
 void RunPerformanceProbe()
@@ -3602,15 +3636,13 @@ void RunPerformanceProbe()
         int wallMisses = 0, cpuMisses = 0;
         const double deadlineUs = 1e6 * frames / 48000.0;
         for (int b = -256; b < blocks; ++b) {
-            timespec t0{}, t1{};
-            clock_gettime(CLOCK_THREAD_CPUTIME_ID, &t0);
+            const double cpuStart = ThreadCpuMicros();
             const auto start = std::chrono::steady_clock::now();
             e.SetParameters(p);
             if (b >= 0 && b % 32 == 0) e.NoteOn(42 + (b / 32) % 16, 0.8f);
             e.RenderBatch(out[0], out[1], out[2], out[3], out[4], out[5], out[6], frames);
             const double elapsed = std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count();
-            clock_gettime(CLOCK_THREAD_CPUTIME_ID, &t1);
-            const double charged = 1e6 * (t1.tv_sec - t0.tv_sec) + 1e-3 * (t1.tv_nsec - t0.tv_nsec);
+            const double charged = ThreadCpuMicros() - cpuStart;
             sink = sink + out[0][0];
             if (b < 0) continue;
             wall.push_back(elapsed);

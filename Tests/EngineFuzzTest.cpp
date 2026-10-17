@@ -79,6 +79,10 @@
 #include <time.h>
 #include <string>
 #include <vector>
+#ifdef _WIN32
+#define NOMINMAX
+#include <windows.h>
+#endif
 
 namespace maremba {
 struct MarembaEngineTestAccess {
@@ -193,7 +197,9 @@ struct Report {
 Report gReport;
 uint64_t gRenderedCalls = 0, gRenderedFrames = 0;
 
+#if defined(__GNUC__) || defined(__clang__)
 std::string Fmt(const char* format, ...) __attribute__((format(printf, 1, 2)));
+#endif
 std::string Fmt(const char* format, ...) {
     char buffer[1024];
     va_list args;
@@ -925,7 +931,7 @@ void ResetEquivalenceSeed(uint64_t seed, const Options& o) {
 // The host may use gradual underflow or hardware flush-to-zero. Exercise both
 // real modes on supported native hosts; a no-op guard would compare scheduling,
 // not denormal arithmetic. Restore the complete original control register.
-#if defined(__SSE__) || defined(__x86_64__)
+#if defined(__SSE__) || defined(__x86_64__) || defined(_M_X64)
 #include <xmmintrin.h>
 struct DenormalMode {
     using Control = unsigned;
@@ -989,10 +995,20 @@ void VerifyDenormalModes() {
 }
 
 double ThreadCpuSeconds() {
+#ifdef _WIN32
+    FILETIME creation, exited, kernel, user;
+    if (!GetThreadTimes(GetCurrentThread(), &creation, &exited, &kernel, &user))
+        return std::numeric_limits<double>::quiet_NaN();
+    const auto ticks = [](FILETIME time) {
+        return (static_cast<std::uint64_t>(time.dwHighDateTime) << 32) | time.dwLowDateTime;
+    };
+    return static_cast<double>(ticks(kernel) + ticks(user)) * 1e-7; // 100 ns units
+#else
     timespec value{};
     if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &value) != 0)
         return std::numeric_limits<double>::quiet_NaN();
     return static_cast<double>(value.tv_sec) + static_cast<double>(value.tv_nsec) * 1e-9;
+#endif
 }
 
 struct TailTiming { double wall = 0, cpu = 0; };

@@ -62,8 +62,12 @@ if(BUILD_TESTING)
         add_executable(Maremba${suite}Tests Tests/${contract}.cpp)
         target_link_libraries(Maremba${suite}Tests PRIVATE MarembaDSP)
         set_target_properties(Maremba${suite}Tests PROPERTIES CXX_STANDARD 17)
-        if(NOT MSVC)
+        if(MSVC)
             # Several contracts gate with assert(); keep it live in Release.
+            # M_PI is POSIX, which MSVC exposes only on request.
+            target_compile_options(Maremba${suite}Tests PRIVATE /W3 /bigobj /UNDEBUG)
+            target_compile_definitions(Maremba${suite}Tests PRIVATE _USE_MATH_DEFINES)
+        else()
             target_compile_options(Maremba${suite}Tests PRIVATE -Wall -Wextra -UNDEBUG)
         endif()
         if(suite MATCHES "^(EngineFuzz|ExtremeRange)$")
