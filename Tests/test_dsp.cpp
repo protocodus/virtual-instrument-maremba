@@ -30,6 +30,9 @@
 #define NOMINMAX
 #include <malloc.h>
 #include <windows.h>
+// windows.h defines these as macros; the tests use them as names.
+#undef far
+#undef near
 #endif
 
 // ─── Private engine state for the tests (MarembaEngine befriends this) ──────

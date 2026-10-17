@@ -82,6 +82,9 @@
 #ifdef _WIN32
 #define NOMINMAX
 #include <windows.h>
+// windows.h defines these as macros; the tests use them as names.
+#undef far
+#undef near
 #endif
 
 namespace maremba {
