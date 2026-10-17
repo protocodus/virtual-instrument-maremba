@@ -201,14 +201,13 @@ if(MAREMBA_BUILD_PLUGIN)
 endif()
 
 if(MAREMBA_BUILD_TOOLS)
-    # Renders the README's preset demos (see Tools/RenderDemos.cpp).
-    add_executable(MarembaRenderDemos Tools/RenderDemos.cpp)
-    target_link_libraries(MarembaRenderDemos PRIVATE MarembaDSP)
-    target_compile_definitions(MarembaRenderDemos PRIVATE MAREMBA_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+    # Renders the README's preset demos (see Tools/RenderPresetDemos.cpp).
+    add_executable(RenderMarembaPresetDemos Tools/RenderPresetDemos.cpp)
+    target_link_libraries(RenderMarembaPresetDemos PRIVATE MarembaDSP)
     if(MSVC)
-        target_compile_options(MarembaRenderDemos PRIVATE /W4 /permissive-)
+        target_compile_options(RenderMarembaPresetDemos PRIVATE /W4 /permissive-)
     else()
-        target_compile_options(MarembaRenderDemos PRIVATE -Wall -Wextra)
+        target_compile_options(RenderMarembaPresetDemos PRIVATE -Wall -Wextra)
     endif()
 
     if(MAREMBA_BUILD_PLUGIN)
@@ -271,6 +270,24 @@ if(BUILD_TESTING)
             set_tests_properties(Maremba.${suite} PROPERTIES LABELS unit TIMEOUT 1800)
         endif()
     endforeach()
+
+    # The shared U4 tools (Tests/FuzzHarness.h, Tests/ParameterMatrix.h): the
+    # fuzz harness replays committed reproducers and seeded inputs on every
+    # compiler, and the parameter-extremes matrix runs over MarembaPlayer.
+    add_executable(MarembaDspFuzzReplay Tests/DspFuzz.cpp)
+    add_executable(MarembaParameterMatrix Tests/ParameterMatrixTest.cpp)
+    foreach(target MarembaDspFuzzReplay MarembaParameterMatrix)
+        target_link_libraries(${target} PRIVATE MarembaDSP)
+        set_target_properties(${target} PROPERTIES CXX_STANDARD 17)
+    endforeach()
+    target_compile_definitions(MarembaDspFuzzReplay PRIVATE PROTOCODUS_FUZZ_MAIN)
+    file(GLOB MAREMBA_FUZZ_REPRODUCERS CONFIGURE_DEPENDS Tests/fuzz-regressions/*)
+    add_test(NAME Maremba.DspFuzzReplay COMMAND MarembaDspFuzzReplay -runs=200 ${MAREMBA_FUZZ_REPRODUCERS})
+    set_tests_properties(Maremba.DspFuzzReplay PROPERTIES LABELS unit TIMEOUT 1800)
+    # A sixteenth of the cases, one configuration each, so the sanitizer job
+    # stays bounded; main-build.yml runs the full matrix in shards.
+    add_test(NAME Maremba.ParameterMatrix COMMAND MarembaParameterMatrix --rotate --jobs 4 --shard 0/16)
+    set_tests_properties(Maremba.ParameterMatrix PROPERTIES LABELS fuzz TIMEOUT 3600)
 
     find_package(Python3 COMPONENTS Interpreter)
     if(Python3_Interpreter_FOUND)
@@ -343,7 +360,8 @@ if(BUILD_TESTING)
     endif()
 
     if(MAREMBA_BUILD_TOOLS)
-        add_test(NAME Maremba.AudioDemos COMMAND MarembaRenderDemos --check)
+        add_test(NAME Maremba.AudioDemos
+                 COMMAND RenderMarembaPresetDemos --check "${CMAKE_CURRENT_SOURCE_DIR}/Docs/audio/midi")
         set_tests_properties(Maremba.AudioDemos PROPERTIES LABELS audio TIMEOUT 3600)
     endif()
 

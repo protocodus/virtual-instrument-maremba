@@ -28,14 +28,12 @@ fi
 
 README_COPY="$(mktemp "${TMPDIR:-/tmp}/maremba-readme.XXXXXX")"
 trap 'rm -f "${README_COPY}"' EXIT
-python3 - "${ASSET_DIR}" "${README_COPY}" "${SOURCE_SHA}" "${DISTRIBUTION_URL}" \
-    "${BUILD_NUMBER}" "${EXPECTED_DEMOS}" "${SCREENSHOT}" <<'PY'
-import os
+python3 - "${ASSET_DIR}" "${README_COPY}" "${EXPECTED_DEMOS}" "${SCREENSHOT}" <<'PY'
 import pathlib
 import re
 import sys
 
-root, output, source_sha, url, build, expected, screenshot = sys.argv[1:]
+root, output, expected, screenshot = sys.argv[1:]
 readme = pathlib.Path(root, "README.md").read_text(encoding="utf-8")
 
 def block(text, name):
@@ -44,8 +42,8 @@ def block(text, name):
         sys.exit(f"error: README needs exactly one ordered {name} marker pair")
     return text.index(begin) + len(begin), text.index(end)
 
-# G3: the renderer wrote the table into this README copy; every row must link
-# an MP3 that this build produced.
+# G3: update_readme_blocks.py wrote the table into this README copy; every row
+# must link an MP3 that this build produced.
 start, stop = block(readme, "audio-demos")
 linked = re.findall(r"\(Docs/audio/([0-9][0-9]-[a-z0-9-]+\.mp3)\)", readme[start:stop])
 mp3s = sorted(p.name for p in pathlib.Path(root, "Docs/audio").glob("[0-9][0-9]-*.mp3"))
@@ -61,17 +59,12 @@ png = pathlib.Path(root, screenshot).read_bytes()
 if png[:8] != b"\x89PNG\r\n\x1a\n" or png[-12:] != b"\0\0\0\0IEND\xaeB`\x82":
     sys.exit("error: screenshot is not a complete PNG")
 
-# G5: links to this build's collected artifact, build number and source commit.
-repository = os.environ.get("GITHUB_REPOSITORY", "protocodus/virtual-instrument-maremba")
-if not re.fullmatch(rf"https://github\.com/{re.escape(repository)}/actions/runs/[0-9]+/artifacts/[0-9]+", url):
-    sys.exit("error: distribution URL must be a GitHub Actions artifact URL for this repository")
-start, stop = block(readme, "build-download")
-links = (f"\n**[Download main build {build}]({url})**, built from "
-         f"[`{source_sha[:12]}`](https://github.com/{repository}/commit/{source_sha}). "
-         f"It holds the macOS, Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.\n")
-readme = readme[:start] + links + readme[stop:]
 pathlib.Path(output).write_text(readme, encoding="utf-8")
 PY
+# G5: links to this build's collected artifact, build number and source commit.
+python3 Tools/update_readme_blocks.py download --readme "${README_COPY}" \
+    --url "${DISTRIBUTION_URL}" --build "${BUILD_NUMBER}" --commit "${SOURCE_SHA}" \
+    --repository "${GITHUB_REPOSITORY:-protocodus/virtual-instrument-maremba}"
 
 # Fetch immediately before staging so an older run cannot overwrite newer work.
 git fetch --no-tags "${REMOTE}" refs/heads/main

@@ -27,8 +27,8 @@ env:
   PLUGINVAL_WINDOWS_SHA256: c08e61ce3b96db41636f8ec7e76f4c7e2c13ebdac7fa1b5a1f52b4f32ec715ab
 
 jobs:
-  # Render into a staging tree holding a copy of the README, so the renderer
-  # rewrites that copy's demo table beside the exact audio being published.
+  # Render into a staging tree holding a copy of the README, so its demo table
+  # is rewritten beside the exact audio being published.
   render-audio-demos:
     name: Render the audio demos (audio tier)
     runs-on: ubuntu-24.04
@@ -46,7 +46,7 @@ jobs:
         run: |
           cmake -S . -B build-dsp -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DMAREMBA_BUILD_PLUGIN=OFF -DBUILD_TESTING=ON
-          cmake --build build-dsp --parallel --target MarembaRenderDemos
+          cmake --build build-dsp --parallel --target RenderMarembaPresetDemos
           ctest --test-dir build-dsp -L '^audio$' --no-tests=error --output-on-failure
 
       - name: Render and encode the demos
@@ -55,14 +55,9 @@ jobs:
           generated="build-dsp/generated-media"
           mkdir -p "$generated/Docs/audio"
           cp README.md "$generated/README.md"
-          ./build-dsp/MarembaRenderDemos --jobs 4 --readme "$generated/README.md" "$generated/Docs/audio"
-          # Fixed encoder settings and no metadata keep an unchanged render
-          # byte-identical, so the commit job finds nothing to commit.
-          for wav in "$generated"/Docs/audio/[0-9][0-9]-*.wav; do
-            ffmpeg -nostdin -v error -y -i "$wav" -c:a libmp3lame -b:a 192k \
-              -bitexact -map_metadata -1 -id3v2_version 0 "${wav%.wav}.mp3"
-            rm "$wav"
-          done
+          ./build-dsp/RenderMarembaPresetDemos --jobs 4 Docs/audio/midi "$generated/Docs/audio"
+          python3 Tools/update_readme_blocks.py demos --readme "$generated/README.md" \
+            --manifest "$generated/Docs/audio/demos.json"
           ls -l "$generated/Docs/audio"
 
       - name: Upload demo audio and README copy
@@ -254,6 +249,32 @@ jobs:
           path: build-fuzz/crash-*
           if-no-files-found: ignore
           retention-days: 30
+
+  # The standard's full parameter-extremes matrix: every case at all nine
+  # rates and block sizes, about 12 CPU-hours, split across eight runners.
+  parameter-matrix:
+    name: Parameter-extremes matrix, shard ${{ matrix.shard }}/8 (fuzz tier)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Build the matrix
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ninja-build
+          cmake -S . -B build-dsp -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DMAREMBA_BUILD_PLUGIN=OFF -DBUILD_TESTING=ON
+          cmake --build build-dsp --parallel --target MarembaParameterMatrix
+
+      - name: Run every case of shard ${{ matrix.shard }} at every configuration
+        run: ./build-dsp/MarembaParameterMatrix --jobs "$(nproc)" --shard ${{ matrix.shard }}/8
 
   collect:
     name: Collect maremba-main-build-${{ github.run_number }}

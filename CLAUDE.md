@@ -76,10 +76,11 @@ head of the tool that enforces it.
 These README parts are written by the build, never by hand:
 
 - The demo table between `<!-- audio-demos-begin -->` and
-  `<!-- audio-demos-end -->` is written by `Tools/RenderDemos.cpp` from
+  `<!-- audio-demos-end -->` is written by `Tools/update_readme_blocks.py`
+  from the demos `Tools/RenderPresetDemos.cpp` renders from
   `Docs/audio/midi/<NN>-<preset-slug>.mid` (one per factory preset; change a
-  source only on purpose, in its own commit). `main-build.yml` encodes the
-  demos to `Docs/audio/<NN>-<preset-slug>.mp3`.
+  source only on purpose, in its own commit). `main-build.yml` commits them as
+  `Docs/audio/<NN>-<preset-slug>.mp3`.
 - The block between `<!-- build-download-begin -->` and
   `<!-- build-download-end -->` is rewritten by `main-build.yml`, which also
   commits `Docs/screenshots/maremba.png`.
