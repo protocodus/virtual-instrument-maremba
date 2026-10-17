@@ -74,7 +74,7 @@ constexpr uint32_t kRollSeed = 0x2468ACE1u;
 // shared mix scale; a stem carries this calibration and nothing else. Bar and
 // Kalimba families retain their original balance at 70% nominal amplitude.
 // Each stereo pair or mono Piezo keeps its own independent protection, which
-// may act on louder material (docs/OUTPUT_LEVEL.md).
+// may act on louder material (the Rack device's Docs/research/output-level.md).
 
 // Steal score of a voice: how loud it sounds now (the last ~30 ms), so bass
 // and treble voices compare by what is heard; a non-finite voice is the first
