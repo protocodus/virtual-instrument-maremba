@@ -65,8 +65,8 @@ Everything else in `Docs/` has one home, and nothing sits loose there except
 Name documents in lowercase kebab-case, `<topic>-YYYY-MM-DD.md` for dated
 work. Moving a document is a rename only: keep its content and date, and update
 every link to it in the same commit. Legal files (`LICENSE`,
-`THIRD_PARTY_NOTICES.md`) stay at the root; upstream licence texts live in
-`ThirdParty/`.
+`THIRD_PARTY_NOTICES.md`, `PRIVACY.md`) stay at the root; upstream licence
+texts live in `ThirdParty/`.
 
 Research the code depends on — a specific value, a manual page, a measurement,
 a derivation — belongs in a comment **beside the code that uses it**, not only
@@ -76,16 +76,15 @@ head of the tool that enforces it.
 These README parts are written by the build, never by hand:
 
 - The demo table between `<!-- audio-demos-begin -->` and
-  `<!-- audio-demos-end -->` is written by `Tools/update_readme_blocks.py`
-  from the demos `Tools/RenderPresetDemos.cpp` renders from
-  `Docs/audio/midi/<NN>-<preset-slug>.mid` (one per factory preset; change a
-  source only on purpose, in its own commit). `main-build.yml` commits them as
+  `<!-- audio-demos-end -->`, rendered from one
+  `Docs/audio/midi/<NN>-<preset-slug>.mid` per factory preset (change a source
+  only on purpose, in its own commit) and committed by the main build as
   `Docs/audio/<NN>-<preset-slug>.mp3`.
 - The block between `<!-- build-download-begin -->` and
-  `<!-- build-download-end -->` is rewritten by `main-build.yml`, which also
-  commits `Docs/screenshots/maremba.png`.
+  `<!-- build-download-end -->`, rewritten by the main build, which also
+  commits the README screenshot under `Docs/screenshots/`.
 
-Version history is a ledger of what changed about the instrument — what it
+Version history is a ledger of what changed about the product — what it
 sounds like, what it exposes, what a session must know. Pure refactors,
 deduplications and test-coverage additions belong in git history, not in it.
 
@@ -95,9 +94,8 @@ later engine changes make them stale.
 
 ## A–Z listening tests
 
-This is a physical model whose measured references (see `THIRD_PARTY_NOTICES.md`)
-do not cover every mechanism, so there are decisions the measurements cannot
-close. When a change is audible and the
+This is a physical model with no owned calibration captures, so there are
+decisions the measurements cannot close. When a change is audible and the
 physics admits more than one defensible option, **render the options as WAVs,
 letter them, and let the user decide the direction by ear.** A listening test is
 a legitimate way to choose between candidates. It is not a way to fit a number —
