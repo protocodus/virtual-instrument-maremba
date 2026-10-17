@@ -130,8 +130,23 @@ def main():
         print('wrote', path)
     else:
         current = pattern.search(text)
-        assert current and current.group(0) == block, 'Source/DSP/KalimbaModes.h mount table is stale'
+        assert current and same_table(current.group(0), block), 'Source/DSP/KalimbaModes.h mount table is stale'
         print('mount table matches')
+
+
+NUMBER = re.compile(r'-?\d+\.?\d*(?:e[-+]?\d+)?')
+
+
+def same_table(current, generated):
+    # The shift-invert eigensolve agrees only to ~1e-7 across OpenBLAS kernels
+    # (AVX-512 and Accelerate reproduce the committed digits, AVX2 and Zen
+    # differ by up to 7.5e-8 relative), so the last printed digits vary with
+    # the CI runner's CPU. Layout must match exactly; values to 1e-6, far
+    # inside the 2e-4 discretization tolerance table() asserts.
+    if NUMBER.sub('#', current) != NUMBER.sub('#', generated):
+        return False
+    pairs = zip(map(float, NUMBER.findall(current)), map(float, NUMBER.findall(generated)))
+    return all(abs(a - b) <= 1e-6 * max(abs(a), abs(b)) for a, b in pairs)
 
 
 if __name__ == '__main__':
