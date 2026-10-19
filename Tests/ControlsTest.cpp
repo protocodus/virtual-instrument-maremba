@@ -43,7 +43,7 @@ int main() {
     const ControlValues defaults = kControlDefaults;
     const EngineParameters p = EngineParametersFromControls(defaults);
     Check(Finite(p), "defaults map to finite parameters");
-    Check(p.model == 0 && p.malletType == 1 && p.velocityCurve == 3 && p.polyphony == 1, "default switches");
+    Check(p.model == 0 && p.malletType == 1 && p.velocityCurve == 1 && p.polyphony == 1, "default switches");
     Check(p.volume == 0.85f && p.tuneCents == 0.0f && PitchBendCentsFromControls(defaults) == 0.0f,
           "nominal Volume, centred Master Tune and Pitch Bend");
     Check(p.pitchGlide == 0.0f && p.gentleWiden == 0, "legacy controls never reach the engine");

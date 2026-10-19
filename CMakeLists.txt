@@ -25,7 +25,7 @@ endif()
 
 # The DSP version is the product version (Rack devices take X.Y.Z from it).
 # C is required too: JUCE's macOS AU and Standalone wrappers compile C sources.
-project(Maremba VERSION 1.5.1 LANGUAGES C CXX)
+project(Maremba VERSION 1.5.2 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -204,6 +204,8 @@ if(MAREMBA_BUILD_TOOLS)
     # Renders the README's preset demos (see Tools/RenderPresetDemos.cpp).
     add_executable(RenderMarembaPresetDemos Tools/RenderPresetDemos.cpp)
     target_link_libraries(RenderMarembaPresetDemos PRIVATE MarembaDSP)
+    add_executable(CalibrateMarembaMain Tools/CalibrateMain.cpp)
+    target_link_libraries(CalibrateMarembaMain PRIVATE MarembaDSP)
     if(MSVC)
         target_compile_options(RenderMarembaPresetDemos PRIVATE /W4 /permissive-)
     else()
@@ -265,6 +267,12 @@ if(BUILD_TESTING)
             # --full are the long opt-in matrices.
             add_test(NAME Maremba.${suite} COMMAND Maremba${suite}Tests --compact)
             set_tests_properties(Maremba.${suite} PROPERTIES LABELS fuzz TIMEOUT 1800)
+        elseif(suite STREQUAL "MainCalibration")
+            foreach(rate IN ITEMS 44100 48000 96000)
+                add_test(NAME Maremba.MainCalibration${rate}
+                         COMMAND MarembaMainCalibrationTests --rate ${rate} --stress)
+                set_tests_properties(Maremba.MainCalibration${rate} PROPERTIES LABELS unit TIMEOUT 1800)
+            endforeach()
         else()
             add_test(NAME Maremba.${suite} COMMAND Maremba${suite}Tests)
             set_tests_properties(Maremba.${suite} PROPERTIES LABELS unit TIMEOUT 1800)

@@ -4,9 +4,12 @@
 
 namespace maremba {
 
-// Fixed recording gains, not automatic level control. Measured through the Rack
-// wrapper at nominal Volume, using the louder of the velocity-80 and varied
-// velocity reference phrases. See the Rack device's Docs/validation/peak-calibration-20261016.
-inline constexpr std::array<float, 4> kMainModelCalibration {1.726411287f, 1.638942302f, 1.816753899f, 1.414657906f};
+// Fixed recording gains, not automatic RMS control. Calibrated with the shared
+// five-second velocity-80 phrase, Linear response, stereo RMS including tails.
+// Main peaks reserve -7 dBFS through the existing smooth lookahead protector;
+// the direct captures keep their independent 0.94 ceiling.
+inline constexpr float kMainPeakCeiling = 0.446683592f; // 10^(-7 / 20)
+inline constexpr float kMainReferenceRmsDb = -27.0f;
+inline constexpr std::array<float, 4> kMainModelCalibration {1.225115902f, 1.174502045f, 1.406057112f, 1.034682015f};
 
 } // namespace maremba

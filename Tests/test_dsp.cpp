@@ -7,6 +7,8 @@
 // Compatibility tests separately require removed controls to remain inert.
 
 #include "MarembaEngine.h"
+#include "MainCalibration.h"
+#include "MainVolume.h"
 #include "ModalExcitation.h"
 #include "ContactExcitation.h"
 #include "BarModes.h"
@@ -389,7 +391,7 @@ EngineParameters CleanParams()
     p.strikeJitter = 0.0f;
     p.pitchGlide = 0.0f;
     // Preserve the calibrated physical fixtures' Linear touch mapping;
-    // SoftVelocityTest separately checks the shipped Sigmoid default.
+    // SoftVelocityTest independently exercises Sigmoid and the Linear default.
     p.velocityCurve = 1;
     // Isolate the original physical response from the optional velocity routes.
     p.velocityToHardness = p.velocityToPosition = p.velocityToDecay = 0.0f;
@@ -2278,22 +2280,24 @@ void TestDirectOutMatchesMain()
 {
     std::cout << "[Gain] Direct close out matches the main bus close path ..." << std::endl;
     constexpr double kCloseStemTrim = MarembaEngine::kCloseStemTrim; // published Close direct-output trim
-    // Deliberate public output calibration at the 85% Volume reference.
-    // Keep this independent of the implementation so a gain regression fails.
-    constexpr double kMainCalibrationGain = 1.202853 * .7 * 1.726411287;
     EngineParameters p = CleanParams();
     p.farLevel = 0.0f; p.piezoLevel = 0.0f; p.closeLevel = 1.0f; p.stereoWidth = 1.0f;
     p.compAmount = 0.0f; p.preampDrive = 0.0f; p.warmth = 0.0f;
     p.malletType = 3; p.malletHardness = 0.9f;
     p.volume = .25f;
     // Volume is Main's alone: the direct capture never follows it.
-    const double volumeGain = (static_cast<double>(p.volume) / .85) * (p.volume / .85);
+    // This is a routing/phase oracle, independent of the changing recording
+    // level. MainCalibrationTest verifies the public model calibration, and
+    // MainVolumeTest independently anchors the knob's amplitude curve.
+    const double mainCalibrationGain = 1.202853 * .7 * maremba::kMainModelCalibration[static_cast<std::size_t>(p.model)];
+    const double volumeGain = maremba::MainVolumeGain(p.volume);
     for (int os : { 0, 2 }) {
         p.oversampling = os;
         // A quiet strike isolates the aligned, linear paths. Hot strikes use
         // independent main-bus headroom and are checked by containment tests.
         const Render r = RenderNote(44100.0, p, 96, .1f, 0.1);
-        CHECK(Peak(r.ch[kMainL]) < .5 && Peak(r.ch[kMainR]) < .5,
+        CHECK(Peak(r.ch[kMainL]) < .5 * maremba::kMainPeakCeiling
+              && Peak(r.ch[kMainR]) < .5 * maremba::kMainPeakCeiling,
               "direct/main alignment fixture is not safely below the output ceiling");
         double err = 0.0, lvl = 0.0;
         // Main includes the documented 20 Hz DC blocker; the direct capture
@@ -2305,7 +2309,7 @@ void TestDirectOutMatchesMain()
             const double close = r.ch[kCloseL][i] / kCloseStemTrim;
             const double expected = close-previousIn+pole*previousOut;
             previousIn = close; previousOut = expected;
-            const double d = r.ch[kMainL][i] / (kMainCalibrationGain * volumeGain) - expected;
+            const double d = r.ch[kMainL][i] / (mainCalibrationGain * volumeGain) - expected;
             err += d * d;
             lvl += close * close;
         }
@@ -2329,7 +2333,7 @@ void TestMainGainBeforeLimiter()
         const Render actual = RenderNote(rate, p, 60, .9f, .5);
         CHECK(std::max(Peak(actual.ch[kCloseL]), Peak(actual.ch[kCloseR])) < .5,
               "limiter-placement fixture drives the direct guard");
-        CHECK(std::max(Peak(actual.ch[kMainL]), Peak(actual.ch[kMainR])) < .5,
+        CHECK(std::max(Peak(actual.ch[kMainL]), Peak(actual.ch[kMainR])) < .5 * maremba::kMainPeakCeiling,
               "limiter-placement fixture drives the Main guard");
         maremba::AnalogPreamp preamp; preamp.SetSampleRate(rate); preamp.Reset();
         maremba::AnalogLimiter correct, before;
@@ -2337,16 +2341,18 @@ void TestMainGainBeforeLimiter()
             limiter->SetSampleRate(rate); limiter->SetTimes(p.compAttack, p.compRelease);
             limiter->SetAmount(p.compAmount); limiter->Reset();
         }
-        const float volume = (p.volume / .85f) * (p.volume / .85f);
+        const float volume = maremba::MainVolumeGain(p.volume);
+        const float recordingGain = .7f * maremba::kMainModelCalibration[static_cast<std::size_t>(p.model)];
         double error = 0, wrongPlacement = 0, energy = 0;
         for (size_t i = 0; i < actual.size(); ++i) {
             float preL, preR, limitedL, limitedR, wrongL, wrongR;
             preamp.Process(actual.ch[kCloseL][i] / MarembaEngine::kCloseStemTrim,
                            actual.ch[kCloseR][i] / MarembaEngine::kCloseStemTrim, 0, 0, preL, preR);
-            correct.Process(preL * volume * .7f * 1.726411287f * 1.202853f, preR * volume * .7f * 1.726411287f * 1.202853f, limitedL, limitedR);
+            correct.Process(preL * volume * recordingGain * 1.202853f,
+                            preR * volume * recordingGain * 1.202853f, limitedL, limitedR);
             before.Process(preL * 1.202853f, preR * 1.202853f, wrongL, wrongR);
             const float expected[2] = {limitedL, limitedR};
-            const float incorrect[2] = {wrongL * volume * .7f * 1.726411287f, wrongR * volume * .7f * 1.726411287f};
+            const float incorrect[2] = {wrongL * volume * recordingGain, wrongR * volume * recordingGain};
             for (int channel = 0; channel < 2; ++channel) {
                 const double difference = actual.ch[channel][i] - expected[channel];
                 const double wrong = actual.ch[channel][i] - incorrect[channel];
@@ -2558,12 +2564,13 @@ void TestWidthAndRoomImage()
     // call CaptureScene::Mix here: a narrowed image, widened Room or changed
     // mono component must fail even if its aggregate S/M ratio looks plausible.
     const double pole = static_cast<float>(std::exp(-2.0*M_PI*20.0/44100.0));
-    const double volumeGain = (static_cast<double>(p.volume)/.85)*(p.volume/.85);
-    const double mainGain = 1.202853*.7*1.726411287*volumeGain;
+    const double volumeGain = maremba::MainVolumeGain(p.volume);
+    const double mainGain = 1.202853 * .7 * maremba::kMainModelCalibration[static_cast<std::size_t>(p.model)] * volumeGain;
     auto checkTransfer = [&](const Render& r, float width) {
         double previousIn[2]{}, previousOut[2]{}, error = 0.0, energy = 0.0;
         for (int channel = 0; channel < kNumChannels; ++channel)
-            CHECK(Peak(r.ch[channel]) < .75, "width fixture reaches output protection on channel " << channel);
+            CHECK(Peak(r.ch[channel]) < (channel < kCloseL ? .5 * maremba::kMainPeakCeiling : .75),
+                  "width fixture reaches output protection on channel " << channel);
         for (int channel = kCloseL; channel < kNumChannels; ++channel)
             CHECK(r.ch[channel] == mono.ch[channel], "width changes direct capture " << channel);
         for (size_t i = 0; i < r.size(); ++i) {
@@ -2911,7 +2918,7 @@ void TestReleaseWhileQueued()
 // Main mix must preserve their independently rendered coherent contributions.
 void TestTrebleNotBuried()
 {
-    // Preserve the same C4/C7 strikes, velocity and 300 ms window. Validated f2
+    // Preserve the same C4/C7 strikes, Sigmoid velocity and 300 ms window. Validated f2
     // and f3 have identical Close stereo-energy gaps (17.37/17.29 dB), and the
     // electrical source retains its 10.99/10.92 dB gap. Keep the 20 dB acoustic
     // bound and give the distinct electrical source its own 12 dB bound.
@@ -2922,6 +2929,7 @@ void TestTrebleNotBuried()
     std::cout << "[Voicing] C7 source audibility and coherent default capture mix ..." << std::endl;
     for (auto cfg : { std::make_pair(44100.0, 0), std::make_pair(96000.0, 2) }) {
         EngineParameters p;
+        p.velocityCurve = 3; // Historical physical-voicing fixture; defaults are tested separately.
         p.oversampling = cfg.second;
         const auto stereoEnergy = [](const Render& r, int first) {
             return 0.5 * (Energy(r.ch[first], 0, r.size()) + Energy(r.ch[first+1], 0, r.size()));

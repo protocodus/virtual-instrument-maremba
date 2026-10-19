@@ -18,20 +18,20 @@ void Require(bool ok, const char* message) {
 }
 
 void Curve() {
-    Require(MainVolumeGain(0) == 0 && MainVolumeGain(.85f) == 1 && MainVolumeGain(1) == 4,
+    Require(MainVolumeGain(0) == 0 && MainVolumeGain(.85f) == 1 && MainVolumeGain(1) == 2.25f,
             "mute, nominal or maximum gain changed");
     for (const auto& anchor : std::array<std::array<double, 2>, 3>{{
-             {{.5, .34602076124567477}}, {{.75, .7785467128027681}}, {{.95, 2.001948240615009}}}})
+             {{.5, .34602076124567477}}, {{.75, .7785467128027681}}, {{.95, 1.550230189074722}}}})
         Require(std::abs(MainVolumeGain(anchor[0]) - anchor[1]) < 2e-6,
                 "Main volume amplitude anchor changed");
-    Require(MainVolumeGain(-1) == 0 && MainVolumeGain(2) == 4
+    Require(MainVolumeGain(-1) == 0 && MainVolumeGain(2) == 2.25f
             && MainVolumeGain(std::numeric_limits<float>::quiet_NaN()) == 0
             && MainVolumeGain(std::numeric_limits<float>::infinity()) == 0,
             "invalid volume must remain bounded");
     float previous = 0;
     for (int i = 1; i <= 10000; ++i) {
         const float gain = MainVolumeGain(i / 10000.f);
-        Require(gain > previous && gain <= 4, "Volume must increase monotonically");
+        Require(gain > previous && gain <= 2.25f, "Volume must increase monotonically");
         previous = gain;
     }
     constexpr float h = .0001f;
@@ -80,7 +80,7 @@ void Engine(double rate) {
             Require(nominal[channel] == actual[channel], "Volume modifies a direct capture");
         // Independent amplitude anchors, not the helper used by the engine.
         const double gain = knob == 0 ? 0 : knob == .425f ? .25 : knob == .5f
-            ? .34602076124567477 : knob == .95f ? 2.001948240615009 : 4;
+            ? .34602076124567477 : knob == .95f ? 1.550230189074722 : 2.25;
         double error = 0, energy = 0;
         for (int c = 0; c < 2; ++c) for (size_t i = 0; i < actual[c].size(); ++i) {
             const double difference = actual[c][i] - nominal[c][i] * gain;

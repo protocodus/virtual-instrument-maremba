@@ -43,6 +43,18 @@ One demo per factory preset, rendered by every main build from
 
 ## Version history
 
+### 1.5.2 — 2026-10-20 — consistent playing levels
+
+- The four initialized models and 20 factory presets match −27 dBFS stereo
+  RMS on the same velocity-80 Linear reference phrase. Main peaks reserve
+  −7 dBFS through smooth look-ahead gain control; sustained sounds can peak
+  lower. Linear is now the default curve and the factory bank's selection.
+- Full Volume now adds 7.04 dB above the 85% reference, down from 12.04 dB.
+  The five direct captures retain their levels and independent protection.
+  Saved controls keep their values; Main level and transient behavior change.
+- [Measurement protocol and calibration](Docs/validation/output-calibration-2026-10-20.md).
+
+
 ### 1.5.1 — 2026-10-16 — the engine moves to its own repository
 
 - `Source/DSP/` is the engine of the Rack Extension's 1.5.1f7 release candidate

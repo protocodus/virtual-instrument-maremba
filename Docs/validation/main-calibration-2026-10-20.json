@@ -1,0 +1,220 @@
+{
+  "reference_rms_dbfs": -27,
+  "main_peak_ceiling_dbfs": -7,
+  "quiet_volume": 0.2125,
+  "measured_model_gains": [
+    1.726411287,
+    1.638942302,
+    1.816753899,
+    1.414657906
+  ],
+  "model_gains": [
+    1.2251159021770344,
+    1.1745020450627235,
+    1.4060571122381547,
+    1.0346820146420979
+  ],
+  "max_volume_gain": 2.25,
+  "patches": [
+    {
+      "name": "Ambient Cathedral Bloom",
+      "volume": 0.92202852,
+      "state_index": "4",
+      "gain": "14.9438109488",
+      "rms_dbfs": "-26.9999126423",
+      "peak_dbfs": "-10.8486635558",
+      "max_reduction_db": "5.17216016457e-07",
+      "energy_loss_db": "-5.36690183415e-10"
+    },
+    {
+      "name": "Concert Grand Rosewood",
+      "volume": 0.88710125,
+      "state_index": "5",
+      "gain": "12.7400520876",
+      "rms_dbfs": "-26.9999309561",
+      "peak_dbfs": "-11.7093450305",
+      "max_reduction_db": "5.17295174237e-07",
+      "energy_loss_db": "3.55345028136e-10"
+    },
+    {
+      "name": "Direct Piezo Mallet",
+      "volume": 0.82629591,
+      "state_index": "6",
+      "gain": "10.7296669759",
+      "rms_dbfs": "-27.0001039997",
+      "peak_dbfs": "-7.01184304482",
+      "max_reduction_db": "1.84990572196",
+      "energy_loss_db": "0.103706240138"
+    },
+    {
+      "name": "Hard Acrylic Virtuoso",
+      "volume": 0.83384941,
+      "state_index": "7",
+      "gain": "10.9267321043",
+      "rms_dbfs": "-26.9998628697",
+      "peak_dbfs": "-7.03126609364",
+      "max_reduction_db": "2.09111044678",
+      "energy_loss_db": "0.136082977883"
+    },
+    {
+      "name": "Rosewood Dampened Etude",
+      "volume": 0.89564379,
+      "state_index": "8",
+      "gain": "13.18635662",
+      "rms_dbfs": "-26.9999253847",
+      "peak_dbfs": "-11.9082339004",
+      "max_reduction_db": "5.16098100622e-07",
+      "energy_loss_db": "-5.43472298488e-10"
+    },
+    {
+      "name": "Rosewood Roll Chorale",
+      "volume": 0.92118735,
+      "state_index": "9",
+      "gain": "14.8778014069",
+      "rms_dbfs": "-26.9999986882",
+      "peak_dbfs": "-11.5865322654",
+      "max_reduction_db": "5.16888446008e-07",
+      "energy_loss_db": "-1.75890919084e-10"
+    },
+    {
+      "name": "Soft Yarn Nocturne",
+      "volume": 0.94332347,
+      "state_index": "10",
+      "gain": "16.8778767079",
+      "rms_dbfs": "-26.9999614276",
+      "peak_dbfs": "-12.238828829",
+      "max_reduction_db": "5.16492163374e-07",
+      "energy_loss_db": "6.8850088124e-10"
+    },
+    {
+      "name": "Chiapas Folk Fiesta",
+      "volume": 0.78840589,
+      "state_index": "11",
+      "gain": "9.86442920807",
+      "rms_dbfs": "-26.9998710345",
+      "peak_dbfs": "-7.00067702602",
+      "max_reduction_db": "2.40055558867",
+      "energy_loss_db": "0.27364846358"
+    },
+    {
+      "name": "Guatemalan Charleo",
+      "volume": 0.74482374,
+      "state_index": "12",
+      "gain": "8.80398431707",
+      "rms_dbfs": "-27.0001308829",
+      "peak_dbfs": "-8.17166673065",
+      "max_reduction_db": "5.17055508017e-07",
+      "energy_loss_db": "-5.41719633317e-10"
+    },
+    {
+      "name": "Mayan Dance Padauk",
+      "volume": 0.78962565,
+      "state_index": "13",
+      "gain": "9.89497574283",
+      "rms_dbfs": "-26.9999644815",
+      "peak_dbfs": "-11.3601615098",
+      "max_reduction_db": "5.16668984377e-07",
+      "energy_loss_db": "-1.18069651337e-09"
+    },
+    {
+      "name": "Ancestral Balafon",
+      "volume": 0.76980639,
+      "state_index": "14",
+      "gain": "10.1566857187",
+      "rms_dbfs": "-27.0001165573",
+      "peak_dbfs": "-7.4121057919",
+      "max_reduction_db": "5.16587357919e-07",
+      "energy_loss_db": "-1.47128888066e-10"
+    },
+    {
+      "name": "Birifor Gyil Buzz",
+      "volume": 0.76152086,
+      "state_index": "15",
+      "gain": "9.9392267853",
+      "rms_dbfs": "-26.9999506421",
+      "peak_dbfs": "-7.6990221374",
+      "max_reduction_db": "5.17233887373e-07",
+      "energy_loss_db": "-7.65217952903e-11"
+    },
+    {
+      "name": "Chopi Timbila Ensemble",
+      "volume": 0.78796281,
+      "state_index": "16",
+      "gain": "10.641440651",
+      "rms_dbfs": "-27.0001275479",
+      "peak_dbfs": "-7.02249643753",
+      "max_reduction_db": "0.712794351333",
+      "energy_loss_db": "0.0785098967495"
+    },
+    {
+      "name": "Equipentatonic Log Keys",
+      "volume": 0.92831682,
+      "state_index": "17",
+      "gain": "16.8618733412",
+      "rms_dbfs": "-27.0000762842",
+      "peak_dbfs": "-7.00008125896",
+      "max_reduction_db": "7.52498722488",
+      "energy_loss_db": "2.40124552181"
+    },
+    {
+      "name": "Mandinka Bala Heptatonic",
+      "volume": 0.79912895,
+      "state_index": "18",
+      "gain": "10.9451751887",
+      "rms_dbfs": "-27.0000789426",
+      "peak_dbfs": "-7.00690488976",
+      "max_reduction_db": "0.678806166518",
+      "energy_loss_db": "0.0794871204794"
+    },
+    {
+      "name": "Midnight Village Ritual",
+      "volume": 0.76918456,
+      "state_index": "19",
+      "gain": "10.1402837984",
+      "rms_dbfs": "-27.0000815332",
+      "peak_dbfs": "-10.4256417273",
+      "max_reduction_db": "5.16509964858e-07",
+      "energy_loss_db": "-8.07576519104e-10"
+    },
+    {
+      "name": "Sambla Talking Balafon",
+      "volume": 0.80419884,
+      "state_index": "20",
+      "gain": "11.0844942222",
+      "rms_dbfs": "-26.99988332",
+      "peak_dbfs": "-7.00082829245",
+      "max_reduction_db": "0.777320874231",
+      "energy_loss_db": "0.0868561643202"
+    },
+    {
+      "name": "Kalimba Muted Thumbs",
+      "volume": 0.88192243,
+      "state_index": "21",
+      "gain": "12.8782144233",
+      "rms_dbfs": "-26.9998492841",
+      "peak_dbfs": "-12.833345631",
+      "max_reduction_db": "5.17190199484e-07",
+      "energy_loss_db": "2.3149452296e-10"
+    },
+    {
+      "name": "Kalimba Pick Sparkle",
+      "volume": 0.82833062,
+      "state_index": "22",
+      "gain": "11.1133510147",
+      "rms_dbfs": "-26.999965434",
+      "peak_dbfs": "-13.0692553455",
+      "max_reduction_db": "5.16887998561e-07",
+      "energy_loss_db": "9.0396153138e-10"
+    },
+    {
+      "name": "Kalimba Thumb Lullaby",
+      "volume": 0.99067363,
+      "state_index": "23",
+      "gain": "24.372171534",
+      "rms_dbfs": "-26.9999943932",
+      "peak_dbfs": "-13.0127615854",
+      "max_reduction_db": "5.16315222795e-07",
+      "energy_loss_db": "9.95792507345e-10"
+    }
+  ]
+}

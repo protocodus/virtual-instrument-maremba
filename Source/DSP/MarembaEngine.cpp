@@ -1041,7 +1041,7 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         // Independent Main/Close/Room/Piezo gain controllers anticipate
         // overloads by 2 ms. Quiet audio retains its level; one hot capture
         // cannot turn down another. Every stereo pair shares its gain.
-        mOutputHeadroom.Process(frame);
+        mOutputHeadroom.Process(frame, kMainPeakCeiling);
         outMainL[f] = frame[0] * mSwitchGain;
         outMainR[f] = frame[1] * mSwitchGain;
         for (int k = 0; k < kNumDirectOuts; ++k)

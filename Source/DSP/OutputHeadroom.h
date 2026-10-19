@@ -64,7 +64,10 @@ public:
         // contain a queued overload. Returning to unity here could expose it.
     }
 
-    void Process(std::array<float, 7>& frame) {
+    // Main can reserve a lower musical peak reference without changing the
+    // independently calibrated stems. The default preserves the standalone
+    // protector's existing ceiling and latency.
+    void Process(std::array<float, 7>& frame, float mainCeiling = kCeiling) {
         std::array<double, 4> peaks{};
         for (int channel = 0; channel < 7; ++channel) {
             double peak = std::abs(frame[channel]);
@@ -89,7 +92,8 @@ public:
             history[mFirWrite] = history[mFirWrite + output_peak::kTaps] = frame[channel];
             // The L1 bound makes this skip exact: a history containing only
             // small samples cannot reconstruct above the detector ceiling.
-            if (std::abs(c) > kCeiling / output_peak::kMaximumL1)
+            const float ceiling = channel < 2 ? mainCeiling : kCeiling;
+            if (std::abs(c) > ceiling / output_peak::kMaximumL1)
                 mFirHotFrames[channel] = output_peak::kTaps;
             if (mFirHotFrames[channel] > 0) {
                 --mFirHotFrames[channel];
@@ -105,7 +109,7 @@ public:
         }
         std::array<float, 4> gains{};
         for (int group = 0; group < 4; ++group)
-            gains[group] = UpdateGain(mGroups[group], peaks[group]);
+            gains[group] = UpdateGain(mGroups[group], peaks[group], group == 0 ? mainCeiling : kCeiling);
 
         const int read = (mWrite + 1) % mWindow;
         for (int channel = 0; channel < 7; ++channel) {
@@ -126,8 +130,8 @@ private:
         double control = 1.0, gainSum = 97.0;
     };
 
-    float UpdateGain(GainState& state, double peak) {
-        const double required = peak > kCeiling ? static_cast<double>(kCeiling) / peak : 1.0;
+    float UpdateGain(GainState& state, double peak, double ceiling) {
+        const double required = peak > ceiling ? ceiling / peak : 1.0;
 
         // Sliding minimum, amortized O(1), using preallocated circular storage.
         // Keep each requirement for the entire lookahead/averaging window.

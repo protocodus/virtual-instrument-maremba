@@ -55,7 +55,7 @@ struct EngineParameters {
 
     float volume = 0.85f;           // 0..1; nominal level at .85, before MainVolumeGain
     int oversampling = 0;           // 0: 2x, 1: 4x, 2: 8x (literal factors at every host rate)
-    int velocityCurve = 3;          // 0: Soft (sqrt), 1: Linear, 2: Hard (v^1.55), 3: Sigmoid (smoothstep)
+    int velocityCurve = 1;          // 0: Soft (sqrt), 1: Linear, 2: Hard (v^1.55), 3: Sigmoid (smoothstep)
     int polyphony = 1;              // 0: 8, 1: 16, 2: 24 voices
     float tuneCents = 0.0f;         // static tuning offset in cents: device Master Tune knob (+/-100) + Reason global master tune (+/-100)
     float detune = 0.0f;            // 0..100: per-key drift (0 = exact, 100 = up to +/-100 cents per key)
