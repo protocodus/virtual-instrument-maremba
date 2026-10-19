@@ -93,6 +93,17 @@ FIR activation threshold in a scratch copy makes the new witness fail.
 Controls and explicit Sigmoid/Linear response contracts passed; the Sigmoid
 matrix retains 2,412,825 checks.
 
+The unit-tier run initially passed 81 of 83 registrations. Two tests still
+encoded the previous recording gains or implicitly selected the former default
+curve. Their routing oracles and historical fixture curve were corrected
+without relaxing physical bounds; both full contracts (`Engine` and
+`MainPickupAlignment`) then passed on rerun. One duplicate calibration
+registration was removed, leaving **82 distinct unit tests with passing results
+on the final source**. The hardest-hit matrix, reconstructed-output probe,
+parameter reachability, room measurements and calibration tools also passed.
+The final unit tier was not repeated wholesale after those test-only fixes.
+
+
 
 The native default-quality [CPU probe](default-cpu-probe-2026-10-20.cpp) measures
 48 kHz, 64-frame blocks, 2× quality, a 16-voice limit, Main only, four-note
