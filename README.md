@@ -160,6 +160,12 @@ MIDI, events and reference audio carry their own licences
 
 ## Licensing
 
-MIT, see [`LICENSE`](LICENSE). The plug-in builds with JUCE (AGPLv3 or a
-commercial JUCE licence) and clap-juce-extensions (MIT), and the measured head
-responses are Apache-2.0; see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+Maremba's source is available under the [PolyForm Noncommercial License
+1.0.0](LICENSE): you may read, study, change and share it for any non-commercial
+purpose, but not sell it or use it commercially. Official Protocodus builds
+carry an additional permission in the same file to use them for any purpose,
+including making music commercially. Commits made before this licence change
+were published under MIT and remain so. The plug-in builds with JUCE (official
+builds use a commercial JUCE 8 Starter licence) and clap-juce-extensions (MIT),
+and the measured head responses are Apache-2.0; see
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
