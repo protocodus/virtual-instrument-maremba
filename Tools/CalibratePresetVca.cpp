@@ -3,12 +3,12 @@
 // Search finds the first passing point on a 1/32 VCA grid, then refines only
 // that bracket. It does not assert global monotonicity or prove that a narrower
 // passing interval cannot exist between earlier grid points.
-// The -8 dBFS normal reference leaves 7 dB below Main's -1 dBFS protection
+// The -7 dBFS normal reference leaves 6 dB below Main's -1 dBFS protection
 // ceiling; louder playing may use the existing gentle lookahead protection.
 //
 // Capture each rate with MainCalibrationTest --quiet --capture FRESH_DIRECTORY.
 // Quiet Volume .2125 has gain .0625, below both Main dynamics thresholds.
-// Usage: CalibratePresetVca [--target DBFS=-8.0] DIR_44100 DIR_48000 DIR_96000
+// Usage: CalibratePresetVca [--target DBFS=-7.0] DIR_44100 DIR_48000 DIR_96000
 //
 // The input already includes the quiet engine's output delay. Replaying it
 // through the production protector adds another D-frame delay and truncates
@@ -165,7 +165,7 @@ Bank ReadBank(const fs::path& directory) {
             : static_cast<int>(maremba::kFactoryPresets[state - kFactoryOffset].values[maremba::kModel]);
         Require(value("state") == expectedName && Number(value("model"), "model") == expectedModel,
                 "capture metadata does not match the compiled factory bank");
-        if (state < kFactoryOffset) continue; // The four model RMS anchors are never solved.
+        if (state < kFactoryOffset) continue; // Model gains are calibrated separately from init peaks.
 
         auto& capture = bank[state - kFactoryOffset];
         capture.rate = rate;
@@ -285,7 +285,7 @@ void PrintMetrics(const Measurement& result) {
 
 int main(int argc, char** argv) {
     try {
-        double targetDb = -8.0;
+        double targetDb = maremba::kMainReferencePeakDb;
         bool targetSeen = false;
         std::vector<fs::path> directories;
         for (int i = 1; i < argc; ++i) {
@@ -299,7 +299,7 @@ int main(int argc, char** argv) {
             } else directories.emplace_back(argument);
         }
         Require(directories.size() == 3,
-                "usage: CalibratePresetVca [--target DBFS=-8.0] DIR_44100 DIR_48000 DIR_96000");
+                "usage: CalibratePresetVca [--target DBFS=-7.0] DIR_44100 DIR_48000 DIR_96000");
         Require(targetDb >= -60. && targetDb <= Db(maremba::kMainPeakCeiling) - .001,
                 "target peak must be finite and between -60 and "
                 + std::to_string(Db(maremba::kMainPeakCeiling) - .001) + " dBFS");

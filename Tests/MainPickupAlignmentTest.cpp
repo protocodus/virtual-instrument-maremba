@@ -208,7 +208,7 @@ void EngineRouting(double rate, int model) {
     const double seconds = CaptureDistance(position, CloseHeadCentre()) / kCaptureSpeedOfSound;
     const double trim = model == 3 ? MarembaEngine::kKalimbaPiezoStemTrim : MarembaEngine::kPiezoStemTrim;
     // Independent declared Main calibration and default-off Volume transfer.
-    constexpr double modelGain[] = {1.225115902, 1.174502045, 1.406057112, 1.034682015};
+    constexpr double modelGain[] = {2.156637999, 2.113276235, 2.805121587, 2.111566469};
     const double scale = .707 * (.08 / .85) * (.08 / .85) * .7 * 1.202853 * modelGain[model] / trim;
     for (double hz : {100., 261.625565, 500., 1000.}) {
         const auto r = Transform(reference, hz, rate);

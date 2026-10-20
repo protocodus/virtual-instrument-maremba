@@ -1,0 +1,616 @@
+{
+  "source_version": "1.5.5",
+  "rack_source_version": "1.5.5d1",
+  "scope": "Native source/player validation; no SDK build, host playback or installation qualification.",
+  "source_files_sha256": {
+    "CMakeLists.txt": "dcffedcbfebec0ebe3e1373f47fa68b2ec8dd13984573f625ed48fadaf3bf453",
+    "Source/DSP/MainCalibration.h": "f8882468b5e41361c0bffc3baa351f72573fa7e1e88a9f8ce6cc49f919de2bae",
+    "Source/DSP/MainVolume.h": "150294c8f7d47068d45bf122ba6cf1ed6ad25fe356d2cf3efa00691bcd0d9bc4",
+    "Source/DSP/MarembaEngine.cpp": "81a9488766d6501f28a13054e329a8412b57c09f654dce419f1d69d5cdf8bfe6",
+    "Source/FactoryPresets.h": "2d9ee38ef79c262f112440e02017b7459e6b67542da2f9b0b484ec69d1c2d8bb",
+    "Tests/MainCalibrationTest.cpp": "c7cf40329ff6edba281371dbe9cbdabbbba1e3a69ffdd9d8246628aa8c615f40",
+    "Tests/MainPickupAlignmentTest.cpp": "4f43261de5df04c33747905e07ee4462484cfc803f0b2c07c2a36357bee40321",
+    "Tools/CalibratePresetVca.cpp": "f89d74abad0b30e7e4f13bebcef7510cb040b7252a1fdc7c403cbb6531deade8"
+  },
+  "native_binary_sha256": "4103d8773eb7dc466d5f49faeedefc8382a6f54c2824d3e0c4e5f4a1e10beb3e",
+  "model_calibration": {
+    "reference": "5-second velocity-80 Linear phrase, native 1x; weakest peak of three rates",
+    "target_peak_dbfs": -7,
+    "models": [
+      {
+        "model": 0,
+        "old_gain": 1.225115902,
+        "new_gain": 2.156637999,
+        "boost_db": 4.912001521300001,
+        "baseline_by_rate": {
+          "44100": {
+            "peak_dbfs": -11.8908876336,
+            "rms_dbfs": -26.9966452951
+          },
+          "48000": {
+            "peak_dbfs": -11.8798030775,
+            "rms_dbfs": -26.9991348017
+          },
+          "96000": {
+            "peak_dbfs": -11.9120015213,
+            "rms_dbfs": -27.0111496741
+          }
+        }
+      },
+      {
+        "model": 1,
+        "old_gain": 1.174502045,
+        "new_gain": 2.113276235,
+        "boost_db": 5.102049838699999,
+        "baseline_by_rate": {
+          "44100": {
+            "peak_dbfs": -12.0722365737,
+            "rms_dbfs": -26.9961800878
+          },
+          "48000": {
+            "peak_dbfs": -12.0823991219,
+            "rms_dbfs": -26.9982481123
+          },
+          "96000": {
+            "peak_dbfs": -12.1020498387,
+            "rms_dbfs": -27.0113418709
+          }
+        }
+      },
+      {
+        "model": 2,
+        "old_gain": 1.406057112,
+        "new_gain": 2.805121587,
+        "boost_db": 5.9989745769,
+        "baseline_by_rate": {
+          "44100": {
+            "peak_dbfs": -12.9687713552,
+            "rms_dbfs": -26.9809337798
+          },
+          "48000": {
+            "peak_dbfs": -12.9923593099,
+            "rms_dbfs": -26.9867358329
+          },
+          "96000": {
+            "peak_dbfs": -12.9989745769,
+            "rms_dbfs": -27.0083441752
+          }
+        }
+      },
+      {
+        "model": 3,
+        "old_gain": 1.034682015,
+        "new_gain": 2.111566469,
+        "boost_db": 6.1959571362000005,
+        "baseline_by_rate": {
+          "44100": {
+            "peak_dbfs": -13.1920167942,
+            "rms_dbfs": -27.1296818316
+          },
+          "48000": {
+            "peak_dbfs": -13.1959571362,
+            "rms_dbfs": -27.1140576313
+          },
+          "96000": {
+            "peak_dbfs": -13.1198815528,
+            "rms_dbfs": -27.0097452932
+          }
+        }
+      }
+    ]
+  },
+  "reference_plan": {
+    "target_peak_dbfs": -7,
+    "peak_tolerance_db": 0.4,
+    "rms_tolerance_db": 0.35,
+    "init": [
+      {
+        "model": 0,
+        "rms_reference_dbfs": -22.0919,
+        "predicted_by_rate": {
+          "44100": {
+            "rate": 44100,
+            "rms_dbfs": -22.084644218781502,
+            "peak_dbfs": -6.978886273781502
+          },
+          "48000": {
+            "rate": 48000,
+            "rms_dbfs": -22.0871337244815,
+            "peak_dbfs": -6.9678017758815045
+          },
+          "96000": {
+            "rate": 96000,
+            "rms_dbfs": -22.099148599281502,
+            "peak_dbfs": -7.000001285581504
+          }
+        }
+      },
+      {
+        "model": 1,
+        "rms_reference_dbfs": -21.9017,
+        "predicted_by_rate": {
+          "44100": {
+            "rate": 44100,
+            "rms_dbfs": -21.894130261981505,
+            "peak_dbfs": -6.970186642981503
+          },
+          "48000": {
+            "rate": 48000,
+            "rms_dbfs": -21.896198287281504,
+            "peak_dbfs": -6.980349587581504
+          },
+          "96000": {
+            "rate": 96000,
+            "rms_dbfs": -21.9092920456815,
+            "peak_dbfs": -7.000000126581504
+          }
+        }
+      },
+      {
+        "model": 2,
+        "rms_reference_dbfs": -20.9957,
+        "predicted_by_rate": {
+          "44100": {
+            "rate": 44100,
+            "rms_dbfs": -20.981959233181502,
+            "peak_dbfs": -6.969796819681502
+          },
+          "48000": {
+            "rate": 48000,
+            "rms_dbfs": -20.987761286381502,
+            "peak_dbfs": -6.9933845891815025
+          },
+          "96000": {
+            "rate": 96000,
+            "rms_dbfs": -21.0093696262815,
+            "peak_dbfs": -7.000000126581504
+          }
+        }
+      },
+      {
+        "model": 3,
+        "rms_reference_dbfs": -20.8738,
+        "predicted_by_rate": {
+          "44100": {
+            "rate": 44100,
+            "rms_dbfs": -20.933724565781507,
+            "peak_dbfs": -6.996059741281503
+          },
+          "48000": {
+            "rate": 48000,
+            "rms_dbfs": -20.9181003636815,
+            "peak_dbfs": -7.000000126581504
+          },
+          "96000": {
+            "rate": 96000,
+            "rms_dbfs": -20.8137880260815,
+            "peak_dbfs": -6.923924094181505
+          }
+        }
+      }
+    ],
+    "presets": [
+      {
+        "preset": "Ambient Cathedral Bloom",
+        "volume": 0.89596403,
+        "rms_reference_dbfs": -23.142,
+        "predicted_by_rate": {
+          "44100": {
+            "peak_dbfs": -6.98943620587,
+            "rms_dbfs": -23.1294092412
+          },
+          "48000": {
+            "peak_dbfs": -6.99433026757,
+            "rms_dbfs": -23.1448208502
+          },
+          "96000": {
+            "peak_dbfs": -6.99999722896,
+            "rms_dbfs": -23.1546253443
+          }
+        }
+      },
+      {
+        "preset": "Concert Grand Rosewood",
+        "volume": 0.88230181,
+        "rms_reference_dbfs": -22.2491,
+        "predicted_by_rate": {
+          "44100": {
+            "peak_dbfs": -6.97502190573,
+            "rms_dbfs": -22.2424556567
+          },
+          "48000": {
+            "peak_dbfs": -6.99999780848,
+            "rms_dbfs": -22.2443784829
+          },
+          "96000": {
+            "peak_dbfs": -6.96049995578,
+            "rms_dbfs": -22.2557996499
+          }
+        }
+      },
+      {
+        "preset": "Direct Piezo Mallet",
+        "volume": 0.57528055,
+        "rms_reference_dbfs": -28.3001,
+        "predicted_by_rate": {
+          "44100": {
+            "peak_dbfs": -6.99999780848,
+            "rms_dbfs": -28.2857891301
+          },
+          "48000": {
+            "peak_dbfs": -6.77830102673,
+            "rms_dbfs": -28.2977378097
+          },
+          "96000": {
+            "peak_dbfs": -6.63952960086,
+            "rms_dbfs": -28.314474553
+          }
+        }
+      },
+      {
+        "preset": "Hard Acrylic Virtuoso",
+        "volume": 0.5599978,
+        "rms_reference_dbfs": -28.8926,
+        "predicted_by_rate": {
+          "44100": {
+            "peak_dbfs": -6.93980406807,
+            "rms_dbfs": -28.8724848437
+          },
+          "48000": {
+            "peak_dbfs": -6.99742108974,
+            "rms_dbfs": -28.878020043
+          },
+          "96000": {
+            "peak_dbfs": -6.99999954702,
+            "rms_dbfs": -28.9126454537
+          }
+        }
+      },
+      {
+        "preset": "Rosewood Dampened Etude",
+        "volume": 0.87332014,
+        "rms_reference_dbfs": -22.8172,
+        "predicted_by_rate": {
+          "44100": {
+            "peak_dbfs": -7.79934529966,
+            "rms_dbfs": -22.809548143500002
+          },
+          "48000": {
+            "peak_dbfs": -7.79999606993,
+            "rms_dbfs": -22.8079487153
+          },
+          "96000": {
+            "peak_dbfs": -7.72617684823,
+            "rms_dbfs": -22.8265317675
+          }
+        },
+        "target_peak_dbfs": -7.8,
+        "peak_minimum_dbfs": -8.2,
+        "peak_maximum_dbfs": -7.4,
+        "reason": "Retain the existing gentle-normal bounds for its velocity-100 middle chord."
+      },
+      {
+        "preset": "Rosewood Roll Chorale",
+        "volume": 0.91314423,
+        "rms_reference_dbfs": -22.4324,
+        "predicted_by_rate": {
+          "44100": {
+            "peak_dbfs": -6.92971371881,
+            "rms_dbfs": -22.4407639344
+          },
+          "48000": {
+            "peak_dbfs": -6.92875205781,
+            "rms_dbfs": -22.4443801365
+          },
+          "96000": {
+            "peak_dbfs": -6.99999664945,
+            "rms_dbfs": -22.4204843167
+          }
+        }
+      },
+      {
+        "preset": "Soft Yarn Nocturne",
+        "volume": 0.94893837,
+        "rms_reference_dbfs": -21.7525,
+        "predicted_by_rate": {
+          "44100": {
+            "peak_dbfs": -6.92495876022,
+            "rms_dbfs": -21.7489508893
+          },
+          "48000": {
+            "peak_dbfs": -6.90344573723,
+            "rms_dbfs": -21.7426107107
+          },
+          "96000": {
+            "peak_dbfs": -6.99999259285,
+            "rms_dbfs": -21.7623717074
+          }
+        }
+      },
+      {
+        "preset": "Chiapas Folk Fiesta",
+        "volume": 0.51361823,
+        "rms_reference_dbfs": -29.0878,
+        "predicted_by_rate": {
+          "44100": {
+            "peak_dbfs": -6.99372335374,
+            "rms_dbfs": -29.079341353
+          },
+          "48000": {
+            "peak_dbfs": -6.99999954702,
+            "rms_dbfs": -29.0880099401
+          },
+          "96000": {
+            "peak_dbfs": -6.98166973008,
+            "rms_dbfs": -29.0963391658
+          }
+        }
+      },
+      {
+        "preset": "Guatemalan Charleo",
+        "volume": 0.59395075,
+        "rms_reference_dbfs": -25.8384,
+        "predicted_by_rate": {
+          "44100": {
+            "peak_dbfs": -6.99999954702,
+            "rms_dbfs": -25.842738017
+          },
+          "48000": {
+            "peak_dbfs": -6.99637370146,
+            "rms_dbfs": -25.8410961894
+          },
+          "96000": {
+            "peak_dbfs": -6.98090757341,
+            "rms_dbfs": -25.8340452972
+          }
+        }
+      },
+      {
+        "preset": "Mayan Dance Padauk",
+        "volume": 0.75644875,
+        "rms_reference_dbfs": -22.6442,
+        "predicted_by_rate": {
+          "44100": {
+            "peak_dbfs": -6.98134242244,
+            "rms_dbfs": -22.6429514694
+          },
+          "48000": {
+            "peak_dbfs": -6.96852120918,
+            "rms_dbfs": -22.6404313984
+          },
+          "96000": {
+            "peak_dbfs": -6.99999896751,
+            "rms_dbfs": -22.6478948277
+          }
+        }
+      },
+      {
+        "preset": "Ancestral Balafon",
+        "volume": 0.55792964,
+        "rms_reference_dbfs": -26.5884,
+        "predicted_by_rate": {
+          "44100": {
+            "peak_dbfs": -6.99999838799,
+            "rms_dbfs": -26.5889144008
+          },
+          "48000": {
+            "peak_dbfs": -6.99910366363,
+            "rms_dbfs": -26.588066296
+          },
+          "96000": {
+            "peak_dbfs": -6.99136443688,
+            "rms_dbfs": -26.5879576512
+          }
+        }
+      },
+      {
+        "preset": "Birifor Gyil Buzz",
+        "volume": 0.56090689,
+        "rms_reference_dbfs": -26.312,
+        "predicted_by_rate": {
+          "44100": {
+            "peak_dbfs": -6.98114523421,
+            "rms_dbfs": -26.3151072185
+          },
+          "48000": {
+            "peak_dbfs": -6.99999780848,
+            "rms_dbfs": -26.3109336395
+          },
+          "96000": {
+            "peak_dbfs": -6.99827102693,
+            "rms_dbfs": -26.3088112129
+          }
+        }
+      },
+      {
+        "preset": "Chopi Timbila Ensemble",
+        "volume": 0.53521895,
+        "rms_reference_dbfs": -27.6327,
+        "predicted_by_rate": {
+          "44100": {
+            "peak_dbfs": -6.97987200333,
+            "rms_dbfs": -27.629023997
+          },
+          "48000": {
+            "peak_dbfs": -6.98449457218,
+            "rms_dbfs": -27.6317190343
+          },
+          "96000": {
+            "peak_dbfs": -6.99999954702,
+            "rms_dbfs": -27.6363248839
+          }
+        }
+      },
+      {
+        "preset": "Equipentatonic Log Keys",
+        "volume": 0.57395041,
+        "rms_reference_dbfs": -29.0088,
+        "predicted_by_rate": {
+          "44100": {
+            "peak_dbfs": -6.80508909905,
+            "rms_dbfs": -29.0004824797
+          },
+          "48000": {
+            "peak_dbfs": -6.99999896751,
+            "rms_dbfs": -29.0109449373
+          },
+          "96000": {
+            "peak_dbfs": -6.62092443894,
+            "rms_dbfs": -29.0171454095
+          }
+        }
+      },
+      {
+        "preset": "Mandinka Bala Heptatonic",
+        "volume": 0.54375303,
+        "rms_reference_dbfs": -27.598,
+        "predicted_by_rate": {
+          "44100": {
+            "peak_dbfs": -6.98085611,
+            "rms_dbfs": -27.5919191041
+          },
+          "48000": {
+            "peak_dbfs": -6.99277253011,
+            "rms_dbfs": -27.5981656068
+          },
+          "96000": {
+            "peak_dbfs": -6.99999664945,
+            "rms_dbfs": -27.6041749714
+          }
+        }
+      },
+      {
+        "preset": "Midnight Village Ritual",
+        "volume": 0.66378796,
+        "rms_reference_dbfs": -23.55,
+        "predicted_by_rate": {
+          "44100": {
+            "peak_dbfs": -6.91374486598,
+            "rms_dbfs": -23.5574970895
+          },
+          "48000": {
+            "peak_dbfs": -6.99999664945,
+            "rms_dbfs": -23.5561697394
+          },
+          "96000": {
+            "peak_dbfs": -6.96368436898,
+            "rms_dbfs": -23.5425286883
+          }
+        }
+      },
+      {
+        "preset": "Sambla Talking Balafon",
+        "volume": 0.54480278,
+        "rms_reference_dbfs": -27.6696,
+        "predicted_by_rate": {
+          "44100": {
+            "peak_dbfs": -6.98219483596,
+            "rms_dbfs": -27.6654966894
+          },
+          "48000": {
+            "peak_dbfs": -6.99999780848,
+            "rms_dbfs": -27.6664777812
+          },
+          "96000": {
+            "peak_dbfs": -6.97873249855,
+            "rms_dbfs": -27.6737891777
+          }
+        }
+      },
+      {
+        "preset": "Kalimba Muted Thumbs",
+        "volume": 0.8720479,
+        "rms_reference_dbfs": -21.1407,
+        "predicted_by_rate": {
+          "44100": {
+            "peak_dbfs": -6.99999780848,
+            "rms_dbfs": -21.2069483246
+          },
+          "48000": {
+            "peak_dbfs": -6.98907619335,
+            "rms_dbfs": -21.1845652395
+          },
+          "96000": {
+            "peak_dbfs": -6.90823365718,
+            "rms_dbfs": -21.0744867994
+          }
+        }
+      },
+      {
+        "preset": "Kalimba Pick Sparkle",
+        "volume": 0.82644165,
+        "rms_reference_dbfs": -20.9231,
+        "predicted_by_rate": {
+          "44100": {
+            "peak_dbfs": -6.99999954702,
+            "rms_dbfs": -20.9871895335
+          },
+          "48000": {
+            "peak_dbfs": -6.98778038754,
+            "rms_dbfs": -20.9674871097
+          },
+          "96000": {
+            "peak_dbfs": -6.92618719121,
+            "rms_dbfs": -20.8590007504
+          }
+        }
+      },
+      {
+        "preset": "Kalimba Thumb Lullaby",
+        "volume": 0.9915067,
+        "rms_reference_dbfs": -20.8405,
+        "predicted_by_rate": {
+          "44100": {
+            "peak_dbfs": -6.9999949109,
+            "rms_dbfs": -20.9538666902
+          },
+          "48000": {
+            "peak_dbfs": -6.91692997475,
+            "rms_dbfs": -20.9159280849
+          },
+          "96000": {
+            "peak_dbfs": -6.73718321547,
+            "rms_dbfs": -20.7272324835
+          }
+        }
+      }
+    ]
+  },
+  "etude_trim": {
+    "preset": "Rosewood Dampened Etude",
+    "candidate_volume": 0.8976171,
+    "final_volume": 0.87332014,
+    "trim_db": -0.8,
+    "target_peak_dbfs": -7.8,
+    "reason": "Retain the existing gentle-normal bounds for its velocity-100 middle chord.",
+    "gain_ratio": 0.9120108396834753
+  },
+  "validation": {
+    "native_cases": 216,
+    "normal_reference_cases": 72,
+    "stress_cases": 144,
+    "normal_peak_min_dbfs": -7.79999798552,
+    "normal_peak_max_dbfs": -6.62092443894,
+    "normal_rms_min_dbfs": -29.0963395496,
+    "normal_rms_max_dbfs": -20.7272302536,
+    "largest_main_sample_peak_dbfs": -1.00000029002,
+    "direct_baseline_fields_compared": 432,
+    "direct_baseline_fields_changed": 0,
+    "solver_maximum_reference_guard_reduction_db": 0,
+    "python_calibration_tool_tests_passed": 7,
+    "validation_scope": "72 fresh final reference renders; 144 stress renders retained from the passing candidate because Volume is explicitly forced to 1 and every other audio input is unchanged.",
+    "focused_contracts_passed": [
+      "Controls",
+      "OneXQuality",
+      "MainVolume",
+      "Headroom",
+      "DirectOutputLevel",
+      "MainPickupAlignment"
+    ]
+  },
+  "final_csv_sha256": {
+    "playing-levels-44100-2026-10-20.csv": "da151bee7574d269efc77ee1d37be5be242934d53204246091296438d64a620d",
+    "playing-levels-48000-2026-10-20.csv": "97840890190a98d7149ad6991268cfbceb0300722299f2bca25482d27be4afa2",
+    "playing-levels-96000-2026-10-20.csv": "7704db5a2d174199e98a30e58c95ec03991cfec3f7e5d41b46a500da1cf63d52"
+  }
+}

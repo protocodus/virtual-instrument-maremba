@@ -43,6 +43,25 @@ One demo per factory preset, rendered by every main build from
 
 ## Version history
 
+### 1.5.5 — 2026-10-20 — normal playing levels
+
+- Calibrate all four initialized models and all 20 presets around −7 dBFS
+  sample peaks on the velocity-80 Linear reference phrase. Main keeps its
+  existing −1 dBFS safety ceiling for stronger accents.
+- Raise the four fixed Main model gains and rebalance factory Volume. Soft
+  Yarn Nocturne and Kalimba Thumb Lullaby now meet the same level target with
+  their existing voicing. Rosewood Dampened Etude sits around −7.8 dBFS to
+  preserve gentle protection on stronger chords. The Volume law, physical sound
+  controls, native 1× default, direct captures and dynamics algorithms remain
+  unchanged.
+- Saved user settings retain their stored controls and receive approximately
+  +4.91/+5.10/+6.00/+6.20 dB more Main input before dynamics by model. This is
+  the intended level change; factory Volume values compensate that increase
+  to the new reference. Natural RMS differences remain.
+- [Calibration and source validation](Docs/validation/playing-levels-2026-10-20.md).
+  The audio demos above predate this calibration; installation and host
+  validation belong to the Rack port build records.
+
 ### 1.5.4 — 2026-10-20 — preset VCA balance and dynamic headroom
 
 - Balance the factory bank around −8 dBFS on the normal velocity-80 Linear
