@@ -54,3 +54,11 @@ Previously saved patches retain their Volume and Quality values.
 
 These are source-engine contracts. SDK module and Recon results belong to the
 Rack build record; these checks do not qualify Reason scheduling or playback.
+
+The first full Rack preflight stopped at the hard-hit matrix's former 900 s
+wall-time hang guard under concurrent rendering load, after the 480-case
+progress marker. It did not report an audio-assertion failure. The expanded
+700-case matrix now allows 3600 s (7000 s under sanitizers), with matching
+CTest outer limits. Every case, rendered duration, output limit and reset guard
+is retained. The failed invocation is preserved in the Rack build diagnostics;
+a fresh complete preflight is required for the installable build.

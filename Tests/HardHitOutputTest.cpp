@@ -186,14 +186,19 @@ Result renderCase(const Case& c) {
 
 void run(const Case& c) {
     const auto elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
-    // A hang guard, not a speed contract. ASan + UBSan run the matrix about
-    // twice as slowly, so instrumented builds get the room CTest's 1800 s
-    // timeout leaves.
+    // A hang guard, not a speed contract. The expanded 700-case matrix
+    // exceeded the former 900 s limit under concurrent rendering load.
+    // Keep all cases and audio assertions; allow slower shared machines and
+    // the additional ASan/UBSan overhead within CTest's matching outer limit.
 #ifdef MAREMBA_SANITIZED
-    constexpr double kWallBound = 1700;
+    constexpr double kWallBound = 7000;
 #else
-    constexpr double kWallBound = 900;
+    constexpr double kWallBound = 3600;
 #endif
+    if (results.empty())
+        std::cout << "Hard-hit matrix expected_cases=" << kExpectedCases
+                  << " native_chord_cases=" << kNativeChordCases
+                  << " wall_budget_seconds=" << kWallBound << '\n' << std::flush;
     require(elapsed < kWallBound, "hard-hit matrix exceeded its wall-time bound");
     Result r = renderCase(c);
     const std::size_t index = results.size();

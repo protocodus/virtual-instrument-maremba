@@ -267,6 +267,14 @@ if(BUILD_TESTING)
             # --full are the long opt-in matrices.
             add_test(NAME Maremba.${suite} COMMAND Maremba${suite}Tests --compact)
             set_tests_properties(Maremba.${suite} PROPERTIES LABELS fuzz TIMEOUT 1800)
+        elseif(suite STREQUAL "HardHitOutput")
+            add_test(NAME Maremba.${suite} COMMAND Maremba${suite}Tests)
+            # Match the matrix's bounded shared-machine/sanitizer hang guard.
+            if(MAREMBA_ENABLE_SANITIZERS)
+                set_tests_properties(Maremba.${suite} PROPERTIES LABELS unit TIMEOUT 7200)
+            else()
+                set_tests_properties(Maremba.${suite} PROPERTIES LABELS unit TIMEOUT 3700)
+            endif()
         elseif(suite STREQUAL "MainCalibration")
             foreach(rate IN ITEMS 44100 48000 96000)
                 add_test(NAME Maremba.MainCalibration${rate}
