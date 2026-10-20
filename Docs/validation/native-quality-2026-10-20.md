@@ -6,9 +6,13 @@ mono and stereo decimators forward the sample exactly, without filtering or
 additional latency. CaptureScene selects its one-sample source path explicitly.
 
 Stored selector indices remain `0=2x`, `1=4x`, `2=8x`; `3=1x` is appended.
-The Rack selector therefore has four steps in that order. Raw Rack and plug-in
-state values retain their factors. External JUCE automation saved as normalized
-values needs review because a fourth choice changes normalized step positions.
+The Rack selector therefore has four steps in that order. The plug-in keeps
+the released three-choice `oversampling` parameter and its normalized 0/0.5/1
+mapping. An appended Native Rate switch composes the effective raw `3` without
+changing old automation. Legacy states restore with Native Rate disabled;
+interim four-choice raw-3 states migrate to native mode. The editor still shows
+one four-choice Quality menu. See the
+[compatibility record](plugin-quality-compatibility-2026-10-20.md).
 Native rate can expose more aliasing than the higher quality settings.
 
 ## Output calibration

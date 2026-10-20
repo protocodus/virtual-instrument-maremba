@@ -75,12 +75,45 @@ MarembaAudioProcessorEditor::MarembaAudioProcessorEditor(MarembaAudioProcessor& 
             addAndMakeVisible(*control.label);
             if (IsChoice(id)) {
                 control.choice = std::make_unique<juce::ComboBox>();
-                // The attachment selects items but does not add them.
-                if (auto* parameter = dynamic_cast<juce::AudioParameterChoice*>(state.getParameter(kControlNames[index])))
-                    control.choice->addItemList(parameter->choices, 1);
                 addAndMakeVisible(*control.choice);
-                control.choiceAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-                    state, kControlNames[index], *control.choice);
+                if (id == kOversampling) {
+                    auto* combo = control.choice.get();
+                    combo->setComponentID("quality");
+                    for (const char* item : kControlDisplay[index].choices)
+                        if (item != nullptr) combo->addItem(item, combo->getNumItems() + 1);
+                    auto* legacyParameter = state.getParameter(kControlNames[index]);
+                    auto* nativeParameter = state.getParameter(MarembaAudioProcessor::kNativeRateParameterId);
+                    const auto refreshQuality = [combo, legacyParameter, nativeParameter](float) {
+                        // ParameterAttachment may run before APVTS refreshes
+                        // its raw-value cache; the parameters already hold
+                        // the new values when their listeners are called.
+                        const bool native = nativeParameter->getValue() >= 0.5f;
+                        const int quality = native ? 3 : static_cast<int>(
+                            legacyParameter->convertFrom0to1(legacyParameter->getValue()));
+                        combo->setSelectedItemIndex(quality, juce::dontSendNotification);
+                    };
+                    control.legacyQualityAttachment = std::make_unique<juce::ParameterAttachment>(
+                        *legacyParameter, refreshQuality);
+                    control.nativeRateAttachment = std::make_unique<juce::ParameterAttachment>(
+                        *nativeParameter, refreshQuality);
+                    auto* legacy = control.legacyQualityAttachment.get();
+                    auto* native = control.nativeRateAttachment.get();
+                    combo->onChange = [combo, legacy, native] {
+                        const int quality = combo->getSelectedItemIndex();
+                        if (quality < 0) return;
+                        if (quality < 3) legacy->setValueAsCompleteGesture(static_cast<float>(quality));
+                        // Set the legacy choice first, then leave native mode.
+                        native->setValueAsCompleteGesture(quality == 3 ? 1.0f : 0.0f);
+                    };
+                    legacy->sendInitialUpdate();
+                    native->sendInitialUpdate();
+                } else {
+                    // The attachment selects items but does not add them.
+                    if (auto* parameter = dynamic_cast<juce::AudioParameterChoice*>(state.getParameter(kControlNames[index])))
+                        control.choice->addItemList(parameter->choices, 1);
+                    control.choiceAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+                        state, kControlNames[index], *control.choice);
+                }
             } else {
                 control.knob = std::make_unique<juce::Slider>(juce::Slider::RotaryHorizontalVerticalDrag,
                                                               juce::Slider::TextBoxBelow);

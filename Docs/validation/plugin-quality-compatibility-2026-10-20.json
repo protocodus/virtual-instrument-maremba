@@ -1,0 +1,72 @@
+{
+  "verified_utc": "2026-10-20T10:30:41.311264+00:00",
+  "baseline_commit": "4f84df8066e326a60ab9708bb4f5b5b3a33065fe",
+  "scope": "Focused plug-in processor/state/automation and actual composite editor regression tests; no DSP/preset changes or SDK rebuild",
+  "source_sha256": {
+    "Source/PluginProcessor.h": "a6ba5aca65444bab5ec0f4ed90ec6226da6268adcd7adb29ba527f603d09531f",
+    "Source/PluginProcessor.cpp": "4d11822e6210d115c78f280539dcdb648204a6206c0cdb4ef32f56b82ec89225",
+    "Source/PluginEditor.h": "0fd77fe0217326ce01056f0490813a894ebb35771af5c9d33f948a33d2d96f52",
+    "Source/PluginEditor.cpp": "f1fa10bb5352e591f3a84f700c0083fd06271a134923233a025bc8046b334c59",
+    "Tests/PluginProcessorTests.cpp": "c204ddf78287d2d1bbfaa5a10aee14c87d364bc508b5e121486d5a543ceadc89"
+  },
+  "juce": {
+    "version": "8.0.14",
+    "commit": "2cdfca8feb300fb424002ba2c2751569e5bacb64",
+    "archive_sha256": "814019716960a16f8f850a1593eeb56e2f21910aff2d673f7d3513b4ebaf251d"
+  },
+  "configure_command": [
+    "cmake",
+    "-S",
+    "/Users/vojta/Dev/virtual-instrument-maremba",
+    "-B",
+    "/tmp/maremba-quality-compat-20261020/build-make",
+    "-G",
+    "Unix Makefiles",
+    "-DCMAKE_BUILD_TYPE=Release",
+    "-DMAREMBA_BUILD_UNIVERSAL=OFF",
+    "-DMAREMBA_BUILD_CLAP=OFF",
+    "-DMAREMBA_BUILD_TOOLS=OFF",
+    "-DBUILD_TESTING=ON"
+  ],
+  "build_command": [
+    "cmake",
+    "--build",
+    "/tmp/maremba-quality-compat-20261020/build-make",
+    "--target",
+    "MarembaPluginProcessorTests",
+    "--parallel",
+    "2"
+  ],
+  "test_command": [
+    "ctest",
+    "--test-dir",
+    "/tmp/maremba-quality-compat-20261020/build-make",
+    "-R",
+    "^Maremba\\.PluginProcessor$",
+    "--output-on-failure"
+  ],
+  "final_result": {
+    "exit_code": 0,
+    "tests_passed": 1,
+    "tests_failed": 0,
+    "elapsed_seconds": 2.29,
+    "log": "plugin-quality-compatibility-2026-10-20.log",
+    "log_sha256": "6f4612579bf764eeb9523c367fcd2f49230149df75c2eb61104f4a39c00ad7e7"
+  },
+  "previous_failed_result": {
+    "exit_code": 8,
+    "failed_assertions": 8,
+    "cause": "Synchronous ParameterAttachment callbacks preceded APVTS raw-cache updates; corrected editor refresh to read parameter values directly.",
+    "log": "plugin-quality-compatibility-attempt-1-2026-10-20.log",
+    "log_sha256": "db0281349e0641df9e93ce0629a598f610ab8662175d2eb557ce1cfbe2a1ca33"
+  },
+  "protected_paths_unchanged": [
+    "Source/DSP",
+    "Source/FactoryPresets.h",
+    "Source/PluginControls.h"
+  ],
+  "git_diff_check": "passed",
+  "warnings": "Non-fatal DSP header/recommended-warning and exact float comparison diagnostics; obsolete JUCE_DISPLAY_SPLASH_SCREEN flag ignored. Isolated Python measurement dependencies missing, so unrelated checks were not registered.",
+  "build_log": "/tmp/maremba-quality-compat-20261020/focused-build-after-ui-fix.log",
+  "not_run": "No full DSP/SDK suite, plug-in format builds, Reason/Recon or hosted performance test"
+}

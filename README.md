@@ -70,9 +70,13 @@ One demo per factory preset, rendered by every main build from
 - Preserve the raw saved Quality indices: 0 = 2×, 1 = 4×, 2 = 8×; append
   3 = 1×. Quality changes retain the existing fade/reset policy, and output
   protection retains its declared 2 ms latency and peak ceilings.
-- Saved Rack patches and plug-in state keep their raw Quality values.
-  External plug-in automation stored as normalized values needs review:
-  increasing JUCE's choice count changes its normalized step positions.
+- Saved Rack patches and plug-in state keep their Quality factors. The
+  plug-in retains the original three-choice `oversampling` parameter, so old
+  normalized automation still selects 2×/4×/8× at 0/0.5/1. An appended
+  **Native Rate (1x)** switch selects 1× and gates that legacy selector;
+  the editor combines both in one four-choice Quality menu. Old sessions
+  restore with Native Rate off; new instances and factory presets enable it.
+  [State and automation compatibility](Docs/validation/plugin-quality-compatibility-2026-10-20.md).
 - Retain the shared RMS calibration with one native-rate factory Volume trim
   for Equipentatonic Log Keys. [Measurements and validation](Docs/validation/native-quality-2026-10-20.md).
 
