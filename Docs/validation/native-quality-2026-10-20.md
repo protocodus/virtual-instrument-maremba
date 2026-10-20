@@ -62,3 +62,18 @@ progress marker. It did not report an audio-assertion failure. The expanded
 CTest outer limits. Every case, rendered duration, output limit and reset guard
 is retained. The failed invocation is preserved in the Rack build diagnostics;
 a fresh complete preflight is required for the installable build.
+
+The second preflight passed all 700 hard-hit cases, including 100 native-rate
+chords, with no ceiling/full-scale violations. It exposed a test-reference
+mismatch in `Round3ResponseTest`: the copied native-rate voice and mesh were
+advanced twice per host frame. The reference now uses an independent saved
+selector/factor table and checks both native 1x and historical 2x. All 88
+register fixtures pass the original `2e-4` scene-residual bound. No DSP or
+output limit changes were needed. The failed invocation is preserved as well.
+
+The remaining 18 physical contracts pass focused checks. Their audit corrected
+two more reference assumptions: Round4's copied voice now advances its envelope
+every `factor * 16` internal samples, and BuzzRange's copied buzzer uses the
+original 96 kHz probe's physical frequencies and 42.67 ms duration at every
+internal rate. Both explicitly cover legacy 2x and native 1x. Exact response
+comparisons, positive-energy witnesses and all numeric bounds are retained.
