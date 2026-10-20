@@ -22,12 +22,29 @@ span −27.171 to −26.469 dBFS stereo RMS. The highest Main peak is −7.00000
 Measurement mode reports the RMS rather than asserting the target; its safety
 checks still run. These numbers were compared with the existing ±0.35 dB limit.
 
-Only Equipentatonic Log Keys exceeded that RMS tolerance. Its factory Volume
-changes from `0.92831682` to `0.90934947`. The
-[fit trials](native-quality-equip-fit-2026-10-20.csv) measure the final candidate
-at −26.9963 dBFS RMS and −7.000072 dBFS peak. The other 23 states remain within
+Only Equipentatonic Log Keys exceeded that RMS tolerance. An initial
+[48 kHz fit](native-quality-equip-fit-2026-10-20.csv) selected `0.90934947`,
+but the [three-rate check](native-quality-equip-three-rates-before-2026-10-20.csv)
+then measured −27.3894 dBFS at 96 kHz, outside the unchanged tolerance.
+Its final factory Volume changes from `0.92831682` to **`0.91707000`** to
+balance all three rates. The [final measurements](native-quality-equip-three-rates-final-2026-10-20.csv)
+give −26.766, −26.787 and −27.232 dBFS RMS at 44.1/48/96 kHz. An independent
+Rack-wrapper render of the actual final XML confirms these values, with maximum
+target error 0.234 dB and Main phrase peaks below −7 dBFS at all three rates.
+The other 23 states retain their controls and the measured 48 kHz RMS within
 0.171 dB of −27 dBFS. No model gain or other sound control changes were needed.
 Previously saved patches retain their Volume and Quality values.
+
+## Paired engine processing cost
+
+`OneXQualityTest --benchmark` compares native 1x and legacy 2x with sixteen
+retained, nonfading voices, all seven outputs, 64-frame blocks and 512 measured
+blocks after warmup. It takes the median thread CPU time from three alternating
+pairs for every model at 44.1 and 48 kHz. The
+[eight results](native-quality-cpu-2026-10-20.csv) use 76.90–78.92% as much
+thread CPU at 1x, a 21.08–23.10% reduction. Physical factor, retained voices and
+audible finite output are asserted. Unrelated rendering workloads were active;
+this relative source-engine comparison does not qualify hosted realtime deadlines.
 
 ## Focused validation
 

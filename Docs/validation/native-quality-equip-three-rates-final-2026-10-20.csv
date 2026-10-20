@@ -1,0 +1,4 @@
+state,model,scenario,sample_rate,volume,main_rms_dbfs,main_peak_dbfs,close_rms_dbfs,close_peak_dbfs,room_rms_dbfs,room_peak_dbfs,piezo_rms_dbfs,piezo_peak_dbfs,capture_file,frames,channels,sample_format
+"Equipentatonic Log Keys",2,phrase_v80_linear,44100,0.917069971561,-26.7664800399,-7.00193939904,-40.7882508585,-16.4853150321,-41.1140198142,-22.5796995675,-39.7597822117,-19.5523635613,,220500,2,float32_native
+"Equipentatonic Log Keys",2,phrase_v80_linear,48000,0.917069971561,-26.7870037337,-7.00007140713,-40.7943255688,-16.160257535,-41.0722430676,-22.6275456817,-39.7621346886,-19.5064068331,,240000,2,float32_native
+"Equipentatonic Log Keys",2,phrase_v80_linear,96000,0.917069971561,-27.2320171336,-7.00001925054,-40.8005948078,-15.9159812011,-41.1183725174,-22.4913551869,-39.7850046717,-19.4228242212,,480000,2,float32_native
