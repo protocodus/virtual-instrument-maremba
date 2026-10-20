@@ -104,7 +104,7 @@ One demo per factory preset, rendered by every main build from
 ## Downloads
 
 <!-- build-download-begin -->
-**[Download main build 11](https://github.com/protocodus/virtual-instrument-maremba/actions/runs/39063991905/artifacts/12117095680)**, built from [`507774d8443f`](https://github.com/protocodus/virtual-instrument-maremba/commit/507774d8443f61b3ca5ddcd35ed640f5ba3dff41). It holds the macOS, Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.
+**[Download main build 15](https://github.com/protocodus/virtual-instrument-maremba/actions/runs/39390448331/artifacts/12253761016)**, built from [`80104879726a`](https://github.com/protocodus/virtual-instrument-maremba/commit/80104879726a65b200535dd9c89da8a48125f968). It holds the macOS, Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.
 <!-- build-download-end -->
 
 ---
@@ -207,6 +207,12 @@ MIDI, events and reference audio carry their own licences
 
 ## Licensing
 
-MIT, see [`LICENSE`](LICENSE). The plug-in builds with JUCE (AGPLv3 or a
-commercial JUCE licence) and clap-juce-extensions (MIT), and the measured head
-responses are Apache-2.0; see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+Maremba's source is available under the [PolyForm Noncommercial License
+1.0.0](LICENSE): you may read, study, change and share it for any non-commercial
+purpose, but not sell it or use it commercially. Official Protocodus builds
+carry an additional permission in the same file to use them for any purpose,
+including making music commercially. Commits made before this licence change
+were published under MIT and remain so. The plug-in builds with JUCE (official
+builds use a commercial JUCE 8 Starter licence) and clap-juce-extensions (MIT),
+and the measured head responses are Apache-2.0; see
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
