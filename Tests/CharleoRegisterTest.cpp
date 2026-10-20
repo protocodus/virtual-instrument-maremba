@@ -18,6 +18,7 @@ void check(bool ok, const std::string& message) {
 }
 maremba::EngineParameters mayanDance(float buzz) {
     maremba::EngineParameters p;   // Mayan Dance Padauk, as the wrapper maps it; no variance or artifacts
+    p.oversampling = 0; // Preserve the historical charleo register/contact calibration.
     p.model = 1; p.malletType = 1; p.malletHardness = .5f; p.strikePosition = .5f;
     p.resonatorTune = -8; p.resonatorCoupling = .7f; p.decay = 1; p.buzzAmount = buzz;
     p.artifacts = p.strikeJitter = p.detune = 0;

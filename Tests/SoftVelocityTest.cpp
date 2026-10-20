@@ -33,6 +33,7 @@ struct Hit {
 };
 EngineParameters clean(int model) {
     EngineParameters p;
+    p.oversampling = 0; // The physical velocity-response bounds were measured at 2x.
     p.model = model;
     p.malletType = 1; p.malletHardness = .4f; p.strikePosition = .45f;
     p.resonatorCoupling = .7f; p.decay = .7f; p.volume = .8f;

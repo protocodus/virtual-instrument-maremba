@@ -51,7 +51,7 @@ inline constexpr std::array<ControlDisplay, kControlCount> kControlDisplay {{
     { "Limiter Attack", EControlStyle::Knob, 1, 50, 1, "", " ms", {} },
     { "Limiter Release", EControlStyle::Knob, 20, 500, 0, "", " ms", {} },
     { "Master Volume", EControlStyle::Knob, 0, 1, 2, "", "", {} },
-    { "Oversampling", EControlStyle::Choice, 0, 1, 0, "", "", { "2x (Studio Standard)", "4x (High Resolution)", "8x (Pristine Archival)" } },
+    { "Oversampling", EControlStyle::Choice, 0, 1, 0, "", "", { "2x (Studio Standard)", "4x (High Resolution)", "8x (Pristine Archival)", "1x (Native)" } },
     { "Velocity Curve", EControlStyle::Choice, 0, 1, 0, "", "", { "Soft", "Linear", "Hard", "Sigmoid" } },
     { "Polyphony", EControlStyle::Choice, 0, 1, 0, "", "", { "8 Voices", "16 Voices", "24 Voices" } },
     { "Master Tune", EControlStyle::Knob, -100, 100, 1, "", " Cents", {} },

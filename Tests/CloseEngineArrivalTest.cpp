@@ -64,7 +64,8 @@ void Run(int model,int note,double rate,int quality) {
     // A soft strike keeps every direct output far below its protection.
     engine->SetParameters(p);engine->NoteOn(note,kStrikeVelocity);
     auto physical=MarembaEngineTestAccess::CloneStruckVoice(*engine);
-    const int factor=2<<quality;
+    constexpr std::array<int,4> factors{2,4,8,1};
+    const int factor=factors[static_cast<std::size_t>(quality)];
     const int frames=static_cast<int>(std::ceil(.080*rate));
     const int fadeFrame=static_cast<int>(std::ceil(.040*rate));
     const int latency=OutputHeadroom::LatencyFrames(rate);
@@ -171,6 +172,10 @@ int main() {
     for(int model=0;model<3;++model) for(int note : {36,66,96})
         for(double rate : {44100.,48000.,88200.,96000.,192000.}) Run(model,note,rate,0);
     for(int quality : {1,2}) for(int model=0;model<3;++model) for(int note : {36,66,96}) Run(model,note,48000.,quality);
+    // Native rate has no decimator delay; the independently observed strike
+    // must still arrive through measured ears and the electrical path once.
+    for(double rate : {22050.,44100.,48000.}) for(int model=0;model<3;++model)
+        for(int note : {36,66,96}) Run(model,note,rate,3);
     std::printf("CloseEngineArrivalTest passed: %d cases, %d checks; worst%.6fdB/%.6frad; electricalRelativeEnergyError%.3g; maximumOutput%.6f\n",
                 cases,checks,worstMagnitude,worstPhase,worstElectrical,maximumOutput);
 }

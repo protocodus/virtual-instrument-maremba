@@ -171,6 +171,7 @@ Audio SplitReplay(int batch) {
 Audio Render(double rate, int model, float pickup) {
     auto engine = std::make_unique<MarembaEngine>(rate);
     EngineParameters p;
+    p.oversampling = 0; // Keep the existing declared-gain routing fixture at 2x.
     p.model = model; p.closeLevel = p.farLevel = 0; p.piezoLevel = pickup;
     p.volume = .08f; p.preampDrive = p.compAmount = p.warmth = 0;
     p.strikeJitter = p.detune = p.bodyBloom = p.sympathetic = p.artifacts = p.buzzAmount = 0;
@@ -227,7 +228,7 @@ int main() {
     Require(split == SplitReplay(7) && split == SplitReplay(64),
             "capture alignment depends on host batch splitting during note/model/steal transitions");
     for (double rate : {44100., 48000., 96000.}) {
-        for (int factor : {2, 4, 8}) for (int source : {36, 60, 96, 188, 316, kCaptureBoardSource})
+        for (int factor : {1, 2, 4, 8}) for (int source : {36, 60, 96, 188, 316, kCaptureBoardSource})
             PhysicalFlight(rate, factor, source);
         for (int model = 0; model < 4; ++model) EngineRouting(rate, model);
     }

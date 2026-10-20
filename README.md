@@ -43,6 +43,21 @@ One demo per factory preset, rendered by every main build from
 
 ## Version history
 
+### 1.5.3 — 2026-10-20 — native-rate quality by default
+
+- Add true 1× processing and select it for new devices and all 20 factory
+  presets. It runs the physical model once per host sample and bypasses the
+  oversampling decimators. The 2×, 4× and 8× choices remain available when
+  their extra alias suppression is preferred to the lower processing cost.
+- Preserve the raw saved Quality indices: 0 = 2×, 1 = 4×, 2 = 8×; append
+  3 = 1×. Quality changes retain the existing fade/reset policy, and output
+  protection retains its declared 2 ms latency and peak ceilings.
+- Saved Rack patches and plug-in state keep their raw Quality values.
+  External plug-in automation stored as normalized values needs review:
+  increasing JUCE's choice count changes its normalized step positions.
+- Retain the shared RMS calibration with one native-rate factory Volume trim
+  for Equipentatonic Log Keys. [Measurements and validation](Docs/validation/native-quality-2026-10-20.md).
+
 ### 1.5.2 — 2026-10-20 — consistent playing levels
 
 - The four initialized models and 20 factory presets match −27 dBFS stereo
@@ -85,7 +100,9 @@ play MIDI through `Source/DSP/MarembaPlayer.h`. `MarembaEngine`
 de-normalised `EngineParameters`, MIDI-style note events, pitch bend and mod
 wheel, and renders a stereo Main pair plus five direct outputs (Close L/R,
 Room L/R, Piezo). Every field is clamped again inside the engine, so any finite
-value is safe. It runs internally at 2×, 4× or 8× the host rate.
+value is safe. It runs internally at the host rate by default (1×), with
+optional 2×, 4× and 8× modes. The native-rate path bypasses decimation;
+higher modes provide additional alias suppression for the physical sources.
 
 - **Bars and tines** (`MarimbaModel.h`, `BarModes.h`, `KalimbaModes.h`,
   `KalimbaMountShapes.h`): per-key modal banks from Timoshenko finite-element

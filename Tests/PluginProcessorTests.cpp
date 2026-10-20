@@ -93,6 +93,9 @@ void TestParameterIds() {
 
 void TestFactoryBank() {
     MarembaAudioProcessor processor;
+    auto* quality = dynamic_cast<juce::AudioParameterChoice*>(processor.parameters().getParameter("oversampling"));
+    Expect(quality && quality->choices.size() == 4 && quality->getIndex() == 3,
+           "four Quality choices preserve legacy indices and default to native 1x");
     Expect(processor.getNumPrograms() == 20, "twenty factory presets");
     for (int program = 0; program < processor.getNumPrograms(); ++program) {
         processor.setCurrentProgram(program);
@@ -101,6 +104,8 @@ void TestFactoryBank() {
                "program names are the bank's");
         const auto controls = processor.currentControls();
         const auto& preset = maremba::kFactoryPresets[static_cast<std::size_t>(program)].values;
+        Expect(preset[maremba::kOversampling] == 3 && controls[maremba::kOversampling] == 3,
+               "every factory program selects native 1x");
         for (const char* id : kExpectedIds) {
             int control = 0;
             while (std::string(maremba::kControlNames[static_cast<std::size_t>(control)]) != id) ++control;

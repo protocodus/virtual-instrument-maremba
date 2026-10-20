@@ -68,6 +68,7 @@ void require(bool okay, const char* message) {
 EngineParameters defaultPatch(int model) {
     EngineParameters p;
     p.model = model;
+    p.oversampling = 0; // Preserve the historical 2x acoustic/recording anchors.
     p.velocityCurve = 3; // Historical capture anchors use Sigmoid explicitly.
     p.malletType = 1;
     p.malletHardness = .55f;

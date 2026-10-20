@@ -23,6 +23,7 @@
 namespace maremba {
 struct MarembaEngineTestAccess {
     static double Clock(const MarembaEngine& e) { return e.mClock; }
+    static int Factor(const MarembaEngine& e) { return e.mActiveFactor; }
 };
 }
 
@@ -31,11 +32,21 @@ using maremba::EngineParameters;
 using maremba::MarembaEngine;
 constexpr int kChannels = 7;
 constexpr double kCeiling = .940002;
-constexpr std::array<double, 4> kRates{{44100, 48000, 96000, 192000}};
+// Append the low-rate safety witness so the four historical rates retain
+// their indices and independently rotated physical profiles.
+constexpr std::array<double, 5> kRates{{44100, 48000, 96000, 192000, 22050}};
+constexpr std::array<int, 4> kQualityFactors{{2, 4, 8, 1}};
+constexpr int kNativeQuality = 3;
 constexpr std::array<int, 6> kNotes{{0, 21, 48, 60, 108, 127}};
 constexpr std::array<int, 24> kWideChord{{0, 12, 21, 24, 33, 36, 40, 43, 48, 52, 55, 60,
                                         64, 67, 72, 76, 79, 84, 88, 96, 100, 108, 120, 127}};
 constexpr std::array<float, 3> kLimits{{0, .01f, 1}};
+constexpr std::size_t kIsolatedCases = 4 * 5 * kNotes.size() * 3;
+constexpr std::size_t kChordCases = 4 * 5 * ((kRates.size() - 1) * kQualityFactors.size() + 1);
+constexpr std::size_t kNativeChordCases = 4 * 5 * kRates.size();
+constexpr std::size_t kExpectedCases = kIsolatedCases + kChordCases;
+static_assert(kExpectedCases == 700 && kNativeChordCases == 100,
+              "Update declared hardest-hit coverage deliberately");
 constexpr std::array<const char*, kChannels> kNames{{"main_l", "main_r", "close_l", "close_r",
                                                    "room_l", "room_r", "piezo"}};
 struct Case {
@@ -52,10 +63,11 @@ struct Result {
 };
 struct Best { double peak = -1; std::size_t result = 0; };
 std::vector<Result> results;
-std::array<std::array<Best, kChannels>, 12> bestByRateQuality{};
+std::array<std::array<Best, kChannels>, kRates.size() * kQualityFactors.size()> bestByRateQuality{};
 std::array<double, kChannels> peaks{};
 std::array<std::uint64_t, kChannels> overCeiling{}, overFullScale{};
 std::uint64_t totalFrames = 0, clockChecks = 0;
+std::size_t nativeChordCases = 0;
 int maximumActive = 0;
 const auto started = std::chrono::steady_clock::now();
 
@@ -107,6 +119,8 @@ Result renderCase(const Case& c) {
     auto engine = std::make_unique<MarembaEngine>(rate);
     engine->SetParameters(parameters(c));
     engine->Reset();
+    require(maremba::MarembaEngineTestAccess::Factor(*engine) == kQualityFactors[c.quality],
+            "case " + std::to_string(c.id) + ": quality selector did not configure its expected factor");
     Result r;
     r.c = c;
     r.frames = static_cast<int>(std::ceil(rate * (c.chord ? .50 : .20)));
@@ -183,7 +197,7 @@ void run(const Case& c) {
     require(elapsed < kWallBound, "hard-hit matrix exceeded its wall-time bound");
     Result r = renderCase(c);
     const std::size_t index = results.size();
-    const int group = c.rateIndex * 3 + c.quality;
+    const std::size_t group = c.rateIndex * kQualityFactors.size() + c.quality;
     for (int ch = 0; ch < kChannels; ++ch) {
         peaks[ch] = std::max(peaks[ch], r.peak[ch]);
         overCeiling[ch] += r.overCeiling[ch];
@@ -192,6 +206,7 @@ void run(const Case& c) {
             bestByRateQuality[group][ch] = {r.peak[ch], index};
     }
     totalFrames += r.frames;
+    if (c.chord && c.quality == kNativeQuality) ++nativeChordCases;
     results.push_back(std::move(r));
     // Retain only clips currently worst on at least one output/rate/quality.
     // Their complete seven-channel frames are later written without clipping.
@@ -221,10 +236,13 @@ void report(const std::filesystem::path& directory, bool measure) {
         << ",\"ceiling_with_tolerance\":" << kCeiling << ",\"channels\":[";
     for (int ch = 0; ch < kChannels; ++ch) { if (ch) out << ','; out << '"' << kNames[ch] << '"'; }
     out << "],\"sample_format\":\"little-endian interleaved float32; 7 channels; unprocessed engine outputs\""
-        << ",\"cases\":" << results.size() << ",\"frames\":" << totalFrames
+        << ",\"expected_cases\":" << kExpectedCases << ",\"cases\":" << results.size()
+        << ",\"native_chord_cases\":" << nativeChordCases << ",\"frames\":" << totalFrames
         << ",\"guard_clock_checks\":" << clockChecks << ",\"maximum_active_voices\":" << maximumActive
         << ",\"peaks\":";
     arrayJson(out, peaks);
+    out << ",\"sample_rates\":"; arrayJson(out, kRates);
+    out << ",\"quality_factors\":"; arrayJson(out, kQualityFactors);
     out << ",\"samples_over_ceiling\":"; arrayJson(out, overCeiling);
     out << ",\"samples_over_full_scale\":"; arrayJson(out, overFullScale);
     out << ",\"results\":[\n";
@@ -233,7 +251,8 @@ void report(const std::filesystem::path& directory, bool measure) {
         const auto& r = results[i]; const auto& c = r.c;
         out << "{\"id\":" << c.id << ",\"kind\":\"" << (c.chord ? "repeated-24-note-chords" : "isolated")
             << "\",\"model\":" << c.model << ",\"striker\":" << c.striker
-            << ",\"sample_rate\":" << kRates[c.rateIndex] << ",\"oversampling_factor\":" << (2 << c.quality)
+            << ",\"sample_rate\":" << kRates[c.rateIndex] << ",\"quality_selector\":" << c.quality
+            << ",\"oversampling_factor\":" << kQualityFactors[c.quality]
             << ",\"profile\":" << c.profile << ",\"note\":" << c.note << ",\"midi_velocity\":127"
             << ",\"limit\":" << kLimits[c.limitIndex] << ",\"drive\":" << c.drive
             << ",\"warmth\":" << c.warmth << ",\"frames\":" << r.frames << ",\"peak\":";
@@ -276,15 +295,20 @@ int main(int argc, char** argv) {
                         run({id++, model, striker, 1, 0, profile, kNotes[ni],
                              (ni + profile) % 3, (ni / 2 + profile) % 2,
                              (ni + profile) % 2 ? 1 : -1, false});
-        // Full rate/quality coverage per model/striker; six repeated dense/wide
-        // chords exercise 24 live notes and their overlapping stolen tails.
+        // Every quality at the four historical rates per model/striker; add
+        // 22.05k/1x safety. Six repeated dense/wide chords exercise 24 live
+        // notes and their overlapping stolen tails.
         for (int model = 0; model < 4; ++model)
             for (int striker = 0; striker < 5; ++striker)
-                for (int ri = 0; ri < 4; ++ri)
-                    for (int quality = 0; quality < 3; ++quality)
+                for (int ri = 0; ri < static_cast<int>(kRates.size()); ++ri)
+                    for (int quality = 0; quality < static_cast<int>(kQualityFactors.size()); ++quality) {
+                        if (ri == static_cast<int>(kRates.size()) - 1 && quality != kNativeQuality) continue;
                         run({id++, model, striker, ri, quality, (ri + 2 * quality + model) % 3,
                              -1, (ri + quality) % 3, (ri / 2 + quality) % 2,
                              (ri + quality + striker) % 2 ? 1 : -1, true});
+                    }
+        require(results.size() == kExpectedCases && nativeChordCases == kNativeChordCases,
+                "hard-hit matrix did not complete its declared quality/rate coverage");
         if (!directory.empty()) report(directory, measure);
         std::uint64_t violations = 0;
         for (int ch = 0; ch < kChannels; ++ch) {
@@ -294,7 +318,8 @@ int main(int argc, char** argv) {
             violations += overCeiling[ch];
         }
         const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
-        std::cout << "Hard-hit matrix: " << results.size() << " cases, " << totalFrames
+        std::cout << "Hard-hit matrix: " << results.size() << '/' << kExpectedCases
+                  << " cases, " << nativeChordCases << " native-rate chords, " << totalFrames
                   << " frames, " << clockChecks << " reset guards, " << maximumActive
                   << " maximum active voices, " << seconds << " seconds\n";
         require(measure || violations == 0, "one or more outputs exceeded the smooth safety ceiling");

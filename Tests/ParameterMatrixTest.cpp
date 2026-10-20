@@ -2,7 +2,7 @@
 // plug-in's parameter list: every control the plug-in exposes, a knob as its
 // 0..1 value and a choice by its steps, and the factory presets.
 //
-//   MarembaParameterMatrix [--rotate] [--jobs N] [--shard K/N]
+//   MarembaParameterMatrix [--rotate] [--jobs N] [--shard K/N] [--quality-only]
 //
 // --rotate runs each case at one rate and block size, for a quick pass;
 // --shard runs every Nth case from the Kth, for splitting the matrix across jobs.
@@ -122,11 +122,20 @@ private:
 } // namespace
 
 int main(int argc, char** argv) {
+    const MarembaDevice inventory;
+    const auto parameters = inventory.Parameters();
+    const auto quality = std::find_if(parameters.begin(), parameters.end(), [](const Parameter& p) { return p.name == "oversampling"; });
+    if (quality == parameters.end() || quality->steps != 4 || quality->defaultValue != 1.f) {
+        std::fprintf(stderr, "error: matrix must expose four Quality states with native 1x as default index 3\n");
+        return 1;
+    }
     protocodus::matrix::Options options;
     options.jobs = 1;
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
         if (arg == "--rotate") options.everyConfiguration = false;
+        else if (arg == "--quality-only")
+            options.select = [](std::size_t, const protocodus::matrix::Case& c) { return c.label.rfind("oversampling=", 0) == 0; };
         else if (arg == "--jobs" && i + 1 < argc) options.jobs = std::max(1, std::stoi(argv[++i]));
         else if (arg == "--shard" && i + 1 < argc) {
             const std::string shard = argv[++i];
@@ -138,7 +147,7 @@ int main(int argc, char** argv) {
             options.select = [k, n](std::size_t index, const protocodus::matrix::Case&) { return index % n == k; };
         }
         else {
-            std::fprintf(stderr, "usage: %s [--rotate] [--jobs N] [--shard K/N]\n", argv[0]);
+            std::fprintf(stderr, "usage: %s [--rotate] [--jobs N] [--shard K/N] [--quality-only]\n", argv[0]);
             return 2;
         }
     }

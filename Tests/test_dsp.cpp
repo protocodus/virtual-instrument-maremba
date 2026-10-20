@@ -172,6 +172,7 @@ namespace {
 
 using maremba::EngineParameters;
 using maremba::MarembaEngine;
+constexpr int QualityFactor(int index) { return index == 3 ? 1 : index == 1 ? 4 : index == 2 ? 8 : 2; }
 
 int gFailures = 0;
 
@@ -387,6 +388,7 @@ EngineParameters CleanParams()
 {
     EngineParameters p;
     p.artifacts = 0.0f;
+    p.oversampling = 0; // Preserve the historical 2x physical-response fixtures.
     p.buzzAmount = 0.0f;
     p.strikeJitter = 0.0f;
     p.pitchGlide = 0.0f;
@@ -416,8 +418,8 @@ double HighPassEnergy(const std::vector<float>& x, size_t from, size_t to)
 
 void TestNoteRangeStability()
 {
-    std::cout << "[Stability] Notes 21..108, all models, 2x/4x/8x ..." << std::endl;
-    for (int os = 0; os < 3; ++os) {
+    std::cout << "[Stability] Notes 21..108, all models, 1x/2x/4x/8x ..." << std::endl;
+    for (int os = 0; os < 4; ++os) {
         for (int model = 0; model < 4; ++model) {
             MarembaEngine engine(44100.0);
             EngineParameters p;
@@ -747,7 +749,7 @@ void TestPreampLimiterContainment()
 {
     std::cout << "[Dynamics] Main limiter after Main Drive and Warmth; direct stems stay identical ..." << std::endl;
     for (double rate : { 44100.0, 48000.0, 96000.0 }) {
-        for (int quality : { 0, 1, 2 }) {
+        for (int quality : { 0, 1, 2, 3 }) {
             EngineParameters p;
             p.preampDrive = .9f;
             p.warmth = 1.0f;
@@ -1504,14 +1506,14 @@ void TestNoAllocations()
 
 void TestPitchAccuracy()
 {
-    std::cout << "[Tuning] Notes 24..108 settle within +/-1 cent (onset +/-12) at 44.1/48/96/192 kHz x 2/4/8 ..." << std::endl;
+    std::cout << "[Tuning] Notes 24..108 settle within +/-1 cent (onset +/-12) at 44.1/48/96/192 kHz x 1/2/4/8 ..." << std::endl;
     EngineParameters p = CleanParams();
     p.sympathetic = 0.0f;
     p.bodyBloom = 0.0f;
     p.farLevel = 0.0f;
     double worst = 0.0;
     for (double sr : { 44100.0, 48000.0, 96000.0, 192000.0 }) {
-        for (int os = 0; os < 3; ++os) {
+        for (int os = 0; os < 4; ++os) {
             p.oversampling = os;
             for (int note = 24; note <= 108; note += 12) {
                 const double seconds = note < 48 ? 1.0 : 0.3;
@@ -1526,8 +1528,8 @@ void TestPitchAccuracy()
                 const double onset = Cents(EstimateFrequency(r.ch[kCloseL], r.ch[kCloseR], 0, onsetEnd, sr, NoteHz(note)), NoteHz(note));
                 const double c = Cents(EstimateFrequency(r.ch[kCloseL], r.ch[kCloseR], settle, end, sr, NoteHz(note)), NoteHz(note));
                 worst = std::max(worst, std::fabs(c));
-                CHECK(std::fabs(c) < 1.0, "note " << note << " at " << sr << "/" << (2 << os) << "x settles " << c << " cents off");
-                CHECK(std::fabs(onset) < 12.0, "note " << note << " at " << sr << "/" << (2 << os) << "x onset is " << onset << " cents off");
+                CHECK(std::fabs(c) < 1.0, "note " << note << " at " << sr << "/" << QualityFactor(os) << "x settles " << c << " cents off");
+                CHECK(std::fabs(onset) < 12.0, "note " << note << " at " << sr << "/" << QualityFactor(os) << "x onset is " << onset << " cents off");
             }
         }
     }
@@ -1538,11 +1540,12 @@ void TestRateInvariance()
 {
     std::cout << "[Invariance] Level (+/-0.5 dB per output), pitch and T60 across rates/factors ..." << std::endl;
     EngineParameters p = CleanParams();
-    const double configs[6][2] = { { 44100, 0 }, { 44100, 1 }, { 44100, 2 }, { 48000, 0 }, { 96000, 0 }, { 192000, 0 } };
+    const double configs[][2] = { { 44100, 0 }, { 44100, 1 }, { 44100, 2 }, { 44100, 3 },
+        { 48000, 0 }, { 48000, 3 }, { 96000, 0 }, { 96000, 3 }, { 192000, 0 }, { 192000, 3 } };
     for (int note : { 36, 60, 84 }) {
         double refDb[kNumChannels] = {};
         double refT60 = 0.0, refCents = 0.0;
-        for (int c = 0; c < 6; ++c) {
+        for (std::size_t c = 0; c < std::size(configs); ++c) {
             const double sr = configs[c][0];
             p.oversampling = static_cast<int>(configs[c][1]);
             Render r = RenderNote(sr, p, note, 0.8f, 1.4);
@@ -1564,7 +1567,7 @@ void TestRateInvariance()
                 const double db = Db(Rms(r.ch[ch], 0, half));
                 if (c == 0) refDb[ch] = db;
                 CHECK(std::fabs(db - refDb[ch]) < 0.5, kChannelNames[ch] << " level of note " << note << " at " << sr << "/"
-                      << (2 << p.oversampling) << "x differs by " << db - refDb[ch] << " dB");
+                      << QualityFactor(p.oversampling) << "x differs by " << db - refDb[ch] << " dB");
             }
         }
     }
@@ -1732,7 +1735,7 @@ void TestParameterFuzz()
             && in(q.sympathetic, 0, 1) && in(q.pitchGlide, 0, 1) && in(q.bodyBloom, 0, 1) && in(q.closeLevel, 0, 1)
             && in(q.farLevel, 0, 1) && in(q.piezoLevel, 0, 1) && in(q.stereoWidth, 0, 2) && in(q.preampDrive, 0, 1)
             && in(q.warmth, -1, 1) && in(q.compAmount, 0, 1) && in(q.compAttack, 1, 50) && in(q.compRelease, 20, 500)
-            && in(q.volume, 0, 1) && q.oversampling >= 0 && q.oversampling <= 2 && q.velocityCurve >= 0 && q.velocityCurve <= 3
+            && in(q.volume, 0, 1) && q.oversampling >= 0 && q.oversampling <= 3 && q.velocityCurve >= 0 && q.velocityCurve <= 3
             && q.polyphony >= 0 && q.polyphony <= 2 && in(q.tuneCents, -200, 200) && in(q.detune, 0, 100)
             && q.roomType >= 0 && q.roomType <= 2
             && q.invertPiezo >= 0 && q.invertPiezo <= 1
@@ -2000,7 +2003,7 @@ void TestDampAllIsGentle()
         const size_t a = at + static_cast<size_t>(0.05 * sr), b = at + static_cast<size_t>(0.10 * sr);
         const double first = Rms(damped.ch[kCloseL], at, at + 64) / Rms(ring.ch[kCloseL], at, at + 64);
         const double later = Rms(damped.ch[kCloseL], a, b) / Rms(ring.ch[kCloseL], a, b);
-        std::cout << "  -> " << sr << "/" << (2 << cfg.second) << "x: first batch " << first << ", 50-100 ms " << later << std::endl;
+        std::cout << "  -> " << sr << "/" << QualityFactor(cfg.second) << "x: first batch " << first << ", 50-100 ms " << later << std::endl;
         CHECK(first > 0.9, "DampAll cuts instantly at " << sr);
         CHECK(later > 0.1 && later < 0.7, "DampAll rate off contract at " << sr << ": " << later);
     }
@@ -2269,7 +2272,7 @@ void TestHaloRateInvariant()
         for (size_t i = 0; i < halo.size(); ++i) halo[i] = on.ch[kMainL][i] - off.ch[kMainL][i];
         const double db = Db(Rms(halo, 0, halo.size()));
         if (ref == 0.0) ref = db;
-        std::cout << "  -> " << cfg.first << "/" << (2 << cfg.second) << "x halo " << db << " dBFS" << std::endl;
+        std::cout << "  -> " << cfg.first << "/" << QualityFactor(cfg.second) << "x halo " << db << " dBFS" << std::endl;
         CHECK(std::fabs(db - ref) < 1.0, "halo level changes with rate: " << db - ref << " dB");
     }
 }
@@ -2291,7 +2294,7 @@ void TestDirectOutMatchesMain()
     // MainVolumeTest independently anchors the knob's amplitude curve.
     const double mainCalibrationGain = 1.202853 * .7 * maremba::kMainModelCalibration[static_cast<std::size_t>(p.model)];
     const double volumeGain = maremba::MainVolumeGain(p.volume);
-    for (int os : { 0, 2 }) {
+    for (int os : { 0, 2, 3 }) {
         p.oversampling = os;
         // A quiet strike isolates the aligned, linear paths. Hot strikes use
         // independent main-bus headroom and are checked by containment tests.
@@ -2972,7 +2975,7 @@ void TestTrebleNotBuried()
                 CHECK(relativeDb > -3.0, "default blend buries C7 by " << -relativeDb << " dB against Close alone");
             }
         }
-        std::cout << "  -> " << cfg.first << "/" << (2 << cfg.second)
+        std::cout << "  -> " << cfg.first << "/" << QualityFactor(cfg.second)
                   << "x: Close C4/C7 gap " << closeDb[0]-closeDb[1]
                   << " dB, Piezo gap " << piezoDb[0]-piezoDb[1]
                   << " dB, coherent Main gap " << mainDb[0]-mainDb[1] << " dB" << std::endl;
@@ -3027,7 +3030,7 @@ void TestMainBusNoSubnormalAtZeroLevels()
             e.RenderBatch(buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], 64);
             if (!maremba::MarembaEngineTestAccess::MainBusNormal(e)) ++bad;
         }
-        std::cout << "  -> " << cfg.first << "/" << (2 << cfg.second) << "x: " << bad << " batches with subnormal preamp/decimator state, voices "
+        std::cout << "  -> " << cfg.first << "/" << QualityFactor(cfg.second) << "x: " << bad << " batches with subnormal preamp/decimator state, voices "
                   << e.GetActiveVoiceCount() << std::endl;
         CHECK(e.GetActiveVoiceCount() == 1, "the bar stopped ringing (test needs it alive)");
         CHECK(bad == 0, "main bus cycles on subnormal state at zero mic levels");
@@ -3634,7 +3637,7 @@ void RunPerformanceProbe()
     constexpr int blocks = 4096;
     constexpr int frames = 64;
     volatile float sink = 0.0f;
-    for (int quality = 0; quality < 3; ++quality) {
+    for (int quality = 0; quality < 4; ++quality) {
         EngineParameters p; // shipped defaults, changing only quality
         MarembaEngine e(48000.0);
         p.oversampling = quality;
@@ -3663,7 +3666,7 @@ void RunPerformanceProbe()
         }
         std::sort(wall.begin(), wall.end());
         std::sort(cpu.begin(), cpu.end());
-        std::cout << "48000 Hz, 64 frames, 16 voices, " << (2 << quality) << "x; " << blocks << " blocks; wall us p50="
+        std::cout << "48000 Hz, 64 frames, 16 voices, " << QualityFactor(quality) << "x; " << blocks << " blocks; wall us p50="
                   << wall[blocks / 2] << " p95=" << wall[blocks * 95 / 100] << " p99=" << wall[blocks * 99 / 100]
                   << " max=" << wall.back() << "; CPU us p50=" << cpu[blocks / 2] << " p99=" << cpu[blocks * 99 / 100]
                   << " max=" << cpu.back() << "; deadline misses wall=" << wallMisses << " CPU=" << cpuMisses << std::endl;
@@ -3675,6 +3678,14 @@ void RunPerformanceProbe()
 
 int main(int argc, char** argv)
 {
+    if (argc == 2 && std::string(argv[1]) == "--quality") {
+        TestNoteRangeStability();
+        TestPitchAccuracy();
+        TestRateInvariance();
+        TestOversamplingSwitch();
+        TestDirectOutMatchesMain();
+        return gFailures ? 1 : 0;
+    }
     if (argc == 2 && std::string(argv[1]) == "--velocity-depths") {
         TestVelocityDepths();
         return gFailures ? 1 : 0;

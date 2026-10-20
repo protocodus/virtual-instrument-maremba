@@ -138,7 +138,7 @@ EngineParameters MarembaEngine::Sanitize(const EngineParameters& in) {
     p.compAttack = FiniteClamp(in.compAttack, 1.0f, 50.0f, d.compAttack);
     p.compRelease = FiniteClamp(in.compRelease, 20.0f, 500.0f, d.compRelease);
     p.volume = FiniteClamp(in.volume, 0.0f, 1.0f, d.volume);
-    p.oversampling = std::clamp(in.oversampling, 0, 2);
+    p.oversampling = std::clamp(in.oversampling, 0, 3);
     p.velocityCurve = std::clamp(in.velocityCurve, 0, 3);
     p.polyphony = std::clamp(in.polyphony, 0, 2);
     p.tuneCents = FiniteClamp(in.tuneCents, -200.0f, 200.0f, d.tuneCents);

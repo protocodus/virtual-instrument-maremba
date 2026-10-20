@@ -544,7 +544,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--duration", type=float, default=45)
     parser.add_argument("--full", action="store_true", help="Render full compositions (player may become large)")
-    parser.add_argument("--oversampling", type=int, choices=[0, 1, 2], default=0)
+    parser.add_argument("--oversampling", type=int, choices=[0, 1, 2, 3], default=3)
     parser.add_argument("--download-missing", action="store_true")
     args = parser.parse_args()
     if not math.isfinite(args.duration) or not 4 <= args.duration <= 3600:

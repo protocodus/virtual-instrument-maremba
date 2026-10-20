@@ -19,12 +19,12 @@ int main(int argc, char** argv) {
     const bool oneCase = (argc == 5 || argc == 6 || argc == 7) && std::string(argv[1]) == "--case";
     if (argc > 1 && !allModels && !chordBurst && !maxBuzz && !oneCase) return 2;
     const int selectedModel = oneCase ? std::stoi(argv[2]) : 0;
-    const int selectedQuality = oneCase ? std::stoi(argv[3]) : 0;
+    const int selectedQuality = oneCase ? std::stoi(argv[3]) : 3;
     const int selectedRoom = oneCase ? std::stoi(argv[4]) : 0;
     const int rate = oneCase && argc >= 6 ? std::stoi(argv[5]) : 48000;
     const int count = oneCase && argc == 7 ? std::stoi(argv[6]) : 4096;
     constexpr int frames=64;
-    if (selectedModel < 0 || selectedModel > 3 || selectedQuality < 0 || selectedQuality > 2 ||
+    if (selectedModel < 0 || selectedModel > 3 || selectedQuality < 0 || selectedQuality > 3 ||
         selectedRoom < 0 || selectedRoom > 2 || rate < 22050 || rate > 192000 || count < 256) return 2;
     volatile float sink=0;
 #ifdef MAREMBA_HAS_ROOM_TYPES
@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
     constexpr int rooms=1;
 #endif
     for (int model=oneCase ? selectedModel : 0;model<(oneCase ? selectedModel+1 : (allModels || chordBurst || maxBuzz) ? 4 : 1);++model)
-    for (int quality=oneCase ? selectedQuality : 0;quality<(oneCase ? selectedQuality+1 : allModels ? 3 : 1);++quality)
+    for (int quality=oneCase ? selectedQuality : allModels ? 0 : 3;quality<(oneCase ? selectedQuality+1 : 4);++quality)
     for (int room=oneCase ? selectedRoom : 0;room<(oneCase ? selectedRoom+1 : (allModels || chordBurst || maxBuzz) ? 1 : rooms);++room) {
         maremba::MarembaEngine engine(rate);
         maremba::EngineParameters p;
@@ -67,7 +67,8 @@ int main(int argc, char** argv) {
             wallMiss+=elapsed>1e6*frames/rate;cpuMiss+=charged>1e6*frames/rate;
         }
         std::sort(wall.begin(),wall.end());std::sort(cpu.begin(),cpu.end());
-        std::cout << std::setprecision(10) << rate << "Hz / 64 frames / 16 voices / model " << model << " / " << (2 << quality) << "x / room " << room
+        constexpr int factors[] = {2, 4, 8, 1};
+        std::cout << std::setprecision(10) << rate << "Hz / 64 frames / 16 voices / model " << model << " / " << factors[quality] << "x / room " << room
                   << (chordBurst ? " / 16-note restrike burst every32 blocks" : "")
                   << (maxBuzz ? " / maximum Buzz and velocity" : "")
                   << " / " << count << " blocks: wall_us p50=" << wall[count/2]

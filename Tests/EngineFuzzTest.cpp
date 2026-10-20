@@ -153,6 +153,9 @@ constexpr int kBufFrames = 256; // room for out-of-contract frame counts
 constexpr float kSentinel = 12345.678f;
 constexpr float kCeiling = 0.94f;
 const double kRates[] = { 22050.0, 44100.0, 48000.0, 88200.0, 96000.0, 176400.0, 192000.0, 44100.5 };
+// Persisted selectors 0..2 retain their historical factors; appended state 3
+// is the native-rate path. Keep this oracle independent of engine helpers.
+constexpr std::array<int, 4> kQualityFactors{{2, 4, 8, 1}};
 
 struct Options {
     int seeds = 2;
@@ -168,7 +171,7 @@ struct Options {
     int tailOversampling = 0;
     double tailSeconds = 12.0;
     double resetRate = 0.0;       // 0 retains the inexpensive default rate selection
-    int resetOversampling = -1;  // -1 retains the default 2x/4x selection
+    int resetOversampling = -1;  // -1 samples all four selectable qualities
 };
 
 // splitmix64; the seed is hashed first so consecutive seeds give unrelated
@@ -266,7 +269,7 @@ constexpr DiscreteControl kDiscrete[] = {
     {"malletType", &EngineParameters::malletType, 5},
     {"roomType", &EngineParameters::roomType, 3},
     {"invertPiezo", &EngineParameters::invertPiezo, 2},
-    {"oversampling", &EngineParameters::oversampling, 3},
+    {"oversampling", &EngineParameters::oversampling, 4},
     {"velocityCurve", &EngineParameters::velocityCurve, 4},
     {"polyphony", &EngineParameters::polyphony, 3},
     {"tuningScale", &EngineParameters::tuningScale, 7},
@@ -274,7 +277,15 @@ constexpr DiscreteControl kDiscrete[] = {
 };
 constexpr size_t kContinuousCount = sizeof(kContinuous)/sizeof(kContinuous[0]);
 constexpr size_t kDiscreteCount = sizeof(kDiscrete)/sizeof(kDiscrete[0]);
+constexpr int DiscreteStateCount() {
+    int states = 0;
+    for (const auto& control : kDiscrete) states += control.count;
+    return states;
+}
+constexpr int kDiscreteStates = DiscreteStateCount();
+constexpr int kControlCases = 2 * (3 * kContinuousCount + kDiscreteStates + 3);
 static_assert(kContinuousCount == 36 && kDiscreteCount == 9, "Update declared control coverage deliberately");
+static_assert(kDiscreteStates == 35 && kControlCases == 292, "Update selector coverage deliberately");
 static_assert(maremba::kStrikerCount == 5 && static_cast<int>(maremba::ETuningScale::Count) == 7,
               "Update exhaustive selector state inventory");
 constexpr float kBendTravel[] = {-200, 0, 200};
@@ -369,7 +380,7 @@ EngineParameters PlausibleParams(Rng& r) {
     p.compAttack = r.Range(1, 50);
     p.compRelease = r.Range(20, 500);
     p.volume = r.Range(0, 1);
-    p.oversampling = r.Int(0, 2);
+    p.oversampling = r.Int(0, 3);
     p.velocityCurve = r.Int(0, 3);
     p.polyphony = r.Int(0, 2);
     p.tuneCents = r.Range(-200, 200);
@@ -422,7 +433,7 @@ EngineParameters EdgeParams(Rng& r) {
     struct I { int* v; int lo, hi; };
     const I ints[] = {
         {&p.model, 0, 3}, {&p.malletType, 0, maremba::kStrikerCount - 1}, {&p.roomType, 0, 2},
-        {&p.oversampling, 0, 2}, {&p.velocityCurve, 0, 3}, {&p.polyphony, 0, 2}, {&p.tuningScale, 0, 6},
+        {&p.oversampling, 0, 3}, {&p.velocityCurve, 0, 3}, {&p.polyphony, 0, 2}, {&p.tuningScale, 0, 6},
         {&p.noteOffMode, 0, 2}, {&p.invertPiezo, 0, 1}, {&p.gentleWiden, 0, 1},
     };
     for (const I& i : ints) {
@@ -451,7 +462,7 @@ void Poison(Rng& r, EngineParameters& p, double chance) {
     for (const F& f : floats) if (r.Chance(chance)) *f.v = HostileFloat(r, f.lo, f.hi);
     struct I { int* v; int lo, hi; };
     const I ints[] = {
-        {&p.model, 0, 3}, {&p.malletType, 0, maremba::kStrikerCount - 1}, {&p.roomType, 0, 2}, {&p.oversampling, 0, 2},
+        {&p.model, 0, 3}, {&p.malletType, 0, maremba::kStrikerCount - 1}, {&p.roomType, 0, 2}, {&p.oversampling, 0, 3},
         {&p.velocityCurve, 0, 3}, {&p.polyphony, 0, 2}, {&p.tuningScale, 0, 6}, {&p.noteOffMode, 0, 2},
         {&p.invertPiezo, 0, 1},
         {&p.gentleWiden, 0, 1},
@@ -627,7 +638,7 @@ int ControlCoverage() {
             std::printf("  ACTIVE %s limiter_reduction=%.6f\n", t.where.c_str(), reduction);
         }
         CheckApplied(*e, target, t.where);
-        if (Access::Factor(*e) != (2 << target.oversampling)
+        if (Access::Factor(*e) != kQualityFactors[target.oversampling]
             || Access::Model(*e) != target.model || Access::Scale(*e) != target.tuningScale)
             gReport.Fail(t.where + ": configured model/scale/quality did not reach the applied target");
         ++cases;
@@ -685,8 +696,8 @@ int ControlCoverage() {
         states += kDiscrete[i].count;
         std::printf("  COVER discrete %s settled=%u live=%u expected=%u\n", kDiscrete[i].name, discrete[0][i], discrete[1][i], expected);
     }
-    if (states != 34 || cases != 290 || bend[0] != 7 || bend[1] != 7)
-        gReport.Fail("coverage: expected 36 continuous controls, 34 selector states and three bend values in both modes");
+    if (states != kDiscreteStates || cases != kControlCases || bend[0] != 7 || bend[1] != 7)
+        gReport.Fail("coverage: expected 36 continuous controls, 35 selector states and three bend values in both modes");
     std::printf("  COVER totals continuous=36 values=108 discrete=9 states=%d bend=3 modes=2 cases=%d\n", states, cases);
     CheckResetSilent(*e, t);
     return cases;
@@ -705,6 +716,8 @@ int CompactHostile() {
         e->Reset(); e->SetPitchBendCents(0); e->SetParameters(input);
         CheckApplied(*e, expected, t.where);
         e->NoteOn(60, .8f); RenderChecked(*e, t, 64, 0x1Fu); ++cases;
+        if (Access::Factor(*e) != kQualityFactors[expected.oversampling])
+            gReport.Fail(t.where + ": sanitized quality did not configure its expected factor");
     };
     for (const auto& c : kContinuous) {
         std::vector<float> values(std::begin(bad), std::end(bad));
@@ -795,7 +808,7 @@ void FuzzSeed(uint64_t seed, const Options& o) {
         } else if (op < 24) {               // one live change mid-note (switch storms)
             switch (r.Int(0, 7)) {
                 case 0: p.model = HostileInt(r, 0, 3); break;
-                case 1: p.oversampling = HostileInt(r, 0, 2); break;
+                case 1: p.oversampling = HostileInt(r, 0, 3); break;
                 case 2: p.polyphony = HostileInt(r, 0, 2); break;
                 case 3: p.tuningScale = HostileInt(r, 0, 6); break;
                 case 4: p.noteOffMode = HostileInt(r, 0, 2); break;
@@ -872,7 +885,7 @@ void ResetEquivalenceSeed(uint64_t seed, const Options& o) {
     Rng r(seed ^ 0xA5A5A5A5ull);
     const double rate = o.resetRate > 0.0 ? o.resetRate : kRates[r.Int(0, 3)];
     EngineParameters p = PlausibleParams(r);
-    p.oversampling = o.resetOversampling >= 0 ? o.resetOversampling : r.Int(0, 1);
+    p.oversampling = o.resetOversampling >= 0 ? o.resetOversampling : r.Int(0, 3);
     const float bend = r.Chance(0.5) ? 0.0f : r.Range(-200, 200);
     std::vector<std::pair<int, float>> notes;
     const int base = r.Int(40, 80);
@@ -927,7 +940,7 @@ void ResetEquivalenceSeed(uint64_t seed, const Options& o) {
                          worst, worstCh, firstDiff));
     else if (o.verbose)
         std::printf("  reset seed %llu rate %.1f quality %dx model %d: identical\n",
-                    static_cast<unsigned long long>(seed), rate, 2 << p.oversampling, p.model);
+                    static_cast<unsigned long long>(seed), rate, kQualityFactors[p.oversampling], p.model);
 }
 
 // ------------------------------------------------ long tails / denormals --
@@ -1234,7 +1247,7 @@ void MinimumNoteStops(const Options& o) {
     // A constant-Q hand loss used to approach zero below hearing: MIDI 0
     // bent to about 3.6 Hz kept the air/membranes alive past the 30 s drain
     // bound even after the bar was silent. Cover a head and a shaft, every
-    // model, the default rate/quality and 96 kHz at the highest quality.
+    // model, the historical 48 kHz/2x fixture and 96 kHz at highest quality.
     for (double rate : {48000.0, 96000.0})
         for (int model = 0; model < 4; ++model)
             for (int striker : {1, 4}) {
@@ -1257,7 +1270,7 @@ void MinimumNoteStops(const Options& o) {
                 Tracker t;
                 t.rate = rate;
                 t.where = Fmt("minimum-note stop rate %.0f quality %dx model %d striker %d",
-                              rate, 2 << p.oversampling, model, striker);
+                              rate, kQualityFactors[p.oversampling], model, striker);
                 RenderFor(*e, t, 0.05);
                 const double drained = DrainUntilSilent(*e, t, o.drainSeconds);
                 if (drained < 0)
@@ -1282,6 +1295,7 @@ void Scenarios(const Options& o) {
                 t.where = Fmt("scenario release model %d mallet %d noteOff %d", model, mallet, mode);
                 auto e = std::make_unique<MarembaEngine>(t.rate);
                 EngineParameters p;
+                p.oversampling = 0; // retain the original 2x release fixture
                 p.model = model;
                 p.malletType = mallet;
                 p.noteOffMode = mode;
@@ -1317,6 +1331,7 @@ void Scenarios(const Options& o) {
                 t.where = Fmt("scenario DampAll-held model %d mallet %d noteOff %d", model, mallet, mode);
                 auto e = std::make_unique<MarembaEngine>(t.rate);
                 EngineParameters p;
+                p.oversampling = 0; // retain the original 2x held-key fixture
                 p.model = model;
                 p.malletType = mallet;
                 p.noteOffMode = mode;
@@ -1346,6 +1361,7 @@ void Scenarios(const Options& o) {
         ++gScenarioCases;
         auto e = std::make_unique<MarembaEngine>(t.rate);
         EngineParameters p;
+        p.oversampling = 0; // retain the original 2x -> 4x queued fade
         p.polyphony = 2;
         e->SetParameters(p);
         e->NoteOn(40, 0.8f);
@@ -1368,6 +1384,7 @@ void Scenarios(const Options& o) {
         const double rate = 44100.0;
         ++gScenarioCases;
         EngineParameters p;
+        p.oversampling = 0; // retain the original 2x idle-cover comparison
         p.model = 3;
         p.decay = 0.25f;                      // idle sooner
         p.velocityToDecay = 0.0f;             // keep that short decay fixed
@@ -1415,6 +1432,7 @@ void Scenarios(const Options& o) {
         auto run = [&](float sym, std::vector<float>& out) {
             auto e = std::make_unique<MarembaEngine>(rate);
             EngineParameters p;
+            p.oversampling = 0; // retain the original 2x halo comparison
             p.model = from;
             p.sympathetic = sym;
             p.strikeJitter = 0.0f;
@@ -1481,8 +1499,8 @@ void Usage() {
     std::printf("EngineFuzzTest [--compact|--extended] [--list-controls]\n"
                 "               [--seeds N] [--determinism-seeds N] [--first S] [--steps K] [--drain SECONDS]\n"
                 "               [--only controls|hostile|fuzz|drain|determinism|reset|denormal|denormal-mode|scenarios]\n"
-                "               [--tail-rate HZ] [--tail-os 0|1|2] [--tail-seconds S]\n"
-                "               [--reset-rate HZ] [--reset-os 0|1|2] [--verbose]\n"
+                "               [--tail-rate HZ] [--tail-os 0|1|2|3] [--tail-seconds S]\n"
+                "               [--reset-rate HZ] [--reset-os 0|1|2|3] [--verbose]\n"
                 "Compact (default): explicit control states, hostile API, representative regressions and true tails.\n"
                 "Extended: additionally retains all original scenarios, 24 x 160 random steps and 8 determinism seeds.\n");
 }
@@ -1554,9 +1572,9 @@ int main(int argc, char** argv) {
         else if (a == "--reset-rate") o.resetRate = NumberArgument(a, value());
         else if (a == "--reset-os") {
             const auto v = value();
-            o.resetOversampling = v == "-1" ? -1 : static_cast<int>(UnsignedArgument(a, v, 2));
+            o.resetOversampling = v == "-1" ? -1 : static_cast<int>(UnsignedArgument(a, v, 3));
         }
-        else if (a == "--tail-os") o.tailOversampling = static_cast<int>(UnsignedArgument(a, value(), 2));
+        else if (a == "--tail-os") o.tailOversampling = static_cast<int>(UnsignedArgument(a, value(), 3));
         else if (a == "--tail-seconds") o.tailSeconds = NumberArgument(a, value());
         else if (a == "--extended") o.extended = true;
         else if (a == "--compact") compactSet = true;

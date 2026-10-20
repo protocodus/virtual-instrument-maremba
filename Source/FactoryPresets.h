@@ -43,7 +43,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.5918, // compAttack
         0.4792, // compRelease
         0.92202852, // volume
-        0, // oversampling
+        3, // oversampling
         1, // velocityCurve
         1, // polyphony
         0.5000, // masterTune
@@ -93,7 +93,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.2245, // compAttack
         0.2083, // compRelease
         0.88710125, // volume
-        0, // oversampling
+        3, // oversampling
         1, // velocityCurve
         1, // polyphony
         0.5000, // masterTune
@@ -143,7 +143,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0204, // compAttack
         0.0833, // compRelease
         0.82629591, // volume
-        0, // oversampling
+        3, // oversampling
         1, // velocityCurve
         1, // polyphony
         0.5000, // masterTune
@@ -193,7 +193,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0612, // compAttack
         0.1250, // compRelease
         0.83384941, // volume
-        0, // oversampling
+        3, // oversampling
         1, // velocityCurve
         1, // polyphony
         0.5000, // masterTune
@@ -243,7 +243,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.2245, // compAttack
         0.2083, // compRelease
         0.89564379, // volume
-        0, // oversampling
+        3, // oversampling
         1, // velocityCurve
         1, // polyphony
         0.5000, // masterTune
@@ -293,7 +293,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.4898, // compAttack
         0.3333, // compRelease
         0.92118735, // volume
-        0, // oversampling
+        3, // oversampling
         1, // velocityCurve
         1, // polyphony
         0.5000, // masterTune
@@ -343,7 +343,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.4898, // compAttack
         0.3333, // compRelease
         0.94332347, // volume
-        0, // oversampling
+        3, // oversampling
         1, // velocityCurve
         1, // polyphony
         0.5000, // masterTune
@@ -393,7 +393,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1020, // compAttack
         0.1458, // compRelease
         0.78840589, // volume
-        0, // oversampling
+        3, // oversampling
         1, // velocityCurve
         1, // polyphony
         0.5000, // masterTune
@@ -443,7 +443,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1429, // compAttack
         0.1667, // compRelease
         0.74482374, // volume
-        0, // oversampling
+        3, // oversampling
         1, // velocityCurve
         1, // polyphony
         0.5000, // masterTune
@@ -493,7 +493,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1429, // compAttack
         0.1667, // compRelease
         0.78962565, // volume
-        0, // oversampling
+        3, // oversampling
         1, // velocityCurve
         1, // polyphony
         0.5000, // masterTune
@@ -543,7 +543,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1224, // compAttack
         0.1875, // compRelease
         0.76980639, // volume
-        0, // oversampling
+        3, // oversampling
         1, // velocityCurve
         1, // polyphony
         0.5000, // masterTune
@@ -593,7 +593,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1224, // compAttack
         0.1875, // compRelease
         0.76152086, // volume
-        0, // oversampling
+        3, // oversampling
         1, // velocityCurve
         1, // polyphony
         0.5000, // masterTune
@@ -643,7 +643,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1224, // compAttack
         0.1875, // compRelease
         0.78796281, // volume
-        0, // oversampling
+        3, // oversampling
         1, // velocityCurve
         1, // polyphony
         0.5000, // masterTune
@@ -692,8 +692,8 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // compAmount
         0.1224, // compAttack
         0.1875, // compRelease
-        0.92831682, // volume
-        0, // oversampling
+        0.90934947, // volume
+        3, // oversampling
         1, // velocityCurve
         1, // polyphony
         0.5000, // masterTune
@@ -743,7 +743,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1224, // compAttack
         0.1875, // compRelease
         0.79912895, // volume
-        0, // oversampling
+        3, // oversampling
         1, // velocityCurve
         1, // polyphony
         0.5000, // masterTune
@@ -793,7 +793,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1837, // compAttack
         0.2708, // compRelease
         0.76918456, // volume
-        0, // oversampling
+        3, // oversampling
         1, // velocityCurve
         1, // polyphony
         0.5000, // masterTune
@@ -843,7 +843,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1224, // compAttack
         0.1875, // compRelease
         0.80419884, // volume
-        0, // oversampling
+        3, // oversampling
         1, // velocityCurve
         1, // polyphony
         0.5000, // masterTune
@@ -893,7 +893,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.4898, // compAttack
         0.3333, // compRelease
         0.88192243, // volume
-        0, // oversampling
+        3, // oversampling
         1, // velocityCurve
         1, // polyphony
         0.5000, // masterTune
@@ -943,7 +943,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1020, // compAttack
         0.1458, // compRelease
         0.82833062, // volume
-        0, // oversampling
+        3, // oversampling
         1, // velocityCurve
         1, // polyphony
         0.5000, // masterTune
@@ -993,7 +993,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.4898, // compAttack
         0.3333, // compRelease
         0.99067363, // volume
-        0, // oversampling
+        3, // oversampling
         1, // velocityCurve
         1, // polyphony
         0.5000, // masterTune
