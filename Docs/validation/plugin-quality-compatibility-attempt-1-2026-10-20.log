@@ -1,0 +1,30 @@
+Start testing: Oct 20 12:27 CEST
+----------------------------------------------------------
+81/81 Testing: Maremba.PluginProcessor
+81/81 Test: Maremba.PluginProcessor
+Command: "/tmp/maremba-quality-compat-20261020/build-make/MarembaPluginProcessorTests"
+Directory: /tmp/maremba-quality-compat-20261020/build-make
+"Maremba.PluginProcessor" start time: Oct 20 12:27 CEST
+Output:
+----------------------------------------------------------
+FAIL: composite Quality writes the effective legacy/native selection
+FAIL: composite Quality writes the effective legacy/native selection
+FAIL: composite Quality writes the effective legacy/native selection
+FAIL: composite Quality writes the effective legacy/native selection
+FAIL: composite Quality writes the effective legacy/native selection
+FAIL: composite Quality writes the effective legacy/native selection
+FAIL: dormant legacy automation leaves native UI selected
+FAIL: factory selection restores native in the composite UI
+PluginProcessorTests: 8 failure(s)
+<end of output>
+Test time =   2.66 sec
+----------------------------------------------------------
+Test Failed.
+"Maremba.PluginProcessor" end time: Oct 20 12:27 CEST
+"Maremba.PluginProcessor" time elapsed: 00:00:02
+----------------------------------------------------------
+
+End testing: Oct 20 12:27 CEST
+
+unit =   2.66 sec*proc
+

@@ -167,7 +167,7 @@ class RendererContracts(unittest.TestCase):
         for args in [("--model", "4"), ("--mallet", "-1"), ("--model", "1junk"),
                      ("--max-duration", "nan"), ("--max-duration", "inf"),
                      ("--max-duration", "0"), ("--max-duration", "4garbage"),
-                     ("--polyphony", "3"), ("--oversampling", "3"),
+                     ("--polyphony", "3"), ("--oversampling", "4"),
                      ("--strike-position", "nan"), ("--strike-position", "1.1"),
                      ("--scale", "7"), ("--scale", "-1"), ("--note-off", "3"),
                      ("--mallet", "6"), ("--carving", "1.5"), ("--tension", "nan"),
@@ -177,6 +177,16 @@ class RendererContracts(unittest.TestCase):
                 self.assertNotEqual(first.returncode, 0)
                 self.assertEqual(first.stderr, second.stderr)
                 self.assertFalse(self.output.exists())
+
+    def test_native_quality_default_and_legacy_choices(self):
+        expected = ["2x Studio", "4x High-Res", "8x Archival", "1x Native"]
+        for quality, label in enumerate(expected):
+            result = self.run_renderer("--oversampling", str(quality))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(result.stdout)["oversampling"], label)
+        default = self.run_renderer()
+        self.assertEqual(default.returncode, 0, default.stderr)
+        self.assertEqual(json.loads(default.stdout)["oversampling"], "1x Native")
 
     def test_invalid_events_fail_with_line_number(self):
         for row in ["nan 1 60 90", "-0.1 1 60 90", "0 3 60 90", "0 1 128 90", "0 1 60 128",

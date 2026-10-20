@@ -5,7 +5,7 @@
 // velocity at all rates/qualities, dense driven chords and long transport drains.
 // --stratified uses one
 // rotating endpoint profile per key and velocity for a quicker diagnostic.
-// --chords-only runs the identical 116 dense-chord cases from the full matrix.
+// --chords-only runs the identical dense-chord cases from the full matrix.
 // Safety does not assert equal timbre/level at physically extrapolated notes.
 #include "MarembaEngine.h"
 
@@ -26,6 +26,7 @@ namespace maremba {
 struct MarembaEngineTestAccess {
     static double Clock(const MarembaEngine& e) { return e.mClock; }
     static double Rate(const MarembaEngine& e) { return e.mBaseSampleRate; }
+    static int Factor(const MarembaEngine& e) { return e.mActiveFactor; }
     static int Live(const MarembaEngine& e) { return e.CountLiveVoices(); }
     static bool HasNote(const MarembaEngine& e, int note) {
         for (const auto& voice : e.mVoices)
@@ -45,8 +46,38 @@ using maremba::EngineParameters;
 using maremba::MarembaEngine;
 using Access = maremba::MarembaEngineTestAccess;
 constexpr std::array<double, 5> kRates{{22050, 44100, 48000, 96000, 192000}};
+constexpr std::array<int, 4> kQualityFactors{{2, 4, 8, 1}};
+constexpr int kNativeQuality = 3;
+// Independent product ceiling; direct captures retain their .94 limit.
+const double kMainCeiling = std::pow(10., -1. / 20.) + 2e-6;
 constexpr std::array<float, 3> kVelocities{{1.0f / 127, .5f, 1}};
 constexpr std::array<int, 4> kBoundaryNotes{{0, 21, 108, 127}};
+constexpr std::uint64_t kLimiterCases = kRates.size() * kQualityFactors.size() * 3 * 2 * 2;
+// Native-rate chords add one 22.05k safety case and paired 64/32-frame
+// renders at 44.1k and 48k for each model. Historical 2x fixtures stay intact.
+constexpr std::uint64_t kNativeChordCases = 4 * (1 + 2 * 2);
+constexpr std::uint64_t kDenseChordCases = 4 * (3 * 2 * 2 * 2 + 1 + 2 * 2) + kNativeChordCases;
+constexpr std::uint64_t kCompactRateQualityPairs = 3 * kQualityFactors.size() + 1;
+constexpr std::uint64_t kCompactRateCases = kCompactRateQualityPairs * 4 * 2 * 2;
+constexpr std::uint64_t kCompactHostileCases = kCompactRateQualityPairs * 4 * 6;
+constexpr std::uint64_t kCompactPluckCases = (3 + kQualityFactors.size() - 1) * 5 * 2 * 2 * 2;
+constexpr std::uint64_t kCompactChordCases = 4 * 2 + kNativeChordCases;
+constexpr std::uint64_t kCompactCases = 4 * 5 * 3 * 4 + kCompactRateCases + kCompactHostileCases
+    + kCompactPluckCases + 4 + kCompactChordCases + kLimiterCases + 4;
+constexpr std::uint64_t kFullCases = 4 * 128 * 3 * 4
+    + kRates.size() * 4 * kQualityFactors.size() * kBoundaryNotes.size() * 2 * 3
+    + kRates.size() * 4 * kQualityFactors.size() * 6 + (kRates.size() - 1) * 4 * 128
+    + 4 * 3 + kRates.size() * (36 + (kQualityFactors.size() - 1) * 5) * 2 * 2 * 2
+    + kDenseChordCases + kLimiterCases;
+constexpr std::uint64_t kVelocityCases = 4 * 128 * 2 * 4
+    + kRates.size() * 4 * kQualityFactors.size() * kBoundaryNotes.size() * 2 * 2;
+constexpr std::uint64_t kStratifiedCases = 4 * 128 * 3
+    + kRates.size() * 4 * kQualityFactors.size() * kBoundaryNotes.size() * 2
+    + kRates.size() * 4 * kQualityFactors.size() * 6
+    + kRates.size() * kQualityFactors.size() * 5 * 2 * 2 * 2 + kLimiterCases;
+static_assert(kCompactCases == 1276 && kFullCases == 13020 && kVelocityCases == 5376
+              && kDenseChordCases == 136 && kStratifiedCases == 3696,
+              "Update declared boundary coverage deliberately");
 // The measured physical-capture run completed its first 12024 cases in 681.7s
 // and reached the old 900s guard during dense chords, without an audio failure.
 // This is a finite suite hang guard, not a realtime CPU or sound-quality gate.
@@ -72,6 +103,7 @@ std::uint64_t pluckCases = 0, pluckSurvivalChecks = 0;
 std::uint64_t chordCases = 0, chordBatchPairs = 0, transitionFrames = 0;
 std::uint64_t limiterEngagementCases = 0;
 std::uint64_t polyphonyCases = 0, polyphonyTransitions = 0;
+std::uint64_t nativeAttackCases = 0, nativeChordCases = 0;
 int maximumActive = 0, maximumLive = 0;
 
 void require(bool condition, const std::string& message) {
@@ -84,7 +116,7 @@ double elapsed() {
 
 void context(const char* stage, int model, double rate, int quality, int note, float velocity, int profile) {
     where = std::string(stage) + " model=" + std::to_string(model) + " rate=" + std::to_string(rate)
-          + " quality=" + std::to_string(2 << quality) + "x note=" + std::to_string(note)
+          + " quality=" + std::to_string(kQualityFactors[quality]) + "x note=" + std::to_string(note)
           + " velocity=" + std::to_string(velocity) + " profile=" + kProfiles[profile];
     require(elapsed() < kWallBudgetSeconds,
             "matrix exceeded its " + std::to_string(kWallBudgetSeconds) + "-second wall-time bound");
@@ -164,7 +196,7 @@ void render(MarembaEngine& engine, int count, bool mustBeZero = false) {
                 peakCases[channel] = where + " frame=" + std::to_string(static_cast<long long>(before) + i - 1);
             }
             if (mustBeZero) require(sample == 0, "reset/ignored note leaked audio");
-            require(std::abs(sample) <= .940002,
+            require(std::abs(sample) <= (channel < 2 ? kMainCeiling : .940002),
                     "output escaped smooth headroom ceiling, including limiter bypass/automation");
             if (channel < 2) {
                 const bool limited = p.compAmount > 0;
@@ -216,6 +248,8 @@ void resetChecked(MarembaEngine& e) {
     limiterSettlesAt = 0;
     havePreviousMain = false;
     require(e.IsSilent() && e.GetActiveVoiceCount() == 0, "Reset did not clear voices and tails");
+    require(Access::Factor(e) == kQualityFactors[e.GetParameters().oversampling],
+            "quality selector did not configure its expected factor");
     render(e, 64, true);
 }
 
@@ -239,6 +273,7 @@ void attackCase(MarembaEngine& e, const char* stage, double rate, int model, int
     forSeconds(e, rate, .004);
     resetChecked(e);
     ++cases;
+    if (quality == kNativeQuality) ++nativeAttackCases;
 }
 
 void hostileNotes(MarembaEngine& e, double rate, int model, int quality) {
@@ -346,17 +381,31 @@ std::array<std::uint64_t, 7> denseChord(MarembaEngine& e, int model, double rate
     render(e, renderBlock, true);
     renderBlock = 64; resetChecked(e);
     ++cases; ++chordCases;
+    if (quality == kNativeQuality) ++nativeChordCases;
     return digest;
 }
 
+void nativeDenseChords(int model) {
+    for (double rate : {22050., 44100., 48000.}) {
+        auto e = std::make_unique<MarembaEngine>(rate);
+        const auto reference = denseChord(*e, model, rate, kNativeQuality, 2, 50, 20, 1, 64);
+        if (rate != 22050) {
+            auto split = std::make_unique<MarembaEngine>(rate);
+            const auto alternate = denseChord(*split, model, rate, kNativeQuality, 2, 50, 20, 1, 32);
+            require(reference == alternate, "native-rate dense chord/limiter transitions depend on host batch size");
+            ++chordBatchPairs;
+        }
+    }
+}
+
 void limiterEngagement() {
-    for (double rate : kRates) for (int quality = 0; quality < 3; ++quality)
+    for (double rate : kRates) for (int quality = 0; quality < static_cast<int>(kQualityFactors.size()); ++quality)
         for (float amount : {.0001f, .25f, 1.0f})
             for (float attack : {1.0f, 50.0f}) for (float release : {20.0f, 500.0f}) {
                 where = "limiter-engagement rate=" + std::to_string(rate)
-                      + " quality=" + std::to_string(2 << quality) + " amount=" + std::to_string(amount)
+                      + " quality=" + std::to_string(kQualityFactors[quality]) + " amount=" + std::to_string(amount)
                       + " attack=" + std::to_string(attack) + " release=" + std::to_string(release);
-                const double internalRate = rate * (2 << quality);
+                const double internalRate = rate * kQualityFactors[quality];
                 maremba::AnalogLimiter limiter;
                 limiter.SetSampleRate(internalRate); limiter.SetTimes(attack, release);
                 limiter.SetAmount(0); limiter.Reset();
@@ -371,7 +420,7 @@ void limiterEngagement() {
                 for (int i = 0; i < 3 * interval; ++i) {
                     if (i == interval) limiter.SetAmount(amount);
                     if (i == 2 * interval) limiter.SetAmount(0);
-                    for (int sub = 0; sub < (2 << quality); ++sub)
+                    for (int sub = 0; sub < kQualityFactors[quality]; ++sub)
                         limiter.Process(24, -12, left, right);
                     std::array<float, 7> frame{{left, right, 0, 0, 0, 0, 0}};
                     headroom.Process(frame);
@@ -418,10 +467,10 @@ void compactMatrix() {
     constexpr std::array<double, 3> rates{{22050, 48000, 192000}};
     constexpr std::array<int, 5> lowPlucks{{0, 11, 12, 21, 28}};
     constexpr std::array<int, 5> notes{{0, 21, 60, 108, 127}};
-    limiterEngagement(); // all five historical rates and all three qualities
+    limiterEngagement(); // all five historical rates and all four qualities
     for (double rate : rates) {
         auto e = std::make_unique<MarembaEngine>(rate);
-        for (int quality = 0; quality < 3; ++quality) {
+        for (int quality = 0; quality < static_cast<int>(kQualityFactors.size()); ++quality) {
             if (rate != 48000 && quality != 0) continue;
             for (int note : lowPlucks)
                 for (int carving : {0, 1}) for (int buzz : {0, 1}) for (int noteOff : {0, 2})
@@ -442,9 +491,12 @@ void compactMatrix() {
         compactPolyphony(*e, model);
         std::cout << "MODEL_COMPLETE model=" << model << " cases=" << cases << " seconds=" << elapsed() << std::endl;
     }
-    for (double rate : rates) {
+    for (double rate : {22050., 44100., 48000., 192000.}) {
         auto e = std::make_unique<MarembaEngine>(rate);
-        for (int model = 0; model < 4; ++model) for (int quality = 0; quality < 3; ++quality) {
+        for (int model = 0; model < 4; ++model) for (int quality = 0; quality < static_cast<int>(kQualityFactors.size()); ++quality) {
+            // The added common 44.1k host rate needs the new native path;
+            // retain the original three-rate axes for historical qualities.
+            if (rate == 44100 && quality != kNativeQuality) continue;
             for (int index = 0; index < 2; ++index) for (int velocity = 0; velocity < 2; ++velocity) {
                 // Rotate maximum and loose-coupled witnesses independently of
                 // the key value; both profiles reach every rate/quality/model.
@@ -464,6 +516,7 @@ void compactMatrix() {
         const auto alternate = denseChord(*split, model, 48000, 0, 2, 50, 20, 1, 32);
         require(reference == alternate, "dense chord/limiter transitions depend on host batch size");
         ++chordBatchPairs;
+        nativeDenseChords(model);
         std::cout << "CHORD_MODEL_COMPLETE model=" << model << " cases=" << cases << " seconds=" << elapsed() << std::endl;
     }
 }
@@ -480,7 +533,8 @@ int main(int argc, char** argv) {
     const char* mode = compact ? "compact" : full ? "full" : velocityOnly ? "velocity-only" : chordsOnly ? "chords-only" : "stratified";
     const char* phase = compact ? "bounded-boundaries" : full ? "complete-matrix" : chordsOnly ? "dense-chords"
                                                           : velocityOnly ? "velocity" : "stratified-matrix";
-    const std::uint64_t expectedCases = compact ? 996 : full ? 12140 : velocityOnly ? 5056 : chordsOnly ? 116 : 3156;
+    const std::uint64_t expectedCases = compact ? kCompactCases : full ? kFullCases
+        : velocityOnly ? kVelocityCases : chordsOnly ? kDenseChordCases : kStratifiedCases;
     std::cout << std::setprecision(9) << "ExtremeRangeTest mode=" << mode << " phase=" << phase
               << " expected_cases=" << expectedCases << " wall_budget_seconds=" << kWallBudgetSeconds << std::endl;
     try {
@@ -489,7 +543,7 @@ int main(int argc, char** argv) {
         if (!velocityOnly && !chordsOnly) limiterEngagement();
         if (!velocityOnly && !chordsOnly) for (double rate : kRates) {
             auto e = std::make_unique<MarembaEngine>(rate);
-            for (int quality = 0; quality < 3; ++quality)
+            for (int quality = 0; quality < static_cast<int>(kQualityFactors.size()); ++quality)
                 for (int note = 0; note < 36; ++note) {
                     if ((!full || quality != 0) && note != 0 && note != 11 && note != 12 && note != 21 && note != 28) continue;
                     for (int carving : {0, 1}) for (int buzz : {0, 1}) for (int noteOff : {0, 2})
@@ -512,7 +566,7 @@ int main(int argc, char** argv) {
         }
         if (!chordsOnly) for (double rate : kRates) {
             auto e = std::make_unique<MarembaEngine>(rate);
-            for (int model = 0; model < 4; ++model) for (int quality = 0; quality < 3; ++quality) {
+            for (int model = 0; model < 4; ++model) for (int quality = 0; quality < static_cast<int>(kQualityFactors.size()); ++quality) {
                 for (int note : kBoundaryNotes) for (int profile : {1, 2})
                     for (int v = 0; v < (full || velocityOnly ? 3 : 1); ++v) {
                         if (velocityOnly && v == 2) continue;
@@ -547,6 +601,7 @@ int main(int argc, char** argv) {
                 auto e = std::make_unique<MarembaEngine>(rate);
                 denseChord(*e, model, rate, quality, 2, 50, 20, 1, 64);
             }
+            nativeDenseChords(model);
             std::cout << "CHORD_MODEL_COMPLETE model=" << model << " cases=" << cases << " seconds=" << elapsed() << std::endl;
         }
         }
@@ -556,21 +611,25 @@ int main(int argc, char** argv) {
                       + pluckCases + chordCases + limiterEngagementCases + polyphonyCases,
                 "phase counts do not sum to the completed matrix");
         if (compact)
-            require(fullNoteCases == 240 && rateCases == 144 && hostileCases == 216
-                    && rateNoteCases == 0 && pluckCases == 200 && drainCases == 4
-                    && chordCases == 8 && chordBatchPairs == 4 && limiterEngagementCases == 180
-                    && polyphonyCases == 4 && polyphonyTransitions == 8,
+            require(fullNoteCases == 240 && rateCases == kCompactRateCases && hostileCases == kCompactHostileCases
+                    && rateNoteCases == 0 && pluckCases == kCompactPluckCases && drainCases == 4
+                    && chordCases == kCompactChordCases && chordBatchPairs == 12 && limiterEngagementCases == kLimiterCases
+                    && polyphonyCases == 4 && polyphonyTransitions == 8
+                    && nativeAttackCases == 4 * 4 * 2 * 2 && nativeChordCases == kNativeChordCases,
                     "compact boundary category coverage is incomplete");
         if (full || chordsOnly)
-            require(chordCases == 116 && chordBatchPairs == 4, "dense-chord phase is incomplete");
+            require(chordCases == kDenseChordCases && chordBatchPairs == 12
+                    && nativeChordCases == kNativeChordCases, "dense-chord phase is incomplete");
         std::cout << "SUMMARY {\"result\":\"pass\",\"mode\":\"" << mode
                   << "\",\"phase\":\"" << phase << "\",\"expected_cases\":" << expectedCases
+                  << ",\"quality_factors\":[2,4,8,1]"
                   << ",\"wall_budget_seconds\":" << kWallBudgetSeconds
                   << ",\"cases\":" << cases << ",\"full_note_cases\":" << fullNoteCases
                   << ",\"rate_quality_cases\":" << rateCases << ",\"hostile_note_cases\":" << hostileCases
                   << ",\"rate_note_axis_cases\":" << rateNoteCases
                   << ",\"kalimba_pluck_cases\":" << pluckCases << ",\"pluck_survival_checks\":" << pluckSurvivalChecks
                   << ",\"dense_chord_cases\":" << chordCases << ",\"chord_batch_pairs\":" << chordBatchPairs
+                  << ",\"native_attack_cases\":" << nativeAttackCases << ",\"native_chord_cases\":" << nativeChordCases
                   << ",\"limiter_engagement_cases\":" << limiterEngagementCases
                   << ",\"limiter_transition_frames\":" << transitionFrames
                   << ",\"drain_cases\":" << drainCases << ",\"note_starts\":" << noteStarts

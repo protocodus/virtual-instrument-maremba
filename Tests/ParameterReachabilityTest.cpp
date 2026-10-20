@@ -133,7 +133,7 @@ int main() {
         {"Invert Piezo", &EngineParameters::invertPiezo, 0, 1},
         {"Striker", &EngineParameters::malletType, 0, 4},
         {"Room Space", &EngineParameters::roomType, 0, 2},
-        {"Quality", &EngineParameters::oversampling, 0, 1},
+        {"Quality", &EngineParameters::oversampling, 0, 3},
         {"Velocity Response", &EngineParameters::velocityCurve, 0, 2},
         {"Tuning", &EngineParameters::tuningScale, 0, 3},
         {"Note Off", &EngineParameters::noteOffMode, 0, 1},

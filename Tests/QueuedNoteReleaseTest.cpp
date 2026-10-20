@@ -47,7 +47,7 @@ void run(int model, double rate, int quality, int releaseMode, int drainMode, bo
         engine->NoteOn(48, .8f);
         for (int n = 0; n < 256; ++n) render(*engine);
     }
-    params.oversampling = (quality + 1) % 3;
+    params.oversampling = (quality + 1) % 4;
     for (auto* engine : {queued.get(), reference.get()}) {
         engine->SetParameters(params);
         check(MarembaEngineTestAccess::Switching(*engine), "fixture did not start a Quality fade");
@@ -110,7 +110,7 @@ void run(int model, double rate, int quality, int releaseMode, int drainMode, bo
 int main() {
     for (int model = 0; model < 4; ++model)
         for (double rate : {44100.0, 48000.0, 96000.0})
-            for (int quality = 0; quality < 3; ++quality)
+            for (int quality = 0; quality < 4; ++quality)
                 for (int mode = 0; mode < 3; ++mode)
                     for (bool cancel : {false, true}) run(model, rate, quality, mode, mode, cancel);
     for (int model = 0; model < 4; ++model)

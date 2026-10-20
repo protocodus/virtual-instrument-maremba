@@ -145,8 +145,8 @@ inline constexpr std::array<double, kControlCount> kControlDefaults {
     0.1837, // compAttack
     0.2083, // compRelease
     0.85,   // volume: nominal level reference
-    0.0,    // oversampling (2x)
-    3.0,    // velocityCurve (Sigmoid)
+    3.0,    // oversampling (1x; saved 2x/4x/8x indices remain 0/1/2)
+    1.0,    // velocityCurve (Linear)
     1.0,    // polyphony (16)
     0.50,   // masterTune
     0.0,    // detune
@@ -252,7 +252,7 @@ inline EngineParameters EngineParametersFromControls(const ControlValues& values
     p.compRelease = 20.0f + unit(kCompRelease) * 480.0f;
 
     p.volume = modulated(kVolume, modulation.volume);
-    p.oversampling = StepIndex(number(kOversampling), 3);
+    p.oversampling = StepIndex(number(kOversampling), 4);
     p.velocityCurve = StepIndex(number(kVelocityCurve), 4);
     p.polyphony = StepIndex(number(kPolyphony), 3);
     // Master Tune (+/-100 cents) plus the host's own tuning offset.

@@ -270,6 +270,7 @@ void engineMatrix() {
     for (int model = 0; model < 4; ++model) {
         MarembaEngine engine(kEngineRate);
         EngineParameters p;
+        p.oversampling = 0; // Pair the historical 48 kHz engine fixture with its 96 kHz voice reference.
         p.model = model; p.malletType = 1; p.malletHardness = .4f;
         p.strikePosition = .45f; p.decay = .4f;
         p.strikeJitter = p.artifacts = p.detune = p.buzzAmount = p.sympathetic = p.bodyBloom = 0;

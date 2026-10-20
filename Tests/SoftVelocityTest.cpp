@@ -1,4 +1,5 @@
-// Public-engine Sigmoid response, independent of optional velocity routes.
+// Public-engine Sigmoid response, independent of optional velocity routes,
+// and an independent check that the default engine response remains Linear.
 // Compile with -I Source/DSP and Source/DSP/*.cpp. --measure prints the complete matrix;
 // gates use broad margins from the measured physical response, not audio goldens.
 // Loudness is measured on the final main output at Volume=.8. Tone and dynamics
@@ -32,6 +33,7 @@ struct Hit {
 };
 EngineParameters clean(int model) {
     EngineParameters p;
+    p.oversampling = 0; // The physical velocity-response bounds were measured at 2x.
     p.model = model;
     p.malletType = 1; p.malletHardness = .4f; p.strikePosition = .45f;
     p.resonatorCoupling = .7f; p.decay = .7f; p.volume = .8f;
@@ -44,10 +46,10 @@ EngineParameters clean(int model) {
     p.velocityToBuzz = p.velocityToTension = p.velocityToArtifacts = 0;
     return p;
 }
-std::array<Hit, kHits> render(int model, int note, int velocity, bool explicitCurve = true) {
+std::array<Hit, kHits> render(int model, int note, int velocity, int explicitCurve = 3) {
     MarembaEngine engine(kRate);
     auto parameters = clean(model);
-    if (explicitCurve) parameters.velocityCurve = 3;
+    if (explicitCurve >= 0) parameters.velocityCurve = explicitCurve;
     engine.SetParameters(parameters);
     std::array<Hit, kHits> hits;
     std::array<float, 64> l{}, r{}, cl{}, cr{};
@@ -121,7 +123,7 @@ int main(int argc, char** argv) {
     const bool measureOnly = argc == 2 && std::string(argv[1]) == "--measure";
     if (argc > 1 && !measureOnly) { std::cerr << "usage: SoftVelocityTest [--measure]\n"; return 2; }
     std::cout << std::setprecision(10);
-    check(EngineParameters{}.velocityCurve == 3, "default", "engine default is not Sigmoid");
+    check(EngineParameters{}.velocityCurve == 1, "default", "engine default is not Linear");
     silentNoteOff();
     double loudestV1 = -300, loudestV8 = -300, leastSoftDynamicRange = 300;
     double leastLowVelocityMellowing = 300, minimumAttackResidual = 1;
@@ -129,13 +131,16 @@ int main(int argc, char** argv) {
         std::array<std::array<Hit, kHits>, kVelocities.size()> renders;
         for (size_t v = 0; v < kVelocities.size(); ++v) renders[v] = render(model, note, kVelocities[v]);
         if (note == 60) {
-            const auto defaults = render(model, note, 8, false);
+            const auto defaults = render(model, note, 8, -1);
+            const auto linear = render(model, note, 8, 1);
             for (int hit = 0; hit < kHits; ++hit) {
                 const auto& explicitSigmoid = renders[1][hit];
-                check(defaults[hit].close == explicitSigmoid.close
-                      && defaults[hit].mainEnergy == explicitSigmoid.mainEnergy
-                      && defaults[hit].mainPeak == explicitSigmoid.mainPeak,
-                      "default model=" + std::to_string(model), "default audio differs from explicit Sigmoid");
+                check(defaults[hit].close == linear[hit].close
+                      && defaults[hit].mainEnergy == linear[hit].mainEnergy
+                      && defaults[hit].mainPeak == linear[hit].mainPeak,
+                      "default model=" + std::to_string(model), "default audio differs from explicit Linear");
+                check(linear[hit].close != explicitSigmoid.close,
+                      "model=" + std::to_string(model), "Linear and explicit Sigmoid fixtures are identical");
             }
         }
         for (size_t v = 0; v < kVelocities.size(); ++v) for (int hit = 0; hit < kHits; ++hit) {

@@ -44,8 +44,8 @@ double responseEnergy(maremba::FrameBody frame) {
 int main() {
     int fixtures = 0;
     for (double rate : {44100.0, 48000.0, 96000.0}) {
-        for (int quality = 0; quality < 3; ++quality) {
-            const int factor = 2 << quality;
+        for (int quality = 0; quality < 4; ++quality) {
+            const int factor = std::array<int, 4>{{2, 4, 8, 1}}[quality];
             for (bool velocity : {false, true}) {
                 auto engine = std::make_unique<maremba::MarembaEngine>(rate);
                 maremba::EngineParameters params;

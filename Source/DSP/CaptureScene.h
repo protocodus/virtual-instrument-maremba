@@ -107,7 +107,8 @@ public:
             std::sort(mActive.begin(), mActive.begin() + mCount);
             mSourcesAdded = false;
         }
-        if (mFactor == 2) DownsampleSources<2>();
+        if (mFactor == 1) DownsampleSources<1>();
+        else if (mFactor == 2) DownsampleSources<2>();
         else if (mFactor == 4) DownsampleSources<4>();
         else DownsampleSources<8>();
         mClose.Process(mInput[0].data(), mInput[1].data(), kCaptureSourceCount, closeL, closeR,

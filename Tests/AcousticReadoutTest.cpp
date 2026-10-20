@@ -134,7 +134,7 @@ void hardStrikeCrest() {
     // then measure cancellation on the affected upper surface itself. Neither
     // pass includes output limiting, and physical states must remain identical.
     for (bool upperSurface : {false, true})
-    for (int model = 0; model < 3; ++model) for (int factor : {2, 4, 8}) {
+    for (int model = 0; model < 3; ++model) for (int factor : {1, 2, 4, 8}) {
         auto actual = strike(model, 60, 1, factor);
         if (upperSurface) Access::IsolateUpperSurfaceReadout(actual);
         auto pointShare = actual;

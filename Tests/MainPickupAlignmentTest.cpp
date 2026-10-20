@@ -171,6 +171,7 @@ Audio SplitReplay(int batch) {
 Audio Render(double rate, int model, float pickup) {
     auto engine = std::make_unique<MarembaEngine>(rate);
     EngineParameters p;
+    p.oversampling = 0; // Keep the existing declared-gain routing fixture at 2x.
     p.model = model; p.closeLevel = p.farLevel = 0; p.piezoLevel = pickup;
     p.volume = .08f; p.preampDrive = p.compAmount = p.warmth = 0;
     p.strikeJitter = p.detune = p.bodyBloom = p.sympathetic = p.artifacts = p.buzzAmount = 0;
@@ -207,7 +208,7 @@ void EngineRouting(double rate, int model) {
     const double seconds = CaptureDistance(position, CloseHeadCentre()) / kCaptureSpeedOfSound;
     const double trim = model == 3 ? MarembaEngine::kKalimbaPiezoStemTrim : MarembaEngine::kPiezoStemTrim;
     // Independent declared Main calibration and default-off Volume transfer.
-    constexpr double modelGain[] = {1.726411287, 1.638942302, 1.816753899, 1.414657906};
+    constexpr double modelGain[] = {1.225115902, 1.174502045, 1.406057112, 1.034682015};
     const double scale = .707 * (.08 / .85) * (.08 / .85) * .7 * 1.202853 * modelGain[model] / trim;
     for (double hz : {100., 261.625565, 500., 1000.}) {
         const auto r = Transform(reference, hz, rate);
@@ -227,7 +228,7 @@ int main() {
     Require(split == SplitReplay(7) && split == SplitReplay(64),
             "capture alignment depends on host batch splitting during note/model/steal transitions");
     for (double rate : {44100., 48000., 96000.}) {
-        for (int factor : {2, 4, 8}) for (int source : {36, 60, 96, 188, 316, kCaptureBoardSource})
+        for (int factor : {1, 2, 4, 8}) for (int source : {36, 60, 96, 188, 316, kCaptureBoardSource})
             PhysicalFlight(rate, factor, source);
         for (int model = 0; model < 4; ++model) EngineRouting(rate, model);
     }

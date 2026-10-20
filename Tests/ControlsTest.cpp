@@ -43,7 +43,13 @@ int main() {
     const ControlValues defaults = kControlDefaults;
     const EngineParameters p = EngineParametersFromControls(defaults);
     Check(Finite(p), "defaults map to finite parameters");
-    Check(p.model == 0 && p.malletType == 1 && p.velocityCurve == 3 && p.polyphony == 1, "default switches");
+    Check(p.model == 0 && p.malletType == 1 && p.velocityCurve == 1 && p.polyphony == 1
+          && p.oversampling == 3 && EngineParameters{}.oversampling == 3, "default switches include native quality");
+    for (int quality = 0; quality < 4; ++quality) {
+        auto controls = defaults;
+        controls[kOversampling] = quality;
+        Check(EngineParametersFromControls(controls).oversampling == quality, "every stored quality index survives mapping");
+    }
     Check(p.volume == 0.85f && p.tuneCents == 0.0f && PitchBendCentsFromControls(defaults) == 0.0f,
           "nominal Volume, centred Master Tune and Pitch Bend");
     Check(p.pitchGlide == 0.0f && p.gentleWiden == 0, "legacy controls never reach the engine");
@@ -56,7 +62,7 @@ int main() {
         const EngineParameters q = EngineParametersFromControls(values, ControlModulation{ value, value, value, value, value });
         Check(Finite(q), "every stored value maps to finite parameters");
         Check(q.model >= 0 && q.model <= 3 && q.malletType >= 0 && q.malletType < kStrikerCount
-              && q.oversampling >= 0 && q.oversampling <= 2 && q.noteOffMode >= 0 && q.noteOffMode <= 2
+              && q.oversampling >= 0 && q.oversampling <= 3 && q.noteOffMode >= 0 && q.noteOffMode <= 2
               && q.tuningScale >= 0 && q.tuningScale < static_cast<int>(ETuningScale::Count),
               "switches stay on a step");
         Check(q.volume >= 0.0f && q.volume <= 1.0f && q.stereoWidth >= 0.0f && q.stereoWidth <= 2.0f,

@@ -7,6 +7,8 @@
 // Compatibility tests separately require removed controls to remain inert.
 
 #include "MarembaEngine.h"
+#include "MainCalibration.h"
+#include "MainVolume.h"
 #include "ModalExcitation.h"
 #include "ContactExcitation.h"
 #include "BarModes.h"
@@ -170,6 +172,7 @@ namespace {
 
 using maremba::EngineParameters;
 using maremba::MarembaEngine;
+constexpr int QualityFactor(int index) { return index == 3 ? 1 : index == 1 ? 4 : index == 2 ? 8 : 2; }
 
 int gFailures = 0;
 
@@ -385,11 +388,12 @@ EngineParameters CleanParams()
 {
     EngineParameters p;
     p.artifacts = 0.0f;
+    p.oversampling = 0; // Preserve the historical 2x physical-response fixtures.
     p.buzzAmount = 0.0f;
     p.strikeJitter = 0.0f;
     p.pitchGlide = 0.0f;
     // Preserve the calibrated physical fixtures' Linear touch mapping;
-    // SoftVelocityTest separately checks the shipped Sigmoid default.
+    // SoftVelocityTest independently exercises Sigmoid and the Linear default.
     p.velocityCurve = 1;
     // Isolate the original physical response from the optional velocity routes.
     p.velocityToHardness = p.velocityToPosition = p.velocityToDecay = 0.0f;
@@ -414,8 +418,8 @@ double HighPassEnergy(const std::vector<float>& x, size_t from, size_t to)
 
 void TestNoteRangeStability()
 {
-    std::cout << "[Stability] Notes 21..108, all models, 2x/4x/8x ..." << std::endl;
-    for (int os = 0; os < 3; ++os) {
+    std::cout << "[Stability] Notes 21..108, all models, 1x/2x/4x/8x ..." << std::endl;
+    for (int os = 0; os < 4; ++os) {
         for (int model = 0; model < 4; ++model) {
             MarembaEngine engine(44100.0);
             EngineParameters p;
@@ -745,7 +749,7 @@ void TestPreampLimiterContainment()
 {
     std::cout << "[Dynamics] Main limiter after Main Drive and Warmth; direct stems stay identical ..." << std::endl;
     for (double rate : { 44100.0, 48000.0, 96000.0 }) {
-        for (int quality : { 0, 1, 2 }) {
+        for (int quality : { 0, 1, 2, 3 }) {
             EngineParameters p;
             p.preampDrive = .9f;
             p.warmth = 1.0f;
@@ -1502,14 +1506,14 @@ void TestNoAllocations()
 
 void TestPitchAccuracy()
 {
-    std::cout << "[Tuning] Notes 24..108 settle within +/-1 cent (onset +/-12) at 44.1/48/96/192 kHz x 2/4/8 ..." << std::endl;
+    std::cout << "[Tuning] Notes 24..108 settle within +/-1 cent (onset +/-12) at 44.1/48/96/192 kHz x 1/2/4/8 ..." << std::endl;
     EngineParameters p = CleanParams();
     p.sympathetic = 0.0f;
     p.bodyBloom = 0.0f;
     p.farLevel = 0.0f;
     double worst = 0.0;
     for (double sr : { 44100.0, 48000.0, 96000.0, 192000.0 }) {
-        for (int os = 0; os < 3; ++os) {
+        for (int os = 0; os < 4; ++os) {
             p.oversampling = os;
             for (int note = 24; note <= 108; note += 12) {
                 const double seconds = note < 48 ? 1.0 : 0.3;
@@ -1524,8 +1528,8 @@ void TestPitchAccuracy()
                 const double onset = Cents(EstimateFrequency(r.ch[kCloseL], r.ch[kCloseR], 0, onsetEnd, sr, NoteHz(note)), NoteHz(note));
                 const double c = Cents(EstimateFrequency(r.ch[kCloseL], r.ch[kCloseR], settle, end, sr, NoteHz(note)), NoteHz(note));
                 worst = std::max(worst, std::fabs(c));
-                CHECK(std::fabs(c) < 1.0, "note " << note << " at " << sr << "/" << (2 << os) << "x settles " << c << " cents off");
-                CHECK(std::fabs(onset) < 12.0, "note " << note << " at " << sr << "/" << (2 << os) << "x onset is " << onset << " cents off");
+                CHECK(std::fabs(c) < 1.0, "note " << note << " at " << sr << "/" << QualityFactor(os) << "x settles " << c << " cents off");
+                CHECK(std::fabs(onset) < 12.0, "note " << note << " at " << sr << "/" << QualityFactor(os) << "x onset is " << onset << " cents off");
             }
         }
     }
@@ -1536,11 +1540,12 @@ void TestRateInvariance()
 {
     std::cout << "[Invariance] Level (+/-0.5 dB per output), pitch and T60 across rates/factors ..." << std::endl;
     EngineParameters p = CleanParams();
-    const double configs[6][2] = { { 44100, 0 }, { 44100, 1 }, { 44100, 2 }, { 48000, 0 }, { 96000, 0 }, { 192000, 0 } };
+    const double configs[][2] = { { 44100, 0 }, { 44100, 1 }, { 44100, 2 }, { 44100, 3 },
+        { 48000, 0 }, { 48000, 3 }, { 96000, 0 }, { 96000, 3 }, { 192000, 0 }, { 192000, 3 } };
     for (int note : { 36, 60, 84 }) {
         double refDb[kNumChannels] = {};
         double refT60 = 0.0, refCents = 0.0;
-        for (int c = 0; c < 6; ++c) {
+        for (std::size_t c = 0; c < std::size(configs); ++c) {
             const double sr = configs[c][0];
             p.oversampling = static_cast<int>(configs[c][1]);
             Render r = RenderNote(sr, p, note, 0.8f, 1.4);
@@ -1562,7 +1567,7 @@ void TestRateInvariance()
                 const double db = Db(Rms(r.ch[ch], 0, half));
                 if (c == 0) refDb[ch] = db;
                 CHECK(std::fabs(db - refDb[ch]) < 0.5, kChannelNames[ch] << " level of note " << note << " at " << sr << "/"
-                      << (2 << p.oversampling) << "x differs by " << db - refDb[ch] << " dB");
+                      << QualityFactor(p.oversampling) << "x differs by " << db - refDb[ch] << " dB");
             }
         }
     }
@@ -1730,7 +1735,7 @@ void TestParameterFuzz()
             && in(q.sympathetic, 0, 1) && in(q.pitchGlide, 0, 1) && in(q.bodyBloom, 0, 1) && in(q.closeLevel, 0, 1)
             && in(q.farLevel, 0, 1) && in(q.piezoLevel, 0, 1) && in(q.stereoWidth, 0, 2) && in(q.preampDrive, 0, 1)
             && in(q.warmth, -1, 1) && in(q.compAmount, 0, 1) && in(q.compAttack, 1, 50) && in(q.compRelease, 20, 500)
-            && in(q.volume, 0, 1) && q.oversampling >= 0 && q.oversampling <= 2 && q.velocityCurve >= 0 && q.velocityCurve <= 3
+            && in(q.volume, 0, 1) && q.oversampling >= 0 && q.oversampling <= 3 && q.velocityCurve >= 0 && q.velocityCurve <= 3
             && q.polyphony >= 0 && q.polyphony <= 2 && in(q.tuneCents, -200, 200) && in(q.detune, 0, 100)
             && q.roomType >= 0 && q.roomType <= 2
             && q.invertPiezo >= 0 && q.invertPiezo <= 1
@@ -1998,7 +2003,7 @@ void TestDampAllIsGentle()
         const size_t a = at + static_cast<size_t>(0.05 * sr), b = at + static_cast<size_t>(0.10 * sr);
         const double first = Rms(damped.ch[kCloseL], at, at + 64) / Rms(ring.ch[kCloseL], at, at + 64);
         const double later = Rms(damped.ch[kCloseL], a, b) / Rms(ring.ch[kCloseL], a, b);
-        std::cout << "  -> " << sr << "/" << (2 << cfg.second) << "x: first batch " << first << ", 50-100 ms " << later << std::endl;
+        std::cout << "  -> " << sr << "/" << QualityFactor(cfg.second) << "x: first batch " << first << ", 50-100 ms " << later << std::endl;
         CHECK(first > 0.9, "DampAll cuts instantly at " << sr);
         CHECK(later > 0.1 && later < 0.7, "DampAll rate off contract at " << sr << ": " << later);
     }
@@ -2267,7 +2272,7 @@ void TestHaloRateInvariant()
         for (size_t i = 0; i < halo.size(); ++i) halo[i] = on.ch[kMainL][i] - off.ch[kMainL][i];
         const double db = Db(Rms(halo, 0, halo.size()));
         if (ref == 0.0) ref = db;
-        std::cout << "  -> " << cfg.first << "/" << (2 << cfg.second) << "x halo " << db << " dBFS" << std::endl;
+        std::cout << "  -> " << cfg.first << "/" << QualityFactor(cfg.second) << "x halo " << db << " dBFS" << std::endl;
         CHECK(std::fabs(db - ref) < 1.0, "halo level changes with rate: " << db - ref << " dB");
     }
 }
@@ -2278,22 +2283,24 @@ void TestDirectOutMatchesMain()
 {
     std::cout << "[Gain] Direct close out matches the main bus close path ..." << std::endl;
     constexpr double kCloseStemTrim = MarembaEngine::kCloseStemTrim; // published Close direct-output trim
-    // Deliberate public output calibration at the 85% Volume reference.
-    // Keep this independent of the implementation so a gain regression fails.
-    constexpr double kMainCalibrationGain = 1.202853 * .7 * 1.726411287;
     EngineParameters p = CleanParams();
     p.farLevel = 0.0f; p.piezoLevel = 0.0f; p.closeLevel = 1.0f; p.stereoWidth = 1.0f;
     p.compAmount = 0.0f; p.preampDrive = 0.0f; p.warmth = 0.0f;
     p.malletType = 3; p.malletHardness = 0.9f;
     p.volume = .25f;
     // Volume is Main's alone: the direct capture never follows it.
-    const double volumeGain = (static_cast<double>(p.volume) / .85) * (p.volume / .85);
-    for (int os : { 0, 2 }) {
+    // This is a routing/phase oracle, independent of the changing recording
+    // level. MainCalibrationTest verifies the public model calibration, and
+    // MainVolumeTest independently anchors the knob's amplitude curve.
+    const double mainCalibrationGain = 1.202853 * .7 * maremba::kMainModelCalibration[static_cast<std::size_t>(p.model)];
+    const double volumeGain = maremba::MainVolumeGain(p.volume);
+    for (int os : { 0, 2, 3 }) {
         p.oversampling = os;
         // A quiet strike isolates the aligned, linear paths. Hot strikes use
         // independent main-bus headroom and are checked by containment tests.
         const Render r = RenderNote(44100.0, p, 96, .1f, 0.1);
-        CHECK(Peak(r.ch[kMainL]) < .5 && Peak(r.ch[kMainR]) < .5,
+        CHECK(Peak(r.ch[kMainL]) < .5 * maremba::kMainPeakCeiling
+              && Peak(r.ch[kMainR]) < .5 * maremba::kMainPeakCeiling,
               "direct/main alignment fixture is not safely below the output ceiling");
         double err = 0.0, lvl = 0.0;
         // Main includes the documented 20 Hz DC blocker; the direct capture
@@ -2305,7 +2312,7 @@ void TestDirectOutMatchesMain()
             const double close = r.ch[kCloseL][i] / kCloseStemTrim;
             const double expected = close-previousIn+pole*previousOut;
             previousIn = close; previousOut = expected;
-            const double d = r.ch[kMainL][i] / (kMainCalibrationGain * volumeGain) - expected;
+            const double d = r.ch[kMainL][i] / (mainCalibrationGain * volumeGain) - expected;
             err += d * d;
             lvl += close * close;
         }
@@ -2329,7 +2336,7 @@ void TestMainGainBeforeLimiter()
         const Render actual = RenderNote(rate, p, 60, .9f, .5);
         CHECK(std::max(Peak(actual.ch[kCloseL]), Peak(actual.ch[kCloseR])) < .5,
               "limiter-placement fixture drives the direct guard");
-        CHECK(std::max(Peak(actual.ch[kMainL]), Peak(actual.ch[kMainR])) < .5,
+        CHECK(std::max(Peak(actual.ch[kMainL]), Peak(actual.ch[kMainR])) < .5 * maremba::kMainPeakCeiling,
               "limiter-placement fixture drives the Main guard");
         maremba::AnalogPreamp preamp; preamp.SetSampleRate(rate); preamp.Reset();
         maremba::AnalogLimiter correct, before;
@@ -2337,16 +2344,18 @@ void TestMainGainBeforeLimiter()
             limiter->SetSampleRate(rate); limiter->SetTimes(p.compAttack, p.compRelease);
             limiter->SetAmount(p.compAmount); limiter->Reset();
         }
-        const float volume = (p.volume / .85f) * (p.volume / .85f);
+        const float volume = maremba::MainVolumeGain(p.volume);
+        const float recordingGain = .7f * maremba::kMainModelCalibration[static_cast<std::size_t>(p.model)];
         double error = 0, wrongPlacement = 0, energy = 0;
         for (size_t i = 0; i < actual.size(); ++i) {
             float preL, preR, limitedL, limitedR, wrongL, wrongR;
             preamp.Process(actual.ch[kCloseL][i] / MarembaEngine::kCloseStemTrim,
                            actual.ch[kCloseR][i] / MarembaEngine::kCloseStemTrim, 0, 0, preL, preR);
-            correct.Process(preL * volume * .7f * 1.726411287f * 1.202853f, preR * volume * .7f * 1.726411287f * 1.202853f, limitedL, limitedR);
+            correct.Process(preL * volume * recordingGain * 1.202853f,
+                            preR * volume * recordingGain * 1.202853f, limitedL, limitedR);
             before.Process(preL * 1.202853f, preR * 1.202853f, wrongL, wrongR);
             const float expected[2] = {limitedL, limitedR};
-            const float incorrect[2] = {wrongL * volume * .7f * 1.726411287f, wrongR * volume * .7f * 1.726411287f};
+            const float incorrect[2] = {wrongL * volume * recordingGain, wrongR * volume * recordingGain};
             for (int channel = 0; channel < 2; ++channel) {
                 const double difference = actual.ch[channel][i] - expected[channel];
                 const double wrong = actual.ch[channel][i] - incorrect[channel];
@@ -2558,12 +2567,13 @@ void TestWidthAndRoomImage()
     // call CaptureScene::Mix here: a narrowed image, widened Room or changed
     // mono component must fail even if its aggregate S/M ratio looks plausible.
     const double pole = static_cast<float>(std::exp(-2.0*M_PI*20.0/44100.0));
-    const double volumeGain = (static_cast<double>(p.volume)/.85)*(p.volume/.85);
-    const double mainGain = 1.202853*.7*1.726411287*volumeGain;
+    const double volumeGain = maremba::MainVolumeGain(p.volume);
+    const double mainGain = 1.202853 * .7 * maremba::kMainModelCalibration[static_cast<std::size_t>(p.model)] * volumeGain;
     auto checkTransfer = [&](const Render& r, float width) {
         double previousIn[2]{}, previousOut[2]{}, error = 0.0, energy = 0.0;
         for (int channel = 0; channel < kNumChannels; ++channel)
-            CHECK(Peak(r.ch[channel]) < .75, "width fixture reaches output protection on channel " << channel);
+            CHECK(Peak(r.ch[channel]) < (channel < kCloseL ? .5 * maremba::kMainPeakCeiling : .75),
+                  "width fixture reaches output protection on channel " << channel);
         for (int channel = kCloseL; channel < kNumChannels; ++channel)
             CHECK(r.ch[channel] == mono.ch[channel], "width changes direct capture " << channel);
         for (size_t i = 0; i < r.size(); ++i) {
@@ -2911,7 +2921,7 @@ void TestReleaseWhileQueued()
 // Main mix must preserve their independently rendered coherent contributions.
 void TestTrebleNotBuried()
 {
-    // Preserve the same C4/C7 strikes, velocity and 300 ms window. Validated f2
+    // Preserve the same C4/C7 strikes, Sigmoid velocity and 300 ms window. Validated f2
     // and f3 have identical Close stereo-energy gaps (17.37/17.29 dB), and the
     // electrical source retains its 10.99/10.92 dB gap. Keep the 20 dB acoustic
     // bound and give the distinct electrical source its own 12 dB bound.
@@ -2922,6 +2932,7 @@ void TestTrebleNotBuried()
     std::cout << "[Voicing] C7 source audibility and coherent default capture mix ..." << std::endl;
     for (auto cfg : { std::make_pair(44100.0, 0), std::make_pair(96000.0, 2) }) {
         EngineParameters p;
+        p.velocityCurve = 3; // Historical physical-voicing fixture; defaults are tested separately.
         p.oversampling = cfg.second;
         const auto stereoEnergy = [](const Render& r, int first) {
             return 0.5 * (Energy(r.ch[first], 0, r.size()) + Energy(r.ch[first+1], 0, r.size()));
@@ -2964,7 +2975,7 @@ void TestTrebleNotBuried()
                 CHECK(relativeDb > -3.0, "default blend buries C7 by " << -relativeDb << " dB against Close alone");
             }
         }
-        std::cout << "  -> " << cfg.first << "/" << (2 << cfg.second)
+        std::cout << "  -> " << cfg.first << "/" << QualityFactor(cfg.second)
                   << "x: Close C4/C7 gap " << closeDb[0]-closeDb[1]
                   << " dB, Piezo gap " << piezoDb[0]-piezoDb[1]
                   << " dB, coherent Main gap " << mainDb[0]-mainDb[1] << " dB" << std::endl;
@@ -3019,7 +3030,7 @@ void TestMainBusNoSubnormalAtZeroLevels()
             e.RenderBatch(buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], 64);
             if (!maremba::MarembaEngineTestAccess::MainBusNormal(e)) ++bad;
         }
-        std::cout << "  -> " << cfg.first << "/" << (2 << cfg.second) << "x: " << bad << " batches with subnormal preamp/decimator state, voices "
+        std::cout << "  -> " << cfg.first << "/" << QualityFactor(cfg.second) << "x: " << bad << " batches with subnormal preamp/decimator state, voices "
                   << e.GetActiveVoiceCount() << std::endl;
         CHECK(e.GetActiveVoiceCount() == 1, "the bar stopped ringing (test needs it alive)");
         CHECK(bad == 0, "main bus cycles on subnormal state at zero mic levels");
@@ -3626,7 +3637,7 @@ void RunPerformanceProbe()
     constexpr int blocks = 4096;
     constexpr int frames = 64;
     volatile float sink = 0.0f;
-    for (int quality = 0; quality < 3; ++quality) {
+    for (int quality = 0; quality < 4; ++quality) {
         EngineParameters p; // shipped defaults, changing only quality
         MarembaEngine e(48000.0);
         p.oversampling = quality;
@@ -3655,7 +3666,7 @@ void RunPerformanceProbe()
         }
         std::sort(wall.begin(), wall.end());
         std::sort(cpu.begin(), cpu.end());
-        std::cout << "48000 Hz, 64 frames, 16 voices, " << (2 << quality) << "x; " << blocks << " blocks; wall us p50="
+        std::cout << "48000 Hz, 64 frames, 16 voices, " << QualityFactor(quality) << "x; " << blocks << " blocks; wall us p50="
                   << wall[blocks / 2] << " p95=" << wall[blocks * 95 / 100] << " p99=" << wall[blocks * 99 / 100]
                   << " max=" << wall.back() << "; CPU us p50=" << cpu[blocks / 2] << " p99=" << cpu[blocks * 99 / 100]
                   << " max=" << cpu.back() << "; deadline misses wall=" << wallMisses << " CPU=" << cpuMisses << std::endl;
@@ -3667,6 +3678,14 @@ void RunPerformanceProbe()
 
 int main(int argc, char** argv)
 {
+    if (argc == 2 && std::string(argv[1]) == "--quality") {
+        TestNoteRangeStability();
+        TestPitchAccuracy();
+        TestRateInvariance();
+        TestOversamplingSwitch();
+        TestDirectOutMatchesMain();
+        return gFailures ? 1 : 0;
+    }
     if (argc == 2 && std::string(argv[1]) == "--velocity-depths") {
         TestVelocityDepths();
         return gFailures ? 1 : 0;

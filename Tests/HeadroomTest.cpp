@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <iomanip>
 #include <iostream>
 #include <string>
@@ -365,6 +366,100 @@ void quietTones() {
     }
 }
 
+void lowerMainCeiling(double rate) {
+    // Deliberate arbitrary-ceiling API fixture, independent of the instrument's
+    // current -1 dBFS product setting. Keep this larger Main/direct separation.
+    context = "independent -7 dBFS Main ceiling rate=" + std::to_string(rate);
+    constexpr float ceiling = .446683592f;
+    const int delay = OutputHeadroom::LatencyFrames(rate);
+    OutputHeadroom nominal, calibrated;
+    nominal.SetSampleRate(rate); calibrated.SetSampleRate(rate);
+    Audio quiet(static_cast<std::size_t>(rate * .06) + 2 * delay);
+    std::uint32_t seed = 0x971fa32u;
+    for (std::size_t i = 0; i + 2 * delay < quiet.size(); ++i)
+        for (float& sample : quiet[i]) sample = .12f * randomSigned(seed);
+    for (std::size_t i = 0; i < quiet.size(); ++i) {
+        Frame original = quiet[i], lower = original;
+        nominal.Process(original); calibrated.Process(lower, ceiling);
+        const Frame delayed = i < static_cast<std::size_t>(delay) ? Frame{} : quiet[i - delay];
+        require(lower[0] == delayed[0] && lower[1] == delayed[1],
+                "below-ceiling Main is not an exact delayed copy");
+        require(lower[0] == original[0] && lower[1] == original[1],
+                "lower Main ceiling changes quiet Main audio or latency");
+        require(std::memcmp(lower.data() + 2, original.data() + 2, 5 * sizeof(float)) == 0,
+                "lower Main ceiling changes a quiet direct capture");
+    }
+
+    nominal.Reset(); calibrated.Reset();
+    const int frames = static_cast<int>(rate * .20) + 2 * delay;
+    bool mainReduced = false;
+    double mainPeak = 0;
+    for (int i = 0; i < frames; ++i) {
+        Frame input{};
+        if (i + 2 * delay < frames) {
+            const float main = i % (delay + 7) == 0 ? 100.f
+                : static_cast<float>(1.2 * std::sin(2 * pi * 317.3 * i / rate));
+            input[0] = main; input[1] = -.5f * main;
+            for (int channel = 2; channel < 7; ++channel)
+                input[channel] = 3.f * randomSigned(seed);
+        }
+        Frame original = input, lower = input;
+        nominal.Process(original); calibrated.Process(lower, ceiling);
+        require(std::memcmp(lower.data() + 2, original.data() + 2, 5 * sizeof(float)) == 0,
+                "Main's musical ceiling changes a direct capture's samples or recovery");
+        for (int channel = 0; channel < 7; ++channel) {
+            require(std::isfinite(lower[channel]), "lower Main ceiling produces a nonfinite output");
+            require(std::abs(lower[channel]) <= (channel < 2 ? ceiling : OutputHeadroom::kCeiling) + 1.5e-7f,
+                    "a lowered Main ceiling or unchanged direct ceiling was exceeded");
+        }
+        require(lower[1] == -.5f * lower[0], "lower Main ceiling changes stereo balance or polarity");
+        mainReduced = mainReduced || std::abs(lower[0]) + .01f < std::abs(original[0]);
+        mainPeak = std::max(mainPeak, std::abs(static_cast<double>(lower[0])));
+    }
+    require(mainReduced, "Main ceiling fixture cannot distinguish the two thresholds");
+    require(mainPeak > .35, "lower Main ceiling unnecessarily mutes the signal");
+}
+
+void lowerMainFirThreshold(double rate) {
+    // This -7 dBFS witness exercises arbitrary thresholds, not product voicing.
+    context = "Main FIR activation at -7 dBFS rate=" + std::to_string(rate);
+    constexpr float ceiling = .446683592f, amplitude = .24f;
+    // Every actual sample and even the sinusoidal detector's maximum estimate
+    // is below the musical ceiling. The repeated sign in this alternating run
+    // reconstructs above it; only the FIR detector can demand gain reduction.
+    // .24 also sits below the old .94/L1 fast-skip threshold, so leaving that
+    // threshold unchanged when lowering Main's ceiling makes this test fail.
+    require(amplitude * std::sqrt(2.f) < ceiling, "FIR witness also trips the sinusoidal detector");
+    require(amplitude < OutputHeadroom::kCeiling / maremba::output_peak::kMaximumL1,
+            "FIR witness does not distinguish the old activation threshold");
+    const int delay = OutputHeadroom::LatencyFrames(rate);
+    const int onset = 2 * delay;
+    Audio input(static_cast<std::size_t>(4 * delay + 64), Frame{.01f, -.005f, .1f, -.05f, .1f, -.05f, .1f});
+    for (int i = 0; i < 24; ++i) {
+        const float value = amplitude * ((i < 16 ? i % 2 : !(i % 2)) ? 1 : -1);
+        input[static_cast<std::size_t>(onset + i)][0] = value;
+        input[static_cast<std::size_t>(onset + i)][1] = -.5f * value;
+    }
+    OutputHeadroom nominal, calibrated;
+    nominal.SetSampleRate(rate); calibrated.SetSampleRate(rate);
+    bool firReduced = false;
+    for (std::size_t i = 0; i < input.size(); ++i) {
+        Frame original = input[i], lower = original;
+        nominal.Process(original); calibrated.Process(lower, ceiling);
+        const Frame delayed = i < static_cast<std::size_t>(delay) ? Frame{} : input[i - delay];
+        require(original == delayed, "FIR witness unexpectedly triggers the original ceiling");
+        require(std::memcmp(lower.data() + 2, original.data() + 2, 5 * sizeof(float)) == 0,
+                "Main FIR reduction changes a direct capture");
+        for (int channel = 0; channel < 2; ++channel)
+            require(std::isfinite(lower[channel]) && std::abs(lower[channel]) <= ceiling + 1.5e-7f,
+                    "FIR witness escapes the musical Main ceiling");
+        if (i >= static_cast<std::size_t>(onset + delay)
+            && i < static_cast<std::size_t>(onset + delay + 24))
+            firReduced = firReduced || std::abs(lower[0]) < amplitude * .99f;
+    }
+    require(firReduced, "sub-ceiling samples with over-ceiling reconstruction bypass Main's FIR detector");
+}
+
 void smoothAttackAndRecovery(int group) {
     context = "smooth attack and recovery group=" + std::to_string(group);
     const int channel = kGroupStart[group];
@@ -408,6 +503,8 @@ int main() {
         quietAndReset(rate);
         transients(rate);
         independentGroups(rate);
+        lowerMainCeiling(rate);
+        lowerMainFirThreshold(rate);
     }
     for (double rate : {22050.0, 32000.0, 44100.0, 48000.0, 88200.0, 96000.0, 176400.0, 192000.0})
         for (double frequency : {20.0, 50.3, 100.1, 1000.0, 4000.3})

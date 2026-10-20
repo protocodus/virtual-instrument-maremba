@@ -1,0 +1,2 @@
+# Preserve captured CTest bytes, including its final blank separator line.
+plugin-quality-compatibility*.log -text whitespace=-blank-at-eof

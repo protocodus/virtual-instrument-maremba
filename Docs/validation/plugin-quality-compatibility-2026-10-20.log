@@ -1,0 +1,22 @@
+Start testing: Oct 20 12:29 CEST
+----------------------------------------------------------
+81/81 Testing: Maremba.PluginProcessor
+81/81 Test: Maremba.PluginProcessor
+Command: "/tmp/maremba-quality-compat-20261020/build-make/MarembaPluginProcessorTests"
+Directory: /tmp/maremba-quality-compat-20261020/build-make
+"Maremba.PluginProcessor" start time: Oct 20 12:29 CEST
+Output:
+----------------------------------------------------------
+PluginProcessorTests OK
+<end of output>
+Test time =   2.29 sec
+----------------------------------------------------------
+Test Passed.
+"Maremba.PluginProcessor" end time: Oct 20 12:29 CEST
+"Maremba.PluginProcessor" time elapsed: 00:00:02
+----------------------------------------------------------
+
+End testing: Oct 20 12:29 CEST
+
+unit =   2.29 sec*proc
+

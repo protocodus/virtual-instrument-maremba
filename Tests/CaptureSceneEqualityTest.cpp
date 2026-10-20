@@ -87,7 +87,16 @@ int main(int argc, char** argv) {
         currentRate = rate;
         auto lazy = std::make_unique<CaptureScene>(), eager = std::make_unique<CaptureScene>();
         lazy->Allocate(rate); eager->Allocate(rate);
-        for (int factor : {2, 4, 8}) {
+        lazy->SetSampleRate(rate);
+        lazy->BeginFrame(1);
+        lazy->Add(ids[0], 0, .25f, -.125f, .0625f);
+        std::array<float, 4> bypassOutput{};
+        lazy->Process(bypassOutput[0], bypassOutput[1], bypassOutput[2], bypassOutput[3]);
+        require(same(CaptureSceneTestAccess::Decimated(*lazy, ids[0], 0), .25f)
+                && same(CaptureSceneTestAccess::Decimated(*lazy, ids[0], 1), -.125f)
+                && same(CaptureSceneTestAccess::Decimated(*lazy, ids[0], 2), .0625f),
+                "1x scene retains half-band filtering or source latency");
+        for (int factor : {1, 2, 4, 8}) {
             currentFactor = factor;
             for (int first = 0; first < factor; ++first) {
                 currentPosition = first;
@@ -178,6 +187,6 @@ int main(int argc, char** argv) {
         }
     }
     if (dump && std::fclose(dump) != 0) return 4;
-    std::printf("PASS CaptureSceneEqualityTest cases=%d rates=13 factors=3 checks=%llu\n", cases,
+    std::printf("PASS CaptureSceneEqualityTest cases=%d rates=13 factors=4 checks=%llu\n", cases,
                 static_cast<unsigned long long>(checks));
 }

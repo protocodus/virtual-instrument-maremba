@@ -2,6 +2,8 @@
 # engine and registered by CMakeLists.txt as Maremba.<name without Test>, so a
 # contract added here runs everywhere.
 ControlsTest               # shared front-panel control table and its engine mapping
+OneXQualityTest            # exact native bypass, four quality states, live switches and capture alignment
+MainCalibrationTest       # factory normal peaks around -8 dBFS, init RMS and -1 dBFS Main headroom on Linear velocity
 PiezoPickupTest            # attached-transducer pickup: strain, mounting, loading
 PiezoGeometryTest          # generated signed Timoshenko surface strain over fixed electrodes
 PiezoReferenceCircuitTest  # SI charge, finite-bandwidth amplifier, rails and source-derived headroom

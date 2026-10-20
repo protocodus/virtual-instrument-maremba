@@ -43,6 +43,55 @@ One demo per factory preset, rendered by every main build from
 
 ## Version history
 
+### 1.5.4 — 2026-10-20 — preset VCA balance and dynamic headroom
+
+- Balance the factory bank around −8 dBFS on the normal velocity-80 Linear
+  reference, using Volume (VCA) as the main control. Soft Yarn Nocturne stays
+  slightly softer at full VCA; Kalimba Thumb Lullaby remains deliberately hushed.
+- Change only VCA in 19 presets. Equipentatonic Log Keys also moves Strike
+  Position from 30% to 40% and Coupling from 10% to 20%, improving its natural
+  phrase crest by 2.961 dB before the VCA adjustment.
+- Reserve −1 dBFS as Main's safety ceiling, leaving room above normal playing.
+  Preserve the Volume law, fixed model gains, direct-output protection and
+  native 1× default. Natural preset RMS differences remain; no automatic
+  normalization or stronger musical compression is added.
+- [Measurements, exceptions and validation status](Docs/validation/preset-vca-balance-2026-10-20.md).
+  Fresh source renders pass all 504 wrapper cases and 120 register probes;
+  the primary reference needs no gain reduction. SDK build, installation and
+  Recon evidence belong to the Rack port build records. The audio demos above
+  predate this preset bank.
+
+### 1.5.3 — 2026-10-20 — native-rate quality by default
+
+- Add true 1× processing and select it for new devices and all 20 factory
+  presets. It runs the physical model once per host sample and bypasses the
+  oversampling decimators. The 2×, 4× and 8× choices remain available when
+  their extra alias suppression is preferred to the lower processing cost.
+- Preserve the raw saved Quality indices: 0 = 2×, 1 = 4×, 2 = 8×; append
+  3 = 1×. Quality changes retain the existing fade/reset policy, and output
+  protection retains its declared 2 ms latency and peak ceilings.
+- Saved Rack patches and plug-in state keep their Quality factors. The
+  plug-in retains the original three-choice `oversampling` parameter, so old
+  normalized automation still selects 2×/4×/8× at 0/0.5/1. An appended
+  **Native Rate (1x)** switch selects 1× and gates that legacy selector;
+  the editor combines both in one four-choice Quality menu. Old sessions
+  restore with Native Rate off; new instances and factory presets enable it.
+  [State and automation compatibility](Docs/validation/plugin-quality-compatibility-2026-10-20.md).
+- Retain the shared RMS calibration with one native-rate factory Volume trim
+  for Equipentatonic Log Keys. [Measurements and validation](Docs/validation/native-quality-2026-10-20.md).
+
+### 1.5.2 — 2026-10-20 — consistent playing levels
+
+- The four initialized models and 20 factory presets match −27 dBFS stereo
+  RMS on the same velocity-80 Linear reference phrase. Main peaks reserve
+  −7 dBFS through smooth look-ahead gain control; sustained sounds can peak
+  lower. Linear is now the default curve and the factory bank's selection.
+- Full Volume now adds 7.04 dB above the 85% reference, down from 12.04 dB.
+  The five direct captures retain their levels and independent protection.
+  Saved controls keep their values; Main level and transient behavior change.
+- [Measurement protocol and calibration](Docs/validation/output-calibration-2026-10-20.md).
+
+
 ### 1.5.1 — 2026-10-16 — the engine moves to its own repository
 
 - `Source/DSP/` is the engine of the Rack Extension's 1.5.1f7 release candidate
@@ -73,7 +122,9 @@ play MIDI through `Source/DSP/MarembaPlayer.h`. `MarembaEngine`
 de-normalised `EngineParameters`, MIDI-style note events, pitch bend and mod
 wheel, and renders a stereo Main pair plus five direct outputs (Close L/R,
 Room L/R, Piezo). Every field is clamped again inside the engine, so any finite
-value is safe. It runs internally at 2×, 4× or 8× the host rate.
+value is safe. It runs internally at the host rate by default (1×), with
+optional 2×, 4× and 8× modes. The native-rate path bypasses decimation;
+higher modes provide additional alias suppression for the physical sources.
 
 - **Bars and tines** (`MarimbaModel.h`, `BarModes.h`, `KalimbaModes.h`,
   `KalimbaMountShapes.h`): per-key modal banks from Timoshenko finite-element

@@ -56,9 +56,14 @@ struct Halo {
     double dryEnergy = 0, haloEnergy = 0, lateRatio = 0;
     bool pickupIdentical = true, referenceMechanicsIdentical = true, finite = true;
 };
-Halo haloResponse(int model, int note) {
+Halo haloResponse(int model, int note, int quality) {
     std::array<maremba::MarembaEngine, 2> engine{maremba::MarembaEngine(rate), maremba::MarembaEngine(rate)};
     auto p = clean(model);
+    p.oversampling = quality;
+    // Independent saved-selector oracle. Retain the historical 2x fixture
+    // and exercise native rate without advancing its mechanics twice.
+    constexpr std::array<int, 4> factors{{2, 4, 8, 1}};
+    const int factor = factors.at(static_cast<size_t>(quality));
     for (size_t k = 0; k < engine.size(); ++k) {
         p.sympathetic = static_cast<float>(k);
         engine[k].SetParameters(p);
@@ -95,8 +100,8 @@ Halo haloResponse(int model, int note) {
             engine[k].RenderBatch(mainL.data(), mainR.data(), left[k].data(), right[k].data(),
                                   nullptr, nullptr, piezo[k].data(), n);
         for (int i = 0; i < n; ++i) {
-            scene->BeginFrame(2);
-            for (int sub = 0; sub < 2; ++sub) {
+            scene->BeginFrame(factor);
+            for (int sub = 0; sub < factor; ++sub) {
                 float close = 0, far = 0, pickup = 0;
                 const bool active = voice.ProcessSample(close, far, pickup);
                 float referenceClose = 0, referenceFar = 0, referencePickup = 0;
@@ -268,47 +273,50 @@ int main() {
         std::cout << "NEIGHBORS model=" << model << " self_energy=" << selfEnergy
                   << " neighbor_output_energy=" << haloEnergy << '\n';
 
-        constexpr std::array<int, 11> notes = {36, 47, 48, 49, 60, 70, 71, 72, 73, 84, 96};
-        std::array<double, notes.size()> levels{};
-        for (size_t n = 0; n < notes.size(); ++n) {
-            const auto halo = haloResponse(model, notes[n]);
-            levels[n] = db(halo.ratio);
-            check(halo.finite && halo.pickupIdentical, "halo is unbounded or leaks into isolated pickup");
-            check(halo.referenceMechanicsIdentical,
-                  "pressure reference changes mechanical drive, pickup or voice lifetime");
-            check(halo.sceneResidual < 2.e-4,
-                  "halo differs from independently calibrated receiver-scene prediction model=" + std::to_string(model)
-                  + " note=" + std::to_string(notes[n]));
-            // Permit natural register variation, but not the old effectively
-            // dead control above/below the hard-coded two-octave bank.
-            if (notes[n] == 36 || notes[n] == 84 || notes[n] == 96)
-                check(levels[n] > -60 && db(halo.sourceRatio) > -60 && db(halo.sourceRatio) < 0,
-                      "Sympathetic lacks useful keyboard coverage model=" + std::to_string(model)
+        for (int quality : {0, 3}) {
+            constexpr std::array<int, 11> notes = {36, 47, 48, 49, 60, 70, 71, 72, 73, 84, 96};
+            std::array<double, notes.size()> levels{};
+            for (size_t n = 0; n < notes.size(); ++n) {
+                const auto halo = haloResponse(model, notes[n], quality);
+                levels[n] = db(halo.ratio);
+                check(halo.finite && halo.pickupIdentical, "halo is unbounded or leaks into isolated pickup");
+                check(halo.referenceMechanicsIdentical,
+                      "pressure reference changes mechanical drive, pickup or voice lifetime");
+                check(halo.sceneResidual < 2.e-4,
+                      "halo differs from independently calibrated receiver-scene prediction model=" + std::to_string(model)
                       + " note=" + std::to_string(notes[n]));
-            // At full Sympathetic, nearby receivers already exceeded the dry
-            // C2 key in the previous capture geometry (Padauk +6.39 dB,
-            // Balafon +4.70 dB). Quieter upper-mode attacks raise these to
-            // +8.50/+6.13 dB, while the post-100ms balance changes <0.08 dB.
-            // Keep an explicit audible ceiling as well as the unchanged
-            // pre-voicing mechanical calibration and exact scene prediction.
-            check(levels[n] < 10,
-                  "Sympathetic exceeds voiced halo balance model=" + std::to_string(model)
-                  + " note=" + std::to_string(notes[n]));
-            std::cout << "REGISTER model=" << model << " note=" << notes[n]
-                      << " halo_to_dry_db=" << levels[n] << " source_halo_to_dry_db=" << db(halo.sourceRatio)
-                      << " voiced_source_halo_to_dry_db=" << db(halo.voicedSourceRatio)
-                      << " dry_energy=" << halo.dryEnergy << " halo_energy=" << halo.haloEnergy
-                      << " late_halo_to_dry_db=" << db(halo.lateRatio)
-                      << " scene_prediction_residual=" << halo.sceneResidual << '\n';
+                // Permit natural register variation, but not the old effectively
+                // dead control above/below the hard-coded two-octave bank.
+                if (notes[n] == 36 || notes[n] == 84 || notes[n] == 96)
+                    check(levels[n] > -60 && db(halo.sourceRatio) > -60 && db(halo.sourceRatio) < 0,
+                          "Sympathetic lacks useful keyboard coverage model=" + std::to_string(model)
+                          + " note=" + std::to_string(notes[n]));
+                // At full Sympathetic, nearby receivers already exceeded the dry
+                // C2 key in the previous capture geometry (Padauk +6.39 dB,
+                // Balafon +4.70 dB). Quieter upper-mode attacks raise these to
+                // +8.50/+6.13 dB, while the post-100ms balance changes <0.08 dB.
+                // Keep an explicit audible ceiling as well as the unchanged
+                // pre-voicing mechanical calibration and exact scene prediction.
+                check(levels[n] < 10,
+                      "Sympathetic exceeds voiced halo balance model=" + std::to_string(model)
+                      + " note=" + std::to_string(notes[n]));
+                std::cout << "REGISTER model=" << model << " quality=" << quality << " note=" << notes[n]
+                          << " halo_to_dry_db=" << levels[n] << " source_halo_to_dry_db=" << db(halo.sourceRatio)
+                          << " voiced_source_halo_to_dry_db=" << db(halo.voicedSourceRatio)
+                          << " dry_energy=" << halo.dryEnergy << " halo_energy=" << halo.haloEnergy
+                          << " late_halo_to_dry_db=" << db(halo.lateRatio)
+                          << " scene_prediction_residual=" << halo.sceneResidual << '\n';
+            }
+            double worstStep = 0;
+            for (size_t n : {size_t(2), size_t(3), size_t(6), size_t(7), size_t(8)})
+                worstStep = std::max(worstStep, std::abs(levels[n] - levels[n-1]));
+            // Real keys answer only partials that coincide with them, so
+            // neighbouring notes can differ by several dB; a bank edge would
+            // silence one side outright.
+            check(worstStep < 10, "Sympathetic has an artificial former-bank-edge cliff model=" + std::to_string(model));
+            std::cout << "REGISTER_EDGE model=" << model << " quality=" << quality
+                      << " largest_semitone_step_db=" << worstStep << '\n';
         }
-        double worstStep = 0;
-        for (size_t n : {size_t(2), size_t(3), size_t(6), size_t(7), size_t(8)})
-            worstStep = std::max(worstStep, std::abs(levels[n] - levels[n-1]));
-        // Real keys answer only partials that coincide with them, so
-        // neighbouring notes can differ by several dB; a bank edge would
-        // silence one side outright.
-        check(worstStep < 10, "Sympathetic has an artificial former-bank-edge cliff model=" + std::to_string(model));
-        std::cout << "REGISTER_EDGE model=" << model << " largest_semitone_step_db=" << worstStep << '\n';
 
         const auto restrike = couplingRestrike(model);
         check(restrike.worst < .01, "quiet restrike abruptly cuts the stored cavity readout model=" + std::to_string(model));

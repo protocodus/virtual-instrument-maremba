@@ -69,7 +69,7 @@ int main(int argc, char* argv[]) {
     std::string outputFile = "";
     int model = 0; // 0: Rosewood, 1: Padauk, 2: Balafon, 3: Kalimba
     int mallet = 1; // 0: Yarn/Flesh, 1: Cord/Natural, 2: Rubber/Nail, 3: Wood/Pick, 4: Shaft/Tap
-    int oversampling = 0; // 0: 2x, 1: 4x, 2: 8x
+    int oversampling = 3; // saved indices: 0: 2x, 1: 4x, 2: 8x, 3: 1x (default)
     int polyphony = 2; // 24 voices
     double maxDuration = 60.0;
     bool jsonOutput = false;
@@ -100,13 +100,13 @@ int main(int argc, char* argv[]) {
         else throw std::runtime_error("Unknown argument or missing value: " + arg);
     }
     if (model < 0 || model > 3 || mallet < 0 || mallet > 5 ||
-        oversampling < 0 || oversampling > 2 || polyphony < 0 || polyphony > 2 ||
+        oversampling < 0 || oversampling > 3 || polyphony < 0 || polyphony > 2 ||
         tuningScale < 0 || tuningScale > 6 || noteOffMode < 0 || noteOffMode > 2 ||
         !std::isfinite(strikePosition) || strikePosition < 0.0f || strikePosition > 1.0f ||
         !std::isfinite(carving) || carving < 0.0f || carving > 1.0f ||
         !std::isfinite(membraneTension) || membraneTension < 0.0f || membraneTension > 1.0f ||
         !std::isfinite(maxDuration) || maxDuration < 0.01 || maxDuration > 3600.0)
-        throw std::runtime_error("Model must be 0..3; mallet 0..5; oversampling/polyphony 0..2; scale 0..6; note-off 0..2; "
+        throw std::runtime_error("Model must be 0..3; mallet 0..5; oversampling 0..3; polyphony 0..2; scale 0..6; note-off 0..2; "
                                  "carving/tension 0..1; duration 0.01..3600 seconds");
     } catch (const std::exception& error) {
         std::cerr << "Invalid arguments: " << error.what() << "\n";
@@ -114,7 +114,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (eventsFile.empty() || outputFile.empty()) {
-        std::cerr << "Usage: maremba_renderer --events <file> --output <file.wav> [--model 0|1|2|3] [--mallet 0..5] [--oversampling 0|1|2] [--scale 0..6] [--note-off 0|1|2] [--carving 0..1] [--tension 0..1] [--max-duration <sec>] [--json]\n";
+        std::cerr << "Usage: maremba_renderer --events <file> --output <file.wav> [--model 0|1|2|3] [--mallet 0..5] [--oversampling 0|1|2|3] [--scale 0..6] [--note-off 0|1|2] [--carving 0..1] [--tension 0..1] [--max-duration <sec>] [--json]\n";
         return 1;
     }
 
@@ -368,7 +368,7 @@ int main(int argc, char* argv[]) {
     if (!outFile) { std::cerr << "Failed writing WAV data\n"; return 1; }
 
     const char* modelNames[4] = {"Imperial Rosewood 5.0", "Mayan Padauk 4.3", "Balafon Ancestral", "Kalimba Artisan 17-Key"};
-    const char* osNames[3] = {"2x Studio", "4x High-Res", "8x Archival"};
+    const char* osNames[4] = {"2x Studio", "4x High-Res", "8x Archival", "1x Native"};
     const char* marimbaMalletNames[4] = {"Soft Wool Yarn", "Medium Concert Cord", "Hard Rubber", "Wood Baton"};
     const char* kalimbaThumbNames[4] = {"Thumb Flesh Pad", "Natural Thumb", "Thumbnail Snap", "Thumb Pick"};
     const char* strikerName = (model == 3) ? kalimbaThumbNames[std::clamp(mallet, 0, 3)] : marimbaMalletNames[std::clamp(mallet, 0, 3)];

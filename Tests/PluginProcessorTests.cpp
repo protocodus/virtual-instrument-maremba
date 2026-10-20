@@ -84,15 +84,26 @@ double Peak(const std::vector<float>& samples) {
 void TestParameterIds() {
     MarembaAudioProcessor processor;
     const auto& parameters = processor.getParameters();
-    Expect(parameters.size() == static_cast<int>(std::size(kExpectedIds)), "one parameter per visible control");
-    for (const char* id : kExpectedIds) {
+    Expect(parameters.size() == static_cast<int>(std::size(kExpectedIds)) + 1,
+           "all legacy parameters and one appended native-rate mode");
+    for (std::size_t index = 0; index < std::size(kExpectedIds); ++index) {
+        const char* id = kExpectedIds[index];
         auto* parameter = dynamic_cast<juce::AudioProcessorParameterWithID*>(processor.parameters().getParameter(id));
         Expect(parameter != nullptr && parameter->getVersionHint() == 1, id);
+        Expect(parameters[static_cast<int>(index)] == parameter, "legacy host parameter order remains unchanged");
     }
+    auto* native = processor.parameters().getParameter(MarembaAudioProcessor::kNativeRateParameterId);
+    Expect(native && native->getVersionHint() == 2 && parameters.getLast() == native,
+           "Native Rate appends with a newer AU ordering hint");
 }
 
 void TestFactoryBank() {
     MarembaAudioProcessor processor;
+    auto* quality = dynamic_cast<juce::AudioParameterChoice*>(processor.parameters().getParameter("oversampling"));
+    Expect(quality && quality->choices.size() == 3 && quality->getIndex() == 0,
+           "legacy Quality retains three choices and safe raw 0 underneath native mode");
+    Expect(processor.parameters().getRawParameterValue(MarembaAudioProcessor::kNativeRateParameterId)->load() == 1,
+           "a new plug-in defaults to native 1x");
     Expect(processor.getNumPrograms() == 20, "twenty factory presets");
     for (int program = 0; program < processor.getNumPrograms(); ++program) {
         processor.setCurrentProgram(program);
@@ -101,6 +112,8 @@ void TestFactoryBank() {
                "program names are the bank's");
         const auto controls = processor.currentControls();
         const auto& preset = maremba::kFactoryPresets[static_cast<std::size_t>(program)].values;
+        Expect(preset[maremba::kOversampling] == 3 && controls[maremba::kOversampling] == 3,
+               "every factory program selects native 1x");
         for (const char* id : kExpectedIds) {
             int control = 0;
             while (std::string(maremba::kControlNames[static_cast<std::size_t>(control)]) != id) ++control;
@@ -110,6 +123,103 @@ void TestFactoryBank() {
             Expect(std::fabs(controls[index] - preset[index]) < 1.0e-6, "a preset loads every value");
         }
     }
+}
+
+void RestoreState(MarembaAudioProcessor& processor, const juce::ValueTree& state) {
+    juce::MemoryBlock data;
+    const auto xml = state.createXml();
+    juce::AudioProcessor::copyXmlToBinary(*xml, data);
+    processor.setStateInformation(data.getData(), static_cast<int>(data.getSize()));
+}
+
+void TestLegacyQualityStateAndAutomation() {
+    // Recreate a released state's raw PARAM nodes, without the newly appended
+    // flag. Raw 0 matters: restoring the same value cannot rely on a callback.
+    for (int stored = 0; stored < 3; ++stored) {
+        MarembaAudioProcessor restored;
+        auto state = restored.parameters().copyState();
+        state.removeChild(state.getChildWithProperty("id", MarembaAudioProcessor::kNativeRateParameterId), nullptr);
+        state.getChildWithProperty("id", "oversampling").setProperty("value", stored, nullptr);
+        RestoreState(restored, state);
+        Expect(restored.currentControls()[maremba::kOversampling] == stored,
+               "a pre-native state restores its exact legacy quality, including raw 0");
+        Expect(restored.parameters().getRawParameterValue(MarembaAudioProcessor::kNativeRateParameterId)->load() == 0,
+               "pre-native states explicitly disable the new-instance native default");
+        auto* legacy = restored.parameters().getParameter("oversampling");
+        // A frozen three-choice JUCE parameter is the released host contract,
+        // including its quarter-position/tie rounding, not the new UI count.
+        juce::AudioParameterChoice oldParameter({"old", 1}, "Old Quality", {"2x", "4x", "8x"}, 0);
+        for (float value : {0.f, .125f, .25f, .375f, .5f, .625f, .75f, .875f, 1.f, 0.f}) {
+            oldParameter.setValueNotifyingHost(value);
+            legacy->setValueNotifyingHost(value);
+            Expect(restored.currentControls()[maremba::kOversampling] == oldParameter.getIndex(),
+                   "old normalized automation replays the exact three-choice mapping");
+        }
+        for (int quality = 0; quality < 3; ++quality) {
+            const float normalized = static_cast<float>(quality) * .5f;
+            Expect(legacy->convertTo0to1(static_cast<float>(quality)) == normalized,
+                   "legacy Quality normalized 0/.5/1 values remain exact");
+            legacy->setValueNotifyingHost(normalized);
+            Expect(restored.currentControls()[maremba::kOversampling] == quality,
+                   "legacy normalized endpoints and midpoint retain raw indices");
+        }
+    }
+}
+
+void TestNativeQualityMigrationAndMode() {
+    MarembaAudioProcessor processor;
+    auto* legacy = processor.parameters().getParameter("oversampling");
+    auto* native = processor.parameters().getParameter(MarembaAudioProcessor::kNativeRateParameterId);
+    for (float value : {0.f, .5f, 1.f, 0.f}) {
+        legacy->setValueNotifyingHost(value);
+        Expect(processor.currentControls()[maremba::kOversampling] == 3,
+               "explicit Native Rate mode gates the legacy quality selector");
+    }
+    legacy->setValueNotifyingHost(.5f);
+    native->setValueNotifyingHost(0);
+    Expect(processor.currentControls()[maremba::kOversampling] == 1,
+           "leaving native mode uses the current legacy 4x choice");
+    auto state = processor.parameters().copyState();
+    MarembaAudioProcessor restored;
+    RestoreState(restored, state);
+    Expect(restored.currentControls()[maremba::kOversampling] == 1,
+           "modern non-native state preserves the mode and legacy choice");
+    native->setValueNotifyingHost(1);
+    state = processor.parameters().copyState();
+    RestoreState(restored, state);
+    Expect(restored.currentControls()[maremba::kOversampling] == 3
+           && restored.parameters().getRawParameterValue("oversampling")->load() == 1,
+           "modern native state preserves both mode and dormant legacy choice");
+
+    // The interim development branch stored Rack raw 3 directly. Accept it
+    // without exposing a fourth normalized choice under the released ID.
+    state.removeChild(state.getChildWithProperty("id", MarembaAudioProcessor::kNativeRateParameterId), nullptr);
+    state.getChildWithProperty("id", "oversampling").setProperty("value", 3, nullptr);
+    RestoreState(restored, state);
+    Expect(restored.currentControls()[maremba::kOversampling] == 3
+           && restored.parameters().getRawParameterValue("oversampling")->load() == 0,
+           "interim raw-3 states migrate to native mode and a valid legacy choice");
+}
+
+void TestCompositeQualityEditor() {
+    MarembaAudioProcessor processor;
+    const std::unique_ptr<juce::AudioProcessorEditor> editor(processor.createEditor());
+    auto* combo = dynamic_cast<juce::ComboBox*>(editor->findChildWithID("quality"));
+    Expect(combo && combo->getNumItems() == 4 && combo->getSelectedItemIndex() == 3,
+           "the editor presents four effective Quality choices with native selected");
+    if (!combo) return;
+    for (int choice : {1, 2, 0, 3, 2, 3}) {
+        combo->setSelectedItemIndex(choice, juce::sendNotificationSync);
+        Expect(processor.currentControls()[maremba::kOversampling] == choice
+               && combo->getSelectedItemIndex() == choice,
+               "composite Quality writes the effective legacy/native selection");
+    }
+    processor.parameters().getParameter("oversampling")->setValueNotifyingHost(.5f);
+    Expect(combo->getSelectedItemIndex() == 3, "dormant legacy automation leaves native UI selected");
+    processor.parameters().getParameter(MarembaAudioProcessor::kNativeRateParameterId)->setValueNotifyingHost(0);
+    Expect(combo->getSelectedItemIndex() == 1, "host mode automation updates the composite Quality UI");
+    processor.setCurrentProgram(1);
+    Expect(combo->getSelectedItemIndex() == 3, "factory selection restores native in the composite UI");
 }
 
 void TestStateRoundTrip() {
@@ -187,6 +297,9 @@ int main() {
     const juce::ScopedJuceInitialiser_GUI gui;
     TestParameterIds();
     TestFactoryBank();
+    TestLegacyQualityStateAndAutomation();
+    TestNativeQualityMigrationAndMode();
+    TestCompositeQualityEditor();
     TestStateRoundTrip();
     TestBlockPartitionInvariance();
     TestDirectOutputs();

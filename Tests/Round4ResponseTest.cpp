@@ -45,6 +45,10 @@ struct MarembaVoiceTestAccess {
     }
 };
 struct MarembaEngineTestAccess {
+    static int Factor(const MarembaEngine& engine) { return engine.mActiveFactor; }
+    static int PhysicalControlInterval(const MarembaEngine& engine) {
+        return engine.mActiveFactor * MarembaEngine::kControlInterval;
+    }
     static MarembaVoice TriggeredVoice(const MarembaEngine& engine, bool& found) {
         for (const auto& voice : engine.mVoices) if (voice.IsActive()) { found = true; return voice; }
         found = false;
@@ -74,16 +78,18 @@ maremba::EngineParameters clean(int model) {
 
 struct MembraneObservation {
     bool found = false, linear = true, finite = true;
-    int count = 0, tautSamples = 0;
+    int count = 0, tautSamples = 0, factor = 0;
     double peakEnergy = 0, peakSlapEnvelope = 0;
 };
-MembraneObservation membraneThreshold(int model, float buzz, float velocity) {
+MembraneObservation membraneThreshold(int model, float buzz, float velocity, int quality) {
     auto p = clean(model);
-    p.buzzAmount = buzz;
+    p.buzzAmount = buzz; p.oversampling = quality;
     maremba::MarembaEngine engine(rate);
     engine.SetParameters(p);
     engine.NoteOn(60, velocity);
     MembraneObservation result;
+    result.factor = maremba::MarembaEngineTestAccess::Factor(engine);
+    const int controlInterval = maremba::MarembaEngineTestAccess::PhysicalControlInterval(engine);
     // Copy the exact engine-created physical voice, including velocity curve,
     // per-slot seed and routed controls. Inspect every internal sample: host
     // block boundaries could miss a short crossing of the membrane limit.
@@ -99,7 +105,7 @@ MembraneObservation membraneThreshold(int model, float buzz, float velocity) {
         result.finite = result.finite && Access::MembranesFinite(voice);
         result.peakEnergy = std::max(result.peakEnergy, Access::MembraneEnergy(voice));
         result.peakSlapEnvelope = std::max(result.peakSlapEnvelope, Access::SlapEnvelope(voice));
-        if ((i & 31) == 31) voice.UpdateEnvelope();
+        if ((i + 1) % controlInterval == 0) voice.UpdateEnvelope();
     }
     return result;
 }
@@ -370,8 +376,10 @@ int main() {
             const double quiet = relative(.5f, .2f), soft = relative(.5f, .3f), forte = relative(.5f, 1);
             const auto full = layer(model, 1, 1);
             buzzCentroid[model == 2 ? 0 : 1] = centroid(full.first, .005, .1);
-            for (float velocity : {.2f, .3f, 1.f}) {
-                const auto observed = membraneThreshold(model, .5f, velocity);
+            for (int quality : {0, 3}) for (float velocity : {.2f, .3f, 1.f}) {
+                const auto observed = membraneThreshold(model, .5f, velocity, quality);
+                check(observed.factor == (quality == 0 ? 2 : 1),
+                      "membrane threshold fixture did not configure its requested legacy/native factor");
                 check(observed.found && observed.finite && observed.count > 0 && observed.peakEnergy > 0,
                       std::string("membrane threshold fixture did not excite its membrane: ") + names[model]);
                 if (velocity < 1) {
@@ -381,7 +389,7 @@ int main() {
                     check(observed.tautSamples > 0 && !observed.linear && observed.peakSlapEnvelope > 0,
                           std::string("forte stroke never reaches its membrane's taut limits: ") + names[model]);
                 }
-                std::cout << "MEMBRANE_STATE model=" << names[model] << " velocity=" << velocity
+                std::cout << "MEMBRANE_STATE model=" << names[model] << " factor=" << observed.factor << " velocity=" << velocity
                           << " taut_samples=" << observed.tautSamples << " linear_shadow=" << observed.linear
                           << " peak_energy=" << observed.peakEnergy
                           << " peak_slap_envelope=" << observed.peakSlapEnvelope << '\n';

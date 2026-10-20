@@ -78,7 +78,7 @@ private:
     float mZ1 = 0.0f;
 };
 
-// Mono Decimator for 2x, 4x, and 8x oversampling (same half-band cascade as
+// Mono decimator for 1x, 2x, 4x, and 8x (same half-band cascade as
 // the stereo main-bus decimator, so direct outs match it in response and phase)
 class MonoOversampler {
 public:
@@ -106,6 +106,7 @@ public:
     }
 
     inline float DownsampleFrame(const float* inBuf, int factor) {
+        if (factor == 1) return DownsampleFrame<1>(inBuf);
         if (factor == 2) return DownsampleFrame<2>(inBuf);
         if (factor == 4) return DownsampleFrame<4>(inBuf);
         return DownsampleFrame<8>(inBuf);
@@ -115,8 +116,10 @@ public:
     // once per frame, leaving this small, fixed cascade available to inline.
     template<int Factor>
     inline float DownsampleFrame(const float* inBuf) {
-        static_assert(Factor == 2 || Factor == 4 || Factor == 8, "Unsupported oversampling factor");
-        if constexpr (Factor == 2) {
+        static_assert(Factor == 1 || Factor == 2 || Factor == 4 || Factor == 8, "Unsupported oversampling factor");
+        if constexpr (Factor == 1) {
+            return inBuf[0];
+        } else if constexpr (Factor == 2) {
             return mDec[0].Decimate(inBuf[0], inBuf[1]);
         } else if constexpr (Factor == 4) {
             float s0 = mDec[0].Decimate(inBuf[0], inBuf[1]);
@@ -137,7 +140,7 @@ private:
     HalfbandDecimator2x mDec[3];
 };
 
-// Stereo Decimator for 2x, 4x, and 8x oversampling
+// Stereo decimator for 1x, 2x, 4x, and 8x oversampling
 class StereoOversampler {
 public:
     StereoOversampler() {
@@ -165,12 +168,16 @@ public:
         return true;
     }
 
-    // Downsample buffer of samples according to factor (2, 4, or 8)
+    // At 1x, pass through exactly without filtering, state changes or delay.
+    // Downsample buffer of samples according to factor (1, 2, 4, or 8)
     // For 2x: takes 2 samples, produces 1
     // For 4x: takes 4 samples, produces 1
     // For 8x: takes 8 samples, produces 1
     inline void DownsampleFrame(const float* inBufL, const float* inBufR, int factor, float& outL, float& outR) {
-        if (factor == 2) {
+        if (factor == 1) {
+            outL = inBufL[0];
+            outR = inBufR[0];
+        } else if (factor == 2) {
             outL = mDecL[0].Decimate(inBufL[0], inBufL[1]);
             outR = mDecR[0].Decimate(inBufR[0], inBufR[1]);
         } else if (factor == 4) {
