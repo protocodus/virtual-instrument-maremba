@@ -48,6 +48,8 @@ using Access = maremba::MarembaEngineTestAccess;
 constexpr std::array<double, 5> kRates{{22050, 44100, 48000, 96000, 192000}};
 constexpr std::array<int, 4> kQualityFactors{{2, 4, 8, 1}};
 constexpr int kNativeQuality = 3;
+// Independent product ceiling; direct captures retain their .94 limit.
+const double kMainCeiling = std::pow(10., -1. / 20.) + 2e-6;
 constexpr std::array<float, 3> kVelocities{{1.0f / 127, .5f, 1}};
 constexpr std::array<int, 4> kBoundaryNotes{{0, 21, 108, 127}};
 constexpr std::uint64_t kLimiterCases = kRates.size() * kQualityFactors.size() * 3 * 2 * 2;
@@ -194,7 +196,7 @@ void render(MarembaEngine& engine, int count, bool mustBeZero = false) {
                 peakCases[channel] = where + " frame=" + std::to_string(static_cast<long long>(before) + i - 1);
             }
             if (mustBeZero) require(sample == 0, "reset/ignored note leaked audio");
-            require(std::abs(sample) <= .940002,
+            require(std::abs(sample) <= (channel < 2 ? kMainCeiling : .940002),
                     "output escaped smooth headroom ceiling, including limiter bypass/automation");
             if (channel < 2) {
                 const bool limited = p.compAmount > 0;

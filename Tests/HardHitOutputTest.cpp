@@ -32,6 +32,9 @@ using maremba::EngineParameters;
 using maremba::MarembaEngine;
 constexpr int kChannels = 7;
 constexpr double kCeiling = .940002;
+// Main reserves -1 dBFS; direct stems retain .94. Keep the oracle independent
+// of MainCalibration.h so a changed production constant cannot waive this.
+const double kMainCeiling = std::pow(10., -1. / 20.) + 2e-6;
 // Append the low-rate safety witness so the four historical rates retain
 // their indices and independently rotated physical profiles.
 constexpr std::array<double, 5> kRates{{44100, 48000, 96000, 192000, 22050}};
@@ -172,7 +175,7 @@ Result renderCase(const Case& c) {
                 const double a = std::abs(x);
                 if (a > r.peak[ch]) { r.peak[ch] = a; r.peakFrame[ch] = frame + i; }
                 sums[ch] += x * x;
-                if (a > kCeiling) ++r.overCeiling[ch];
+                if (a > (ch < 2 ? kMainCeiling : kCeiling)) ++r.overCeiling[ch];
                 if (a > 1.) ++r.overFullScale[ch];
             }
         }
@@ -238,7 +241,9 @@ void report(const std::filesystem::path& directory, bool measure) {
     require(static_cast<bool>(out), "cannot create report");
     out << std::setprecision(12);
     out << "{\n\"schema\":1,\"measurement_only\":" << (measure ? "true" : "false")
-        << ",\"ceiling_with_tolerance\":" << kCeiling << ",\"channels\":[";
+        << ",\"ceiling_with_tolerance\":" << kCeiling
+        << ",\"main_ceiling_with_tolerance\":" << kMainCeiling
+        << ",\"direct_ceiling_with_tolerance\":" << kCeiling << ",\"channels\":[";
     for (int ch = 0; ch < kChannels; ++ch) { if (ch) out << ','; out << '"' << kNames[ch] << '"'; }
     out << "],\"sample_format\":\"little-endian interleaved float32; 7 channels; unprocessed engine outputs\""
         << ",\"expected_cases\":" << kExpectedCases << ",\"cases\":" << results.size()

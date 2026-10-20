@@ -1,3 +1,5 @@
+// Historical equal-RMS model-gain protocol. Current factory VCA/peak balance
+// uses CalibratePresetVca; do not apply these 24-state RMS gains as preset trims.
 // Offline fixed-gain solver. First capture the unprotected, velocity-80 Linear
 // reference with MainCalibrationTest --quiet --capture DIR. Each state-N.f32
 // contains five seconds of native float32 stereo at 48 kHz, Volume .2125.

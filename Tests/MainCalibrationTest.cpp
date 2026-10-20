@@ -2,7 +2,9 @@
 // used by the plug-in. The five-second reference includes its complete tail;
 // RMS is sqrt((sum(L^2) + sum(R^2)) / (2 * frames)), relative to full scale.
 // No rendered samples are normalized. --quiet measures the source at low
-// Volume .2125; --measure reports without asserting the RMS target.
+// Volume .2125 at any supported rate; --measure reports without the level gates.
+// Initialized models retain their recording-gain RMS anchor; factory presets
+// target normal peaks around -8 dBFS with measured per-preset RMS contracts.
 #include "MarembaPlayer.h"
 #include "FactoryPresets.h"
 
@@ -22,11 +24,40 @@
 namespace {
 using namespace maremba;
 
-// Set from the accepted reference-phrase calibration, not individual peaks.
+// Historical initialized-model recording-gain anchor, retained independently
+// of the factory VCA balance below.
 constexpr double kTargetRmsDb = -27.0;
 constexpr double kRmsToleranceDb = .35;
 constexpr double kCeiling = .940002;
-constexpr double kMainCeiling = .44668359215096315; // -7 dBFS, independent of stem ceilings.
+constexpr double kMainCeiling = .8912509381337456; // -1 dBFS, independent of stem ceilings.
+struct FactoryReference {
+    const char* name; double rmsDb, peakMinimumDb, peakMaximumDb; bool maximumVca;
+};
+// Frozen three-rate measurements: per-preset RMS includes natural crest and tails.
+// Soft Yarn and Thumb Lullaby reach their existing VCA range limit without
+// changing the soft striker or the global Volume law.
+constexpr std::array<FactoryReference, 20> kFactoryReferences {{
+    {"Ambient Cathedral Bloom", -24.1420, -8.40, -7.60, false},
+    {"Concert Grand Rosewood", -23.2491, -8.40, -7.60, false},
+    {"Direct Piezo Mallet", -29.3001, -8.40, -7.60, false},
+    {"Hard Acrylic Virtuoso", -29.8926, -8.40, -7.60, false},
+    {"Rosewood Dampened Etude", -23.0172, -8.40, -7.60, false},
+    {"Rosewood Roll Chorale", -23.4324, -8.40, -7.60, false},
+    {"Soft Yarn Nocturne", -23.3697, -8.85, -8.25, true},
+    {"Chiapas Folk Fiesta", -30.0878, -8.40, -7.60, false},
+    {"Guatemalan Charleo", -26.8384, -8.40, -7.60, false},
+    {"Mayan Dance Padauk", -23.6442, -8.40, -7.60, false},
+    {"Ancestral Balafon", -27.5884, -8.40, -7.60, false},
+    {"Birifor Gyil Buzz", -27.3120, -8.40, -7.60, false},
+    {"Chopi Timbila Ensemble", -28.6327, -8.40, -7.60, false},
+    {"Equipentatonic Log Keys", -30.0088, -8.40, -7.60, false},
+    {"Mandinka Bala Heptatonic", -28.5980, -8.40, -7.60, false},
+    {"Midnight Village Ritual", -24.5500, -8.40, -7.60, false},
+    {"Sambla Talking Balafon", -28.6696, -8.40, -7.60, false},
+    {"Kalimba Muted Thumbs", -22.1407, -8.40, -7.60, false},
+    {"Kalimba Pick Sparkle", -21.9231, -8.40, -7.60, false},
+    {"Kalimba Thumb Lullaby", -26.4239, -12.85, -12.05, true},
+}};
 constexpr double kSeconds = 5.0;
 // Shared musical reference: Rack Tests/AllPatchRenderTest.cpp, kPhraseNotes.
 constexpr std::array<int, 20> kPhraseNotes {{
@@ -37,7 +68,7 @@ constexpr std::array<int, 8> kLowChord {{24, 28, 31, 36, 40, 43, 48, 52}};
 struct Options {
     double rate = 48000;
     double targetRmsDb = kTargetRmsDb;
-    bool measure = false, quiet = false, stress = false;
+    bool measure = false, quiet = false, stress = false, customRms = false;
     std::filesystem::path captureDirectory;
 };
 struct Event { int frame, note, velocity; };
@@ -66,15 +97,15 @@ Options Parse(int argc, char** argv) {
         else if (arg == "--quiet") options.quiet = true;
         else if (arg == "--stress") options.stress = true;
         else if (arg == "--rate" && i + 1 < argc) options.rate = Number(argv[++i]);
-        else if (arg == "--target-rms" && i + 1 < argc) options.targetRmsDb = Number(argv[++i]);
+        else if (arg == "--target-rms" && i + 1 < argc) { options.targetRmsDb = Number(argv[++i]); options.customRms = true; }
         else if (arg == "--capture" && i + 1 < argc) options.captureDirectory = argv[++i];
         else throw std::runtime_error("usage: MainCalibrationTest [--measure] [--quiet] [--stress] "
                                       "[--rate HZ] [--target-rms DBFS] [--capture DIR]");
     }
     Require(MarembaPlayer::SupportsSampleRate(options.rate), "sample rate outside 22050..192000 Hz");
     Require(!(options.quiet && options.stress), "--quiet and --stress require different Volume settings");
-    Require(options.captureDirectory.empty() || (options.quiet && options.rate == 48000),
-            "--capture requires --quiet at 48000 Hz");
+    Require(options.captureDirectory.empty() || options.quiet,
+            "--capture requires --quiet");
     return options;
 }
 
@@ -192,12 +223,25 @@ Result Render(const State& state, const Options& options, const std::string& sce
     row(std::cout);
     if (metadata) row(*metadata);
     if (!options.measure && !options.quiet && !stress) {
-        Require(std::abs(db(result.rms[0]) - options.targetRmsDb) <= kRmsToleranceDb,
+        const auto reference = std::find_if(kFactoryReferences.begin(), kFactoryReferences.end(),
+            [&](const FactoryReference& value) { return state.name == value.name; });
+        const bool factory = reference != kFactoryReferences.end();
+        Require(factory || state.name.rfind("Init model ", 0) == 0,
+                context + ": missing independent factory level reference");
+        const double rmsTarget = factory && !options.customRms ? reference->rmsDb : options.targetRmsDb;
+        Require(std::abs(db(result.rms[0]) - rmsTarget) <= kRmsToleranceDb,
                 context + ": Main RMS " + std::to_string(db(result.rms[0]))
-                + " dBFS differs from " + std::to_string(options.targetRmsDb) + " dBFS target");
-        Require(db(result.peak[0]) <= -7. + .01,
+                + " dBFS differs from " + std::to_string(rmsTarget) + " dBFS target");
+        if (factory) {
+            Require(db(result.peak[0]) >= reference->peakMinimumDb
+                        && db(result.peak[0]) <= reference->peakMaximumDb,
+                    context + ": normal Main peak departs from the authored -8 dBFS balance / soft-preset bound");
+            Require(!reference->maximumVca || controls[kVolume] == 1.,
+                    context + ": quiet exception must exhaust its existing VCA range");
+        }
+        Require(db(result.peak[0]) <= -1. + .01,
                 context + ": normal Main peak " + std::to_string(db(result.peak[0]))
-                + " dBFS exceeds the -7 dBFS reference ceiling");
+                + " dBFS exceeds the -1 dBFS safety ceiling");
     }
     return result;
 }
@@ -232,9 +276,10 @@ int main(int argc, char** argv) {
             }
         }
         std::cerr << "PASS MainCalibrationTest: 24 states, " << (options.stress ? 3 : 1)
-                  << " scenarios, " << options.rate << " Hz; Main <= -7 dBFS, stems <= " << kCeiling;
-        if (!options.measure && !options.quiet) std::cerr << "; reference RMS " << options.targetRmsDb
-                                                        << " +/- " << kRmsToleranceDb << " dBFS";
+                  << " scenarios, " << options.rate << " Hz; Main <= -1 dBFS, stems <= " << kCeiling;
+        if (!options.measure && !options.quiet)
+            std::cerr << "; init RMS " << options.targetRmsDb << ", factory normal peaks around -8 dBFS, "
+                      << "bounded soft exceptions; measured RMS +/- " << kRmsToleranceDb << " dB";
         std::cerr << '\n';
         return 0;
     } catch (const std::exception& error) {

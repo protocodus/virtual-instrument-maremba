@@ -40,6 +40,8 @@ namespace {
 using namespace maremba;
 using Frame = std::array<float, 7>;
 constexpr std::array<int, 4> kFactors {{2, 4, 8, 1}};
+// Independent product specification, rather than the constant under test.
+const double kExpectedMainCeiling = std::pow(10., -1. / 20.);
 std::uint64_t checks = 0;
 void Require(bool okay, const char* message) {
     ++checks;
@@ -51,7 +53,7 @@ Frame RenderOne(MarembaEngine& engine) {
     engine.RenderBatch(&frame[0], &frame[1], &frame[2], &frame[3], &frame[4], &frame[5], &frame[6], 1);
     for (int channel = 0; channel < 7; ++channel)
         Require(std::isfinite(frame[channel]) && std::abs(frame[channel]) <=
-                (channel < 2 ? kMainPeakCeiling + 2e-6f : .940002f), "nonfinite or unprotected output");
+                (channel < 2 ? kExpectedMainCeiling + 2e-6 : .940002), "nonfinite or unprotected output");
     return frame;
 }
 
@@ -86,6 +88,8 @@ void ExactBypass() {
 }
 
 void QualityPolicy(double rate) {
+    Require(std::abs(kMainPeakCeiling - kExpectedMainCeiling) < 1e-7,
+            "product Main ceiling is not -1 dBFS");
     Require(EngineParameters{}.oversampling == 3 && kControlDefaults[kOversampling] == 3,
             "native rate is not the engine/control default");
     for (int model = 0; model < 4; ++model) {

@@ -367,6 +367,8 @@ void quietTones() {
 }
 
 void lowerMainCeiling(double rate) {
+    // Deliberate arbitrary-ceiling API fixture, independent of the instrument's
+    // current -1 dBFS product setting. Keep this larger Main/direct separation.
     context = "independent -7 dBFS Main ceiling rate=" + std::to_string(rate);
     constexpr float ceiling = .446683592f;
     const int delay = OutputHeadroom::LatencyFrames(rate);
@@ -419,6 +421,7 @@ void lowerMainCeiling(double rate) {
 }
 
 void lowerMainFirThreshold(double rate) {
+    // This -7 dBFS witness exercises arbitrary thresholds, not product voicing.
     context = "Main FIR activation at -7 dBFS rate=" + std::to_string(rate);
     constexpr float ceiling = .446683592f, amplitude = .24f;
     // Every actual sample and even the sinusoidal detector's maximum estimate

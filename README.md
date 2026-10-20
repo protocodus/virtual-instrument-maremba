@@ -43,6 +43,24 @@ One demo per factory preset, rendered by every main build from
 
 ## Version history
 
+### 1.5.4 — 2026-10-20 — preset VCA balance and dynamic headroom
+
+- Balance the factory bank around −8 dBFS on the normal velocity-80 Linear
+  reference, using Volume (VCA) as the main control. Soft Yarn Nocturne stays
+  slightly softer at full VCA; Kalimba Thumb Lullaby remains deliberately hushed.
+- Change only VCA in 19 presets. Equipentatonic Log Keys also moves Strike
+  Position from 30% to 40% and Coupling from 10% to 20%, improving its natural
+  phrase crest by 2.961 dB before the VCA adjustment.
+- Reserve −1 dBFS as Main's safety ceiling, leaving room above normal playing.
+  Preserve the Volume law, fixed model gains, direct-output protection and
+  native 1× default. Natural preset RMS differences remain; no automatic
+  normalization or stronger musical compression is added.
+- [Measurements, exceptions and validation status](Docs/validation/preset-vca-balance-2026-10-20.md).
+  Fresh source renders pass all 504 wrapper cases and 120 register probes;
+  the primary reference needs no gain reduction. SDK build, installation and
+  Recon evidence belong to the Rack port build records. The audio demos above
+  predate this preset bank.
+
 ### 1.5.3 — 2026-10-20 — native-rate quality by default
 
 - Add true 1× processing and select it for new devices and all 20 factory

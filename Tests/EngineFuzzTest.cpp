@@ -152,6 +152,8 @@ constexpr int kOuts = 7;       // main L/R, close L/R, far L/R, piezo
 constexpr int kBufFrames = 256; // room for out-of-contract frame counts
 constexpr float kSentinel = 12345.678f;
 constexpr float kCeiling = 0.94f;
+// Independent -1 dBFS Main specification; direct captures remain at .94.
+const double kMainCeiling = std::pow(10., -1. / 20.);
 const double kRates[] = { 22050.0, 44100.0, 48000.0, 88200.0, 96000.0, 176400.0, 192000.0, 44100.5 };
 // Persisted selectors 0..2 retain their historical factors; appended state 3
 // is the native-rate path. Keep this oracle independent of engine helpers.
@@ -560,9 +562,10 @@ int RenderChecked(MarembaEngine& e, Tracker& t, int frameCount, unsigned mask, b
                                  v == kSentinel ? "left unwritten" : "is not finite", frameCount));
                 return expected;
             }
-            if (shouldWrite && std::abs(v) > kCeiling * 1.000001f) {
-                gReport.Fail(Fmt("%s: output %d frame %d escaped the 0.94 headroom ceiling: %.6f",
-                                 t.where.c_str(), c, f, v));
+            const double ceiling = c < 2 ? kMainCeiling : kCeiling;
+            if (shouldWrite && std::abs(v) > ceiling * 1.000001) {
+                gReport.Fail(Fmt("%s: output %d frame %d escaped its %.6f headroom ceiling: %.6f",
+                                 t.where.c_str(), c, f, ceiling, v));
                 return expected;
             }
         }
@@ -572,8 +575,8 @@ int RenderChecked(MarembaEngine& e, Tracker& t, int frameCount, unsigned mask, b
     for (int f = 0; f < expected; ++f) {
         const double m = std::max(std::fabs(b.ch[0][f]), std::fabs(b.ch[1][f]));
         t.peakMain = std::max(t.peakMain, m);
-        if (m > kCeiling * 1.000001) {
-            gReport.Fail(Fmt("%s: |main| %.6f above the 0.94 headroom ceiling with LIMIT %.3f volume %.3f",
+        if (m > kMainCeiling * 1.000001) {
+            gReport.Fail(Fmt("%s: |main| %.6f above the -1 dBFS headroom ceiling with LIMIT %.3f volume %.3f",
                              t.where.c_str(), m, p.compAmount, p.volume));
             break;
         }
