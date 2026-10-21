@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/tmp/maremba-rms-hand-damp-20261021/build/MarembaMainCalibrationTests",
+    "--rate",
+    "48000"
+  ],
+  "started_utc": "2026-10-21T09:24:50.155142+00:00",
+  "elapsed_seconds": 6.121963959070854,
+  "exit_code": 1,
+  "expected_to_pass": false,
+  "binary_sha256": "bd8c946e5d2f37d8f760d739f32cfd568ab5376157eb0c81647cb1ac4557fae6"
+}

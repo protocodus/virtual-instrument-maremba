@@ -1,0 +1,15 @@
+{
+  "command": [
+    "ctest",
+    "--test-dir",
+    "/tmp/maremba-rms-hand-damp-20261021/build",
+    "-R",
+    "^Maremba[.]MainCalibration(44100|48000|96000)$",
+    "--parallel",
+    "2",
+    "--no-tests=error",
+    "--output-on-failure"
+  ],
+  "started_utc": "2026-10-21T09:28:08.959788+00:00",
+  "exit_code": 0
+}

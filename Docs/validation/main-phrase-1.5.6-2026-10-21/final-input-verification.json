@@ -1,0 +1,42 @@
+{
+  "Source/FactoryPresets.h": {
+    "before": "8afa4d85f9167ecc29bfd6b9cf7c3d74c221d8cbbcd82a2acbc00c9cbfd969ca",
+    "after": "8afa4d85f9167ecc29bfd6b9cf7c3d74c221d8cbbcd82a2acbc00c9cbfd969ca",
+    "unchanged": true
+  },
+  "Source/DSP/MainCalibration.h": {
+    "before": "af455c605f03e8a3566fbdfb616d257686cc6128b95180c5dd819c769ac1458a",
+    "after": "af455c605f03e8a3566fbdfb616d257686cc6128b95180c5dd819c769ac1458a",
+    "unchanged": true
+  },
+  "Source/DSP/MainVolume.h": {
+    "before": "150294c8f7d47068d45bf122ba6cf1ed6ad25fe356d2cf3efa00691bcd0d9bc4",
+    "after": "150294c8f7d47068d45bf122ba6cf1ed6ad25fe356d2cf3efa00691bcd0d9bc4",
+    "unchanged": true
+  },
+  "Source/DSP/MarembaVoice.cpp": {
+    "before": "75aa5ce4dc055847d15c2f8d6541abeab00c10dc1ff5c42bc31e81473a8138c4",
+    "after": "75aa5ce4dc055847d15c2f8d6541abeab00c10dc1ff5c42bc31e81473a8138c4",
+    "unchanged": true
+  },
+  "Source/DSP/MarembaEngine.cpp": {
+    "before": "81a9488766d6501f28a13054e329a8412b57c09f654dce419f1d69d5cdf8bfe6",
+    "after": "81a9488766d6501f28a13054e329a8412b57c09f654dce419f1d69d5cdf8bfe6",
+    "unchanged": true
+  },
+  "Source/DSP/MarembaControls.h": {
+    "before": "a3cecb2db649cbffb1fb7ad26358e53613fd565a3c0da57bff8b02f39bd99d07",
+    "after": "a3cecb2db649cbffb1fb7ad26358e53613fd565a3c0da57bff8b02f39bd99d07",
+    "unchanged": true
+  },
+  "Tests/MainCalibrationTest.cpp": {
+    "before": "c0169cef6138befc1f4be478e5b0ff7cdfea92061e7c5e02ce98302a362898a0",
+    "after": "c0169cef6138befc1f4be478e5b0ff7cdfea92061e7c5e02ce98302a362898a0",
+    "unchanged": true
+  },
+  "CMakeLists.txt": {
+    "before": "51ca12b21688060afd8f9614ccb4ca66fdb98145147ddefdbfd2267cb7ed98a5",
+    "after": "51ca12b21688060afd8f9614ccb4ca66fdb98145147ddefdbfd2267cb7ed98a5",
+    "unchanged": true
+  }
+}

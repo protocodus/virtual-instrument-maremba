@@ -1,0 +1,154 @@
+{
+  "created_utc": "2026-10-21T09:39:47.686861+00:00",
+  "base_commit": "247dbb49ddee3f298f3f9714fb37fa1dc31cec53",
+  "version": "1.5.6",
+  "scope": "Native DSP-only MainCalibration target: 24 states x 3 scenarios x 3 sample rates; no SDK, plug-in processor or hosted Reason run; no audio files.",
+  "protocol": {
+    "normal": "Five seconds, 20-note phrase, velocity80, Linear curve, retained full tails, stereo energy RMS, no normalization",
+    "stress": [
+      "phrase_low_v127_max_volume",
+      "chord_low_v127_max_volume"
+    ],
+    "rates_hz": [
+      44100,
+      48000,
+      96000
+    ],
+    "rows": 216,
+    "normal_rows": 72
+  },
+  "frozen_reference_derivation": {
+    "measured_candidate_bank_primary_score_db": -25.85,
+    "final_bank_primary_score_db": -25.95,
+    "factory_center_shift_db": -0.1,
+    "factory_rms_anchor": "arithmetic mean of three measured RMS dBFS values, rounded to four decimals, then shifted -.10dB",
+    "factory_peak_center": "midpoint of three-rate measured min/max, original window widths retained, then shifted -.10dB",
+    "kalimba_init_rms_anchor_dbfs": -28.4658,
+    "kalimba_init_rms_observed_min_dbfs": -28.5109639232,
+    "kalimba_init_rms_observed_max_dbfs": -28.3911334046,
+    "other_init_rms_anchor_dbfs": -27,
+    "rms_tolerance_db": 0.35,
+    "peak_window_width_db": {
+      "Soft Yarn Nocturne": 0.6,
+      "all_other_factories": 0.8
+    },
+    "full_vca_exceptions": "Removed flags for Soft Yarn Nocturne and Kalimba Thumb Lullaby; both now authored below Volume1."
+  },
+  "final_results": {
+    "ctest_exit_code": 0,
+    "passed_registered_tests": 3,
+    "factory_main_rms_dbfs_range": [
+      -29.187560515,
+      -24.504018863
+    ],
+    "factory_main_peak_dbfs_range": [
+      -14.9899530004,
+      -4.90780907081
+    ],
+    "all216_main_peak_max_dbfs": -1.00000029002,
+    "all216_stem_peak_max_dbfs": -0.537448457691
+  },
+  "observed_uniform_scale_check": {
+    "max_factory_normal_main_rms_or_peak_residual_from_minus0_1_db": 6.421999999867145e-06,
+    "max_init_normal_main_rms_or_peak_change_db": 0.0,
+    "max_normal_stem_rms_or_peak_change_db": 0.0,
+    "max_stress_rms_or_peak_change_db": 0.0,
+    "note": "Stress overrides preset Volume to1; unchanged stress results are expected."
+  },
+  "retained_first_failure": {
+    "exit_code": 1,
+    "case": "Init model3 / phrase_v80_linear / 48000Hz",
+    "observed_rms_dbfs": -28.4952401661,
+    "old_anchor_dbfs": -27,
+    "log": "before-contract-failure.log",
+    "result": "before-contract-failure.json"
+  },
+  "earlier_candidate_test": {
+    "bank_primary_score_db": -25.85,
+    "ctest_exit_code": 0,
+    "passed_registered_tests": 3,
+    "log": "candidate-ctest.log",
+    "driver_post_run_guard": "After CTest exited0, its final watched-source assertion failed because the parent had already replaced FactoryPresets.h with the intended final−25.95 bank. This earlier iteration is diagnostic only; the final run binds the replacement header and all eight watched inputs remain unchanged."
+  },
+  "retained_gates": {
+    "main_sample_ceiling_linear": 0.8912509381337456,
+    "main_sample_comparison_slack_linear": 2e-06,
+    "stem_sample_ceiling_linear": 0.940002,
+    "normal_main_peak_extra_dbfs_check": -0.99,
+    "finite_buffer_complete_and_no_silence_checks": true,
+    "gain_reduction_gate": "Not part of this test. Separate wrapper ordinary-playing validation remains required."
+  },
+  "build": {
+    "configure_command": [
+      "cmake",
+      "-S",
+      "/Users/vojta/Dev/reason-rack-extension/maremba-rms-reference-20261021-instrument",
+      "-B",
+      "/tmp/maremba-rms-hand-damp-20261021/build",
+      "-G",
+      "Unix Makefiles",
+      "-DCMAKE_BUILD_TYPE=Release",
+      "-DMAREMBA_BUILD_PLUGIN=OFF",
+      "-DMAREMBA_BUILD_TOOLS=OFF",
+      "-DMAREMBA_BUILD_UNIVERSAL=OFF",
+      "-DBUILD_TESTING=ON"
+    ],
+    "compiler": "AppleClang21.0.0.21000101",
+    "configuration": "Release, native arch, MAREMBA_BUILD_PLUGIN=OFF, MAREMBA_BUILD_TOOLS=OFF, MAREMBA_BUILD_UNIVERSAL=OFF",
+    "warning": "Initial CMake configure warned numpy/scipy/mpmath were unavailable to its chosen Python; generator/measurement Python checks were not registered. The three selected C++ MainCalibration tests were registered and passed.",
+    "binary_sha256": "d8e31689f89d35b09839c04118050526078f069984c5928fabdfb06233927a52",
+    "local_full_final_detail_log": "/tmp/maremba-rms-hand-damp-20261021/main-calibration/final-minus25_95/ctest-detail.log",
+    "local_full_final_detail_log_sha256": "ea18590d47a4f15c6314d6708ed044d1e7e7163f119b4bd04ba25e55be26ad96"
+  },
+  "candidate_measurement_results": {
+    "44100": {
+      "command": [
+        "/tmp/maremba-rms-hand-damp-20261021/build/MarembaMainCalibrationTests",
+        "--rate",
+        "44100",
+        "--measure"
+      ],
+      "started_utc": "2026-10-21T09:24:50.155386+00:00",
+      "elapsed_seconds": 27.27318991709035,
+      "exit_code": 0,
+      "expected_to_pass": true,
+      "binary_sha256": "bd8c946e5d2f37d8f760d739f32cfd568ab5376157eb0c81647cb1ac4557fae6"
+    },
+    "48000": {
+      "command": [
+        "/tmp/maremba-rms-hand-damp-20261021/build/MarembaMainCalibrationTests",
+        "--rate",
+        "48000",
+        "--measure"
+      ],
+      "started_utc": "2026-10-21T09:24:56.278339+00:00",
+      "elapsed_seconds": 26.87928029091563,
+      "exit_code": 0,
+      "expected_to_pass": true,
+      "binary_sha256": "bd8c946e5d2f37d8f760d739f32cfd568ab5376157eb0c81647cb1ac4557fae6"
+    },
+    "96000": {
+      "command": [
+        "/tmp/maremba-rms-hand-damp-20261021/build/MarembaMainCalibrationTests",
+        "--rate",
+        "96000",
+        "--measure"
+      ],
+      "started_utc": "2026-10-21T09:25:17.429804+00:00",
+      "elapsed_seconds": 54.82593708392233,
+      "exit_code": 0,
+      "expected_to_pass": true,
+      "binary_sha256": "bd8c946e5d2f37d8f760d739f32cfd568ab5376157eb0c81647cb1ac4557fae6"
+    }
+  },
+  "candidate_measurement_input_verification": {
+    "changed_inputs": [],
+    "unchanged": true
+  },
+  "limitations": [
+    "The secondary v80 phrase does not establish the primary v100 single/pair level score.",
+    "No actual Reason VU meter reading or VU-offset qualification is claimed.",
+    "No Main gain, MainVolume law, factory table or production DSP edit was made by this test update.",
+    "Frozen-output reference regeneration is intentional after authored VCA and Kalimba decay changes; it is not an independent guarantee of tonal quality or gain-reduction behavior."
+  ]
+}

@@ -1,0 +1,14 @@
+Test project /tmp/maremba-rms-hand-damp-20261021/build
+    Start 7: Maremba.MainCalibration96000
+    Start 6: Maremba.MainCalibration48000
+1/3 Test #6: Maremba.MainCalibration48000 .....   Passed   81.84 sec
+    Start 5: Maremba.MainCalibration44100
+2/3 Test #5: Maremba.MainCalibration44100 .....   Passed   76.36 sec
+3/3 Test #7: Maremba.MainCalibration96000 .....   Passed  167.20 sec
+
+100% tests passed, 0 tests failed out of 3
+
+Label Time Summary:
+unit    = 325.40 sec*proc (3 tests)
+
+Total Test time (real) = 167.21 sec

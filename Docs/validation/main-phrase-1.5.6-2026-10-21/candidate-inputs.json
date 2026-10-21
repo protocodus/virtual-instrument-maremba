@@ -1,0 +1,15 @@
+{
+  "started_utc": "2026-10-21T09:23:06.188155+00:00",
+  "commit": "247dbb49ddee3f298f3f9714fb37fa1dc31cec53",
+  "inputs": {
+    "Source/FactoryPresets.h": "da86d80b33a2c9cd694a630d3843c43092877fc556ebc9be08b8210f90e31c32",
+    "Source/DSP/MainCalibration.h": "af455c605f03e8a3566fbdfb616d257686cc6128b95180c5dd819c769ac1458a",
+    "Source/DSP/MainVolume.h": "150294c8f7d47068d45bf122ba6cf1ed6ad25fe356d2cf3efa00691bcd0d9bc4",
+    "Source/DSP/MarembaVoice.cpp": "75aa5ce4dc055847d15c2f8d6541abeab00c10dc1ff5c42bc31e81473a8138c4",
+    "Source/DSP/MarembaEngine.cpp": "81a9488766d6501f28a13054e329a8412b57c09f654dce419f1d69d5cdf8bfe6",
+    "Source/DSP/MarembaControls.h": "a3cecb2db649cbffb1fb7ad26358e53613fd565a3c0da57bff8b02f39bd99d07",
+    "Tests/MainCalibrationTest.cpp": "f0af26be214ef0f6d4f81e3e0635e1da78ad45f6831744eb2c5848f5a8aebac7",
+    "CMakeLists.txt": "51ca12b21688060afd8f9614ccb4ca66fdb98145147ddefdbfd2267cb7ed98a5"
+  },
+  "version_line": "project(Maremba VERSION 1.5.6 LANGUAGES C CXX)"
+}
