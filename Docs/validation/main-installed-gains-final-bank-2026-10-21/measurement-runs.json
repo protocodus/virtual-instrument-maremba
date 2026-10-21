@@ -1,0 +1,50 @@
+{
+  "44100": {
+    "command": [
+      "/tmp/maremba-rms-hand-damp-20261021/build/MarembaMainCalibrationTests",
+      "--rate",
+      "44100",
+      "--measure",
+      "--stress"
+    ],
+    "started_utc": "2026-10-21T12:31:54.049563+00:00",
+    "elapsed_seconds": 83.17852233303711,
+    "exit_code": 0,
+    "binary_sha256": "ebd13976267cee43d98d8089a5e7eab6e54e4985a7069f94ebe1b3f1b7bccff3",
+    "level_reference_gates_enabled": false,
+    "independent_sample_safety_gates_enabled": true,
+    "csv_sha256": "2359c7c2d1012c74f0dd9bac61c9a9f0f2d13a597765f2e63f79927f8e53b229"
+  },
+  "48000": {
+    "command": [
+      "/tmp/maremba-rms-hand-damp-20261021/build/MarembaMainCalibrationTests",
+      "--rate",
+      "48000",
+      "--measure",
+      "--stress"
+    ],
+    "started_utc": "2026-10-21T12:31:54.049802+00:00",
+    "elapsed_seconds": 87.4139507500222,
+    "exit_code": 0,
+    "binary_sha256": "ebd13976267cee43d98d8089a5e7eab6e54e4985a7069f94ebe1b3f1b7bccff3",
+    "level_reference_gates_enabled": false,
+    "independent_sample_safety_gates_enabled": true,
+    "csv_sha256": "024766288865941fba26950f54dec45652289b106fbd88a246ef0f1e3fe48325"
+  },
+  "96000": {
+    "command": [
+      "/tmp/maremba-rms-hand-damp-20261021/build/MarembaMainCalibrationTests",
+      "--rate",
+      "96000",
+      "--measure",
+      "--stress"
+    ],
+    "started_utc": "2026-10-21T12:33:17.227354+00:00",
+    "elapsed_seconds": 170.95104120799806,
+    "exit_code": 0,
+    "binary_sha256": "ebd13976267cee43d98d8089a5e7eab6e54e4985a7069f94ebe1b3f1b7bccff3",
+    "level_reference_gates_enabled": false,
+    "independent_sample_safety_gates_enabled": true,
+    "csv_sha256": "c540a375ca3b8c8b8782521afd28c7b740c24db7e64f1f67784dcbe4e44fdff0"
+  }
+}

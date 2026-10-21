@@ -1,0 +1,14 @@
+{
+  "command": [
+    "ctest",
+    "--test-dir",
+    "/tmp/maremba-rms-hand-damp-20261021/build",
+    "-R",
+    "^Maremba[.]StrikeVariance$",
+    "--no-tests=error",
+    "--output-on-failure"
+  ],
+  "started_utc": "2026-10-21T11:55:17.804361+00:00",
+  "elapsed_seconds": 177.1144525000127,
+  "exit_code": 0
+}

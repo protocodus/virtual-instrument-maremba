@@ -1,0 +1,12 @@
+{
+  "command": [
+    "cmake",
+    "--build",
+    "/tmp/maremba-rms-hand-damp-20261021/build",
+    "--target",
+    "MarembaMainCalibrationTests",
+    "--parallel",
+    "2"
+  ],
+  "exit_code": 0
+}

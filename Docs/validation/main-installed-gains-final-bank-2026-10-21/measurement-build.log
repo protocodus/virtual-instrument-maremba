@@ -1,0 +1,4 @@
+[ 66%] Built target MarembaDSP
+[100%] Building CXX object CMakeFiles/MarembaMainCalibrationTests.dir/Tests/MainCalibrationTest.cpp.o
+[100%] Linking CXX executable MarembaMainCalibrationTests
+[100%] Built target MarembaMainCalibrationTests

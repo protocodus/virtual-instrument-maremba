@@ -5,8 +5,8 @@
 // Volume .2125 at any supported rate; --measure reports without the level gates.
 // This tail-inclusive velocity-80 phrase is a secondary level fingerprint,
 // separate from normal velocity-100 single/pair playing and Reason's VU meter.
-// Bar init anchors remain historical; held-body Kalimba has its own measured
-// anchor. Factory RMS and peak references are frozen from the rebalanced bank.
+// Init anchors reflect the installed recording gains and held-body Kalimba.
+// Factory RMS and peak references are frozen from the final rebalanced bank.
 #include "MarembaPlayer.h"
 #include "FactoryPresets.h"
 
@@ -26,40 +26,39 @@
 namespace {
 using namespace maremba;
 
-// Historical initialized-model recording-gain anchor, retained independently
-// of the factory VCA balance below.
-constexpr double kTargetRmsDb = -27.0;
-constexpr double kKalimbaInitRmsDb = -28.4658; // 30% shorter tine lifetime; three-rate phrase measurement.
+// Measured Init anchors with the installed 1.5.5 recording gains and shorter
+// Kalimba lifetime; independent of factory VCA settings. Order follows Model.
+constexpr std::array<double, 4> kInitRmsDb {{-22.0903, -21.8999, -20.9930, -22.2698}};
 constexpr double kRmsToleranceDb = .35;
 constexpr double kCeiling = .940002;
 constexpr double kMainCeiling = .8912509381337456; // -1 dBFS, independent of stem ceilings.
 struct FactoryReference {
     const char* name; double rmsDb, peakMinimumDb, peakMaximumDb; bool maximumVca;
 };
-// Frozen 1.5.6 three-rate measurements; RMS includes natural crest and tails.
+// Frozen installed-gain/final-bank three-rate measurements; RMS includes natural crest and tails.
 // Retain the existing +/-0.35 dB RMS tolerance and peak-window widths. The
 // rebalanced bank no longer needs the former full-VCA soft-preset exceptions.
 constexpr std::array<FactoryReference, 20> kFactoryReferences {{
-    {"Ambient Cathedral Bloom", -27.3585, -11.6103, -10.8103, false},
-    {"Concert Grand Rosewood", -28.1713, -13.3040, -12.5040, false},
-    {"Direct Piezo Mallet", -27.2790, -6.1994, -5.3994, false},
-    {"Hard Acrylic Virtuoso", -27.5974, -6.0796, -5.2796, false},
-    {"Rosewood Dampened Etude", -29.0793, -14.4277, -13.6277, false},
-    {"Rosewood Roll Chorale", -27.6908, -12.6200, -11.8200, false},
-    {"Soft Yarn Nocturne", -28.8817, -14.3821, -13.7821, false},
-    {"Chiapas Folk Fiesta", -28.2318, -6.5348, -5.7348, false},
-    {"Guatemalan Charleo", -28.4930, -10.0442, -9.2442, false},
-    {"Mayan Dance Padauk", -29.1341, -13.8746, -13.0746, false},
-    {"Ancestral Balafon", -28.3422, -9.1495, -8.3495, false},
-    {"Birifor Gyil Buzz", -28.1524, -9.2313, -8.4313, false},
-    {"Chopi Timbila Ensemble", -27.7981, -7.5557, -6.7557, false},
-    {"Equipentatonic Log Keys", -27.2964, -5.4973, -4.6973, false},
-    {"Mandinka Bala Heptatonic", -27.8502, -7.6425, -6.8425, false},
-    {"Midnight Village Ritual", -28.6938, -12.4986, -11.6986, false},
-    {"Sambla Talking Balafon", -27.7567, -7.4775, -6.6775, false},
-    {"Kalimba Muted Thumbs", -24.5850, -10.3728, -9.5728, false},
-    {"Kalimba Pick Sparkle", -26.5331, -12.5131, -11.7131, false},
-    {"Kalimba Thumb Lullaby", -29.0993, -15.2609, -14.4609, false},
+    {"Ambient Cathedral Bloom", -23.6085, -7.8603, -7.0603, false},
+    {"Concert Grand Rosewood", -24.4213, -9.5540, -8.7540, false},
+    {"Direct Piezo Mallet", -22.7290, -1.6494, -0.8494, false},
+    {"Hard Acrylic Virtuoso", -23.8474, -2.3296, -1.5296, false},
+    {"Rosewood Dampened Etude", -25.3293, -10.6777, -9.8777, false},
+    {"Rosewood Roll Chorale", -23.9408, -8.8700, -8.0700, false},
+    {"Soft Yarn Nocturne", -25.1317, -10.6321, -10.0321, false},
+    {"Chiapas Folk Fiesta", -24.4818, -2.7848, -1.9848, false},
+    {"Guatemalan Charleo", -24.7430, -6.2942, -5.4942, false},
+    {"Mayan Dance Padauk", -25.3841, -10.1246, -9.3246, false},
+    {"Ancestral Balafon", -24.5922, -5.3995, -4.5995, false},
+    {"Birifor Gyil Buzz", -24.4024, -5.4813, -4.6813, false},
+    {"Chopi Timbila Ensemble", -24.0481, -3.8057, -3.0057, false},
+    {"Equipentatonic Log Keys", -23.2505, -1.5188, -0.7188, false},
+    {"Mandinka Bala Heptatonic", -24.1002, -3.8925, -3.0925, false},
+    {"Midnight Village Ritual", -24.9438, -8.7486, -7.9486, false},
+    {"Sambla Talking Balafon", -24.0067, -3.7275, -2.9275, false},
+    {"Kalimba Muted Thumbs", -20.8350, -6.6228, -5.8228, false},
+    {"Kalimba Pick Sparkle", -22.7831, -8.7631, -7.9631, false},
+    {"Kalimba Thumb Lullaby", -25.3493, -11.5109, -10.7109, false},
 }};
 constexpr double kSeconds = 5.0;
 // Shared musical reference: Rack Tests/AllPatchRenderTest.cpp, kPhraseNotes.
@@ -70,7 +69,7 @@ constexpr std::array<int, 8> kLowChord {{24, 28, 31, 36, 40, 43, 48, 52}};
 
 struct Options {
     double rate = 48000;
-    double targetRmsDb = kTargetRmsDb;
+    double targetRmsDb = kInitRmsDb[0];
     bool measure = false, quiet = false, stress = false, customRms = false;
     std::filesystem::path captureDirectory;
 };
@@ -234,8 +233,7 @@ Result Render(const State& state, const Options& options, const std::string& sce
         double rmsTarget = options.targetRmsDb;
         if (!options.customRms) {
             if (factory) rmsTarget = reference->rmsDb;
-            else if (controls[kModel] == static_cast<int>(EMarimbaModel::KalimbaArtisan))
-                rmsTarget = kKalimbaInitRmsDb;
+            else rmsTarget = kInitRmsDb[static_cast<std::size_t>(controls[kModel])];
         }
         Require(std::abs(db(result.rms[0]) - rmsTarget) <= kRmsToleranceDb,
                 context + ": Main RMS " + std::to_string(db(result.rms[0]))
@@ -286,9 +284,7 @@ int main(int argc, char** argv) {
         std::cerr << "PASS MainCalibrationTest: 24 states, " << (options.stress ? 3 : 1)
                   << " scenarios, " << options.rate << " Hz; Main <= -1 dBFS, stems <= " << kCeiling;
         if (!options.measure && !options.quiet)
-            std::cerr << "; historical init RMS " << options.targetRmsDb
-                      << ", Kalimba init RMS " << (options.customRms ? options.targetRmsDb : kKalimbaInitRmsDb)
-                      << ", frozen factory phrase levels; measured RMS +/- " << kRmsToleranceDb << " dB";
+            std::cerr << "; Init/factory phrase RMS references +/- " << kRmsToleranceDb << " dB";
         std::cerr << '\n';
         return 0;
     } catch (const std::exception& error) {

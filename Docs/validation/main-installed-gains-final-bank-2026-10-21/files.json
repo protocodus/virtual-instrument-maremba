@@ -1,0 +1,78 @@
+{
+  ".gitattributes": {
+    "bytes": 37,
+    "sha256": "9c3162fc4aa2cfb7820c6a894c379462ea8f95368e792d385dd656af53f7d97d"
+  },
+  "README.md": {
+    "bytes": 3207,
+    "sha256": "9206101c120d5505f705891c59abbc72bb58e6b84c17fa6d6c167f6e20700ee6"
+  },
+  "frozen-references.json": {
+    "bytes": 7563,
+    "sha256": "e801972db60d93c399eb9cf4a48ac806f3f10997150d5df1d9e7cad9756c614b"
+  },
+  "gated-build.log": {
+    "bytes": 239,
+    "sha256": "4eeaaa4f44acd44905f0585f08a6fafcd46e42e139f4fe08c5e27abddb132d1f"
+  },
+  "gated-build.log.json": {
+    "bytes": 289,
+    "sha256": "80b78f350d8105e3d3a707c59e82c3e6ccf9fa48124d0d0c94b47adac3251a59"
+  },
+  "gated-ctest-detail.log": {
+    "bytes": 46930,
+    "sha256": "91b991a339770fd547752d20f7640d59baa451d3d022129b27a03d8a957373b4"
+  },
+  "gated-ctest.log": {
+    "bytes": 526,
+    "sha256": "500ab9f5e2a4d61a0d60cc25a080599ad41a6af36a91e623671dce6caa7633e0"
+  },
+  "gated-ctest.log.json": {
+    "bytes": 356,
+    "sha256": "92cca4fbc2c3b09c56a52c351f47993b4929363bde83a26255700065fffd4a9f"
+  },
+  "gated-input-verification.json": {
+    "bytes": 4749,
+    "sha256": "ce1c6ed240160f34826e0ceef7913885b26b45477c96e8e587a14761eba3720a"
+  },
+  "gated-inputs.json": {
+    "bytes": 4619,
+    "sha256": "17cf3f9f613fc2c4dc48a683346f4709d27430450fd1b634c8e8471a5aaa848e"
+  },
+  "measurement-build.json": {
+    "bytes": 195,
+    "sha256": "005fdcf85e8f442af206b455b2bb0a831f3d3cc500acddaa11208191ac8d62e9"
+  },
+  "measurement-build.log": {
+    "bytes": 239,
+    "sha256": "4eeaaa4f44acd44905f0585f08a6fafcd46e42e139f4fe08c5e27abddb132d1f"
+  },
+  "measurement-input-verification.json": {
+    "bytes": 4749,
+    "sha256": "e1db7ecfbf4baeb06e2281b23591c6f2dcbfbd5e273b1ecffa2799cf2b6d8e7d"
+  },
+  "measurement-inputs.json": {
+    "bytes": 4785,
+    "sha256": "38f157e9e8a8c6d66cf901c4eea87483cc833174d0d36cbed199eab2066cc0a2"
+  },
+  "measurement-runs.json": {
+    "bytes": 1731,
+    "sha256": "079632232ea7e09ec80d313323df0c1dcf46dde6dfcb8b82ca4f34ea2f30336a"
+  },
+  "rack-fixture-audit.json": {
+    "bytes": 1316,
+    "sha256": "7059c2991e65f33d259dda240101823b692dbaa8f8c14ed063f41a513d4dae9e"
+  },
+  "rack-vca-anchors.json": {
+    "bytes": 814,
+    "sha256": "25a6c36ed0479614d14f8eeb31a5e994da8082ce30ad63f5fcfb83bfa066ed90"
+  },
+  "receipt.json": {
+    "bytes": 4666,
+    "sha256": "96632f7d51f4d0e1ef028eb1e544e699845dd64351e0af24064791e33730a317"
+  },
+  "renders.csv": {
+    "bytes": 43761,
+    "sha256": "5ad5f522c46ae677db1a84c96f7d0df5604308eb92a2ce01130f97dae3d5af97"
+  }
+}

@@ -1,0 +1,169 @@
+{
+  "created_utc": "2026-10-21T12:28:35.744959+00:00",
+  "base_commit": "80e52773a21046a8d72258ffa98234fa2241bc60",
+  "edited_test": "Tests/StrikeVarianceTest.cpp",
+  "edited_test_sha256": "e83524f58b1786e2a63161f1f8a2beecadf4ac045eb4b07fb85d32133447516a",
+  "production_dsp_edits": [],
+  "scope": "One bounded old/new Kalimba diagnostic at amounts0 and5, then one registered StrikeVariance test. No additional matrix, SDK build, host run or audio files.",
+  "window_policy": {
+    "bar_seconds": [
+      0.04,
+      0.16
+    ],
+    "kalimba_historical_diagnostic_seconds": [
+      0.04,
+      0.16
+    ],
+    "kalimba_held_recorded_age_scale": 0.7,
+    "kalimba_asserted_seconds": [
+      0.028,
+      0.112
+    ],
+    "meaning": "Engineered normalized recorded age motivated by the approved0.7 modal lifetimes; unchanged body, preload and capture clocks prevent an exact time-warp or specimen-equivalence claim."
+  },
+  "original_numeric_guards_retained": {
+    "gain_only_residual_upper": 1e-06,
+    "complete_close_nonzero_lower": 1e-06,
+    "five_percent_absolute_lower": 0.005,
+    "five_percent_natural_floor_multiple": 2,
+    "fifteen_percent_absolute_lower": 0.015,
+    "fifteen_percent_natural_floor_multiple": 4,
+    "fifteen_over_five_multiple_kalimba": 1.4,
+    "maximum_absolute_lower": 0.04,
+    "maximum_natural_floor_multiple": 8,
+    "maximum_attack_span_db": [
+      1,
+      6
+    ],
+    "rosewood_reach": 0.75,
+    "voice_damping_deadline_seconds": 3,
+    "engine_drain_deadline_seconds": 12
+  },
+  "unchanged_protocols": {
+    "amounts": [
+      0,
+      5,
+      15,
+      25,
+      50,
+      100
+    ],
+    "ongoing_strikes_per_phrase": 48,
+    "reset_replay_equality": true,
+    "attack_level_span_window_seconds": [
+      0,
+      0.04
+    ],
+    "render_and_drain_helpers": true,
+    "nonfinite_and_silence_checks": true,
+    "gain_removed_before_timbre_comparison": true
+  },
+  "bounded_comparison": {
+    "physical_floor_change_percent": 3.2159412427916534,
+    "physical_5_percent_change_percent": 3.2223346692130006,
+    "before_5_to_floor_ratio": 8.682873095291328,
+    "held_normalized_5_to_floor_ratio": 8.683410931885097,
+    "maximum_gain_only_residual": 1.902452906191901e-07
+  },
+  "focused_ctest": {
+    "command": [
+      "ctest",
+      "--test-dir",
+      "/tmp/maremba-rms-hand-damp-20261021/build",
+      "-R",
+      "^Maremba[.]StrikeVariance$",
+      "--no-tests=error",
+      "--output-on-failure"
+    ],
+    "started_utc": "2026-10-21T11:55:17.804361+00:00",
+    "elapsed_seconds": 177.1144525000127,
+    "exit_code": 0
+  },
+  "focused_summary": "StrikeVarianceTest PASSED failures=0 drained_hits=2304 longest_voice_damp_seconds=0.436 longest_engine_drain_seconds=1.696 total_engine_drain_seconds=3773.73",
+  "focused_kalimba_rows": [
+    {
+      "model": "3",
+      "amount": "0",
+      "physical_reference": "complete_kalimba",
+      "recorded_age_scale": "0.7",
+      "physical_median_timbre_residual": "0.000660668",
+      "attack_level_span_db": "0.231348",
+      "close_stereo_residual": "0.000664491",
+      "close_attack_span_db": "0.231443"
+    },
+    {
+      "model": "3",
+      "amount": "5",
+      "physical_reference": "complete_kalimba",
+      "recorded_age_scale": "0.7",
+      "physical_median_timbre_residual": "0.00573685",
+      "attack_level_span_db": "1.51763",
+      "close_stereo_residual": "0.00577005",
+      "close_attack_span_db": "1.51825"
+    },
+    {
+      "model": "3",
+      "amount": "15",
+      "physical_reference": "complete_kalimba",
+      "recorded_age_scale": "0.7",
+      "physical_median_timbre_residual": "0.0258539",
+      "attack_level_span_db": "3.09892",
+      "close_stereo_residual": "0.0258791",
+      "close_attack_span_db": "3.10002"
+    },
+    {
+      "model": "3",
+      "amount": "25",
+      "physical_reference": "complete_kalimba",
+      "recorded_age_scale": "0.7",
+      "physical_median_timbre_residual": "0.0305263",
+      "attack_level_span_db": "3.36404",
+      "close_stereo_residual": "0.0305974",
+      "close_attack_span_db": "3.3652"
+    },
+    {
+      "model": "3",
+      "amount": "50",
+      "physical_reference": "complete_kalimba",
+      "recorded_age_scale": "0.7",
+      "physical_median_timbre_residual": "0.049862",
+      "attack_level_span_db": "3.85858",
+      "close_stereo_residual": "0.0498925",
+      "close_attack_span_db": "3.8598"
+    },
+    {
+      "model": "3",
+      "amount": "100",
+      "physical_reference": "complete_kalimba",
+      "recorded_age_scale": "0.7",
+      "physical_median_timbre_residual": "0.0528161",
+      "attack_level_span_db": "4.10218",
+      "close_stereo_residual": "0.0528783",
+      "close_attack_span_db": "4.1034"
+    }
+  ],
+  "all18_bar_printed_metrics_match_failed_attempt3": true,
+  "watched_source_dsp_and_test_inputs_unchanged": true,
+  "watched_input_count": 45,
+  "excluded_factory_header": "FactoryPresets.h is unrelated to this engine-only fixture and was concurrently owned by the bank-trim agent.",
+  "focused_binary_sha256": "01ed648a670123788a6792a25bad9733246d60c5cac2fd01175f3c265f3acf89",
+  "failed_full_build": {
+    "path": "/Users/vojta/Dev/reason-rack-extension/diagnostics/maremba-rms-reference-20261021/build-attempt3.log",
+    "sha256": "a1d6a804c6b0de819206c4533f5cf9bf594209a677376ac7552a27e4fb5cb4ee",
+    "excerpt": "before-failure-excerpt.log",
+    "observed_five_percent_physical_median": 0.00354682,
+    "failure": "5% Variance lacks meaningful pitched-timbre variation"
+  },
+  "independent_review": {
+    "reviewer": "/root/level_design_review",
+    "result": "CLEAR; no actionable findings",
+    "scope": "Read-only actual diff and old/new bounded pressure/control evidence review. No duplicate tests or builds."
+  },
+  "limitations": [
+    "The historical40\u2013160ms observation remains diagnostic for Kalimba; it is no longer the asserted age for the approved shorter lifetime.",
+    "The bounded old/new comparison covers C4, variance0 and5 at this fixture setting, not all notes or rates.",
+    "Full six-checkpoint monotonic, replay, lifecycle and scalar-gain checks passed in the single registered test.",
+    "Default malletType1 is Natural Thumb; the pressure observation begins long after its0.2ms release but retains the complete board/hole capture.",
+    "A fresh full SDK preflight is still required."
+  ]
+}

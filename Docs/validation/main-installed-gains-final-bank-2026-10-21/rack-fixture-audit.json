@@ -1,0 +1,31 @@
+{
+  "created_utc": "2026-10-21T12:39:12.621004+00:00",
+  "syntax_command": [
+    "clang++",
+    "-std=c++17",
+    "-O3",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-fsyntax-only",
+    "-I/Users/vojta/Dev/reason-rack-extension/SDK/API",
+    "-I/Users/vojta/Dev/reason-rack-extension/maremba-rms-calibration-20261019/Examples/Maremba/Instrument/Source",
+    "/Users/vojta/Dev/reason-rack-extension/maremba-rms-calibration-20261019/Examples/Maremba/Tests/AllPatchRenderTest.cpp"
+  ],
+  "syntax_exit_code": 0,
+  "all20_canonical_rack_rms_peak_refs_match": true,
+  "all4_init_refs_match": true,
+  "all20_peak_widths_retained": true,
+  "all20_validator_vca_anchors_match_xml": true,
+  "factory_header_and_gain_header_match_both_repos": true,
+  "rack_file_sha256": {
+    "Tests/AllPatchRenderTest.cpp": "fd40fe265fe81b2124b3b4d82026762121c613d79410efbbd20e9cf1a51a26d2",
+    "Tests/validate_patches.py": "9ee76da66b730f46f2aea9704db997237255f0bb10f56c6e2b2aa2f972c4bb4e"
+  },
+  "patch_validator_command": [
+    "python3",
+    "Examples/Maremba/Tests/validate_patches.py"
+  ],
+  "patch_validator_exit_code": 0,
+  "patch_validator_observed_stdout": "Observed tool output: all 20 patches passed exact 46-property/value/Linear/model coverage validation; plug-in control labels and factory bank matched the Rack device."
+}

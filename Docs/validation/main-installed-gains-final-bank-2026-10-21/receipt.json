@@ -1,0 +1,97 @@
+{
+  "created_utc": "2026-10-21T12:43:09.010978+00:00",
+  "base_commit": "80e52773a21046a8d72258ffa98234fa2241bc60",
+  "scope": "Native MainCalibration: 24 states × 3 scenarios × 3 rates, measured once and separately checked by one actual registered 3-rate gated invocation. No SDK build or host run.",
+  "source_factory_header_sha256": "30cdb593c4763cdf250f63bf2dc72499bf2fe51e356f96b8e539ba4fe01b5c85",
+  "installed_main_model_gains": [
+    2.156637999,
+    2.113276235,
+    2.805121587,
+    2.111566469
+  ],
+  "kalimba_modal_lifetime_ratio": 0.7,
+  "final_bank_primary_policy": "Separate velocity-100 single/pair maximum 300 ms score −22.2 dBFS; explicit Direct Piezo target −22.6 dBFS. This secondary phrase test does not qualify that policy or actual Reason VU.",
+  "protocol": {
+    "rates_hz": [
+      44100,
+      48000,
+      96000
+    ],
+    "rows_per_measurement_or_gated_run": 216,
+    "states": 24,
+    "scenarios": [
+      "phrase_v80_linear",
+      "phrase_low_v127_max_volume",
+      "chord_low_v127_max_volume"
+    ],
+    "normal_velocity": 80,
+    "normal_curve": "Linear",
+    "seconds_per_render": 5,
+    "normal_rms": "sqrt((sum(L²)+sum(R²))/(2*frames)), full tails, no normalization",
+    "stress_volume": 1
+  },
+  "reference_derivation": {
+    "init_and_factory_rms": "Arithmetic mean of the three measured dBFS values, rounded to4decimals.",
+    "factory_peak_center": "Midpoint of three-rate measured peak extrema, rounded to4decimals; original per-preset widths retained.",
+    "rms_tolerance_db": 0.35,
+    "peak_window_widths_db": {
+      "Soft Yarn Nocturne": 0.6,
+      "all_other_factories": 0.8
+    }
+  },
+  "init_rms_centers_dbfs": [
+    -22.0903,
+    -21.8999,
+    -20.993,
+    -22.2698
+  ],
+  "maximum_main_peak_dbfs": -1.00000029002,
+  "maximum_stem_peak_dbfs": -0.537448457691,
+  "factory_normal_peak_range_dbfs": [
+    -11.2399541238,
+    -1.00068112061
+  ],
+  "actual_gated_result": {
+    "command": [
+      "ctest",
+      "--test-dir",
+      "/tmp/maremba-rms-hand-damp-20261021/build",
+      "-R",
+      "^Maremba[.]MainCalibration(44100|48000|96000)$",
+      "--parallel",
+      "2",
+      "--no-tests=error",
+      "--output-on-failure"
+    ],
+    "started_utc": "2026-10-21T12:37:45.635009+00:00",
+    "elapsed_seconds": 175.98817212495487,
+    "exit_code": 0
+  },
+  "actual_gated_rows_exactly_equal_measurement_rows": true,
+  "measurement_reference_gates": "Explicitly bypassed by --measure; independent sample safety gates remained active. Measurement was not reported as a gated pass.",
+  "input_verification": "All Source/DSP files, FactoryPresets and the respective MainCalibration test remained unchanged throughout each measurement and gated phase. Test references changed only between phases.",
+  "retained_safety": {
+    "main_sample_ceiling_linear": 0.8912509381337456,
+    "main_float_slack_linear": 2e-06,
+    "stem_sample_ceiling_linear": 0.940002,
+    "normal_additional_main_peak_bound_dbfs": -0.99,
+    "finite_unwritten_overrun_and_non_silence_gates": "unchanged",
+    "gain_reduction": "Not measured by this fixture; separate normal gentle and legacy scenario reporting gates remain unchanged."
+  },
+  "rack_update_release": "loud_vca_bank explicitly released both Rack test files after final 126 observed capture and strict live source-hash verification passed; no subsequent bank/header edits.",
+  "owned_file_sha256": {
+    "canonical/Tests/MainCalibrationTest.cpp": "9590136f4ad13e5e0416a24e51721f7fcf00a553e068e39f97853149fcb3e324",
+    "Rack/Tests/AllPatchRenderTest.cpp": "fd40fe265fe81b2124b3b4d82026762121c613d79410efbbd20e9cf1a51a26d2",
+    "Rack/Tests/validate_patches.py": "9ee76da66b730f46f2aea9704db997237255f0bb10f56c6e2b2aa2f972c4bb4e"
+  },
+  "independent_review": {
+    "reviewer": "/root/level_design_review",
+    "result": "CLEAR; independently verified all20 measured factory centers/widths, both C++ tables, exact20 VCA anchors and the complete unique216-row inventory. No duplicate builds/tests/edits."
+  },
+  "limitations": [
+    "This velocity80 phrase is a secondary output fingerprint, not the primary velocity100 normal-playing/gain-reduction or Reason VU qualification.",
+    "Rack phrase timing retains its preexisting20-tail-frame truncation at44.1kHz; native44.1kHz captures the exact5seconds. The unchanged.35dB tolerance covers that small protocol difference.",
+    "Rack runtime stop, allocation, stereo, direct-output and full-range gates were preserved; only syntax/compliance checks ran here. Full SDK preflight remains necessary.",
+    "No DSP, factory header, preset XML, gain, dynamic policy or safety-bound changes were made by this fixture update."
+  ]
+}
