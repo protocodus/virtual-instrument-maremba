@@ -281,7 +281,13 @@ if(BUILD_TESTING)
             foreach(rate IN ITEMS 44100 48000 96000)
                 add_test(NAME Maremba.MainCalibration${rate}
                          COMMAND MarembaMainCalibrationTests --rate ${rate} --stress)
-                set_tests_properties(Maremba.MainCalibration${rate} PROPERTIES LABELS unit TIMEOUT 1800)
+                # The 96 kHz stress renders need more wall time under ASan/UBSan
+                # on shared runners; keep their workload and numerical gates.
+                if(MAREMBA_ENABLE_SANITIZERS AND rate EQUAL 96000)
+                    set_tests_properties(Maremba.MainCalibration${rate} PROPERTIES LABELS unit TIMEOUT 3600)
+                else()
+                    set_tests_properties(Maremba.MainCalibration${rate} PROPERTIES LABELS unit TIMEOUT 1800)
+                endif()
             endforeach()
         else()
             add_test(NAME Maremba.${suite} COMMAND Maremba${suite}Tests)

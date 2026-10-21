@@ -1,0 +1,661 @@
+﻿2026-10-21T21:27:57.1368246Z Current runner version: '2.338.0'
+2026-10-21T21:27:57.1393574Z ##[group]Runner Image Provisioner
+2026-10-21T21:27:57.1394600Z Hosted Compute Agent
+2026-10-21T21:27:57.1395207Z Version: 20261012.601
+2026-10-21T21:27:57.1395904Z Commit: f3dc54e1fb89da6852db922499a0233137369e1d
+2026-10-21T21:27:57.1396642Z Build Date: 2026-10-12T17:48:21Z
+2026-10-21T21:27:57.1397611Z Worker ID: {8b3e8f86-30f7-4400-b1fb-0e2abf89e2c5}
+2026-10-21T21:27:57.1398424Z Region: northcentralus
+2026-10-21T21:27:57.1399012Z Cloud: Azure
+2026-10-21T21:27:57.1399544Z ##[endgroup]
+2026-10-21T21:27:57.1401117Z ##[group]Operating System
+2026-10-21T21:27:57.1401839Z Ubuntu
+2026-10-21T21:27:57.1402484Z 24.04.5
+2026-10-21T21:27:57.1403072Z LTS
+2026-10-21T21:27:57.1403639Z ##[endgroup]
+2026-10-21T21:27:57.1404473Z ##[group]Runner Image
+2026-10-21T21:27:57.1405118Z Image: ubuntu-24.04
+2026-10-21T21:27:57.1405727Z Version: 20261012.334.1
+2026-10-21T21:27:57.1406996Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261012.334/images/ubuntu/Ubuntu2404-Readme.md
+2026-10-21T21:27:57.1409159Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261012.334
+2026-10-21T21:27:57.1410163Z ##[endgroup]
+2026-10-21T21:27:57.1411343Z ##[group]GITHUB_TOKEN Permissions
+2026-10-21T21:27:57.1413279Z Contents: read
+2026-10-21T21:27:57.1413963Z Metadata: read
+2026-10-21T21:27:57.1414576Z ##[endgroup]
+2026-10-21T21:27:57.1416716Z Secret source: Actions
+2026-10-21T21:27:57.1418302Z Cache mode: write
+2026-10-21T21:27:57.1419016Z Prepare workflow directory
+2026-10-21T21:27:57.2149103Z Prepare all required actions
+2026-10-21T21:27:57.2224220Z Getting action download info
+2026-10-21T21:27:57.4409029Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-21T21:27:57.6576231Z Complete job name: Unit and fuzz tiers under ASan + UBSan, C++17 DSP
+2026-10-21T21:27:57.7338091Z ##[group]Run actions/checkout@v4
+2026-10-21T21:27:57.7339067Z with:
+2026-10-21T21:27:57.7339529Z   persist-credentials: false
+2026-10-21T21:27:57.7340171Z   repository: protocodus/virtual-instrument-maremba
+2026-10-21T21:27:57.7344186Z   token: ***
+2026-10-21T21:27:57.7344631Z   ssh-strict: true
+2026-10-21T21:27:57.7345083Z   ssh-user: git
+2026-10-21T21:27:57.7345520Z   clean: true
+2026-10-21T21:27:57.7345986Z   sparse-checkout-cone-mode: true
+2026-10-21T21:27:57.7346539Z   fetch-depth: 1
+2026-10-21T21:27:57.7346986Z   fetch-tags: false
+2026-10-21T21:27:57.7347645Z   show-progress: true
+2026-10-21T21:27:57.7348110Z   lfs: false
+2026-10-21T21:27:57.7348537Z   submodules: false
+2026-10-21T21:27:57.7348995Z   set-safe-directory: true
+2026-10-21T21:27:57.7349526Z   allow-unsafe-pr-checkout: false
+2026-10-21T21:27:57.7350342Z env:
+2026-10-21T21:27:57.7350794Z   BUILD_NUMBER: 24
+2026-10-21T21:27:57.7351360Z   PYTHON_PACKAGES: numpy==2.5.3 scipy==1.18.1 mpmath==1.4.1
+2026-10-21T21:27:57.7352128Z   ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+2026-10-21T21:27:57.7352788Z   UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+2026-10-21T21:27:57.7353403Z ##[endgroup]
+2026-10-21T21:27:57.8402037Z Syncing repository: protocodus/virtual-instrument-maremba
+2026-10-21T21:27:57.8404352Z ##[group]Getting Git version info
+2026-10-21T21:27:57.8405739Z Working directory is '/home/runner/work/virtual-instrument-maremba/virtual-instrument-maremba'
+2026-10-21T21:27:57.8408048Z [command]/usr/bin/git version
+2026-10-21T21:27:57.8525537Z git version 2.55.0
+2026-10-21T21:27:57.8553994Z ##[endgroup]
+2026-10-21T21:27:57.8570597Z Temporarily overriding HOME='/home/runner/work/_temp/499749f3-7dc1-4a44-8164-a0c4aab8add2' before making global git config changes
+2026-10-21T21:27:57.8572060Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-21T21:27:57.8579049Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/virtual-instrument-maremba/virtual-instrument-maremba
+2026-10-21T21:27:57.8646108Z Deleting the contents of '/home/runner/work/virtual-instrument-maremba/virtual-instrument-maremba'
+2026-10-21T21:27:57.8650196Z ##[group]Initializing the repository
+2026-10-21T21:27:57.8656086Z [command]/usr/bin/git init /home/runner/work/virtual-instrument-maremba/virtual-instrument-maremba
+2026-10-21T21:27:57.8800741Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-21T21:27:57.8805333Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-21T21:27:57.8807081Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-21T21:27:57.8809317Z hint: call:
+2026-10-21T21:27:57.8810069Z hint:
+2026-10-21T21:27:57.8811052Z hint: 	git config --global init.defaultBranch <name>
+2026-10-21T21:27:57.8812114Z hint:
+2026-10-21T21:27:57.8813106Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-21T21:27:57.8814703Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-21T21:27:57.8816028Z hint:
+2026-10-21T21:27:57.8816824Z hint: 	git branch -m <name>
+2026-10-21T21:27:57.8818093Z hint:
+2026-10-21T21:27:57.8819214Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-21T21:27:57.8821355Z Initialized empty Git repository in /home/runner/work/virtual-instrument-maremba/virtual-instrument-maremba/.git/
+2026-10-21T21:27:57.8832678Z [command]/usr/bin/git remote add origin https://github.com/protocodus/virtual-instrument-maremba
+2026-10-21T21:27:57.8881710Z ##[endgroup]
+2026-10-21T21:27:57.8882919Z ##[group]Disabling automatic garbage collection
+2026-10-21T21:27:57.8886829Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-21T21:27:57.8921422Z ##[endgroup]
+2026-10-21T21:27:57.8922604Z ##[group]Setting up auth
+2026-10-21T21:27:57.8930812Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-21T21:27:57.8975567Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-21T21:27:57.9465752Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-21T21:27:57.9503356Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-21T21:27:57.9737179Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-21T21:27:57.9780219Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-21T21:27:58.0015533Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-21T21:27:58.0060604Z ##[endgroup]
+2026-10-21T21:27:58.0061420Z ##[group]Fetching the repository
+2026-10-21T21:27:58.0072227Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +60486cf4d840272a96f0465860196595f23dd156:refs/remotes/pull/4/merge
+2026-10-21T21:27:59.1043395Z From https://github.com/protocodus/virtual-instrument-maremba
+2026-10-21T21:27:59.1046589Z  * [new ref]         60486cf4d840272a96f0465860196595f23dd156 -> pull/4/merge
+2026-10-21T21:27:59.1053784Z ##[endgroup]
+2026-10-21T21:27:59.1056351Z ##[group]Determining the checkout info
+2026-10-21T21:27:59.1059541Z ##[endgroup]
+2026-10-21T21:27:59.1061289Z [command]/usr/bin/git sparse-checkout disable
+2026-10-21T21:27:59.1128762Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-21T21:27:59.1162635Z ##[group]Checking out the ref
+2026-10-21T21:27:59.1166069Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/4/merge
+2026-10-21T21:27:59.3158735Z Note: switching to 'refs/remotes/pull/4/merge'.
+2026-10-21T21:27:59.3160108Z 
+2026-10-21T21:27:59.3161242Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-10-21T21:27:59.3163840Z changes and commit them, and you can discard any commits you make in this
+2026-10-21T21:27:59.3165959Z state without impacting any branches by switching back to a branch.
+2026-10-21T21:27:59.3166996Z 
+2026-10-21T21:27:59.3168000Z If you want to create a new branch to retain commits you create, you may
+2026-10-21T21:27:59.3169637Z do so (now or later) by using -c with the switch command. Example:
+2026-10-21T21:27:59.3170548Z 
+2026-10-21T21:27:59.3170939Z   git switch -c <new-branch-name>
+2026-10-21T21:27:59.3171644Z 
+2026-10-21T21:27:59.3172188Z Or undo this operation with:
+2026-10-21T21:27:59.3172931Z 
+2026-10-21T21:27:59.3173411Z   git switch -
+2026-10-21T21:27:59.3174082Z 
+2026-10-21T21:27:59.3175022Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-10-21T21:27:59.3176605Z 
+2026-10-21T21:27:59.3178915Z HEAD is now at 60486cf Merge 78fb821254a31b88cf85b4d515a734fb4d471140 into 302954595870ec1d2e9764df8d35e4ff23b69123
+2026-10-21T21:27:59.3193326Z ##[endgroup]
+2026-10-21T21:27:59.3235801Z [command]/usr/bin/git log -1 --format=%H
+2026-10-21T21:27:59.3265987Z 60486cf4d840272a96f0465860196595f23dd156
+2026-10-21T21:27:59.3283334Z ##[group]Removing auth
+2026-10-21T21:27:59.3285198Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-21T21:27:59.3320715Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-21T21:27:59.3583358Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-21T21:27:59.3606658Z http.https://github.com/.extraheader
+2026-10-21T21:27:59.3614714Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-21T21:27:59.3652452Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-21T21:27:59.3889330Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-21T21:27:59.3929495Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-21T21:27:59.4156168Z ##[endgroup]
+2026-10-21T21:27:59.4370786Z ##[group]Run sudo apt-get update -qq
+2026-10-21T21:27:59.4371275Z [36;1msudo apt-get update -qq[0m
+2026-10-21T21:27:59.4371695Z [36;1msudo apt-get install -y --no-install-recommends ninja-build[0m
+2026-10-21T21:27:59.4688986Z shell: /usr/bin/bash -e {0}
+2026-10-21T21:27:59.4689424Z env:
+2026-10-21T21:27:59.4689718Z   BUILD_NUMBER: 24
+2026-10-21T21:27:59.4690118Z   PYTHON_PACKAGES: numpy==2.5.3 scipy==1.18.1 mpmath==1.4.1
+2026-10-21T21:27:59.4690603Z   ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+2026-10-21T21:27:59.4691032Z   UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+2026-10-21T21:27:59.4691424Z ##[endgroup]
+2026-10-21T21:28:04.9392458Z Reading package lists...
+2026-10-21T21:28:05.2181901Z Building dependency tree...
+2026-10-21T21:28:05.2190204Z Reading state information...
+2026-10-21T21:28:05.5721017Z The following NEW packages will be installed:
+2026-10-21T21:28:05.5722808Z   ninja-build
+2026-10-21T21:28:05.5948231Z 0 upgraded, 1 newly installed, 0 to remove and 97 not upgraded.
+2026-10-21T21:28:05.5948990Z Need to get 129 kB of archives.
+2026-10-21T21:28:05.5949454Z After this operation, 364 kB of additional disk space will be used.
+2026-10-21T21:28:05.5949897Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+2026-10-21T21:28:05.6349279Z Get:2 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 ninja-build amd64 1.11.1-2 [129 kB]
+2026-10-21T21:28:05.9349039Z Fetched 129 kB in 0s (2360 kB/s)
+2026-10-21T21:28:05.9586027Z Selecting previously unselected package ninja-build.
+2026-10-21T21:28:05.9938166Z (Reading database ... 
+2026-10-21T21:28:05.9939146Z (Reading database ... 5%
+2026-10-21T21:28:05.9939634Z (Reading database ... 10%
+2026-10-21T21:28:05.9941052Z (Reading database ... 15%
+2026-10-21T21:28:05.9941624Z (Reading database ... 20%
+2026-10-21T21:28:05.9942057Z (Reading database ... 25%
+2026-10-21T21:28:05.9942332Z (Reading database ... 30%
+2026-10-21T21:28:05.9942566Z (Reading database ... 35%
+2026-10-21T21:28:05.9942811Z (Reading database ... 40%
+2026-10-21T21:28:05.9943067Z (Reading database ... 45%
+2026-10-21T21:28:05.9943296Z (Reading database ... 50%
+2026-10-21T21:28:06.0007358Z (Reading database ... 55%
+2026-10-21T21:28:06.1195055Z (Reading database ... 60%
+2026-10-21T21:28:06.3282616Z (Reading database ... 65%
+2026-10-21T21:28:06.5156145Z (Reading database ... 70%
+2026-10-21T21:28:06.7151881Z (Reading database ... 75%
+2026-10-21T21:28:06.8796553Z (Reading database ... 80%
+2026-10-21T21:28:07.0678590Z (Reading database ... 85%
+2026-10-21T21:28:07.2481497Z (Reading database ... 90%
+2026-10-21T21:28:07.4198258Z (Reading database ... 95%
+2026-10-21T21:28:07.4198745Z (Reading database ... 100%
+2026-10-21T21:28:07.4199274Z (Reading database ... 203540 files and directories currently installed.)
+2026-10-21T21:28:07.4245422Z Preparing to unpack .../ninja-build_1.11.1-2_amd64.deb ...
+2026-10-21T21:28:07.4289265Z Unpacking ninja-build (1.11.1-2) ...
+2026-10-21T21:28:07.4939707Z Setting up ninja-build (1.11.1-2) ...
+2026-10-21T21:28:07.4965636Z Processing triggers for man-db (2.12.0-4build2) ...
+2026-10-21T21:28:07.4989143Z Not building database; man-db/auto-update is not 'true'.
+2026-10-21T21:28:08.1714306Z 
+2026-10-21T21:28:08.1715205Z Running kernel seems to be up-to-date.
+2026-10-21T21:28:08.1715615Z 
+2026-10-21T21:28:08.1715789Z No services need to be restarted.
+2026-10-21T21:28:08.1716144Z 
+2026-10-21T21:28:08.1798348Z No containers need to be restarted.
+2026-10-21T21:28:08.1798807Z 
+2026-10-21T21:28:08.1799028Z No user sessions are running outdated binaries.
+2026-10-21T21:28:08.1799261Z 
+2026-10-21T21:28:08.1799475Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+2026-10-21T21:28:10.1320253Z ##[group]Run cmake -S . -B build-sanitize -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DMAREMBA_BUILD_PLUGIN=OFF -DMAREMBA_ENABLE_SANITIZERS=ON -DCMAKE_DISABLE_FIND_PACKAGE_Python3=TRUE -DBUILD_TESTING=ON
+2026-10-21T21:28:10.1322166Z [36;1mcmake -S . -B build-sanitize -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DMAREMBA_BUILD_PLUGIN=OFF -DMAREMBA_ENABLE_SANITIZERS=ON -DCMAKE_DISABLE_FIND_PACKAGE_Python3=TRUE -DBUILD_TESTING=ON[0m
+2026-10-21T21:28:10.1389963Z shell: /usr/bin/bash -e {0}
+2026-10-21T21:28:10.1390228Z env:
+2026-10-21T21:28:10.1390422Z   BUILD_NUMBER: 24
+2026-10-21T21:28:10.1390693Z   PYTHON_PACKAGES: numpy==2.5.3 scipy==1.18.1 mpmath==1.4.1
+2026-10-21T21:28:10.1391063Z   ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+2026-10-21T21:28:10.1391388Z   UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+2026-10-21T21:28:10.1391690Z ##[endgroup]
+2026-10-21T21:28:15.8963569Z -- The C compiler identification is Clang 18.1.3
+2026-10-21T21:28:16.2013010Z -- The CXX compiler identification is Clang 18.1.3
+2026-10-21T21:28:16.3185296Z -- Detecting C compiler ABI info
+2026-10-21T21:28:16.5517809Z -- Detecting C compiler ABI info - done
+2026-10-21T21:28:16.5653974Z -- Check for working C compiler: /usr/bin/clang - skipped
+2026-10-21T21:28:16.5715060Z -- Detecting C compile features
+2026-10-21T21:28:16.5764861Z -- Detecting C compile features - done
+2026-10-21T21:28:16.6132802Z -- Detecting CXX compiler ABI info
+2026-10-21T21:28:16.7399836Z -- Detecting CXX compiler ABI info - done
+2026-10-21T21:28:16.7543247Z -- Check for working CXX compiler: /usr/bin/clang++ - skipped
+2026-10-21T21:28:16.7546714Z -- Detecting CXX compile features
+2026-10-21T21:28:16.7563165Z -- Detecting CXX compile features - done
+2026-10-21T21:28:16.8021020Z -- Configuring done (6.1s)
+2026-10-21T21:28:16.8737890Z -- Generating done (0.1s)
+2026-10-21T21:28:16.8743096Z -- Build files have been written to: /home/runner/work/virtual-instrument-maremba/virtual-instrument-maremba/build-sanitize
+2026-10-21T21:28:16.8933067Z ##[group]Run cmake --build build-sanitize --parallel
+2026-10-21T21:28:16.8933490Z [36;1mcmake --build build-sanitize --parallel[0m
+2026-10-21T21:28:16.8998664Z shell: /usr/bin/bash -e {0}
+2026-10-21T21:28:16.8998937Z env:
+2026-10-21T21:28:16.8999134Z   BUILD_NUMBER: 24
+2026-10-21T21:28:16.8999418Z   PYTHON_PACKAGES: numpy==2.5.3 scipy==1.18.1 mpmath==1.4.1
+2026-10-21T21:28:16.8999777Z   ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+2026-10-21T21:28:16.9000133Z   UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+2026-10-21T21:28:16.9000437Z ##[endgroup]
+2026-10-21T21:28:16.9152758Z [0/2] Re-checking globbed directories...
+2026-10-21T21:28:23.7689064Z [1/166] Building CXX object CMakeFiles/MarembaDspFuzz.dir/Tests/DspFuzz.cpp.o
+2026-10-21T21:28:23.8406528Z [2/166] Building CXX object CMakeFiles/CalibrateMarembaMain.dir/Tools/CalibrateMain.cpp.o
+2026-10-21T21:28:29.2484006Z [3/166] Building CXX object CMakeFiles/CalibrateMarembaPresetVca.dir/Tools/CalibratePresetVca.cpp.o
+2026-10-21T21:28:34.9648673Z [4/166] Building CXX object CMakeFiles/MarembaDSP.dir/Source/DSP/MarembaVoice.cpp.o
+2026-10-21T21:28:35.7138695Z [5/166] Building CXX object CMakeFiles/RenderMarembaPresetDemos.dir/Tools/RenderPresetDemos.cpp.o
+2026-10-21T21:28:37.8898698Z [6/166] Building CXX object CMakeFiles/MarembaTouchResponseTests.dir/Tests/TouchResponseTest.cpp.o
+2026-10-21T21:28:40.7404554Z [7/166] Building CXX object CMakeFiles/MarembaControlsTests.dir/Tests/ControlsTest.cpp.o
+2026-10-21T21:28:42.4026571Z [8/166] Building CXX object CMakeFiles/MarembaOneXQualityTests.dir/Tests/OneXQualityTest.cpp.o
+2026-10-21T21:28:42.4648562Z [9/166] Building CXX object CMakeFiles/MarembaDSP.dir/Source/DSP/MarembaEngine.cpp.o
+2026-10-21T21:28:43.5848671Z [10/166] Building CXX object CMakeFiles/MarembaDspFuzz.dir/Source/DSP/MarembaVoice.cpp.o
+2026-10-21T21:28:44.2628643Z [11/166] Building CXX object CMakeFiles/MarembaPiezoPickupTests.dir/Tests/PiezoPickupTest.cpp.o
+2026-10-21T21:28:45.8928075Z [12/166] Building CXX object CMakeFiles/MarembaPiezoReferenceCircuitTests.dir/Tests/PiezoReferenceCircuitTest.cpp.o
+2026-10-21T21:28:47.0128893Z [13/166] Building CXX object CMakeFiles/MarembaPiezoGeometryTests.dir/Tests/PiezoGeometryTest.cpp.o
+2026-10-21T21:28:47.7609027Z [14/166] Building CXX object CMakeFiles/MarembaMainCalibrationTests.dir/Tests/MainCalibrationTest.cpp.o
+2026-10-21T21:28:48.3968689Z [15/166] Building CXX object CMakeFiles/MarembaCaptureGeometryTests.dir/Tests/CaptureGeometryTest.cpp.o
+2026-10-21T21:28:48.4958246Z [16/166] Linking CXX static library libMarembaDSP.a
+2026-10-21T21:28:49.0310695Z [17/166] Building CXX object CMakeFiles/MarembaKalimbaPiezoTests.dir/Tests/KalimbaPiezoTest.cpp.o
+2026-10-21T21:28:52.3658931Z [18/166] Building CXX object CMakeFiles/MarembaDspFuzz.dir/Source/DSP/MarembaEngine.cpp.o
+2026-10-21T21:28:55.0319006Z [19/166] Building CXX object CMakeFiles/MarembaCloseEngineArrivalTests.dir/Tests/CloseEngineArrivalTest.cpp.o
+2026-10-21T21:28:55.6914966Z [20/166] Building CXX object CMakeFiles/MarembaRoomScatterMotionTests.dir/Tests/RoomScatterMotionTest.cpp.o
+2026-10-21T21:28:57.4250685Z [21/166] Building CXX object CMakeFiles/MarembaMainPickupAlignmentTests.dir/Tests/MainPickupAlignmentTest.cpp.o
+2026-10-21T21:28:57.7181359Z [22/166] Building CXX object CMakeFiles/MarembaEarlyReflectionScatterTests.dir/Tests/EarlyReflectionScatterTest.cpp.o
+2026-10-21T21:28:59.0488706Z [23/166] Building CXX object CMakeFiles/MarembaRoomCaptureTests.dir/Tests/RoomCaptureTest.cpp.o
+2026-10-21T21:29:00.2979045Z [24/166] Building CXX object CMakeFiles/MarembaRoomMicrophoneTests.dir/Tests/RoomMicrophoneTest.cpp.o
+2026-10-21T21:29:00.7370059Z [25/166] Building CXX object CMakeFiles/MarembaRoomLoopDiffusionTests.dir/Tests/RoomLoopDiffusionTest.cpp.o
+2026-10-21T21:29:02.3225744Z [26/166] Building CXX object CMakeFiles/MarembaCloseCaptureTests.dir/Tests/CloseCaptureTest.cpp.o
+2026-10-21T21:29:04.2599048Z [27/166] Building CXX object CMakeFiles/MarembaLegacyStereoSpreadTests.dir/Tests/LegacyStereoSpreadTest.cpp.o
+2026-10-21T21:29:04.6792543Z [28/166] Building CXX object CMakeFiles/MarembaRoomMotionTests.dir/Tests/RoomMotionTest.cpp.o
+2026-10-21T21:29:06.6680335Z [29/166] Building CXX object CMakeFiles/MarembaPiezoPolarityTests.dir/Tests/PiezoPolarityTest.cpp.o
+2026-10-21T21:29:08.2078686Z [30/166] Building CXX object CMakeFiles/MarembaRoomLevelTaperTests.dir/Tests/RoomLevelTaperTest.cpp.o
+2026-10-21T21:29:08.3558646Z [31/166] Building CXX object CMakeFiles/MarembaPiezoEngineTests.dir/Tests/PiezoEngineTest.cpp.o
+2026-10-21T21:29:08.7506065Z [32/166] Building CXX object CMakeFiles/MarembaDriveBehaviorTests.dir/Tests/DriveBehaviorTest.cpp.o
+2026-10-21T21:29:11.4018437Z [33/166] Building CXX object CMakeFiles/MarembaMainVolumeTests.dir/Tests/MainVolumeTest.cpp.o
+2026-10-21T21:29:18.0318665Z [34/166] Building CXX object CMakeFiles/MarembaHeadroomTests.dir/Tests/HeadroomTest.cpp.o
+2026-10-21T21:29:19.5228903Z [35/166] Building CXX object CMakeFiles/MarembaHardHitOutputTests.dir/Tests/HardHitOutputTest.cpp.o
+2026-10-21T21:29:21.5598778Z [36/166] Building CXX object CMakeFiles/MarembaMechanicalArtifactsTests.dir/Tests/MechanicalArtifactsTest.cpp.o
+2026-10-21T21:29:22.9349725Z [37/166] Building CXX object CMakeFiles/MarembaDirectOutputLevelTests.dir/Tests/DirectOutputLevelTest.cpp.o
+2026-10-21T21:29:23.7938779Z [38/166] Building CXX object CMakeFiles/MarembaCollisionResponseTests.dir/Tests/CollisionResponseTest.cpp.o
+2026-10-21T21:29:24.5208961Z [39/166] Building CXX object CMakeFiles/MarembaClickFilterCalibrationTests.dir/Tests/ClickFilterCalibrationTest.cpp.o
+2026-10-21T21:29:27.2329406Z [40/166] Building CXX object CMakeFiles/MarembaEngineRealismTests.dir/Tests/EngineRealismTest.cpp.o
+2026-10-21T21:29:28.3552730Z [41/166] Building CXX object CMakeFiles/MarembaCaptureRoutingTests.dir/Tests/CaptureRoutingTest.cpp.o
+2026-10-21T21:29:29.3009294Z [42/166] Building CXX object CMakeFiles/MarembaCompactCaptureSourceTests.dir/Tests/CompactCaptureSourceTest.cpp.o
+2026-10-21T21:29:29.4821836Z [43/166] Building CXX object CMakeFiles/MarembaCaptureSceneEqualityTests.dir/Tests/CaptureSceneEqualityTest.cpp.o
+2026-10-21T21:29:30.1129142Z [44/166] Building CXX object CMakeFiles/MarembaFrameBodyModelTransitionTests.dir/Tests/FrameBodyModelTransitionTest.cpp.o
+2026-10-21T21:29:31.4668920Z [45/166] Building CXX object CMakeFiles/MarembaQueuedNoteReleaseTests.dir/Tests/QueuedNoteReleaseTest.cpp.o
+2026-10-21T21:29:32.1448706Z [46/166] Building CXX object CMakeFiles/MarembaCavityPhysicsTests.dir/Tests/CavityPhysicsTest.cpp.o
+2026-10-21T21:29:32.6448803Z [47/166] Building CXX object CMakeFiles/MarembaEngineTests.dir/Tests/test_dsp.cpp.o
+2026-10-21T21:29:32.6929966Z [48/166] Building CXX object CMakeFiles/MarembaModalRadiationTests.dir/Tests/ModalRadiationTest.cpp.o
+2026-10-21T21:29:33.7182430Z [49/166] Building CXX object CMakeFiles/MarembaKalimbaModesTests.dir/Tests/KalimbaModesTest.cpp.o
+2026-10-21T21:29:33.9578980Z [50/166] Building CXX object CMakeFiles/MarembaKalimbaBridgeReactionTests.dir/Tests/KalimbaBridgeReactionTest.cpp.o
+2026-10-21T21:29:35.4208786Z [51/166] Building CXX object CMakeFiles/MarembaPhysicalResponseTests.dir/Tests/PhysicalResponseTest.cpp.o
+2026-10-21T21:29:35.5298778Z [52/166] Building CXX object CMakeFiles/MarembaRound2ResponseTests.dir/Tests/Round2ResponseTest.cpp.o
+2026-10-21T21:29:35.6289019Z [53/166] Building CXX object CMakeFiles/MarembaKalimbaMountShapesTests.dir/Tests/KalimbaMountShapesTest.cpp.o
+2026-10-21T21:29:35.8280607Z [54/166] Building CXX object CMakeFiles/MarembaKalimbaBridgeSpectrumTests.dir/Tests/KalimbaBridgeSpectrumTest.cpp.o
+2026-10-21T21:29:35.9619383Z [55/166] Building CXX object CMakeFiles/MarembaAcousticReadoutTests.dir/Tests/AcousticReadoutTest.cpp.o
+2026-10-21T21:29:36.1640228Z [56/166] Building CXX object CMakeFiles/MarembaMalletContactTests.dir/Tests/MalletContactTest.cpp.o
+2026-10-21T21:29:37.0979014Z [57/166] Building CXX object CMakeFiles/MarembaMembraneEdgeDecayTests.dir/Tests/MembraneEdgeDecayTest.cpp.o
+2026-10-21T21:29:37.1229755Z [58/166] Building CXX object CMakeFiles/MarembaKalimbaHoleCoverContinuityTests.dir/Tests/KalimbaHoleCoverContinuityTest.cpp.o
+2026-10-21T21:29:38.0979010Z [59/166] Building CXX object CMakeFiles/MarembaSlackMembraneStretchTests.dir/Tests/SlackMembraneStretchTest.cpp.o
+2026-10-21T21:29:38.1849023Z [60/166] Building CXX object CMakeFiles/MarembaBuzzerRattlePhysicsTests.dir/Tests/BuzzerRattlePhysicsTest.cpp.o
+2026-10-21T21:29:38.5268839Z [61/166] Building CXX object CMakeFiles/MarembaContactComplianceUpdateTests.dir/Tests/ContactComplianceUpdateTest.cpp.o
+2026-10-21T21:29:42.3494785Z [62/166] Building CXX object CMakeFiles/MarembaRound4ResponseTests.dir/Tests/Round4ResponseTest.cpp.o
+2026-10-21T21:29:43.7036762Z [63/166] Building CXX object CMakeFiles/MarembaMaterialGeometryTests.dir/Tests/MaterialGeometryTest.cpp.o
+2026-10-21T21:29:44.7732650Z [64/166] Building CXX object CMakeFiles/MarembaTubeInSituTests.dir/Tests/TubeInSituTest.cpp.o
+2026-10-21T21:29:45.7968685Z [65/166] Building CXX object CMakeFiles/MarembaRosewoodSpectrumTests.dir/Tests/RosewoodSpectrumTest.cpp.o
+2026-10-21T21:29:46.6885652Z [66/166] Building CXX object CMakeFiles/MarembaCharleoRegisterTests.dir/Tests/CharleoRegisterTest.cpp.o
+2026-10-21T21:29:48.1598772Z [67/166] Building CXX object CMakeFiles/MarembaRound6ResponseTests.dir/Tests/Round6ResponseTest.cpp.o
+2026-10-21T21:29:50.5358472Z [68/166] Building CXX object CMakeFiles/MarembaBuzzRangeTests.dir/Tests/BuzzRangeTest.cpp.o
+2026-10-21T21:29:50.9064355Z [69/166] Building CXX object CMakeFiles/MarembaRound5ResponseTests.dir/Tests/Round5ResponseTest.cpp.o
+2026-10-21T21:29:52.4928763Z [70/166] Building CXX object CMakeFiles/MarembaStrikeVarianceTests.dir/Tests/StrikeVarianceTest.cpp.o
+2026-10-21T21:29:53.6708969Z [71/166] Building CXX object CMakeFiles/MarembaNaturalStrikeResponseTests.dir/Tests/NaturalStrikeResponseTest.cpp.o
+2026-10-21T21:29:55.1728733Z [72/166] Building CXX object CMakeFiles/MarembaBarModesTests.dir/Tests/BarModesTest.cpp.o
+2026-10-21T21:29:55.6918873Z [73/166] Building CXX object CMakeFiles/MarembaRound7BalafonKalimbaTests.dir/Tests/Round7BalafonKalimbaTest.cpp.o
+2026-10-21T21:29:57.0688668Z [74/166] Building CXX object CMakeFiles/MarembaSoftVelocityTests.dir/Tests/SoftVelocityTest.cpp.o
+2026-10-21T21:29:57.6468778Z [75/166] Building CXX object CMakeFiles/MarembaRoomQualityTests.dir/Tests/RoomQualityTest.cpp.o
+2026-10-21T21:29:58.2164409Z [76/166] Building CXX object CMakeFiles/MarembaKalimbaExcitationBoundsTests.dir/Tests/KalimbaExcitationBoundsTest.cpp.o
+2026-10-21T21:29:59.4128854Z [77/166] Building CXX object CMakeFiles/MarembaParameterReachabilityTests.dir/Tests/ParameterReachabilityTest.cpp.o
+2026-10-21T21:30:00.9988829Z [78/166] Building CXX object CMakeFiles/MarembaRound3ResponseTests.dir/Tests/Round3ResponseTest.cpp.o
+2026-10-21T21:30:01.7091995Z [79/166] Building CXX object CMakeFiles/MarembaKalimbaDecayTests.dir/Tests/KalimbaDecayTest.cpp.o
+2026-10-21T21:30:02.7366254Z [80/166] Building CXX object CMakeFiles/MarembaVelocityRoutesTests.dir/Tests/VelocityRoutesTest.cpp.o
+2026-10-21T21:30:05.7636410Z [81/166] Building CXX object CMakeFiles/MarembaDspFuzzReplay.dir/Tests/DspFuzz.cpp.o
+2026-10-21T21:30:06.6598371Z [82/166] Linking CXX executable RenderMarembaPresetDemos
+2026-10-21T21:30:06.9858409Z [83/166] Linking CXX executable CalibrateMarembaMain
+2026-10-21T21:30:07.5277862Z [84/166] Building CXX object CMakeFiles/MarembaExtremeRangeTests.dir/Tests/ExtremeRangeTest.cpp.o
+2026-10-21T21:30:07.5666992Z [85/166] Linking CXX executable CalibrateMarembaPresetVca
+2026-10-21T21:30:08.0456387Z [86/166] Linking CXX executable MarembaEngineTests
+2026-10-21T21:30:08.2258349Z [87/166] Linking CXX executable MarembaDspFuzz
+2026-10-21T21:30:08.3313733Z [88/166] Linking CXX executable MarembaTouchResponseTests
+2026-10-21T21:30:08.6343245Z [89/166] Linking CXX executable MarembaOneXQualityTests
+2026-10-21T21:30:08.6458653Z [90/166] Linking CXX executable MarembaControlsTests
+2026-10-21T21:30:08.9768425Z [91/166] Linking CXX executable MarembaPiezoPickupTests
+2026-10-21T21:30:09.0808413Z [92/166] Linking CXX executable MarembaMainCalibrationTests
+2026-10-21T21:30:09.4868836Z [93/166] Linking CXX executable MarembaPiezoGeometryTests
+2026-10-21T21:30:09.6838691Z [94/166] Linking CXX executable MarembaPiezoReferenceCircuitTests
+2026-10-21T21:30:10.1218500Z [95/166] Linking CXX executable MarembaKalimbaPiezoTests
+2026-10-21T21:30:10.3048487Z [96/166] Linking CXX executable MarembaCaptureGeometryTests
+2026-10-21T21:30:10.7423111Z [97/166] Linking CXX executable MarembaCloseCaptureTests
+2026-10-21T21:30:10.9622049Z [98/166] Linking CXX executable MarembaCloseEngineArrivalTests
+2026-10-21T21:30:11.4058396Z [99/166] Linking CXX executable MarembaMainPickupAlignmentTests
+2026-10-21T21:30:11.5438419Z [100/166] Linking CXX executable MarembaRoomCaptureTests
+2026-10-21T21:30:11.9448442Z [101/166] Linking CXX executable MarembaRoomLoopDiffusionTests
+2026-10-21T21:30:11.9598365Z [102/166] Linking CXX executable MarembaRoomScatterMotionTests
+2026-10-21T21:30:12.2878691Z [103/166] Linking CXX executable MarembaEarlyReflectionScatterTests
+2026-10-21T21:30:12.3148438Z [104/166] Linking CXX executable MarembaRoomMotionTests
+2026-10-21T21:30:12.7182600Z [105/166] Linking CXX executable MarembaPiezoEngineTests
+2026-10-21T21:30:12.8193041Z [106/166] Linking CXX executable MarembaRoomMicrophoneTests
+2026-10-21T21:30:13.1122637Z [107/166] Linking CXX executable MarembaPiezoPolarityTests
+2026-10-21T21:30:13.3663475Z [108/166] Linking CXX executable MarembaLegacyStereoSpreadTests
+2026-10-21T21:30:13.5138439Z [109/166] Linking CXX executable MarembaCaptureRoutingTests
+2026-10-21T21:30:13.8008511Z [110/166] Linking CXX executable MarembaDriveBehaviorTests
+2026-10-21T21:30:13.8548594Z [111/166] Linking CXX executable MarembaRoomLevelTaperTests
+2026-10-21T21:30:14.2558447Z [112/166] Linking CXX executable MarembaCompactCaptureSourceTests
+2026-10-21T21:30:14.2643856Z [113/166] Linking CXX executable MarembaMainVolumeTests
+2026-10-21T21:30:14.6468908Z [114/166] Linking CXX executable MarembaCaptureSceneEqualityTests
+2026-10-21T21:30:14.8702240Z [115/166] Linking CXX executable MarembaHeadroomTests
+2026-10-21T21:30:14.9268467Z [116/166] Linking CXX executable MarembaHardHitOutputTests
+2026-10-21T21:30:15.1878500Z [117/166] Linking CXX executable MarembaMechanicalArtifactsTests
+2026-10-21T21:30:15.4708736Z [118/166] Linking CXX executable MarembaClickFilterCalibrationTests
+2026-10-21T21:30:15.5058706Z [119/166] Linking CXX executable MarembaDirectOutputLevelTests
+2026-10-21T21:30:15.5750604Z [120/166] Building CXX object CMakeFiles/MarembaEngineFuzzTests.dir/Tests/EngineFuzzTest.cpp.o
+2026-10-21T21:30:16.0334767Z [121/166] Linking CXX executable MarembaCollisionResponseTests
+2026-10-21T21:30:16.1048605Z [122/166] Building CXX object CMakeFiles/MarembaParameterMatrix.dir/Tests/ParameterMatrixTest.cpp.o
+2026-10-21T21:30:16.1077979Z [123/166] Linking CXX executable MarembaEngineRealismTests
+2026-10-21T21:30:16.1718533Z [124/166] Linking CXX executable MarembaPhysicalResponseTests
+2026-10-21T21:30:16.3748660Z [125/166] Building CXX object CMakeFiles/MarembaDSPCxx17.dir/Source/DSP/MarembaVoice.cpp.o
+2026-10-21T21:30:16.4498397Z [126/166] Linking CXX executable MarembaFrameBodyModelTransitionTests
+2026-10-21T21:30:16.5458395Z [127/166] Linking CXX executable MarembaQueuedNoteReleaseTests
+2026-10-21T21:30:16.5628479Z [128/166] Linking CXX executable MarembaCavityPhysicsTests
+2026-10-21T21:30:16.5648054Z [129/166] Linking CXX executable MarembaRound2ResponseTests
+2026-10-21T21:30:16.7764007Z [130/166] Linking CXX executable MarembaAcousticReadoutTests
+2026-10-21T21:30:16.8370055Z [131/166] Linking CXX executable MarembaKalimbaBridgeReactionTests
+2026-10-21T21:30:16.8579061Z [132/166] Linking CXX executable MarembaModalRadiationTests
+2026-10-21T21:30:17.0658662Z [133/166] Linking CXX executable MarembaKalimbaMountShapesTests
+2026-10-21T21:30:17.0718722Z [134/166] Linking CXX executable MarembaKalimbaBridgeSpectrumTests
+2026-10-21T21:30:17.1253981Z [135/166] Linking CXX executable MarembaKalimbaModesTests
+2026-10-21T21:30:17.3088435Z [136/166] Linking CXX executable MarembaMalletContactTests
+2026-10-21T21:30:17.3155858Z [137/166] Linking CXX executable MarembaSlackMembraneStretchTests
+2026-10-21T21:30:17.3633385Z [138/166] Linking CXX executable MarembaContactComplianceUpdateTests
+2026-10-21T21:30:17.4828588Z [139/166] Linking CXX executable MarembaBuzzerRattlePhysicsTests
+2026-10-21T21:30:17.5809172Z [140/166] Linking CXX executable MarembaKalimbaHoleCoverContinuityTests
+2026-10-21T21:30:17.6588288Z [141/166] Linking CXX executable MarembaMembraneEdgeDecayTests
+2026-10-21T21:30:17.7576489Z [142/166] Linking CXX executable MarembaRound5ResponseTests
+2026-10-21T21:30:17.7949231Z [143/166] Linking CXX executable MarembaRound3ResponseTests
+2026-10-21T21:30:17.9674097Z [144/166] Linking CXX executable MarembaRound4ResponseTests
+2026-10-21T21:30:18.0690447Z [145/166] Linking CXX executable MarembaMaterialGeometryTests
+2026-10-21T21:30:18.0973925Z [146/166] Linking CXX executable MarembaTubeInSituTests
+2026-10-21T21:30:18.2408311Z [147/166] Linking CXX executable MarembaRound6ResponseTests
+2026-10-21T21:30:18.3118694Z [148/166] Linking CXX executable MarembaRosewoodSpectrumTests
+2026-10-21T21:30:18.3188204Z [149/166] Linking CXX executable MarembaCharleoRegisterTests
+2026-10-21T21:30:18.4638683Z [150/166] Linking CXX executable MarembaBuzzRangeTests
+2026-10-21T21:30:18.4938620Z [151/166] Linking CXX executable MarembaRound7BalafonKalimbaTests
+2026-10-21T21:30:18.5808463Z [152/166] Linking CXX executable MarembaStrikeVarianceTests
+2026-10-21T21:30:18.8044334Z [153/166] Linking CXX executable MarembaBarModesTests
+2026-10-21T21:30:18.8468533Z [154/166] Linking CXX executable MarembaSoftVelocityTests
+2026-10-21T21:30:18.8978394Z [155/166] Linking CXX executable MarembaNaturalStrikeResponseTests
+2026-10-21T21:30:18.9828528Z [156/166] Linking CXX executable MarembaRoomQualityTests
+2026-10-21T21:30:19.1368446Z [157/166] Linking CXX executable MarembaVelocityRoutesTests
+2026-10-21T21:30:19.2868654Z [158/166] Linking CXX executable MarembaExtremeRangeTests
+2026-10-21T21:30:19.2988393Z [159/166] Linking CXX executable MarembaKalimbaExcitationBoundsTests
+2026-10-21T21:30:19.3908634Z [160/166] Linking CXX executable MarembaParameterReachabilityTests
+2026-10-21T21:30:19.4848463Z [161/166] Linking CXX executable MarembaKalimbaDecayTests
+2026-10-21T21:30:19.5818746Z [162/166] Linking CXX executable MarembaDspFuzzReplay
+2026-10-21T21:30:19.6148678Z [163/166] Linking CXX executable MarembaEngineFuzzTests
+2026-10-21T21:30:19.6156632Z [164/166] Linking CXX executable MarembaParameterMatrix
+2026-10-21T21:30:23.6288407Z [165/166] Building CXX object CMakeFiles/MarembaDSPCxx17.dir/Source/DSP/MarembaEngine.cpp.o
+2026-10-21T21:30:23.6340706Z ##[group]Run ulimit -s 65536
+2026-10-21T21:30:23.6341039Z [36;1mulimit -s 65536[0m
+2026-10-21T21:30:23.6341518Z [36;1mctest --test-dir build-sanitize -L '^(unit|fuzz)$' --no-tests=error --parallel 4 --output-on-failure[0m
+2026-10-21T21:30:23.6406238Z shell: /usr/bin/bash -e {0}
+2026-10-21T21:30:23.6406547Z env:
+2026-10-21T21:30:23.6406764Z   BUILD_NUMBER: 24
+2026-10-21T21:30:23.6407072Z   PYTHON_PACKAGES: numpy==2.5.3 scipy==1.18.1 mpmath==1.4.1
+2026-10-21T21:30:23.6407842Z   ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+2026-10-21T21:30:23.6408220Z   UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+2026-10-21T21:30:23.6408556Z ##[endgroup]
+2026-10-21T21:30:24.0417188Z Internal ctest changing into directory: /home/runner/work/virtual-instrument-maremba/virtual-instrument-maremba/build-sanitize
+2026-10-21T21:30:24.1217780Z Test project /home/runner/work/virtual-instrument-maremba/virtual-instrument-maremba/build-sanitize
+2026-10-21T21:30:24.1754703Z       Start  1: Maremba.Engine
+2026-10-21T21:30:24.1814116Z       Start  2: Maremba.TouchResponse
+2026-10-21T21:30:24.1838076Z       Start  3: Maremba.Controls
+2026-10-21T21:30:24.1917699Z       Start  4: Maremba.OneXQuality
+2026-10-21T21:30:24.2111022Z  1/78 Test  #3: Maremba.Controls .....................   Passed    0.03 sec
+2026-10-21T21:30:24.2208351Z       Start  5: Maremba.MainCalibration44100
+2026-10-21T21:30:44.8624991Z  2/78 Test  #2: Maremba.TouchResponse ................   Passed   20.68 sec
+2026-10-21T21:30:44.8728178Z       Start  6: Maremba.MainCalibration48000
+2026-10-21T21:31:13.8766493Z  3/78 Test  #4: Maremba.OneXQuality ..................   Passed   49.69 sec
+2026-10-21T21:31:13.8797985Z       Start  7: Maremba.MainCalibration96000
+2026-10-21T21:44:41.2381163Z  4/78 Test  #5: Maremba.MainCalibration44100 .........   Passed  857.01 sec
+2026-10-21T21:44:41.2408226Z       Start  8: Maremba.PiezoPickup
+2026-10-21T21:44:44.0728413Z  5/78 Test  #8: Maremba.PiezoPickup ..................   Passed    2.83 sec
+2026-10-21T21:44:44.0751789Z       Start  9: Maremba.PiezoGeometry
+2026-10-21T21:44:44.6048337Z  6/78 Test  #9: Maremba.PiezoGeometry ................   Passed    0.53 sec
+2026-10-21T21:44:44.6067976Z       Start 10: Maremba.PiezoReferenceCircuit
+2026-10-21T21:44:48.1809814Z  7/78 Test #10: Maremba.PiezoReferenceCircuit ........   Passed    3.58 sec
+2026-10-21T21:44:48.1815930Z       Start 11: Maremba.KalimbaPiezo
+2026-10-21T21:44:53.3348508Z  8/78 Test #11: Maremba.KalimbaPiezo .................   Passed    5.15 sec
+2026-10-21T21:44:53.3408026Z       Start 12: Maremba.CaptureGeometry
+2026-10-21T21:44:53.4018417Z  9/78 Test #12: Maremba.CaptureGeometry ..............   Passed    0.07 sec
+2026-10-21T21:44:53.4028016Z       Start 13: Maremba.CloseCapture
+2026-10-21T21:44:57.6238482Z 10/78 Test #13: Maremba.CloseCapture .................   Passed    4.22 sec
+2026-10-21T21:44:57.6267852Z       Start 14: Maremba.CloseEngineArrival
+2026-10-21T21:45:16.1648334Z 11/78 Test #14: Maremba.CloseEngineArrival ...........   Passed   18.54 sec
+2026-10-21T21:45:16.1670306Z       Start 15: Maremba.MainPickupAlignment
+2026-10-21T21:45:24.8943317Z 12/78 Test #15: Maremba.MainPickupAlignment ..........   Passed    8.73 sec
+2026-10-21T21:45:24.8987850Z       Start 16: Maremba.RoomCapture
+2026-10-21T21:45:28.5578469Z 13/78 Test  #6: Maremba.MainCalibration48000 .........   Passed  883.69 sec
+2026-10-21T21:45:28.5628212Z       Start 17: Maremba.RoomScatterMotion
+2026-10-21T21:45:30.5693563Z 14/78 Test #17: Maremba.RoomScatterMotion ............   Passed    2.01 sec
+2026-10-21T21:45:30.5720630Z       Start 18: Maremba.RoomLoopDiffusion
+2026-10-21T21:45:30.8965140Z 15/78 Test #18: Maremba.RoomLoopDiffusion ............   Passed    0.33 sec
+2026-10-21T21:45:30.9017997Z       Start 19: Maremba.EarlyReflectionScatter
+2026-10-21T21:45:31.9360861Z 16/78 Test #19: Maremba.EarlyReflectionScatter .......   Passed    1.04 sec
+2026-10-21T21:45:31.9387868Z       Start 20: Maremba.RoomMotion
+2026-10-21T21:45:54.1978764Z 17/78 Test #16: Maremba.RoomCapture ..................   Passed   29.30 sec
+2026-10-21T21:45:54.1997830Z       Start 21: Maremba.RoomMicrophone
+2026-10-21T21:45:54.4788527Z 18/78 Test #21: Maremba.RoomMicrophone ...............   Passed    0.28 sec
+2026-10-21T21:45:54.4814723Z       Start 22: Maremba.PiezoEngine
+2026-10-21T21:46:17.3968444Z 19/78 Test #22: Maremba.PiezoEngine ..................   Passed   22.92 sec
+2026-10-21T21:46:17.3971017Z       Start 23: Maremba.PiezoPolarity
+2026-10-21T21:46:37.4258332Z 20/78 Test #20: Maremba.RoomMotion ...................   Passed   65.49 sec
+2026-10-21T21:46:37.4268211Z       Start 24: Maremba.LegacyStereoSpread
+2026-10-21T21:48:16.5458258Z 21/78 Test #24: Maremba.LegacyStereoSpread ...........   Passed   99.12 sec
+2026-10-21T21:48:16.5477978Z       Start 25: Maremba.CaptureRouting
+2026-10-21T21:50:46.0478575Z 22/78 Test #23: Maremba.PiezoPolarity ................   Passed  268.65 sec
+2026-10-21T21:50:46.0497817Z       Start 26: Maremba.DriveBehavior
+2026-10-21T21:50:46.7101449Z 23/78 Test #26: Maremba.DriveBehavior ................   Passed    0.66 sec
+2026-10-21T21:50:46.7107925Z       Start 27: Maremba.RoomLevelTaper
+2026-10-21T21:50:51.2468383Z 24/78 Test #27: Maremba.RoomLevelTaper ...............   Passed    4.54 sec
+2026-10-21T21:50:51.2488017Z       Start 28: Maremba.MainVolume
+2026-10-21T21:50:56.7985852Z 25/78 Test #28: Maremba.MainVolume ...................   Passed    5.55 sec
+2026-10-21T21:50:56.7987505Z       Start 29: Maremba.CompactCaptureSource
+2026-10-21T21:50:58.4525789Z 26/78 Test #29: Maremba.CompactCaptureSource .........   Passed    1.65 sec
+2026-10-21T21:50:58.4547877Z       Start 30: Maremba.CaptureSceneEquality
+2026-10-21T21:51:08.1428376Z 27/78 Test #25: Maremba.CaptureRouting ...............   Passed  171.60 sec
+2026-10-21T21:51:08.1447890Z       Start 31: Maremba.Headroom
+2026-10-21T21:51:24.3678425Z 28/78 Test #31: Maremba.Headroom .....................   Passed   16.22 sec
+2026-10-21T21:51:24.3691241Z       Start 32: Maremba.HardHitOutput
+2026-10-21T21:51:55.8198420Z 29/78 Test #30: Maremba.CaptureSceneEquality .........   Passed   57.37 sec
+2026-10-21T21:51:55.8227963Z       Start 33: Maremba.DirectOutputLevel
+2026-10-21T21:54:46.9328441Z 30/78 Test  #1: Maremba.Engine .......................   Passed  1462.75 sec
+2026-10-21T21:54:46.9358074Z       Start 34: Maremba.MechanicalArtifacts
+2026-10-21T21:54:47.3068539Z 31/78 Test #34: Maremba.MechanicalArtifacts ..........   Passed    0.37 sec
+2026-10-21T21:54:47.3090859Z       Start 35: Maremba.ClickFilterCalibration
+2026-10-21T21:54:47.4438393Z 32/78 Test #35: Maremba.ClickFilterCalibration .......   Passed    0.14 sec
+2026-10-21T21:54:47.4461205Z       Start 36: Maremba.CollisionResponse
+2026-10-21T21:54:52.4928454Z 33/78 Test #36: Maremba.CollisionResponse ............   Passed    5.05 sec
+2026-10-21T21:54:52.4958059Z       Start 37: Maremba.EngineRealism
+2026-10-21T21:55:08.4075342Z 34/78 Test #37: Maremba.EngineRealism ................   Passed   15.92 sec
+2026-10-21T21:55:08.4097902Z       Start 38: Maremba.PhysicalResponse
+2026-10-21T21:55:24.6620812Z 35/78 Test #33: Maremba.DirectOutputLevel ............   Passed  208.84 sec
+2026-10-21T21:55:24.6647793Z       Start 39: Maremba.FrameBodyModelTransition
+2026-10-21T21:55:36.6456458Z 36/78 Test #39: Maremba.FrameBodyModelTransition .....   Passed   11.98 sec
+2026-10-21T21:55:36.6481067Z       Start 40: Maremba.QueuedNoteRelease
+2026-10-21T21:56:17.3708479Z 37/78 Test #38: Maremba.PhysicalResponse .............   Passed   68.96 sec
+2026-10-21T21:56:17.3738092Z       Start 41: Maremba.CavityPhysics
+2026-10-21T21:56:17.8098342Z 38/78 Test #41: Maremba.CavityPhysics ................   Passed    0.44 sec
+2026-10-21T21:56:17.8117739Z       Start 42: Maremba.Round2Response
+2026-10-21T21:56:18.8828379Z 39/78 Test #42: Maremba.Round2Response ...............   Passed    1.07 sec
+2026-10-21T21:56:18.8840781Z       Start 43: Maremba.ModalRadiation
+2026-10-21T21:56:19.0298472Z 40/78 Test #43: Maremba.ModalRadiation ...............   Passed    0.14 sec
+2026-10-21T21:56:19.0308783Z       Start 44: Maremba.AcousticReadout
+2026-10-21T21:56:20.0728740Z 41/78 Test #44: Maremba.AcousticReadout ..............   Passed    1.04 sec
+2026-10-21T21:56:20.0741505Z       Start 45: Maremba.KalimbaModes
+2026-10-21T21:56:20.1768345Z 42/78 Test #45: Maremba.KalimbaModes .................   Passed    0.10 sec
+2026-10-21T21:56:20.1780731Z       Start 46: Maremba.KalimbaMountShapes
+2026-10-21T21:56:20.3568563Z 43/78 Test #46: Maremba.KalimbaMountShapes ...........   Passed    0.18 sec
+2026-10-21T21:56:20.3569453Z       Start 47: Maremba.KalimbaBridgeReaction
+2026-10-21T21:56:20.5478733Z 44/78 Test #47: Maremba.KalimbaBridgeReaction ........   Passed    0.19 sec
+2026-10-21T21:56:20.5501148Z       Start 48: Maremba.KalimbaBridgeSpectrum
+2026-10-21T21:56:30.6648465Z 45/78 Test #48: Maremba.KalimbaBridgeSpectrum ........   Passed   10.12 sec
+2026-10-21T21:56:30.6649297Z       Start 49: Maremba.MalletContact
+2026-10-21T21:56:30.7408722Z 46/78 Test #49: Maremba.MalletContact ................   Passed    0.07 sec
+2026-10-21T21:56:30.7417978Z       Start 50: Maremba.ContactComplianceUpdate
+2026-10-21T21:56:30.8708550Z 47/78 Test #50: Maremba.ContactComplianceUpdate ......   Passed    0.13 sec
+2026-10-21T21:56:30.8720899Z       Start 51: Maremba.SlackMembraneStretch
+2026-10-21T21:56:31.1128290Z 48/78 Test #51: Maremba.SlackMembraneStretch .........   Passed    0.24 sec
+2026-10-21T21:56:31.1157825Z       Start 52: Maremba.BuzzerRattlePhysics
+2026-10-21T21:56:31.1608302Z 49/78 Test #52: Maremba.BuzzerRattlePhysics ..........   Passed    0.05 sec
+2026-10-21T21:56:31.1637809Z       Start 53: Maremba.MembraneEdgeDecay
+2026-10-21T21:56:31.2028253Z 50/78 Test #53: Maremba.MembraneEdgeDecay ............   Passed    0.04 sec
+2026-10-21T21:56:31.2058121Z       Start 54: Maremba.KalimbaHoleCoverContinuity
+2026-10-21T21:56:31.2298391Z 51/78 Test #54: Maremba.KalimbaHoleCoverContinuity ...   Passed    0.03 sec
+2026-10-21T21:56:31.2357805Z       Start 55: Maremba.Round3Response
+2026-10-21T21:57:28.9522163Z 52/78 Test #40: Maremba.QueuedNoteRelease ............   Passed  112.30 sec
+2026-10-21T21:57:28.9577781Z       Start 56: Maremba.Round4Response
+2026-10-21T21:57:44.1938565Z 53/78 Test #56: Maremba.Round4Response ...............   Passed   15.24 sec
+2026-10-21T21:57:44.1957798Z       Start 57: Maremba.Round5Response
+2026-10-21T22:01:03.2922176Z 54/78 Test #55: Maremba.Round3Response ...............   Passed  272.06 sec
+2026-10-21T22:01:03.2947931Z       Start 58: Maremba.MaterialGeometry
+2026-10-21T22:01:04.8248396Z 55/78 Test #58: Maremba.MaterialGeometry .............   Passed    1.53 sec
+2026-10-21T22:01:04.8287888Z       Start 59: Maremba.Round6Response
+2026-10-21T22:01:12.9638637Z 56/78 Test #59: Maremba.Round6Response ...............   Passed    8.14 sec
+2026-10-21T22:01:12.9657831Z       Start 60: Maremba.TubeInSitu
+2026-10-21T22:01:13.9038322Z 57/78 Test  #7: Maremba.MainCalibration96000 .........***Timeout 1800.03 sec
+2026-10-21T22:01:13.9068910Z state,model,scenario,sample_rate,volume,main_rms_dbfs,main_peak_dbfs,close_rms_dbfs,close_peak_dbfs,room_rms_dbfs,room_peak_dbfs,piezo_rms_dbfs,piezo_peak_dbfs,capture_file,frames,channels,sample_format
+2026-10-21T22:01:13.9098499Z "Init model 0",0,phrase_v80_linear,96000,0.85,-22.0991486344,-7.00000128556,-41.2019935209,-24.7686025301,-35.992054076,-18.3999505256,-34.1728243288,-17.3648618908,,480000,2,float32_native
+2026-10-21T22:01:13.9158674Z "Init model 0",0,phrase_low_v127_max_volume,96000,1,-11.6912630285,-1.00000377537,-48.0723212051,-27.4583353073,-42.4758969343,-27.6093965781,-20.8048239848,-3.32068870507,,480000,2,float32_native
+2026-10-21T22:01:13.9248839Z "Init model 0",0,chord_low_v127_max_volume,96000,1,-19.7633877109,-1.00000029002,-53.1687779869,-25.8524696133,-46.816339215,-25.2624442564,-26.1417700134,-0.566823037723,,480000,2,float32_native
+2026-10-21T22:01:13.9294247Z "Init model 1",1,phrase_v80_linear,96000,0.85,-21.9092921098,-6.99999896751,-39.3486767624,-23.2628869297,-32.6037503207,-16.4011712692,-37.4805722164,-24.1374988937,,480000,2,float32_native
+2026-10-21T22:01:13.9321847Z "Init model 1",1,phrase_low_v127_max_volume,96000,1,-15.9454724465,-1.00003340086,-43.5864332875,-27.4723051922,-35.3247400365,-21.112701664,-30.535596524,-15.4369211167,,480000,2,float32_native
+2026-10-21T22:01:13.9368723Z "Init model 1",1,chord_low_v127_max_volume,96000,1,-22.8866607612,-1.00029364478,-48.4015254352,-24.1860720836,-39.6383646406,-17.8393357506,-34.8616351961,-7.77152619038,,480000,2,float32_native
+2026-10-21T22:01:13.9408713Z "Init model 2",2,phrase_v80_linear,96000,0.85,-21.0093697943,-7.00000128556,-39.8544581164,-24.2927428168,-32.6344189761,-16.6582884892,-42.3068078391,-26.6239298544,,480000,2,float32_native
+2026-10-21T22:01:13.9469384Z "Init model 2",2,phrase_low_v127_max_volume,96000,1,-14.6595542625,-1.00049173746,-41.0440477023,-26.0636634768,-32.385334588,-17.430076593,-34.0683260571,-14.6479160187,,480000,2,float32_native
+2026-10-21T22:01:13.9508834Z "Init model 2",2,chord_low_v127_max_volume,96000,1,-22.7964978247,-1.00000087091,-45.2945145076,-19.1469986775,-36.6049231956,-14.256510214,-38.192334451,-8.0716655973,,480000,2,float32_native
+2026-10-21T22:01:13.9528529Z "Init model 3",3,phrase_v80_linear,96000,0.85,-22.1951764611,-7.82786536205,-31.1171530032,-17.0340243737,-27.8238367264,-11.9227789599,-29.0775624683,-11.7181895936,,480000,2,float32_native
+2026-10-21T22:01:13.9530591Z "Init model 3",3,phrase_low_v127_max_volume,96000,1,-18.5360371898,-3.23315191574,-34.8596416017,-20.069233339,-33.5888679561,-19.4259930049,-28.6836052652,-13.9041662291,,480000,2,float32_native
+2026-10-21T22:01:13.9533117Z "Init model 3",3,chord_low_v127_max_volume,96000,1,-22.8053074521,-1.00000377537,-38.3503400611,-17.0490389005,-36.2490824204,-15.3212157177,-30.9758869405,-6.7838496525,,480000,2,float32_native
+2026-10-21T22:01:13.9535247Z "Ambient Cathedral Bloom",0,phrase_v80_linear,96000,0.88236296,-23.6201794257,-7.4655573453,-39.809923893,-24.0561867329,-40.2289743682,-25.0851822743,-32.0671030642,-16.8859162323,,480000,2,float32_native
+2026-10-21T22:01:13.9537869Z "Ambient Cathedral Bloom",0,phrase_low_v127_max_volume,96000,1,-21.2386223248,-3.04354539981,-43.3459196478,-25.3125869998,-43.2105592011,-27.6349989414,-16.7356648742,-0.537448457691,,480000,2,float32_native
+2026-10-21T22:01:13.9540160Z "Ambient Cathedral Bloom",0,chord_low_v127_max_volume,96000,1,-25.6035459163,-4.06858712021,-47.8304661001,-26.5632184317,-47.1725099189,-31.2439631605,-21.9696014722,-2.00757189386,,480000,2,float32_native
+2026-10-21T22:01:13.9542422Z "Concert Grand Rosewood",0,phrase_v80_linear,96000,0.78734778,-24.4295364594,-9.13423735083,-41.2590651484,-24.4427286303,-36.2039652646,-18.5332851575,-34.2422937277,-16.5847938398,,480000,2,float32_native
+2026-10-21T22:01:13.9544674Z "Concert Grand Rosewood",0,phrase_low_v127_max_volume,96000,1,-13.2590366861,-1.00000261359,-47.1986705603,-23.3424782838,-43.7344800004,-28.3011561184,-21.2865077908,-3.38839810399,,480000,2,float32_native
+2026-10-21T22:01:13.9546945Z "Concert Grand Rosewood",0,chord_low_v127_max_volume,96000,1,-21.0802582576,-1.00012227793,-53.2639866206,-26.4965993601,-48.9371229186,-27.706647244,-26.5122863199,-0.915086189489,,480000,2,float32_native
+2026-10-21T22:01:13.9549432Z "Direct Piezo Mallet",0,phrase_v80_linear,96000,0.79275309,-22.7441448182,-1.06919904952,-40.5845638595,-14.3245879981,-45.1518802451,-27.2400342678,-35.7560701486,-12.0897877916,,480000,2,float32_native
+2026-10-21T22:01:13.9551771Z "Direct Piezo Mallet",0,phrase_low_v127_max_volume,96000,1,-11.4939813821,-1.00000029002,-50.2756874806,-16.3422439161,-50.7789143686,-21.8269718102,-25.6197778943,-4.45374422305,,480000,2,float32_native
+2026-10-21T22:01:13.9601881Z "Direct Piezo Mallet",0,chord_low_v127_max_volume,96000,1,-19.2469019617,-1.00000493715,-54.1265335093,-10.3518031181,-54.0265457177,-15.2905069072,-31.2295441152,-3.76461303787,,480000,2,float32_native
+2026-10-21T22:01:13.9619182Z "Hard Acrylic Virtuoso",0,phrase_v80_linear,96000,0.74850572,-23.8722952212,-1.95965176712,-39.8793271391,-16.2717067771,-41.5110140843,-23.9256144113,-34.6022049861,-16.4072585041,,480000,2,float32_native
+2026-10-21T22:01:13.9658589Z "Hard Acrylic Virtuoso",0,phrase_low_v127_max_volume,96000,1,-12.1954852305,-1.00000087091,-49.1399456297,-22.3243972115,-50.5261318492,-35.2849648926,-24.2966536451,-5.09928180276,,480000,2,float32_native
+2026-10-21T22:01:13.9709037Z "Hard Acrylic Virtuoso",0,chord_low_v127_max_volume,96000,1,-19.6775812978,-1.00005082766,-54.1904639149,-21.4501588421,-55.7312581882,-32.1713670578,-29.0788336523,-2.41991446256,,480000,2,float32_native
+2026-10-21T22:01:13.9754191Z "Rosewood Dampened Etude",0,phrase_v80_linear,96000,0.76007818,-25.3411477142,-10.2407903406,-42.8201771536,-25.041426023,-37.6629040875,-20.7513117868,-36.1741781839,-16.0751602963,,480000,2,float32_native
+2026-10-21T22:01:13.9778657Z "Rosewood Dampened Etude",0,phrase_low_v127_max_volume,96000,1,-15.231068445,-1.00000087091,-49.003716283,-23.7852057705,-46.6128513327,-28.9231930273,-24.0326250796,-3.43054257818,,480000,2,float32_native
+2026-10-21T22:01:13.9808585Z "Rosewood Dampened Etude",0,chord_low_v127_max_volume,96000,1,-21.0100466411,-1.00000087091,-52.8744289495,-26.0752437996,-48.906204239,-27.7614985207,-26.5498566718,-1.32186817843,,480000,2,float32_native
+2026-10-21T22:01:13.9828601Z "Rosewood Roll Chorale",0,phrase_v80_linear,96000,0.87029207,-23.9261131649,-8.50562662149,-40.1169154006,-24.6846455495,-39.3121183661,-26.1855358348,-32.7881777096,-17.1378270888,,480000,2,float32_native
+2026-10-21T22:01:13.9851642Z "Rosewood Roll Chorale",0,phrase_low_v127_max_volume,96000,1,-17.1023834198,-1.00143927548,-44.7389293603,-25.3474453922,-44.1814585621,-27.8846647498,-18.0098901862,-1.57262207278,,480000,2,float32_native
+2026-10-21T22:01:13.9868557Z "Rosewood Roll Chorale",0,chord_low_v127_max_volume,96000,1,-22.5853937572,-1.00053472591,-49.6845691794,-26.8652211181,-46.6257463944,-28.6049794436,-23.3058381386,-1.47193617061,,480000,2,float32_native
+2026-10-21T22:01:13.9898557Z "Soft Yarn Nocturne",0,phrase_v80_linear,96000,0.865865,-25.1427925895,-10.3804148466,-43.1158761386,-28.0369919863,-38.3506651801,-21.7195227827,-35.1400282229,-18.8295128769,,480000,2,float32_native
+2026-10-21T22:01:13.9904183Z "Soft Yarn Nocturne",0,phrase_low_v127_max_volume,96000,1,-17.5653611722,-1.00069332028,-47.3147342069,-27.4110260247,-42.4074732286,-28.1097372728,-20.1893654274,-2.41979543804,,480000,2,float32_native
+2026-10-21T22:01:13.9928604Z "Soft Yarn Nocturne",0,chord_low_v127_max_volume,96000,1,-23.3489847376,-1.00092569821,-51.9470117268,-27.7573629954,-46.5878405935,-26.0180122197,-25.8596125145,-3.13146319149,,480000,2,float32_native
+2026-10-21T22:01:13.9958540Z "Chiapas Folk Fiesta",1,phrase_v80_linear,96000,0.66956412,-24.4902700312,-2.37560114771,-38.4108632282,-16.3435207592,-38.9576726542,-21.0182857771,-37.6103112875,-21.4264575813,,480000,2,float32_native
+2026-10-21T22:01:13.9960766Z "Chiapas Folk Fiesta",1,phrase_low_v127_max_volume,96000,1,-15.4669484981,-1.0000148123,-45.1209214573,-20.5153972421,-43.9184089319,-29.3236253499,-31.5962536949,-15.2428812182,,480000,2,float32_native
+2026-10-21T22:01:13.9962988Z "Chiapas Folk Fiesta",1,chord_low_v127_max_volume,96000,1,-23.287787671,-1.00001306963,-49.5672052551,-21.0497908738,-46.6171179081,-25.8163271133,-36.4449635936,-10.6249550433,,480000,2,float32_native
+2026-10-21T22:01:13.9965146Z "Guatemalan Charleo",1,phrase_v80_linear,96000,0.63264146,-24.7377574563,-5.88462127059,-37.8356150961,-18.1329620968,-35.8741210357,-18.0212741652,-37.2072572835,-20.9099824384,,480000,2,float32_native
+2026-10-21T22:01:13.9967504Z "Guatemalan Charleo",1,phrase_low_v127_max_volume,96000,1,-15.4484994844,-1.00000551804,-42.9287423591,-20.1256199045,-40.429575762,-25.3308677907,-31.1173533005,-14.1502067149,,480000,2,float32_native
+2026-10-21T22:01:13.9969667Z "Guatemalan Charleo",1,chord_low_v127_max_volume,96000,1,-22.4372437648,-1.00000377537,-47.2630386968,-20.8850416794,-42.8230864934,-23.1181128721,-35.3647546581,-9.38997223297,,480000,2,float32_native
+2026-10-21T22:01:13.9972337Z "Mayan Dance Padauk",1,phrase_v80_linear,96000,0.64605695,-25.3882431422,-9.74034672453,-39.3008848832,-23.2317217605,-36.9751446851,-23.3779606935,-37.8104673196,-23.4114653794,,480000,2,float32_native
+2026-10-21T22:01:13.9988544Z "Mayan Dance Padauk",1,phrase_low_v127_max_volume,96000,1,-15.0081703709,-1.00020360415,-43.2061563287,-22.6522876351,-40.2509432715,-25.3556870261,-30.9031043465,-15.1170846562,,480000,2,float32_native
+2026-10-21T22:01:13.9998461Z "Mayan Dance Padauk",1,chord_low_v127_max_volume,96000,1,-21.9785595929,-1.00003281996,-47.385382721,-22.669734042,-42.9742745053,-23.2936064304,-35.300814344,-10.0745880858,,480000,2,float32_native
+2026-10-21T22:01:14.0018540Z "Ancestral Balafon",2,phrase_v80_linear,96000,0.62586819,-24.5918208931,-4.99522763075,-39.0854043948,-19.0736449124,-31.4916946429,-14.1455127346,-41.3675215608,-23.0112322023,,480000,2,float32_native
+2026-10-21T22:01:14.0048867Z "Ancestral Balafon",2,phrase_low_v127_max_volume,96000,1,-14.8076729947,-1.00000029002,-38.9395015771,-22.9283525587,-31.4167013003,-17.0639280431,-33.5686257117,-13.426347523,,480000,2,float32_native
+2026-10-21T22:01:14.0088719Z "Ancestral Balafon",2,chord_low_v127_max_volume,96000,1,-23.471104887,-1.00052368832,-43.9048236255,-15.717924341,-36.2556655849,-12.9257863548,-38.6252943544,-8.46696523548,,480000,2,float32_native
+2026-10-21T22:01:14.0118667Z "Birifor Gyil Buzz",2,phrase_v80_linear,96000,0.62606838,-24.3995716692,-5.08903404043,-38.9599555478,-19.3272940588,-31.9221684068,-11.6103830055,-41.0966196266,-22.4667641813,,480000,2,float32_native
+2026-10-21T22:01:14.0148562Z "Birifor Gyil Buzz",2,phrase_low_v127_max_volume,96000,1,-15.1908187417,-1.00000029002,-39.9077615971,-22.8634005528,-31.3706777902,-16.3466342225,-33.2947462435,-13.7357378435,,480000,2,float32_native
+2026-10-21T22:01:14.0178493Z "Birifor Gyil Buzz",2,chord_low_v127_max_volume,96000,1,-22.4981300803,-1.00072178624,-44.083164538,-17.0800134357,-36.6320214925,-13.7681876256,-38.5846646339,-7.29047763886,,480000,2,float32_native
+2026-10-21T22:01:14.0206912Z "Chopi Timbila Ensemble",2,phrase_v80_linear,96000,0.65786568,-24.052095577,-3.41576843362,-38.7182056146,-18.8995007127,-34.6892980138,-16.5466358358,-41.3640829415,-23.334609466,,480000,2,float32_native
+2026-10-21T22:01:14.0238839Z "Chopi Timbila Ensemble",2,phrase_low_v127_max_volume,96000,1,-14.8209752328,-1.00002062122,-39.3390882363,-22.6246360414,-34.8215336616,-20.2523118961,-33.3968581529,-13.5849420968,,480000,2,float32_native
+2026-10-21T22:01:14.0268572Z "Chopi Timbila Ensemble",2,chord_low_v127_max_volume,96000,1,-22.5060649267,-1.01577707881,-43.9098832162,-17.6972504879,-39.8358419277,-13.7838762635,-38.4441376405,-7.78494003464,,480000,2,float32_native
+2026-10-21T22:01:14.0298566Z "Equipentatonic Log Keys",2,phrase_v80_linear,96000,0.79974633,-23.2663605835,-1.00068112061,-41.3928677709,-19.5928415906,-38.1955143618,-20.1749761967,-39.7924614007,-19.6771447767,,480000,2,float32_native
+2026-10-21T22:01:14.0328637Z "Equipentatonic Log Keys",2,phrase_low_v127_max_volume,96000,1,-23.2652620882,-1.00086411745,-46.1745642867,-15.9850398058,-42.3809966421,-24.0941240695,-35.0510004286,-13.9014617993,,480000,2,float32_native
+2026-10-21T22:01:14.0358759Z "Equipentatonic Log Keys",2,chord_low_v127_max_volume,96000,1,-28.924000634,-1.00546761098,-50.9925221458,-16.2274712176,-44.942030627,-23.7398108674,-39.8255465602,-8.18040487037,,480000,2,float32_native
+2026-10-21T22:01:14.0388630Z "Mandinka Bala Heptatonic",2,phrase_v80_linear,96000,0.66504136,-24.1062954008,-3.50211830427,-39.1437134256,-19.0294090413,-30.9274581831,-14.2056451638,-41.4941416296,-22.8242218996,,480000,2,float32_native
+2026-10-21T22:01:14.0418512Z "Mandinka Bala Heptatonic",2,phrase_low_v127_max_volume,96000,1,-14.9695745022,-1.00003630532,-39.685369819,-23.2751198022,-31.6956232611,-17.2888731549,-33.6193848407,-13.1725111062,,480000,2,float32_native
+2026-10-21T22:01:14.0448605Z "Mandinka Bala Heptatonic",2,chord_low_v127_max_volume,96000,1,-23.0892078581,-1.00581055906,-44.2120258375,-16.2840275345,-36.9593260257,-13.7683638445,-38.5526360617,-6.95500340225,,480000,2,float32_native
+2026-10-21T22:01:14.0479075Z "Midnight Village Ritual",2,phrase_v80_linear,96000,0.61268451,-24.9342277897,-8.35538516839,-38.6681349837,-22.6646164902,-36.5047813923,-21.2338918973,-41.2067128426,-24.7284366752,,480000,2,float32_native
+2026-10-21T22:01:14.0508525Z "Midnight Village Ritual",2,phrase_low_v127_max_volume,96000,1,-12.8994480123,-1.00000029002,-35.9649802503,-22.1009323923,-33.1044465892,-19.4909766067,-32.7304076587,-14.4529136227,,480000,2,float32_native
+2026-10-21T22:01:14.0530743Z "Midnight Village Ritual",2,chord_low_v127_max_volume,96000,1,-20.8141261741,-1.00001016517,-40.3791371938,-15.5463660291,-36.9733113451,-18.3491551083,-37.0522221801,-8.81871170892,,480000,2,float32_native
+2026-10-21T22:01:14.0568559Z "Sambla Talking Balafon",2,phrase_v80_linear,96000,0.67264663,-24.0118817848,-3.31682725798,-39.3579103333,-18.8648360716,-31.6845216704,-14.2663653516,-41.4887077378,-23.3050636549,,480000,2,float32_native
+2026-10-21T22:01:14.0598502Z "Sambla Talking Balafon",2,phrase_low_v127_max_volume,96000,1,-15.2541255201,-1.00001597409,-40.1577946561,-23.451700991,-32.3379244199,-17.8900360424,-33.9988395261,-13.4777084361,,480000,2,float32_native
+2026-10-21T22:01:14.0628617Z "Sambla Talking Balafon",2,chord_low_v127_max_volume,96000,1,-24.1019301952,-1.00001945944,-44.8769099212,-16.5401494753,-37.0184532033,-13.2658701924,-38.9989583213,-8.36371282965,,480000,2,float32_native
+2026-10-21T22:01:14.0658483Z "Kalimba Muted Thumbs",3,phrase_v80_linear,96000,0.8983038,-20.7540178865,-6.17727843509,-32.3837833133,-17.9954471568,-28.7147767175,-12.3690326823,-31.2609029061,-11.36416896,,480000,2,float32_native
+2026-10-21T22:01:14.0688570Z "Kalimba Muted Thumbs",3,phrase_low_v127_max_volume,96000,1,-22.8781581914,-2.15880588649,-38.9031209408,-19.589686052,-36.8961025675,-19.921608277,-32.0773066356,-14.9318867845,,480000,2,float32_native
+2026-10-21T22:01:14.0718562Z "Kalimba Muted Thumbs",3,chord_low_v127_max_volume,96000,1,-23.3876063102,-1.00037439169,-38.5219648676,-15.516495834,-36.3072919747,-14.7022149882,-30.8037581595,-6.11983469387,,480000,2,float32_native
+2026-10-21T22:01:14.0742939Z "Kalimba Pick Sparkle",3,phrase_v80_linear,96000,0.803565,-22.7043359373,-8.32851438698,-31.0577267935,-16.59198241,-27.7812320977,-11.975345624,-28.9794857516,-11.3386543983,,480000,2,float32_native
+2026-10-21T22:01:14.0778591Z "Kalimba Pick Sparkle",3,phrase_low_v127_max_volume,96000,1,-16.2080483466,-1.00032559491,-34.9660692532,-19.7658754577,-33.6484492407,-19.3125635314,-28.8864705556,-13.816811591,,480000,2,float32_native
+2026-10-21T22:01:14.0808563Z "Kalimba Pick Sparkle",3,chord_low_v127_max_volume,96000,1,-21.0334453652,-1.00000087091,-38.5100317417,-16.2421566777,-36.4120775361,-14.5470764292,-31.1758441829,-6.79408086752,,480000,2,float32_native
+2026-10-21T22:01:14.0833270Z "Kalimba Thumb Lullaby",3,phrase_v80_linear,96000,0.94042001,-25.211036353,-10.9818295174,-38.2570852538,-24.3210618977,-36.0985367707,-21.628787338,-35.0328804109,-21.0333085933,,480000,2,float32_native
+2026-10-21T22:01:14.0866634Z 
+2026-10-21T22:01:14.0897956Z       Start 61: Maremba.RosewoodSpectrum
+2026-10-21T22:01:15.2192353Z 58/78 Test #60: Maremba.TubeInSitu ...................   Passed    2.26 sec
+2026-10-21T22:01:15.2237932Z       Start 62: Maremba.CharleoRegister
+2026-10-21T22:01:18.5578567Z 59/78 Test #61: Maremba.RosewoodSpectrum .............   Passed    4.65 sec
+2026-10-21T22:01:18.5608276Z       Start 63: Maremba.Round7BalafonKalimba
+2026-10-21T22:01:23.3988577Z 60/78 Test #62: Maremba.CharleoRegister ..............   Passed    8.18 sec
+2026-10-21T22:01:23.4018000Z       Start 64: Maremba.BuzzRange
+2026-10-21T22:01:25.4932855Z 61/78 Test #57: Maremba.Round5Response ...............   Passed  221.30 sec
+2026-10-21T22:01:25.4958311Z       Start 65: Maremba.StrikeVariance
+2026-10-21T22:01:33.3477609Z 62/78 Test #64: Maremba.BuzzRange ....................   Passed    9.95 sec
+2026-10-21T22:01:33.3507946Z       Start 66: Maremba.NaturalStrikeResponse
+2026-10-21T22:01:43.4868495Z 63/78 Test #63: Maremba.Round7BalafonKalimba .........   Passed   24.93 sec
+2026-10-21T22:01:43.4928615Z       Start 67: Maremba.SoftVelocity
+2026-10-21T22:04:10.7009015Z 64/78 Test #67: Maremba.SoftVelocity .................   Passed  147.22 sec
+2026-10-21T22:04:10.7014254Z       Start 68: Maremba.RoomQuality
+2026-10-21T22:04:25.3191757Z 65/78 Test #68: Maremba.RoomQuality ..................   Passed   14.62 sec
+2026-10-21T22:04:25.3218022Z       Start 69: Maremba.BarModes
+2026-10-21T22:04:25.4058768Z 66/78 Test #69: Maremba.BarModes .....................   Passed    0.09 sec
+2026-10-21T22:04:25.4088235Z       Start 70: Maremba.VelocityRoutes
+2026-10-21T22:10:03.7748437Z 67/78 Test #66: Maremba.NaturalStrikeResponse ........   Passed  510.43 sec
+2026-10-21T22:10:03.7767943Z       Start 71: Maremba.ParameterReachability
+2026-10-21T22:17:12.0938348Z 68/78 Test #70: Maremba.VelocityRoutes ...............   Passed  766.69 sec
+2026-10-21T22:17:12.0952172Z       Start 72: Maremba.KalimbaExcitationBounds
+2026-10-21T22:17:13.2828526Z 69/78 Test #72: Maremba.KalimbaExcitationBounds ......   Passed    1.19 sec
+2026-10-21T22:17:13.2837934Z       Start 73: Maremba.KalimbaDecay
+2026-10-21T22:17:18.7688467Z 70/78 Test #73: Maremba.KalimbaDecay .................   Passed    5.49 sec
+2026-10-21T22:17:18.7717957Z       Start 74: Maremba.ExtremeRange
+2026-10-21T22:20:27.7446360Z 71/78 Test #65: Maremba.StrikeVariance ...............   Passed  1142.25 sec
+2026-10-21T22:20:27.7497877Z       Start 75: Maremba.EngineFuzz
+2026-10-21T22:22:23.5441112Z 72/78 Test #71: Maremba.ParameterReachability ........   Passed  739.77 sec
+2026-10-21T22:22:23.5447878Z       Start 76: Maremba.DspFuzzReplay
+2026-10-21T22:22:57.3658337Z 73/78 Test #76: Maremba.DspFuzzReplay ................   Passed   33.82 sec
+2026-10-21T22:22:57.3668462Z       Start 77: Maremba.ParameterMatrix
+2026-10-21T22:27:17.0958316Z 74/78 Test #77: Maremba.ParameterMatrix ..............   Passed  259.73 sec
+2026-10-21T22:27:17.0977866Z       Start 79: Maremba.DspFuzz
+2026-10-21T22:29:18.5328418Z 75/78 Test #79: Maremba.DspFuzz ......................   Passed  121.44 sec
+2026-10-21T22:34:31.6858154Z 76/78 Test #75: Maremba.EngineFuzz ...................   Passed  843.94 sec
+2026-10-21T22:35:14.6100665Z 77/78 Test #32: Maremba.HardHitOutput ................   Passed  2630.24 sec
+2026-10-21T22:36:10.0804779Z 78/78 Test #74: Maremba.ExtremeRange .................   Passed  1131.31 sec
+2026-10-21T22:36:10.0811058Z 
+2026-10-21T22:36:10.0811339Z 99% tests passed, 1 tests failed out of 78
+2026-10-21T22:36:10.0811718Z 
+2026-10-21T22:36:10.0811860Z Label Time Summary:
+2026-10-21T22:36:10.0812224Z fuzz    = 2356.42 sec*proc (4 tests)
+2026-10-21T22:36:10.0812661Z unit    = 12861.71 sec*proc (74 tests)
+2026-10-21T22:36:10.0812958Z 
+2026-10-21T22:36:10.0813120Z Total Test time (real) = 3945.96 sec
+2026-10-21T22:36:10.0813395Z 
+2026-10-21T22:36:10.0813538Z The following tests FAILED:
+2026-10-21T22:36:10.0816917Z Errors while running CTest
+2026-10-21T22:36:10.0817715Z 	  7 - Maremba.MainCalibration96000 (Timeout)            unit
+2026-10-21T22:36:10.1350851Z ##[error]Process completed with exit code 8.
+2026-10-21T22:36:10.1491565Z Post job cleanup.
+2026-10-21T22:36:10.2433539Z [command]/usr/bin/git version
+2026-10-21T22:36:10.2498698Z git version 2.55.0
+2026-10-21T22:36:10.2560031Z Temporarily overriding HOME='/home/runner/work/_temp/80842de1-1e62-40d3-b22a-feb897860941' before making global git config changes
+2026-10-21T22:36:10.2561662Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-21T22:36:10.2567627Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/virtual-instrument-maremba/virtual-instrument-maremba
+2026-10-21T22:36:10.2626044Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-21T22:36:10.2676180Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-21T22:36:10.3019929Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-21T22:36:10.3067088Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-21T22:36:10.3389976Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-21T22:36:10.3459185Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-21T22:36:10.3933951Z Cleaning up orphan processes
+2026-10-21T22:36:10.4258218Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
