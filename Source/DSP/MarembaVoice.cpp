@@ -23,6 +23,10 @@ constexpr double kSilenceEnergy = 1.0e-12;
 constexpr double kFlushEnergy = 1.0e-30;
 // Longest T60 in seconds (a time cap keeps decay independent of the rate).
 constexpr double kMaxT60Seconds = 60.0;
+// Voiced passive loading for a kalimba box held in the hands. Scale tine
+// lifetimes, not the Decay taper or thumb contact; this is effective damping,
+// not a measured grip/contact model.
+constexpr double kKalimbaHeldBodyLifetime = 0.7;
 // Modes at or above this fraction of the internal rate are dropped, and every
 // mode above 19 kHz (inaudible, and the same set at every rate from 44.1 kHz
 // up, so the contact and the outputs do not change with the host rate or
@@ -714,11 +718,12 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     const double midi = 69.0 + totalPitchCents / 100.0;
     const double decayControl = std::clamp(static_cast<double>(decayMultiplier), 0.10, 8.0);
     // Tines already sustain for several seconds at the natural setting.
-    // Preserve short/natural decays, then spread only 1x..2x sustain over the
+    // Keep the short-to-middle taper, then spread only 1x..2x sustain over the
     // remaining knob travel. This also bounds the already-added Decay VOL.
     const double voicedDecay = mTine && decayControl > 1.0
         ? 1.0 + (decayControl - 1.0) / 7.0 : decayControl;
-    const double decayScale = std::pow(voicedDecay, response.decayExponent) * variation.decayScale;
+    double decayScale = std::pow(voicedDecay, response.decayExponent) * variation.decayScale;
+    if (mTine) decayScale *= kKalimbaHeldBodyLifetime;
     const double hardness = std::clamp(static_cast<double>(malletHardness + art.malletHardnessJitter), 0.0, 1.0);
     const double position = std::clamp(static_cast<double>(strikePosition + positionOffset + art.strikePositionOffset)
                                        + character.positionOffset, 0.03, 0.97);
@@ -1269,7 +1274,9 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         mode.omega = kTwoPiD * frequency / fs;
         const double brushT60 = mTine ? 2.2 / (TineFundamentalLossFactor(frequency) * frequency)
                                       : 2.2 / (LossFactor(material, frequency) * frequency);
-        ReconfigureMode(mode, std::exp(-6.907755 / (std::max(0.025, brushT60 * art.brushDecayScale * (m == 0 ? 0.5 : 0.1)) * fs)), mode.omega);
+        double brushLifetime = std::max(0.025, brushT60 * art.brushDecayScale * (m == 0 ? 0.5 : 0.1));
+        if (mTine) brushLifetime *= kKalimbaHeldBodyLifetime;
+        ReconfigureMode(mode, std::exp(-6.907755 / (brushLifetime * fs)), mode.omega);
     }
     mBrushPickupWeight = PiezoPickup::ModalStrainWeight(model, 0);
     mBrushActive = mBrushImpulse > 0.0 || ModeEnergy(mBrushModes[0]) + ModeEnergy(mBrushModes[1]) > kFlushEnergy;

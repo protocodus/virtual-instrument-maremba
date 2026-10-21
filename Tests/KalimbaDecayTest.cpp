@@ -10,12 +10,19 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <cstdint>
+#include <cstring>
 
 namespace maremba {
 struct MarembaVoiceTestAccess {
     static int Modes(const MarembaVoice& voice) { return voice.mNumModes; }
     static double T60(const MarembaVoice& voice, int mode = 0) {
         return -6.907755 / (voice.mSampleRate * std::log(voice.mModes[mode].r));
+    }
+    static double FundamentalSample(const MarembaVoice& voice) { return voice.mModes[0].y1; }
+    static bool HasBrush(const MarembaVoice& voice) { return voice.mBrushImpulse > 0; }
+    static double BrushT60(const MarembaVoice& voice, int mode) {
+        return -6.907755 / (voice.mSampleRate * std::log(voice.mBrushModes[mode].r));
     }
 };
 struct MarembaEngineTestAccess {
@@ -69,10 +76,149 @@ double engineT60(MarembaEngine& engine, const EngineParameters& params,
     require(std::isfinite(t60) && t60 > 0, "engine produced invalid Kalimba decay");
     return t60;
 }
+
+struct TailMeasurement {
+    std::array<double, 3> modalT60{};
+    double renderedT60 = 0;
+    std::uint64_t audioHash = UINT64_C(14695981039346656037);
+};
+
+TailMeasurement measureTail(int model, int note, double rate) {
+    MarembaVoice voice;
+    FastPRNG random(0x61ca11u);
+    voice.SetSeed(0x3e192u);
+    voice.Trigger(note, .8f, static_cast<EMarimbaModel>(model), .4f, .5f,
+                  0, .7f, DecayFromControl(.5f), 0, 0, 0, rate, random, 0, 0, 1, 0);
+    TailMeasurement result;
+    require(VoiceAccess::Modes(voice) >= 3, "tail fixture needs three physical modes");
+    for (int mode = 0; mode < 3; ++mode) result.modalT60[mode] = VoiceAccess::T60(voice, mode);
+    // Fit an actual freely evolving fundamental's RMS, not its configured
+    // radius. The first 200 ms excludes thumb/mallet contact. No audio is kept.
+    constexpr double windowSeconds = .05;
+    const int windowFrames = static_cast<int>(std::lround(windowSeconds * rate));
+    const int windows = 44;
+    double sumT = 0, sumY = 0, sumTT = 0, sumTY = 0;
+    int fitCount = 0;
+    for (int window = 0; window < windows; ++window) {
+        double energy = 0;
+        for (int frame = 0; frame < windowFrames; ++frame) {
+            float close = 0, far = 0, piezo = 0;
+            voice.ProcessSample(close, far, piezo);
+            require(std::isfinite(close) && std::isfinite(far) && std::isfinite(piezo),
+                    "tail probe produced nonfinite audio");
+            const double sample = VoiceAccess::FundamentalSample(voice);
+            energy += sample * sample;
+            for (float value : {close, far, piezo, voice.GetBridgeForce()}) {
+                std::uint32_t bits = 0;
+                std::memcpy(&bits, &value, sizeof(bits));
+                for (int byte = 0; byte < 4; ++byte) {
+                    result.audioHash ^= (bits >> (8 * byte)) & 255;
+                    result.audioHash *= UINT64_C(1099511628211);
+                }
+            }
+        }
+        if (window < 4) continue;
+        require(energy > 0 && std::isfinite(energy), "tail probe lost its physical fundamental");
+        const double time = (window + .5) * windowFrames / rate;
+        const double logRms = .5 * std::log(energy / windowFrames);
+        sumT += time; sumY += logRms; sumTT += time * time; sumTY += time * logRms;
+        ++fitCount;
+    }
+    const double slope = (fitCount * sumTY - sumT * sumY)
+                       / (fitCount * sumTT - sumT * sumT);
+    require(slope < 0, "tail probe has no decaying fundamental");
+    result.renderedT60 = -std::log(1000.) / slope;
+    return result;
+}
+
+void heldBodyDamping() {
+    // Frozen from the unmodified physical voice at commit 26debb941face41a,
+    // with the fixed-seed middle-Decay fixture above. Modal data covers three
+    // partials; rendered data comes from fitting actual free-motion samples.
+    struct Before { double modal[3]; double rendered; };
+    constexpr Before before[4][3] {
+        {
+            {{2.17820204922239, .482146705839344, .114258434637555}, 1.58546530337724},
+            {{1.31305643499282, .231957268988989, .046807277285119}, 1.07953469783532},
+            {{.512468170215102, .0813328546936576, .0160862780192384}, .497574432125066},
+        },
+        {
+            {{1.74943881707308, .430665840788638, .11609522287261}, 1.0517091051653},
+            {{.983795479530495, .213486786285099, .0485035244953621}, .602185403944601},
+            {{.378854480007922, .0537889918357361, .0106296806001424}, .316253819436722},
+        },
+        {
+            {{1.24486854193209, .442782076452662, .191373726825125}, 1.14441355156171},
+            {{.747553158222781, .194102709916413, .0579902550665386}, .66135758012706},
+            {{.289131549390259, .0462326936129342, .00966269795722796}, .267022494680073},
+        },
+        {
+            {{5.26881134803693, .676474599728351, .248355483530231}, 5.26889478758063},
+            {{2.69005445134239, .434402371573943, .216445451116375}, 2.69005455998566},
+            {{.64828918279109, .107013978706266, .117922789964677}, .648296612711026},
+        },
+    };
+    constexpr int notes[] {60, 69, 84};
+    for (int model = 0; model < 4; ++model)
+        for (int key = 0; key < 3; ++key)
+            for (double rate : {44100., 48000., 96000.}) {
+                const auto tail = measureTail(model, notes[key], rate);
+                const double expected = model == 3 ? .7 : 1.;
+                const double renderedRatio = tail.renderedT60 / before[model][key].rendered;
+                std::cout << "HELD_BODY model=" << model << " note=" << notes[key]
+                          << " rate=" << rate << " rendered_t60_seconds=" << tail.renderedT60
+                          << " before_ratio=" << renderedRatio << '\n';
+                require(std::abs(renderedRatio - expected) < .0002,
+                        "middle-Decay rendered tail must shorten only Kalimba to 70% of its prior lifetime");
+                for (int mode = 0; mode < 3; ++mode)
+                    require(std::abs(tail.modalT60[mode] / before[model][key].modal[mode] - expected) < 1e-7,
+                            "held-body modal damping changed another model or missed a Kalimba partial");
+            }
+}
+
+void reportTails() {
+    std::cout << "model,note,rate,modal_t60_seconds,rendered_t60_seconds,audio_hash,mode1_t60_seconds,mode2_t60_seconds\n";
+    for (int model = 0; model < 4; ++model)
+        for (int note : {60, 69, 84})
+            for (double rate : {44100., 48000., 96000.}) {
+                const auto tail = measureTail(model, note, rate);
+                std::cout << model << ',' << note << ',' << rate << ',' << tail.modalT60[0]
+                          << ',' << tail.renderedT60 << ',' << tail.audioHash << ','
+                          << tail.modalT60[1] << ',' << tail.modalT60[2] << '\n';
+            }
+}
+
+void reportBrushes() {
+    std::cout << "model,note,seed,brush0_t60_seconds,brush1_t60_seconds\n";
+    for (int model = 0; model < 4; ++model)
+        for (int note : {60, 69, 84}) {
+            bool found = false;
+            for (unsigned seed = 1; seed <= 64 && !found; ++seed) {
+                MarembaVoice voice;
+                FastPRNG random(seed);
+                voice.Trigger(note, .8f, static_cast<EMarimbaModel>(model), .4f, .5f,
+                              0, .7f, 1, 0, 1, 0, 48000, random, 0, 0, 1, 0);
+                if (!VoiceAccess::HasBrush(voice)) continue;
+                found = true;
+                std::cout << model << ',' << note << ',' << seed << ','
+                          << VoiceAccess::BrushT60(voice, 0) << ',' << VoiceAccess::BrushT60(voice, 1) << '\n';
+            }
+            require(found, "brush fixture failed to activate the neighboring-key path");
+        }
+}
 } // namespace
 
-int main() {
-    std::cout << std::setprecision(9);
+int main(int argc, char** argv) {
+    std::cout << std::setprecision(15);
+    if (argc == 2 && std::strcmp(argv[1], "--report-hand-damping") == 0) {
+        reportTails();
+        return 0;
+    }
+    if (argc == 2 && std::strcmp(argv[1], "--report-brush-damping") == 0) {
+        reportBrushes();
+        return 0;
+    }
+    heldBodyDamping();
     // Default 44.1 kHz/2x and maximum supported internal rates. Every MIDI
     // note must retain a useful monotonic range, including subaudio extrapolation.
     std::array<double, 128> reference{};
@@ -120,7 +266,7 @@ int main() {
                 previous = t60;
                 ++modalCases;
             }
-            // The damping half of the physical voicing remains untouched.
+            // The lower half retains its original relative damping taper.
             strike(voice, rate, note, .4f);
             require(std::abs(VoiceAccess::T60(voice) / natural[0] - .4) < 1e-6,
                     "sub-unity Kalimba decay no longer preserves the short physical voicing");

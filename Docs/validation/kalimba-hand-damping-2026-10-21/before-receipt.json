@@ -1,0 +1,40 @@
+{
+  "created_utc": "2026-10-21T07:43:37.621709+00:00",
+  "source_commit": "26debb941face41a036a2f0153f23a28c6a10237",
+  "commands": [
+    [
+      "cmake",
+      "-S",
+      "/Users/vojta/Dev/reason-rack-extension/maremba-rms-reference-20261021-instrument",
+      "-B",
+      "/tmp/maremba-rms-hand-damp-20261021/build",
+      "-G",
+      "Unix Makefiles",
+      "-DCMAKE_BUILD_TYPE=Release",
+      "-DMAREMBA_BUILD_PLUGIN=OFF",
+      "-DMAREMBA_BUILD_TOOLS=OFF",
+      "-DMAREMBA_BUILD_UNIVERSAL=OFF",
+      "-DBUILD_TESTING=ON"
+    ],
+    [
+      "cmake",
+      "--build",
+      "/tmp/maremba-rms-hand-damp-20261021/build",
+      "--target",
+      "MarembaKalimbaDecayTests",
+      "--parallel",
+      "2"
+    ],
+    [
+      "/tmp/maremba-rms-hand-damp-20261021/build/MarembaKalimbaDecayTests",
+      "--report-hand-damping"
+    ]
+  ],
+  "measurement_exit_code": 0,
+  "source_sha256": {
+    "Source/DSP/MarembaVoice.cpp": "6db3c3d5a8497bc05a500e46ccd821d3edded953a11af3d93633374e4681a5cb",
+    "Tests/KalimbaDecayTest.cpp": "48a1cdb13dc582ec686481879206e4da4d29faea813e86dc02b4bb80b62971a9"
+  },
+  "binary_sha256": "7f00da96498492e7a84cc33ef5e64205ccb239c198dc7bb1c8307fd785a0331a",
+  "scope": "Before production damping change; diagnostic report from actual voice evolution; no audio files."
+}

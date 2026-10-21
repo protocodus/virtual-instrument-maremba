@@ -1,0 +1,645 @@
+{
+  "created_utc": "2026-10-21T08:35:55.115293+00:00",
+  "source_commit": "26debb941face41a036a2f0153f23a28c6a10237",
+  "commands": [
+    [
+      "cmake",
+      "--build",
+      "/tmp/maremba-rms-hand-damp-20261021/build",
+      "--target",
+      "MarembaKalimbaDecayTests",
+      "--parallel",
+      "2"
+    ],
+    [
+      "ctest",
+      "--test-dir",
+      "/tmp/maremba-rms-hand-damp-20261021/build",
+      "-R",
+      "KalimbaDecay",
+      "--output-on-failure"
+    ],
+    [
+      "/tmp/maremba-rms-hand-damp-20261021/build/MarembaKalimbaDecayTests",
+      "--report-hand-damping"
+    ],
+    [
+      "/tmp/maremba-rms-hand-damp-20261021/build/MarembaKalimbaDecayTests",
+      "--report-brush-damping"
+    ]
+  ],
+  "focused_test_exit_code": 0,
+  "red_regression_exit_code": 1,
+  "voice_case_count": 36,
+  "unchanged_other_model_audio_cases": 27,
+  "voice_comparisons": [
+    {
+      "model": 0,
+      "note": 60,
+      "rate": 44100,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 1.58546528738722,
+      "after_rendered_t60": 1.58546528738722,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 0,
+      "note": 60,
+      "rate": 48000,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 1.58546530337724,
+      "after_rendered_t60": 1.58546530337724,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 0,
+      "note": 60,
+      "rate": 96000,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 1.5854654036861,
+      "after_rendered_t60": 1.5854654036861,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 0,
+      "note": 69,
+      "rate": 44100,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 1.0795347220738,
+      "after_rendered_t60": 1.0795347220738,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 0,
+      "note": 69,
+      "rate": 48000,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 1.07953469783532,
+      "after_rendered_t60": 1.07953469783532,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 0,
+      "note": 69,
+      "rate": 96000,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 1.07953453551038,
+      "after_rendered_t60": 1.07953453551038,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 0,
+      "note": 84,
+      "rate": 44100,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 0.497574410573891,
+      "after_rendered_t60": 0.497574410573891,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 0,
+      "note": 84,
+      "rate": 48000,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 0.497574432125066,
+      "after_rendered_t60": 0.497574432125066,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 0,
+      "note": 84,
+      "rate": 96000,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 0.497574284687475,
+      "after_rendered_t60": 0.497574284687475,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 1,
+      "note": 60,
+      "rate": 44100,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 1.05170908750644,
+      "after_rendered_t60": 1.05170908750644,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 1,
+      "note": 60,
+      "rate": 48000,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 1.0517091051653,
+      "after_rendered_t60": 1.0517091051653,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 1,
+      "note": 60,
+      "rate": 96000,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 1.05170920828345,
+      "after_rendered_t60": 1.05170920828345,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 1,
+      "note": 69,
+      "rate": 44100,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 0.602185450215465,
+      "after_rendered_t60": 0.602185450215465,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 1,
+      "note": 69,
+      "rate": 48000,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 0.602185403944601,
+      "after_rendered_t60": 0.602185403944601,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 1,
+      "note": 69,
+      "rate": 96000,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 0.602185121704504,
+      "after_rendered_t60": 0.602185121704504,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 1,
+      "note": 84,
+      "rate": 44100,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 0.316253827687343,
+      "after_rendered_t60": 0.316253827687343,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 1,
+      "note": 84,
+      "rate": 48000,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 0.316253819436722,
+      "after_rendered_t60": 0.316253819436722,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 1,
+      "note": 84,
+      "rate": 96000,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 0.316253665447289,
+      "after_rendered_t60": 0.316253665447289,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 2,
+      "note": 60,
+      "rate": 44100,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 1.14441353449575,
+      "after_rendered_t60": 1.14441353449575,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 2,
+      "note": 60,
+      "rate": 48000,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 1.14441355156171,
+      "after_rendered_t60": 1.14441355156171,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 2,
+      "note": 60,
+      "rate": 96000,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 1.14441364347154,
+      "after_rendered_t60": 1.14441364347154,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 2,
+      "note": 69,
+      "rate": 44100,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 0.661357616408329,
+      "after_rendered_t60": 0.661357616408329,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 2,
+      "note": 69,
+      "rate": 48000,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 0.66135758012706,
+      "after_rendered_t60": 0.66135758012706,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 2,
+      "note": 69,
+      "rate": 96000,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 0.661357320873604,
+      "after_rendered_t60": 0.661357320873604,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 2,
+      "note": 84,
+      "rate": 44100,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 0.267022444722898,
+      "after_rendered_t60": 0.267022444722898,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 2,
+      "note": 84,
+      "rate": 48000,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 0.267022494680073,
+      "after_rendered_t60": 0.267022494680073,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 2,
+      "note": 84,
+      "rate": 96000,
+      "ratios": {
+        "modal_t60_seconds": 1.0,
+        "mode1_t60_seconds": 1.0,
+        "mode2_t60_seconds": 1.0,
+        "rendered_t60_seconds": 1.0
+      },
+      "before_rendered_t60": 0.267022599982457,
+      "after_rendered_t60": 0.267022599982457,
+      "audio_hash_unchanged": true
+    },
+    {
+      "model": 3,
+      "note": 60,
+      "rate": 44100,
+      "ratios": {
+        "modal_t60_seconds": 0.6999999999990332,
+        "mode1_t60_seconds": 0.7000000000001223,
+        "mode2_t60_seconds": 0.6999999999999903,
+        "rendered_t60_seconds": 0.6999965299409081
+      },
+      "before_rendered_t60": 5.26889477585123,
+      "after_rendered_t60": 3.68820805971964,
+      "audio_hash_unchanged": false
+    },
+    {
+      "model": 3,
+      "note": 60,
+      "rate": 48000,
+      "ratios": {
+        "modal_t60_seconds": 0.6999999999995632,
+        "mode1_t60_seconds": 0.6999999999998763,
+        "mode2_t60_seconds": 0.7000000000000213,
+        "rendered_t60_seconds": 0.6999965296024674
+      },
+      "before_rendered_t60": 5.26889478758063,
+      "after_rendered_t60": 3.68820806614697,
+      "audio_hash_unchanged": false
+    },
+    {
+      "model": 3,
+      "note": 60,
+      "rate": 96000,
+      "ratios": {
+        "modal_t60_seconds": 0.6999999999983307,
+        "mode1_t60_seconds": 0.700000000000088,
+        "mode2_t60_seconds": 0.6999999999999026,
+        "rendered_t60_seconds": 0.6999965043916213
+      },
+      "before_rendered_t60": 5.26889559495774,
+      "after_rendered_t60": 3.68820849847483,
+      "audio_hash_unchanged": false
+    },
+    {
+      "model": 3,
+      "note": 69,
+      "rate": 44100,
+      "ratios": {
+        "modal_t60_seconds": 0.6999999999991364,
+        "mode1_t60_seconds": 0.6999999999999094,
+        "mode2_t60_seconds": 0.7000000000000203,
+        "rendered_t60_seconds": 0.6999999999990153
+      },
+      "before_rendered_t60": 2.69005455998667,
+      "after_rendered_t60": 1.88303819198802,
+      "audio_hash_unchanged": false
+    },
+    {
+      "model": 3,
+      "note": 69,
+      "rate": 48000,
+      "ratios": {
+        "modal_t60_seconds": 0.6999999999995825,
+        "mode1_t60_seconds": 0.6999999999999283,
+        "mode2_t60_seconds": 0.7000000000000577,
+        "rendered_t60_seconds": 0.6999999999993078
+      },
+      "before_rendered_t60": 2.69005455998566,
+      "after_rendered_t60": 1.8830381919881,
+      "audio_hash_unchanged": false
+    },
+    {
+      "model": 3,
+      "note": 69,
+      "rate": 96000,
+      "ratios": {
+        "modal_t60_seconds": 0.6999999999994183,
+        "mode1_t60_seconds": 0.7000000000001397,
+        "mode2_t60_seconds": 0.7000000000000632,
+        "rendered_t60_seconds": 0.6999999999995241
+      },
+      "before_rendered_t60": 2.6900545599851,
+      "after_rendered_t60": 1.88303819198829,
+      "audio_hash_unchanged": false
+    },
+    {
+      "model": 3,
+      "note": 84,
+      "rate": 44100,
+      "ratios": {
+        "modal_t60_seconds": 0.6999999999999802,
+        "mode1_t60_seconds": 0.6999999999999739,
+        "mode2_t60_seconds": 0.6999999999999517,
+        "rendered_t60_seconds": 0.6999980259927827
+      },
+      "before_rendered_t60": 0.648296619617203,
+      "after_rendered_t60": 0.453806353989836,
+      "audio_hash_unchanged": false
+    },
+    {
+      "model": 3,
+      "note": 84,
+      "rate": 48000,
+      "ratios": {
+        "modal_t60_seconds": 0.6999999999999089,
+        "mode1_t60_seconds": 0.699999999999986,
+        "mode2_t60_seconds": 0.6999999999999533,
+        "rendered_t60_seconds": 0.6999980273070272
+      },
+      "before_rendered_t60": 0.648296612711026,
+      "after_rendered_t60": 0.453806350007546,
+      "audio_hash_unchanged": false
+    },
+    {
+      "model": 3,
+      "note": 84,
+      "rate": 96000,
+      "ratios": {
+        "modal_t60_seconds": 0.699999999999762,
+        "mode1_t60_seconds": 0.6999999999999962,
+        "mode2_t60_seconds": 0.7000000000000043,
+        "rendered_t60_seconds": 0.6999980489588427
+      },
+      "before_rendered_t60": 0.648296392474057,
+      "after_rendered_t60": 0.453806209878896,
+      "audio_hash_unchanged": false
+    }
+  ],
+  "brush_comparisons": [
+    {
+      "model": 0,
+      "note": 60,
+      "ratios": {
+        "brush0_t60_seconds": 1.0,
+        "brush1_t60_seconds": 1.0
+      }
+    },
+    {
+      "model": 0,
+      "note": 69,
+      "ratios": {
+        "brush0_t60_seconds": 1.0,
+        "brush1_t60_seconds": 1.0
+      }
+    },
+    {
+      "model": 0,
+      "note": 84,
+      "ratios": {
+        "brush0_t60_seconds": 1.0,
+        "brush1_t60_seconds": 1.0
+      }
+    },
+    {
+      "model": 1,
+      "note": 60,
+      "ratios": {
+        "brush0_t60_seconds": 1.0,
+        "brush1_t60_seconds": 1.0
+      }
+    },
+    {
+      "model": 1,
+      "note": 69,
+      "ratios": {
+        "brush0_t60_seconds": 1.0,
+        "brush1_t60_seconds": 1.0
+      }
+    },
+    {
+      "model": 1,
+      "note": 84,
+      "ratios": {
+        "brush0_t60_seconds": 1.0,
+        "brush1_t60_seconds": 1.0
+      }
+    },
+    {
+      "model": 2,
+      "note": 60,
+      "ratios": {
+        "brush0_t60_seconds": 1.0,
+        "brush1_t60_seconds": 1.0
+      }
+    },
+    {
+      "model": 2,
+      "note": 69,
+      "ratios": {
+        "brush0_t60_seconds": 1.0,
+        "brush1_t60_seconds": 1.0
+      }
+    },
+    {
+      "model": 2,
+      "note": 84,
+      "ratios": {
+        "brush0_t60_seconds": 1.0,
+        "brush1_t60_seconds": 1.0
+      }
+    },
+    {
+      "model": 3,
+      "note": 60,
+      "ratios": {
+        "brush0_t60_seconds": 0.6999999999991745,
+        "brush1_t60_seconds": 0.6999999999999961
+      }
+    },
+    {
+      "model": 3,
+      "note": 69,
+      "ratios": {
+        "brush0_t60_seconds": 0.6999999999993121,
+        "brush1_t60_seconds": 0.7000000000000001
+      }
+    },
+    {
+      "model": 3,
+      "note": 84,
+      "ratios": {
+        "brush0_t60_seconds": 0.7000000000000962,
+        "brush1_t60_seconds": 0.7000000000000001
+      }
+    }
+  ],
+  "source_sha256": {
+    "Source/DSP/MarembaVoice.cpp": "75aa5ce4dc055847d15c2f8d6541abeab00c10dc1ff5c42bc31e81473a8138c4",
+    "Tests/KalimbaDecayTest.cpp": "e720b7b82e7e1f52b31582386075968e0150f4fe6851ea4fd4d202345fe0ccb2"
+  },
+  "scope": "Physical voice modal and actual free-motion fundamental RMS tail fit; hashes of close/far/piezo/bridge output. No audio files; no full SDK/host test.",
+  "limits": "Shared KalimbaBody/air/pickup, buzzer/collision and sympathetic poles retain their existing lifetimes; these are excited by the shortened tines. Effective passive held-body voicing, not measured hand contact."
+}
