@@ -1,0 +1,15 @@
+{
+  "command": [
+    "ctest",
+    "--test-dir",
+    "/tmp/maremba-rms-hand-damp-20261021/build",
+    "-R",
+    "^Maremba[.]Round5Response$",
+    "--no-tests=error",
+    "--output-on-failure"
+  ],
+  "started_utc": "2026-10-21T10:21:44.067060+00:00",
+  "elapsed_seconds": 28.19814041699283,
+  "exit_code": 0,
+  "expected_exit_code": 0
+}

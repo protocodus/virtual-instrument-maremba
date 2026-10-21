@@ -1,0 +1,22 @@
+{
+  "command": [
+    "clang++",
+    "-std=c++17",
+    "-O3",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-I/tmp/maremba-rms-hand-damp-20261021/round5-fixture-fix/negative/Source",
+    "-I/tmp/maremba-rms-hand-damp-20261021/round5-fixture-fix/negative/Source/DSP",
+    "-I/tmp/maremba-rms-hand-damp-20261021/round5-fixture-fix/negative/Tests",
+    "/tmp/maremba-rms-hand-damp-20261021/round5-fixture-fix/negative/negative.cpp",
+    "/tmp/maremba-rms-hand-damp-20261021/round5-fixture-fix/negative/Source/DSP/MarembaEngine.cpp",
+    "/tmp/maremba-rms-hand-damp-20261021/round5-fixture-fix/negative/Source/DSP/MarembaVoice.cpp",
+    "-o",
+    "/tmp/maremba-rms-hand-damp-20261021/round5-fixture-fix/negative/negative-probe"
+  ],
+  "started_utc": "2026-10-21T10:21:37.535710+00:00",
+  "elapsed_seconds": 7.780788833042607,
+  "exit_code": 0,
+  "expected_exit_code": 0
+}

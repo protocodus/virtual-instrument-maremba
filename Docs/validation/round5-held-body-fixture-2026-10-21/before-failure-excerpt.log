@@ -1,0 +1,6 @@
+REPLUCK kalimba old_ring_left_db=-22.408
+FAIL a re-plucked tine keeps its old ring
+HOLDAWAY C4_t60_s=3.6882 E4-B4_median_t60_s=1.883 E4-B4_range_s=[1.6465,2.9401] E6_t60_s=0.27562
+FAIL kalimba low tine ring outside Holdaway's range
+FAIL kalimba mid-register ring outside Holdaway's range
+Round5ResponseTest FAILED failures=3

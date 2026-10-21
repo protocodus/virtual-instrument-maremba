@@ -1,0 +1,78 @@
+Start testing: Oct 21 12:21 CEST
+----------------------------------------------------------
+57/80 Testing: Maremba.Round5Response
+57/80 Test: Maremba.Round5Response
+Command: "/tmp/maremba-rms-hand-damp-20261021/build/MarembaRound5ResponseTests"
+Directory: /tmp/maremba-rms-hand-damp-20261021/build
+"Maremba.Round5Response" start time: Oct 21 12:21 CEST
+Output:
+----------------------------------------------------------
+SCALE model=rosewood scale=bala C4_E4_interval_error_cents=-0.001273
+SCALE model=rosewood scale=pentatonic C4_E4_interval_error_cents=-0.0013449
+SCALE model=padauk scale=bala C4_E4_interval_error_cents=0.0074842
+SCALE model=padauk scale=pentatonic C4_E4_interval_error_cents=0.0049413
+SCALE model=balafon scale=bala C4_E4_interval_error_cents=0.014721
+SCALE model=balafon scale=pentatonic C4_E4_interval_error_cents=0.012965
+SCALE model=kalimba scale=bala C4_E4_interval_error_cents=-6.0393e-06
+SCALE model=kalimba scale=pentatonic C4_E4_interval_error_cents=6.6438e-07
+  pitch model=rosewood note=36 coupling=0 tune=-50 error_cents=-1.2435e-07
+  pitch model=rosewood note=36 coupling=0 tune=0 error_cents=-1.2435e-07
+  pitch model=rosewood note=36 coupling=0.35 tune=-50 error_cents=0.0030022
+  pitch model=rosewood note=36 coupling=0.35 tune=0 error_cents=1.594e-05
+  pitch model=rosewood note=36 coupling=0.35 tune=50 error_cents=0.0056784
+  pitch model=rosewood note=36 coupling=0.7 tune=-50 error_cents=0.0099835
+  pitch model=rosewood note=36 coupling=0.7 tune=0 error_cents=0.021316
+  pitch model=rosewood note=36 coupling=0.7 tune=50 error_cents=0.011833
+  pitch model=rosewood note=36 coupling=1 tune=-50 error_cents=0.017019
+  pitch model=rosewood note=36 coupling=1 tune=0 error_cents=0.036292
+  pitch model=rosewood note=36 coupling=1 tune=50 error_cents=0.018539
+  pitch model=rosewood note=43 coupling=1 tune=50 error_cents=0.019986
+  pitch model=rosewood note=48 coupling=0.7 tune=50 error_cents=0.021798
+  pitch model=rosewood note=48 coupling=1 tune=0 error_cents=0.039186
+  pitch model=rosewood note=48 coupling=1 tune=50 error_cents=0.034669
+  pitch model=padauk note=36 coupling=0.35 tune=0 error_cents=0.054966
+  pitch model=padauk note=36 coupling=0.35 tune=50 error_cents=-0.10251
+  pitch model=padauk note=36 coupling=0.7 tune=0 error_cents=0.074109
+  pitch model=padauk note=36 coupling=1 tune=0 error_cents=0.11453
+  pitch model=padauk note=48 coupling=0.35 tune=50 error_cents=-0.12855
+  pitch model=padauk note=48 coupling=1 tune=-50 error_cents=0.15068
+PITCH worst_error_cents=0.11453 detuned_resonator=0.15068
+DAMP model=rosewood drop_db_at_0.2s=-65.82 step_ratio=0.87156
+DAMP model=padauk drop_db_at_0.2s=-51.625 step_ratio=0.8963
+DAMP model=balafon drop_db_at_0.2s=-42.949 step_ratio=0.9085
+DAMP model=kalimba drop_db_at_0.2s=-135.17 step_ratio=1.0216
+ROLL model=rosewood strokes_in_1s=14 last_stroke_s=0.991 roll_vs_first_stroke_db=0.29979
+ROLL model=padauk strokes_in_1s=14 last_stroke_s=0.991 roll_vs_first_stroke_db=1.4887
+ROLL model=balafon strokes_in_1s=14 last_stroke_s=0.991 roll_vs_first_stroke_db=2.5846
+COVER note=60 open_db=15.218 covered_change_db=4.9425 pitch_shift_cents=-5.2181e-06
+COVER note=64 open_db=15.137 covered_change_db=3.0996 pitch_shift_cents=-1.3287e-06
+COVER note=67 open_db=20.258 covered_change_db=-3.8732 pitch_shift_cents=3.8893e-06
+COVER note=69 open_db=21.422 covered_change_db=-3.903 pitch_shift_cents=6.6437e-07
+COVER note=72 open_db=19.262 covered_change_db=-1.4552 pitch_shift_cents=0
+COVER note=76 open_db=12.941 covered_change_db=-0.85781 pitch_shift_cents=6.6437e-07
+BUZZ worst_fundamental_change_db factory_mf=0.32539 loose_or_forte=1.2258
+CHARLEO buzz=0.5 mf_layer_db=-29.799
+CHARLEO buzz=1 mf_layer_db=-12.802
+RESTRIKE rosewood note=48 quiet_restrike_ring_change_db=-1.4139
+RESTRIKE rosewood note=60 quiet_restrike_ring_change_db=-1.2608
+REPLUCK kalimba old_ring_left_db=-41.338
+HILL note=36 t60_s=6.8643 measured_s=6.7
+HILL note=48 t60_s=4.2789 measured_s=4.7
+HILL note=60 t60_s=2.1782 measured_s=2.2
+HILL note=72 t60_s=1.0935 measured_s=1.1
+HILL note=84 t60_s=0.51247 measured_s=0.54
+HILL note=96 t60_s=0.16971 measured_s=0.18
+HOLDAWAY_INSPIRED held_lifetime_scale=0.7 C4_t60_s=3.6882 E4-B4_median_t60_s=1.883 E4-B4_range_s=[1.6465,2.9401] E6_t60_s=0.27562
+Round5ResponseTest PASSED failures=0
+<end of output>
+Test time =  28.07 sec
+----------------------------------------------------------
+Test Passed.
+"Maremba.Round5Response" end time: Oct 21 12:22 CEST
+"Maremba.Round5Response" time elapsed: 00:00:28
+----------------------------------------------------------
+
+End testing: Oct 21 12:22 CEST
+
+unit =  28.07 sec*proc
+

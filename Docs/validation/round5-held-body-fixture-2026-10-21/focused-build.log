@@ -1,0 +1,6 @@
+[ 33%] Building CXX object CMakeFiles/MarembaDSP.dir/Source/DSP/MarembaEngine.cpp.o
+[ 66%] Linking CXX static library libMarembaDSP.a
+[ 66%] Built target MarembaDSP
+[100%] Building CXX object CMakeFiles/MarembaRound5ResponseTests.dir/Tests/Round5ResponseTest.cpp.o
+[100%] Linking CXX executable MarembaRound5ResponseTests
+[100%] Built target MarembaRound5ResponseTests

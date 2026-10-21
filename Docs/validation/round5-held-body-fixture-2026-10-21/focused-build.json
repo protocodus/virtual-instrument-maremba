@@ -1,0 +1,15 @@
+{
+  "command": [
+    "cmake",
+    "--build",
+    "/tmp/maremba-rms-hand-damp-20261021/build",
+    "--target",
+    "MarembaRound5ResponseTests",
+    "--parallel",
+    "2"
+  ],
+  "started_utc": "2026-10-21T10:21:37.535406+00:00",
+  "elapsed_seconds": 6.530977917020209,
+  "exit_code": 0,
+  "expected_exit_code": 0
+}
