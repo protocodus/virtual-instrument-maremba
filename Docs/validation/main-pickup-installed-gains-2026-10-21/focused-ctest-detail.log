@@ -1,0 +1,22 @@
+Start testing: Oct 21 14:57 CEST
+----------------------------------------------------------
+15/80 Testing: Maremba.MainPickupAlignment
+15/80 Test: Maremba.MainPickupAlignment
+Command: "/tmp/maremba-rms-hand-damp-20261021/build/MarembaMainPickupAlignmentTests"
+Directory: /tmp/maremba-rms-hand-damp-20261021/build
+"Maremba.MainPickupAlignment" start time: Oct 21 14:57 CEST
+Output:
+----------------------------------------------------------
+PASS Main pickup physical-flight routing, raw direct isolation, rate/quality/reset: 4517538 checks
+<end of output>
+Test time =   2.51 sec
+----------------------------------------------------------
+Test Passed.
+"Maremba.MainPickupAlignment" end time: Oct 21 14:57 CEST
+"Maremba.MainPickupAlignment" time elapsed: 00:00:02
+----------------------------------------------------------
+
+End testing: Oct 21 14:57 CEST
+
+unit =   2.51 sec*proc
+

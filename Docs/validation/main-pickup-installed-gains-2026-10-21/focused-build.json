@@ -1,0 +1,14 @@
+{
+  "command": [
+    "cmake",
+    "--build",
+    "/tmp/maremba-rms-hand-damp-20261021/build",
+    "--target",
+    "MarembaMainPickupAlignmentTests",
+    "--parallel",
+    "2"
+  ],
+  "started_utc": "2026-10-21T12:57:52.412409+00:00",
+  "elapsed_seconds": 1.8509971250314265,
+  "exit_code": 0
+}

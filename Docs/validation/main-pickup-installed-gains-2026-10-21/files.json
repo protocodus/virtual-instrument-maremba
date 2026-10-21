@@ -1,0 +1,42 @@
+{
+  ".gitattributes": {
+    "bytes": 37,
+    "sha256": "9c3162fc4aa2cfb7820c6a894c379462ea8f95368e792d385dd656af53f7d97d"
+  },
+  "README.md": {
+    "bytes": 1538,
+    "sha256": "1cbbca62029a86f161971300f98b7cca1759d73a7e76b513d90fde552e155f5c"
+  },
+  "before-failure-excerpt.log": {
+    "bytes": 210,
+    "sha256": "06e6ba95ec527fe7ff02d040e4589c3912d2ad6d6c6dc79016cdd9ece412dc6f"
+  },
+  "failed-build-process.json": {
+    "bytes": 986,
+    "sha256": "09c876da1d70bf42616560d2d4b5e289814f188ad42bd6942cf5f409f58bdbbc"
+  },
+  "focused-build.json": {
+    "bytes": 293,
+    "sha256": "873a25444cbf443d54d5d608edae1ef090c517139591bcf79219142d7cd80d0b"
+  },
+  "focused-build.log": {
+    "bytes": 255,
+    "sha256": "37e62d35bda9678520d474a5000c4e4042548a3c1c845bf870f57bfc34d9c8d8"
+  },
+  "focused-ctest-detail.log": {
+    "bytes": 877,
+    "sha256": "46b38bb13939f4753c4a90a4b5046e1df4a48a77bc428e586c06db44815984c6"
+  },
+  "focused-ctest.json": {
+    "bytes": 314,
+    "sha256": "b0c3f76388ef938323fbff4611caff1e3ce51fadc48c74b3902fc3394a079b6b"
+  },
+  "focused-ctest.log": {
+    "bytes": 304,
+    "sha256": "350a00c546d2f6dff1323d95935c89c3c0d507ab6ffb690622ea9b2e9126c118"
+  },
+  "receipt.json": {
+    "bytes": 7511,
+    "sha256": "a0ddc02db616e15a43a95ae8f32071636cd8afd099eb21bd568c7b1a7296f633"
+  }
+}

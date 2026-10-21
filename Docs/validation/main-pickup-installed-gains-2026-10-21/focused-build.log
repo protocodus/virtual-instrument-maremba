@@ -1,0 +1,4 @@
+[ 50%] Built target MarembaDSP
+[ 75%] Building CXX object CMakeFiles/MarembaMainPickupAlignmentTests.dir/Tests/MainPickupAlignmentTest.cpp.o
+[100%] Linking CXX executable MarembaMainPickupAlignmentTests
+[100%] Built target MarembaMainPickupAlignmentTests
