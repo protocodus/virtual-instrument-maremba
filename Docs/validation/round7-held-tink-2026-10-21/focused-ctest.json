@@ -1,0 +1,14 @@
+{
+  "command": [
+    "ctest",
+    "--test-dir",
+    "/tmp/maremba-rms-hand-damp-20261021/build",
+    "-R",
+    "^Maremba[.]Round7BalafonKalimba$",
+    "--no-tests=error",
+    "--output-on-failure"
+  ],
+  "started_utc": "2026-10-21T10:37:25.415583+00:00",
+  "elapsed_seconds": 3.433587708044797,
+  "exit_code": 0
+}

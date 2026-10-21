@@ -1,0 +1,62 @@
+Start testing: Oct 21 12:37 CEST
+----------------------------------------------------------
+63/80 Testing: Maremba.Round7BalafonKalimba
+63/80 Test: Maremba.Round7BalafonKalimba
+Command: "/tmp/maremba-rms-hand-damp-20261021/build/MarembaRound7BalafonKalimbaTests"
+Directory: /tmp/maremba-rms-hand-damp-20261021/build
+"Maremba.Round7BalafonKalimba" start time: Oct 21 12:37 CEST
+Output:
+----------------------------------------------------------
+ONSET technique=0 note=60 step_re_peak=0.0023315
+ONSET technique=0 note=72 step_re_peak=0.0055376
+ONSET technique=0 note=84 step_re_peak=0.00442956
+ONSET technique=1 note=60 step_re_peak=0.00145372
+ONSET technique=1 note=72 step_re_peak=0.00227298
+ONSET technique=1 note=84 step_re_peak=0.00482471
+ONSET technique=2 note=60 step_re_peak=0.00154089
+ONSET technique=2 note=72 step_re_peak=0.00191252
+ONSET technique=2 note=84 step_re_peak=0.00755854
+ONSET technique=3 note=60 step_re_peak=0.00635379
+ONSET technique=3 note=72 step_re_peak=0.00415078
+ONSET technique=3 note=84 step_re_peak=0.0173082
+REPLUCK hf_burst_re_ring_db=16.9717
+BUZZERS C6 full Buzz pick_db=-8.81184 flesh_db=-300
+TINK historical recorded F#4 window_ms=[80,120] re f1 db=-31.5855
+TINK held recorded-age scale=0.7 window_ms=[56,84] re f1 db=-27.4936
+ITD microseconds C4=3.42914 D4=15.7758 E4=-7.59265 D6=100.819 E6=-90.5614
+ARRIVAL note=60 rate=44100 factor=2 bins=18 magnitude_db=0.0557718 phase_rad=0.00587205 complex_error=0.00758812 peak=0.00443106 audible=1 complete=1
+ARRIVAL note=60 rate=48000 factor=2 bins=18 magnitude_db=0.0545605 phase_rad=0.00269873 complex_error=0.00656314 peak=0.00443817 audible=1 complete=1
+ARRIVAL note=60 rate=96000 factor=2 bins=18 magnitude_db=0.0405581 phase_rad=0.00264107 complex_error=0.00530247 peak=0.0044766 audible=1 complete=1
+ARRIVAL note=62 rate=44100 factor=2 bins=18 magnitude_db=0.0489805 phase_rad=0.00346563 complex_error=0.00542824 peak=0.00515998 audible=1 complete=1
+ARRIVAL note=62 rate=48000 factor=2 bins=18 magnitude_db=0.078594 phase_rad=0.00612906 complex_error=0.00895254 peak=0.0051712 audible=1 complete=1
+ARRIVAL note=62 rate=96000 factor=2 bins=18 magnitude_db=0.034748 phase_rad=0.00081066 complex_error=0.0035649 peak=0.0052137 audible=1 complete=1
+ARRIVAL note=64 rate=44100 factor=2 bins=18 magnitude_db=0.0500419 phase_rad=0.00113501 complex_error=0.0052723 peak=0.00593765 audible=1 complete=1
+ARRIVAL note=64 rate=48000 factor=2 bins=18 magnitude_db=0.0442013 phase_rad=0.00882794 complex_error=0.00870193 peak=0.00594828 audible=1 complete=1
+ARRIVAL note=64 rate=96000 factor=2 bins=18 magnitude_db=0.0595924 phase_rad=0.00144512 complex_error=0.00673052 peak=0.00598808 audible=1 complete=1
+ARRIVAL note=86 rate=44100 factor=2 bins=18 magnitude_db=0.0505864 phase_rad=0.00714356 complex_error=0.00566675 peak=0.0096415 audible=1 complete=1
+ARRIVAL note=86 rate=48000 factor=2 bins=18 magnitude_db=0.102721 phase_rad=0.00577387 complex_error=0.00584305 peak=0.00965744 audible=1 complete=1
+ARRIVAL note=86 rate=96000 factor=2 bins=18 magnitude_db=0.0481419 phase_rad=0.00254989 complex_error=0.00533509 peak=0.00973871 audible=1 complete=1
+ARRIVAL note=88 rate=44100 factor=2 bins=18 magnitude_db=0.0643325 phase_rad=0.00472612 complex_error=0.00703584 peak=0.00989114 audible=1 complete=1
+ARRIVAL note=88 rate=48000 factor=2 bins=18 magnitude_db=0.0920629 phase_rad=0.00847434 complex_error=0.00972269 peak=0.00993542 audible=1 complete=1
+ARRIVAL note=88 rate=96000 factor=2 bins=18 magnitude_db=0.0697793 phase_rad=0.000506436 complex_error=0.00467867 peak=0.0100349 audible=1 complete=1
+ARRIVAL note=60 rate=48000 factor=4 bins=18 magnitude_db=0.053703 phase_rad=0.00592417 complex_error=0.00851169 peak=0.0044766 audible=1 complete=1
+ARRIVAL note=86 rate=48000 factor=4 bins=18 magnitude_db=0.100658 phase_rad=0.00599964 complex_error=0.00627848 peak=0.00972875 audible=1 complete=1
+ARRIVAL note=88 rate=48000 factor=4 bins=18 magnitude_db=0.0945586 phase_rad=0.00829886 complex_error=0.00962404 peak=0.0100309 audible=1 complete=1
+ARRIVAL note=60 rate=48000 factor=8 bins=18 magnitude_db=0.0874659 phase_rad=0.00313739 complex_error=0.0104632 peak=0.00449026 audible=1 complete=1
+ARRIVAL note=86 rate=48000 factor=8 bins=18 magnitude_db=0.106075 phase_rad=0.00574642 complex_error=0.00557878 peak=0.00975291 audible=1 complete=1
+ARRIVAL note=88 rate=48000 factor=8 bins=18 magnitude_db=0.0951081 phase_rad=0.00978807 complex_error=0.00960916 peak=0.0100345 audible=1 complete=1
+HALO balafon scale=0 degree_keys_energy=6.1016 other_keys_energy=0
+HALO balafon scale=5 degree_keys_energy=2.5328 other_keys_energy=0
+Round7BalafonKalimbaTest PASSED failures=0
+<end of output>
+Test time =   3.40 sec
+----------------------------------------------------------
+Test Passed.
+"Maremba.Round7BalafonKalimba" end time: Oct 21 12:37 CEST
+"Maremba.Round7BalafonKalimba" time elapsed: 00:00:03
+----------------------------------------------------------
+
+End testing: Oct 21 12:37 CEST
+
+unit =   3.40 sec*proc
+
