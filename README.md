@@ -43,6 +43,20 @@ One demo per factory preset, rendered by every main build from
 
 ## Version history
 
+### 1.5.7 — 2026-10-22 — gentle touch and shared-response refinement
+
+- Give clean factory sounds gentler velocity modulation of contact position,
+  artifacts and shared resonance. Selected high Body/Sympathetic settings are
+  trimmed by 5%; ambient voicings retain their intent. Hardness expression,
+  fundamental Decay, Room, Linear response and native 1x remain as authored.
+- Restore normal-playing balance with authored VCA adjustments, retaining the
+  existing Main ceiling and musical dynamics policy. The DSP is unchanged;
+  existing variation and physical contact remain intact, and saved patches
+  retain their own controls.
+- [Scope and validation](Docs/validation/gentle-organic-2026-10-22/README.md).
+  The embedded demos above remain the preceding bank; this pass has separate
+  raw A/B previews and measurement receipts.
+
 ### 1.5.4 — 2026-10-20 — preset VCA balance and dynamic headroom
 
 - Balance the factory bank around −8 dBFS on the normal velocity-80 Linear
