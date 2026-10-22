@@ -1,0 +1,182 @@
+[
+  {
+    "state": "Ambient Cathedral Bloom",
+    "rms_mean_candidate_dbfs": -27.2585,
+    "final_rms_reference_dbfs": -27.3585,
+    "final_peak_minimum_dbfs": -11.6103,
+    "final_peak_maximum_dbfs": -10.8103,
+    "rms_tolerance_db": 0.35,
+    "peak_window_width_db": 0.8
+  },
+  {
+    "state": "Concert Grand Rosewood",
+    "rms_mean_candidate_dbfs": -28.0713,
+    "final_rms_reference_dbfs": -28.1713,
+    "final_peak_minimum_dbfs": -13.304,
+    "final_peak_maximum_dbfs": -12.504,
+    "rms_tolerance_db": 0.35,
+    "peak_window_width_db": 0.8
+  },
+  {
+    "state": "Direct Piezo Mallet",
+    "rms_mean_candidate_dbfs": -27.179,
+    "final_rms_reference_dbfs": -27.279,
+    "final_peak_minimum_dbfs": -6.1994,
+    "final_peak_maximum_dbfs": -5.3994,
+    "rms_tolerance_db": 0.35,
+    "peak_window_width_db": 0.8
+  },
+  {
+    "state": "Hard Acrylic Virtuoso",
+    "rms_mean_candidate_dbfs": -27.4974,
+    "final_rms_reference_dbfs": -27.5974,
+    "final_peak_minimum_dbfs": -6.0796,
+    "final_peak_maximum_dbfs": -5.2796,
+    "rms_tolerance_db": 0.35,
+    "peak_window_width_db": 0.8
+  },
+  {
+    "state": "Rosewood Dampened Etude",
+    "rms_mean_candidate_dbfs": -28.9793,
+    "final_rms_reference_dbfs": -29.0793,
+    "final_peak_minimum_dbfs": -14.4277,
+    "final_peak_maximum_dbfs": -13.6277,
+    "rms_tolerance_db": 0.35,
+    "peak_window_width_db": 0.8
+  },
+  {
+    "state": "Rosewood Roll Chorale",
+    "rms_mean_candidate_dbfs": -27.5908,
+    "final_rms_reference_dbfs": -27.6908,
+    "final_peak_minimum_dbfs": -12.62,
+    "final_peak_maximum_dbfs": -11.82,
+    "rms_tolerance_db": 0.35,
+    "peak_window_width_db": 0.8
+  },
+  {
+    "state": "Soft Yarn Nocturne",
+    "rms_mean_candidate_dbfs": -28.7817,
+    "final_rms_reference_dbfs": -28.8817,
+    "final_peak_minimum_dbfs": -14.3821,
+    "final_peak_maximum_dbfs": -13.7821,
+    "rms_tolerance_db": 0.35,
+    "peak_window_width_db": 0.6
+  },
+  {
+    "state": "Chiapas Folk Fiesta",
+    "rms_mean_candidate_dbfs": -28.1318,
+    "final_rms_reference_dbfs": -28.2318,
+    "final_peak_minimum_dbfs": -6.5348,
+    "final_peak_maximum_dbfs": -5.7348,
+    "rms_tolerance_db": 0.35,
+    "peak_window_width_db": 0.8
+  },
+  {
+    "state": "Guatemalan Charleo",
+    "rms_mean_candidate_dbfs": -28.393,
+    "final_rms_reference_dbfs": -28.493,
+    "final_peak_minimum_dbfs": -10.0442,
+    "final_peak_maximum_dbfs": -9.2442,
+    "rms_tolerance_db": 0.35,
+    "peak_window_width_db": 0.8
+  },
+  {
+    "state": "Mayan Dance Padauk",
+    "rms_mean_candidate_dbfs": -29.0341,
+    "final_rms_reference_dbfs": -29.1341,
+    "final_peak_minimum_dbfs": -13.8746,
+    "final_peak_maximum_dbfs": -13.0746,
+    "rms_tolerance_db": 0.35,
+    "peak_window_width_db": 0.8
+  },
+  {
+    "state": "Ancestral Balafon",
+    "rms_mean_candidate_dbfs": -28.2422,
+    "final_rms_reference_dbfs": -28.3422,
+    "final_peak_minimum_dbfs": -9.1495,
+    "final_peak_maximum_dbfs": -8.3495,
+    "rms_tolerance_db": 0.35,
+    "peak_window_width_db": 0.8
+  },
+  {
+    "state": "Birifor Gyil Buzz",
+    "rms_mean_candidate_dbfs": -28.0524,
+    "final_rms_reference_dbfs": -28.1524,
+    "final_peak_minimum_dbfs": -9.2313,
+    "final_peak_maximum_dbfs": -8.4313,
+    "rms_tolerance_db": 0.35,
+    "peak_window_width_db": 0.8
+  },
+  {
+    "state": "Chopi Timbila Ensemble",
+    "rms_mean_candidate_dbfs": -27.6981,
+    "final_rms_reference_dbfs": -27.7981,
+    "final_peak_minimum_dbfs": -7.5557,
+    "final_peak_maximum_dbfs": -6.7557,
+    "rms_tolerance_db": 0.35,
+    "peak_window_width_db": 0.8
+  },
+  {
+    "state": "Equipentatonic Log Keys",
+    "rms_mean_candidate_dbfs": -27.1964,
+    "final_rms_reference_dbfs": -27.2964,
+    "final_peak_minimum_dbfs": -5.4973,
+    "final_peak_maximum_dbfs": -4.6973,
+    "rms_tolerance_db": 0.35,
+    "peak_window_width_db": 0.8
+  },
+  {
+    "state": "Mandinka Bala Heptatonic",
+    "rms_mean_candidate_dbfs": -27.7502,
+    "final_rms_reference_dbfs": -27.8502,
+    "final_peak_minimum_dbfs": -7.6425,
+    "final_peak_maximum_dbfs": -6.8425,
+    "rms_tolerance_db": 0.35,
+    "peak_window_width_db": 0.8
+  },
+  {
+    "state": "Midnight Village Ritual",
+    "rms_mean_candidate_dbfs": -28.5938,
+    "final_rms_reference_dbfs": -28.6938,
+    "final_peak_minimum_dbfs": -12.4986,
+    "final_peak_maximum_dbfs": -11.6986,
+    "rms_tolerance_db": 0.35,
+    "peak_window_width_db": 0.8
+  },
+  {
+    "state": "Sambla Talking Balafon",
+    "rms_mean_candidate_dbfs": -27.6567,
+    "final_rms_reference_dbfs": -27.7567,
+    "final_peak_minimum_dbfs": -7.4775,
+    "final_peak_maximum_dbfs": -6.6775,
+    "rms_tolerance_db": 0.35,
+    "peak_window_width_db": 0.8
+  },
+  {
+    "state": "Kalimba Muted Thumbs",
+    "rms_mean_candidate_dbfs": -24.485,
+    "final_rms_reference_dbfs": -24.585,
+    "final_peak_minimum_dbfs": -10.3728,
+    "final_peak_maximum_dbfs": -9.5728,
+    "rms_tolerance_db": 0.35,
+    "peak_window_width_db": 0.8
+  },
+  {
+    "state": "Kalimba Pick Sparkle",
+    "rms_mean_candidate_dbfs": -26.4331,
+    "final_rms_reference_dbfs": -26.5331,
+    "final_peak_minimum_dbfs": -12.5131,
+    "final_peak_maximum_dbfs": -11.7131,
+    "rms_tolerance_db": 0.35,
+    "peak_window_width_db": 0.8
+  },
+  {
+    "state": "Kalimba Thumb Lullaby",
+    "rms_mean_candidate_dbfs": -28.9993,
+    "final_rms_reference_dbfs": -29.0993,
+    "final_peak_minimum_dbfs": -15.2609,
+    "final_peak_maximum_dbfs": -14.4609,
+    "rms_tolerance_db": 0.35,
+    "peak_window_width_db": 0.8
+  }
+]

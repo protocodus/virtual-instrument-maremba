@@ -1,0 +1,26 @@
+[
+  [
+    "cmake",
+    "-S",
+    "/Users/vojta/Dev/reason-rack-extension/maremba-rms-reference-20261021-instrument",
+    "-B",
+    "/tmp/maremba-ci-timeout-config-20261022/on",
+    "-G",
+    "Unix Makefiles",
+    "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
+    "-DCMAKE_C_COMPILER=clang",
+    "-DCMAKE_CXX_COMPILER=clang++",
+    "-DMAREMBA_BUILD_PLUGIN=OFF",
+    "-DMAREMBA_BUILD_TOOLS=OFF",
+    "-DMAREMBA_BUILD_UNIVERSAL=OFF",
+    "-DMAREMBA_ENABLE_SANITIZERS=ON",
+    "-DCMAKE_DISABLE_FIND_PACKAGE_Python3=TRUE",
+    "-DBUILD_TESTING=ON"
+  ],
+  [
+    "ctest",
+    "--test-dir",
+    "/tmp/maremba-ci-timeout-config-20261022/on",
+    "--show-only=json-v1"
+  ]
+]

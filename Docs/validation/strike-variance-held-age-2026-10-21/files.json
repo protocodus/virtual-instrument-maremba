@@ -1,0 +1,74 @@
+{
+  ".gitattributes": {
+    "bytes": 70,
+    "sha256": "6dca01c509e047b274e7dccd0eac715502df509f16f3d2599a74a1ff32bf1cf4"
+  },
+  "README.md": {
+    "bytes": 4001,
+    "sha256": "be6462d58da150907953a0a94cde239d0da9664017b2d8a58fd4fe8fd590521a"
+  },
+  "before-diagnostic.txt": {
+    "bytes": 953,
+    "sha256": "c8a18bb1a9c3deef5f0c919db8b545c2aa0b6d57dd97e19dd180b10e76c7ab2d"
+  },
+  "before-failure-excerpt.log": {
+    "bytes": 4839,
+    "sha256": "74c6ed974e2e51d432f48ff1b0bcf3a2394658efc93c2d243c9e400013a38877"
+  },
+  "comparison-summary.json": {
+    "bytes": 277,
+    "sha256": "1102af41e864178e3d9d3f6363b257f2a9a9a82b55799aa8cf4fd5f7ae842279"
+  },
+  "comparisons.csv": {
+    "bytes": 1046,
+    "sha256": "5ccc4118ae7d6ba6741ba973793cca03c480649f33488bacba354871ae313a6b"
+  },
+  "diagnostic-driver.py": {
+    "bytes": 5865,
+    "sha256": "96b663e752fe3699dd971d35d6d8a056c0b1b5000737656dd09fe25800a8db42"
+  },
+  "diagnostic-probe.cpp": {
+    "bytes": 2805,
+    "sha256": "4023782f61a5fa2a9621456c25f6c992ae4d5e7aba7588b8c762704345f199be"
+  },
+  "diagnostic-receipt.json": {
+    "bytes": 21796,
+    "sha256": "4247438e88aee8a583aa80f53c2465474b939fc701af7108eb1420a616d8ef6c"
+  },
+  "final-input-verification.json": {
+    "bytes": 10101,
+    "sha256": "8e582d3930efdcf816b5bc3c73b5d276a00483b6203cdc1a6a53c6cbc817c1d0"
+  },
+  "final-inputs.json": {
+    "bytes": 4816,
+    "sha256": "ebd3afb7cd5096f2cc19b5e14a74eae9c01be5f235693b2770fe007f19481086"
+  },
+  "focused-build.json": {
+    "bytes": 287,
+    "sha256": "cd2500737cbf7026c6cdc75ed7d6eda41af459e21211c75e2553fd085b7dfd0a"
+  },
+  "focused-build.log": {
+    "bytes": 369,
+    "sha256": "e170dc4df62268ab89a5943d265e771126bc90fb475bc36d2b5958d68acdd510"
+  },
+  "focused-ctest-detail.log": {
+    "bytes": 6836,
+    "sha256": "d749d43a8b0f0c430b56118564e357559ed21c892cfdd485d7435264b2a36ffb"
+  },
+  "focused-ctest.json": {
+    "bytes": 308,
+    "sha256": "0ef141decf7a5f9af2d176e29862f567a333f703a54852569b46ac02d9c66df3"
+  },
+  "focused-ctest.log": {
+    "bytes": 302,
+    "sha256": "ad3f7b210e45b897e6b66c31abe1c63e3e34938cabf93aeff777d84193bbfb33"
+  },
+  "held-diagnostic.txt": {
+    "bytes": 966,
+    "sha256": "a3d5f95c26b560b37a20d8a3fe3e650d22fd9fa478dbc9d646796a3e603689ba"
+  },
+  "receipt.json": {
+    "bytes": 6320,
+    "sha256": "a764d6bd91efa5eae84b7da45662504a63943ab3ecf8637742943bf16b9e3132"
+  }
+}

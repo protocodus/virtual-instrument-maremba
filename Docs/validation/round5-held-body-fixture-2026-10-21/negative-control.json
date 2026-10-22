@@ -1,0 +1,9 @@
+{
+  "command": [
+    "/tmp/maremba-rms-hand-damp-20261021/round5-fixture-fix/negative/negative-probe"
+  ],
+  "started_utc": "2026-10-21T10:21:45.316973+00:00",
+  "elapsed_seconds": 0.5009700839873403,
+  "exit_code": 1,
+  "expected_exit_code": 1
+}

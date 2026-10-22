@@ -1,0 +1,85 @@
+{
+  "created_utc": "2026-10-21T10:39:11.204813+00:00",
+  "base_commit": "a8556482604da0551cd7527b06b5312f5992cb74",
+  "owned_changes": [
+    "Tests/Round7BalafonKalimbaTest.cpp",
+    "Docs/validation/round7-held-tink-2026-10-21/"
+  ],
+  "other_concurrent_change": "Parent changed a stale factory-peak description in Tests/contracts.txt; comment only, no numeric or functional change.",
+  "edited_test_sha256": "15ce831b2ebf36020483134d24e57c343ff6e09b53ca220e054926af2a4bbd30",
+  "production_dsp_edits": [],
+  "fixed_requirement_scale": 0.7,
+  "historical_recorded_window_seconds": [
+    0.08,
+    0.12
+  ],
+  "held_recorded_window_seconds": [
+    0.055999999999999994,
+    0.08399999999999999
+  ],
+  "original_ratio_guard_db": [
+    -30,
+    -17
+  ],
+  "baseline_historical_ratio_db": -27.667100854573,
+  "held_historical_ratio_db": -31.58546765955859,
+  "held_normalized_recorded_ratio_db": -27.493572595312223,
+  "held_normalized_minus_old_historical_db": 0.17352825926077742,
+  "latency_sensitivity": {
+    "known_output_delay_seconds": 0.002,
+    "tine_flight_seconds": 0.0017329167465555196,
+    "board_flight_seconds": 0.0018045799421486804,
+    "hole_flight_seconds": 0.0017626432526080277,
+    "illustrative_single_tine_path_mapping": "L + 0.7 * (recordedTime - L), with L = output delay + tine flight. This is a sensitivity illustration, not an exact mapping for a coherent three-emitter minimum-phase-HRTF recording.",
+    "illustrative_window_seconds": [
+      0.057119875023966656,
+      0.08511987502396665
+    ],
+    "illustrative_ratio_db": -27.648354269200833,
+    "absolute_change_from_requested_window_db": 0.15478167388861053,
+    "fixture_policy": "Retain the requested independently fixed 0.7 recorded-age comparison; do not add an unsupported exact capture-age formula to the test."
+  },
+  "focused_result": {
+    "command": [
+      "ctest",
+      "--test-dir",
+      "/tmp/maremba-rms-hand-damp-20261021/build",
+      "-R",
+      "^Maremba[.]Round7BalafonKalimba$",
+      "--no-tests=error",
+      "--output-on-failure"
+    ],
+    "started_utc": "2026-10-21T10:37:25.415583+00:00",
+    "elapsed_seconds": 3.433587708044797,
+    "exit_code": 0
+  },
+  "focused_binary_sha256": "476f5bbc64b1ab16d54179f52fd9bfa46e9d3e9896d65f5c54a2cec1f6dd4b74",
+  "retained_before_failure": {
+    "command": [
+      "ctest",
+      "--test-dir",
+      "/tmp/maremba-rms-hand-damp-20261021/build",
+      "-R",
+      "^Maremba[.]Round7BalafonKalimba$",
+      "--no-tests=error",
+      "--output-on-failure"
+    ],
+    "started_utc": "2026-10-21T10:32:08.008944+00:00",
+    "elapsed_seconds": 2.7518875839887187,
+    "exit_code": 8
+  },
+  "all_watched_source_and_test_inputs_unchanged": true,
+  "source_and_test_input_count": 51,
+  "independent_review": {
+    "reviewer": "/root/level_design_review",
+    "result": "CLEAR; no actionable findings",
+    "scope": "Read-only actual diff and reported latency-sensitivity review; no duplicate tests or builds."
+  },
+  "configure_warning": "The existing selected Python lacks numpy/scipy/mpmath, so Python generator/measurement checks are not registered in this native build. The selected C++ Round7 test is registered and passed.",
+  "limitations": [
+    "The historical specimen holding condition is not established; no measured free-versus-held equivalence is claimed.",
+    "Recorded-age normalization is an engineered fixture motivated by the requested shorter modal lifetime, not an exact time warp of unchanged body/capture filters.",
+    "The bounded sensitivity result applies to this exact F#4 fixture only.",
+    "No other protocols, windows, thresholds, DSP, XML or gain settings changed. A fresh full SDK preflight remains required."
+  ]
+}

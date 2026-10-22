@@ -1,0 +1,10 @@
+Test project /tmp/maremba-rms-hand-damp-20261021/build
+    Start 15: Maremba.MainPickupAlignment
+1/1 Test #15: Maremba.MainPickupAlignment ......   Passed    2.51 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Label Time Summary:
+unit    =   2.51 sec*proc (1 test)
+
+Total Test time (real) =   2.51 sec

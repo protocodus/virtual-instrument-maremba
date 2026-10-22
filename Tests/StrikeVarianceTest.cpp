@@ -2,6 +2,8 @@
 // legacy anechoic reference, and verify monotonic non-gain timbre variation in
 // the complete measured binaural Close capture. Both observe the same ongoing
 // public-engine 48-hit sequence and retain full physical/room lifecycle gates.
+// Kalimba retains its historical recorded-window diagnostic while comparing
+// the shorter held-body voicing at independently normalized recorded age.
 #include "MarembaEngine.h"
 #include "MicMixer.h"
 #include <algorithm>
@@ -163,9 +165,10 @@ double energy(const std::vector<float>& samples, size_t begin, size_t end) {
 
 // Remove the best scalar gain before comparing late pitched waveforms. A
 // changing volume or attack-noise burst alone cannot pass the timbre gate.
-double residual(const std::vector<float>& a, const std::vector<float>& b,int channels=1) {
+double residual(const std::vector<float>& a, const std::vector<float>& b,int channels=1,double recordedAgeScale=1.) {
     double aa = 0, ab = 0, bb = 0;
-    for (size_t i = static_cast<size_t>(48000 * .04 * channels); i < static_cast<size_t>(48000 * .16 * channels); ++i) {
+    for (size_t i = static_cast<size_t>(48000 * .04 * recordedAgeScale * channels);
+         i < static_cast<size_t>(48000 * .16 * recordedAgeScale * channels); ++i) {
         aa += static_cast<double>(a[i]) * a[i];
         ab += static_cast<double>(a[i]) * b[i];
         bb += static_cast<double>(b[i]) * b[i];
@@ -173,9 +176,10 @@ double residual(const std::vector<float>& a, const std::vector<float>& b,int cha
     return aa > 0 && bb > 0 ? std::sqrt(std::max(0., 1 - ab * ab / (aa * bb))) : 0;
 }
 
-double medianResidual(const Hits& hits,int channels=1) {
+double medianResidual(const Hits& hits,int channels=1,double recordedAgeScale=1.) {
     std::vector<double> values;
-    for (size_t h = 1; h < hits.size(); ++h) values.push_back(residual(hits[h - 1], hits[h],channels));
+    for (size_t h = 1; h < hits.size(); ++h)
+        values.push_back(residual(hits[h - 1], hits[h],channels,recordedAgeScale));
     std::sort(values.begin(), values.end());
     return values[values.size() / 2];
 }
@@ -210,6 +214,12 @@ int main() {
     }
     constexpr std::array<float, 6> amounts{0, 5, 15, 25, 50, 100};
     for (int model = 0; model < 4; ++model) {
+        // Fixed voicing requirement, independent of production code: Kalimba
+        // modal lifetimes are 70% of the historical model. Compare its late
+        // pitched pressure at 28-112 ms recorded age; bars keep 40-160 ms.
+        // Unchanged body/preload/capture timing makes this an engineered
+        // recorded-age comparison, not exact modal or specimen equivalence.
+        const double recordedAgeScale = model == 3 ? .7 : 1.;
         maremba::EngineParameters p;
         p.model = model;
         p.malletHardness = .5f; p.strikePosition = .45f; p.decay = .4f;
@@ -225,25 +235,30 @@ int main() {
             engine.Reset();
             const Phrase replay=render(engine);
             check(hits.physical==replay.physical&&hits.closeStereo==replay.closeStereo,"reset did not replay both variance observations exactly");
-            timbre[step] = medianResidual(hits.physical);
-            capturedTimbre[step]=medianResidual(hits.closeStereo,2);
+            timbre[step] = medianResidual(hits.physical,1,recordedAgeScale);
+            capturedTimbre[step]=medianResidual(hits.closeStereo,2,recordedAgeScale);
             const double span = levelSpan(hits.physical);
             check(capturedTimbre[step]>1.e-6,"complete Close loses non-gain strike variation");
             if(step>0)check(capturedTimbre[step]>capturedTimbre[step-1],"complete stereo Close variation does not grow across checkpoints");
             std::cout << "VARIANCE model=" << model << " amount=" << amounts[step]
                       << " physical_reference=" << (model<3?"anechoic_bar":"complete_kalimba")
+                      << " recorded_age_scale=" << recordedAgeScale
                       << " physical_median_timbre_residual=" << timbre[step] << " attack_level_span_db=" << span
                       << " close_stereo_residual=" << capturedTimbre[step] << " close_attack_span_db=" << levelSpan(hits.closeStereo,2) << std::endl;
+            if(model==3)
+                std::cout << "VARIANCE_HISTORICAL model=3 amount=" << amounts[step] << " window_ms=[40,160]"
+                          << " physical_median_timbre_residual=" << medianResidual(hits.physical)
+                          << " close_stereo_residual=" << medianResidual(hits.closeStereo,2) << std::endl;
             if (step > 0)
                 check(timbre[step] > timbre[step - 1], "phrase timbre variation did not increase across control checkpoints");
             if (amounts[step] == 100)
                 check(span > 1.0 && span < 6.0, "maximum Variance attack-level range is too weak or excessive");
             auto gainOnly = hits.physical.front();
             for (float& value : gainOnly) value *= 1.2f;
-            check(residual(hits.physical.front(), gainOnly) < 1.e-6, "physical timbre metric mistakes scalar gain for timbre");
+            check(residual(hits.physical.front(), gainOnly,1,recordedAgeScale) < 1.e-6, "physical timbre metric mistakes scalar gain for timbre");
             auto stereoGainOnly=hits.closeStereo.front();
             for(float& value:stereoGainOnly)value*=1.2f;
-            check(residual(hits.closeStereo.front(),stereoGainOnly,2)<1.e-6,"stereo timbre metric mistakes scalar gain for timbre");
+            check(residual(hits.closeStereo.front(),stereoGainOnly,2,recordedAgeScale)<1.e-6,"stereo timbre metric mistakes scalar gain for timbre");
         }
         // Rosewood's tube carries its ring's fundamental (the bloom), a scalar
         // this metric removes, so the same physical stroke-to-stroke change

@@ -1,0 +1,14 @@
+{
+  "command": [
+    "ctest",
+    "--test-dir",
+    "/tmp/maremba-rms-hand-damp-20261021/build",
+    "-R",
+    "^Maremba[.]MainPickupAlignment$",
+    "--no-tests=error",
+    "--output-on-failure"
+  ],
+  "started_utc": "2026-10-21T12:57:54.263931+00:00",
+  "elapsed_seconds": 2.5461157920071855,
+  "exit_code": 0
+}

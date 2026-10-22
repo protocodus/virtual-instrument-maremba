@@ -1,0 +1,17 @@
+{
+  "captured_utc": "2026-10-21T22:37:58.974378+00:00",
+  "job": {
+    "id": 119496216577,
+    "head_sha": "78fb821254a31b88cf85b4d515a734fb4d471140",
+    "name": "Unit and fuzz tiers under ASan + UBSan, C++17 DSP",
+    "status": "completed",
+    "conclusion": "failure"
+  },
+  "log_truncated": false,
+  "raw_log_sha256": "5bd0ed8f172a5a61d15c6b7789ad5686bd8ad66c23bd6eda9ba8a2bc7732bc25",
+  "raw_log_bytes": 69091,
+  "result": "77/78 passed; only MainCalibration96000 exceeded its 1800-second CTest limit",
+  "sanitizer_diagnostic_observed": false,
+  "scope": "Observed completed GitHub job log; no inference that the timed-out render completed",
+  "url": "https://github.com/protocodus/virtual-instrument-maremba/actions/runs/39678993803/job/119496216577"
+}

@@ -1,0 +1,10 @@
+Test project /tmp/maremba-rms-hand-damp-20261021/build
+    Start 57: Maremba.Round5Response
+1/1 Test #57: Maremba.Round5Response ...........   Passed   28.07 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Label Time Summary:
+unit    =  28.07 sec*proc (1 test)
+
+Total Test time (real) =  28.09 sec

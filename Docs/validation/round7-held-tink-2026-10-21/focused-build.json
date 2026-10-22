@@ -1,0 +1,14 @@
+{
+  "command": [
+    "cmake",
+    "--build",
+    "/tmp/maremba-rms-hand-damp-20261021/build",
+    "--target",
+    "MarembaRound7BalafonKalimbaTests",
+    "--parallel",
+    "2"
+  ],
+  "started_utc": "2026-10-21T10:37:23.113130+00:00",
+  "elapsed_seconds": 2.3018473339034244,
+  "exit_code": 0
+}

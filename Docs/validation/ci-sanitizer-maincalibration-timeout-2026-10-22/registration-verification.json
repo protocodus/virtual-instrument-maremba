@@ -1,0 +1,156 @@
+{
+  "kind": "configure-only; no contract executable built or run",
+  "modes": {
+    "on": {
+      "test_count": 78,
+      "changed_test_properties": [
+        {
+          "test": "Maremba.MainCalibration96000",
+          "before": {
+            "command": [
+              "/tmp/maremba-ci-timeout-config-20261022/on/MarembaMainCalibrationTests",
+              "--rate",
+              "96000",
+              "--stress"
+            ],
+            "properties": {
+              "LABELS": [
+                "unit"
+              ],
+              "TIMEOUT": 1800.0,
+              "WORKING_DIRECTORY": "/tmp/maremba-ci-timeout-config-20261022/on"
+            }
+          },
+          "after": {
+            "command": [
+              "/tmp/maremba-ci-timeout-config-20261022/on/MarembaMainCalibrationTests",
+              "--rate",
+              "96000",
+              "--stress"
+            ],
+            "properties": {
+              "LABELS": [
+                "unit"
+              ],
+              "TIMEOUT": 3600.0,
+              "WORKING_DIRECTORY": "/tmp/maremba-ci-timeout-config-20261022/on"
+            }
+          }
+        }
+      ],
+      "main_calibration": [
+        {
+          "name": "Maremba.MainCalibration44100",
+          "command": [
+            "/tmp/maremba-ci-timeout-config-20261022/on/MarembaMainCalibrationTests",
+            "--rate",
+            "44100",
+            "--stress"
+          ],
+          "properties": {
+            "LABELS": [
+              "unit"
+            ],
+            "TIMEOUT": 1800.0,
+            "WORKING_DIRECTORY": "/tmp/maremba-ci-timeout-config-20261022/on"
+          }
+        },
+        {
+          "name": "Maremba.MainCalibration48000",
+          "command": [
+            "/tmp/maremba-ci-timeout-config-20261022/on/MarembaMainCalibrationTests",
+            "--rate",
+            "48000",
+            "--stress"
+          ],
+          "properties": {
+            "LABELS": [
+              "unit"
+            ],
+            "TIMEOUT": 1800.0,
+            "WORKING_DIRECTORY": "/tmp/maremba-ci-timeout-config-20261022/on"
+          }
+        },
+        {
+          "name": "Maremba.MainCalibration96000",
+          "command": [
+            "/tmp/maremba-ci-timeout-config-20261022/on/MarembaMainCalibrationTests",
+            "--rate",
+            "96000",
+            "--stress"
+          ],
+          "properties": {
+            "LABELS": [
+              "unit"
+            ],
+            "TIMEOUT": 3600.0,
+            "WORKING_DIRECTORY": "/tmp/maremba-ci-timeout-config-20261022/on"
+          }
+        }
+      ]
+    },
+    "off": {
+      "test_count": 77,
+      "changed_test_properties": [],
+      "main_calibration": [
+        {
+          "name": "Maremba.MainCalibration44100",
+          "command": [
+            "/tmp/maremba-ci-timeout-config-20261022/off/MarembaMainCalibrationTests",
+            "--rate",
+            "44100",
+            "--stress"
+          ],
+          "properties": {
+            "LABELS": [
+              "unit"
+            ],
+            "TIMEOUT": 1800.0,
+            "WORKING_DIRECTORY": "/tmp/maremba-ci-timeout-config-20261022/off"
+          }
+        },
+        {
+          "name": "Maremba.MainCalibration48000",
+          "command": [
+            "/tmp/maremba-ci-timeout-config-20261022/off/MarembaMainCalibrationTests",
+            "--rate",
+            "48000",
+            "--stress"
+          ],
+          "properties": {
+            "LABELS": [
+              "unit"
+            ],
+            "TIMEOUT": 1800.0,
+            "WORKING_DIRECTORY": "/tmp/maremba-ci-timeout-config-20261022/off"
+          }
+        },
+        {
+          "name": "Maremba.MainCalibration96000",
+          "command": [
+            "/tmp/maremba-ci-timeout-config-20261022/off/MarembaMainCalibrationTests",
+            "--rate",
+            "96000",
+            "--stress"
+          ],
+          "properties": {
+            "LABELS": [
+              "unit"
+            ],
+            "TIMEOUT": 1800.0,
+            "WORKING_DIRECTORY": "/tmp/maremba-ci-timeout-config-20261022/off"
+          }
+        }
+      ]
+    }
+  },
+  "source_provenance": {
+    "head": "78fb821254a31b88cf85b4d515a734fb4d471140",
+    "source_tree": "5abd33ee09dcbc0d46fdb18753698bfcf2f8eb57",
+    "tests_tree": "fb9d8991ff304593ed36c7532e1a08372675b14b",
+    "source_tests_workflow_unchanged_from_head": true,
+    "cmake_before_sha256": "51ca12b21688060afd8f9614ccb4ca66fdb98145147ddefdbfd2267cb7ed98a5",
+    "cmake_after_sha256": "5fcff9d73ef9a522f6ad2ac069c9674bc7802626fdef337951d37df6b44a90e9"
+  },
+  "retained_failed_job_log_sha256": "5bd0ed8f172a5a61d15c6b7789ad5686bd8ad66c23bd6eda9ba8a2bc7732bc25"
+}

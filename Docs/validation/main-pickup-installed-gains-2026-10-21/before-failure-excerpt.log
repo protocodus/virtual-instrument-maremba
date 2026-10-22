@@ -1,0 +1,2 @@
+CloseEngineArrivalTest passed: 90 cases, 3727656 checks; worst0.084179dB/0.005934rad; electricalRelativeEnergyError0; maximumOutput0.032819
+FAIL Main pickup gain differs from the independent electrical capture

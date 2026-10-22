@@ -1,0 +1,52 @@
+Start testing: Oct 21 13:55 CEST
+----------------------------------------------------------
+65/80 Testing: Maremba.StrikeVariance
+65/80 Test: Maremba.StrikeVariance
+Command: "/tmp/maremba-rms-hand-damp-20261021/build/MarembaStrikeVarianceTests"
+Directory: /tmp/maremba-rms-hand-damp-20261021/build
+"Maremba.StrikeVariance" start time: Oct 21 13:55 CEST
+Output:
+----------------------------------------------------------
+VARIANCE model=0 amount=0 physical_reference=anechoic_bar recorded_age_scale=1 physical_median_timbre_residual=0.00415783 attack_level_span_db=0.136512 close_stereo_residual=0.00404698 close_attack_span_db=0.129816
+VARIANCE model=0 amount=5 physical_reference=anechoic_bar recorded_age_scale=1 physical_median_timbre_residual=0.0130477 attack_level_span_db=0.451981 close_stereo_residual=0.0125849 close_attack_span_db=0.396087
+VARIANCE model=0 amount=15 physical_reference=anechoic_bar recorded_age_scale=1 physical_median_timbre_residual=0.0305091 attack_level_span_db=1.04704 close_stereo_residual=0.0293093 close_attack_span_db=0.91182
+VARIANCE model=0 amount=25 physical_reference=anechoic_bar recorded_age_scale=1 physical_median_timbre_residual=0.0449357 attack_level_span_db=1.5027 close_stereo_residual=0.043203 close_attack_span_db=1.29189
+VARIANCE model=0 amount=50 physical_reference=anechoic_bar recorded_age_scale=1 physical_median_timbre_residual=0.0718715 attack_level_span_db=2.34204 close_stereo_residual=0.0696754 close_attack_span_db=2.03156
+VARIANCE model=0 amount=100 physical_reference=anechoic_bar recorded_age_scale=1 physical_median_timbre_residual=0.09411 attack_level_span_db=2.8615 close_stereo_residual=0.0908594 close_attack_span_db=2.47393
+VARIANCE model=1 amount=0 physical_reference=anechoic_bar recorded_age_scale=1 physical_median_timbre_residual=0.00370039 attack_level_span_db=0.100989 close_stereo_residual=0.00340076 close_attack_span_db=0.0949164
+VARIANCE model=1 amount=5 physical_reference=anechoic_bar recorded_age_scale=1 physical_median_timbre_residual=0.0113362 attack_level_span_db=0.319503 close_stereo_residual=0.0105248 close_attack_span_db=0.206367
+VARIANCE model=1 amount=15 physical_reference=anechoic_bar recorded_age_scale=1 physical_median_timbre_residual=0.025011 attack_level_span_db=0.702825 close_stereo_residual=0.02081 close_attack_span_db=0.437266
+VARIANCE model=1 amount=25 physical_reference=anechoic_bar recorded_age_scale=1 physical_median_timbre_residual=0.0354647 attack_level_span_db=1.0539 close_stereo_residual=0.0321246 close_attack_span_db=0.65365
+VARIANCE model=1 amount=50 physical_reference=anechoic_bar recorded_age_scale=1 physical_median_timbre_residual=0.0579407 attack_level_span_db=1.68717 close_stereo_residual=0.0517807 close_attack_span_db=1.0384
+VARIANCE model=1 amount=100 physical_reference=anechoic_bar recorded_age_scale=1 physical_median_timbre_residual=0.0767703 attack_level_span_db=2.05635 close_stereo_residual=0.0671732 close_attack_span_db=1.25888
+VARIANCE model=2 amount=0 physical_reference=anechoic_bar recorded_age_scale=1 physical_median_timbre_residual=0.0039357 attack_level_span_db=0.107201 close_stereo_residual=0.00299208 close_attack_span_db=0.0901201
+VARIANCE model=2 amount=5 physical_reference=anechoic_bar recorded_age_scale=1 physical_median_timbre_residual=0.0121141 attack_level_span_db=0.228176 close_stereo_residual=0.00718234 close_attack_span_db=0.245598
+VARIANCE model=2 amount=15 physical_reference=anechoic_bar recorded_age_scale=1 physical_median_timbre_residual=0.0277365 attack_level_span_db=0.586305 close_stereo_residual=0.012342 close_attack_span_db=0.537081
+VARIANCE model=2 amount=25 physical_reference=anechoic_bar recorded_age_scale=1 physical_median_timbre_residual=0.0420609 attack_level_span_db=0.87126 close_stereo_residual=0.0195674 close_attack_span_db=0.778691
+VARIANCE model=2 amount=50 physical_reference=anechoic_bar recorded_age_scale=1 physical_median_timbre_residual=0.0699312 attack_level_span_db=1.41346 close_stereo_residual=0.0287142 close_attack_span_db=1.36871
+VARIANCE model=2 amount=100 physical_reference=anechoic_bar recorded_age_scale=1 physical_median_timbre_residual=0.0910953 attack_level_span_db=1.79886 close_stereo_residual=0.037657 close_attack_span_db=1.88718
+VARIANCE model=3 amount=0 physical_reference=complete_kalimba recorded_age_scale=0.7 physical_median_timbre_residual=0.000660668 attack_level_span_db=0.231348 close_stereo_residual=0.000664491 close_attack_span_db=0.231443
+VARIANCE_HISTORICAL model=3 amount=0 window_ms=[40,160] physical_median_timbre_residual=0.000408528 close_stereo_residual=0.000410894
+VARIANCE model=3 amount=5 physical_reference=complete_kalimba recorded_age_scale=0.7 physical_median_timbre_residual=0.00573685 attack_level_span_db=1.51763 close_stereo_residual=0.00577005 close_attack_span_db=1.51825
+VARIANCE_HISTORICAL model=3 amount=5 window_ms=[40,160] physical_median_timbre_residual=0.00354682 close_stereo_residual=0.00356736
+VARIANCE model=3 amount=15 physical_reference=complete_kalimba recorded_age_scale=0.7 physical_median_timbre_residual=0.0258539 attack_level_span_db=3.09892 close_stereo_residual=0.0258791 close_attack_span_db=3.10002
+VARIANCE_HISTORICAL model=3 amount=15 window_ms=[40,160] physical_median_timbre_residual=0.0242283 close_stereo_residual=0.0242345
+VARIANCE model=3 amount=25 physical_reference=complete_kalimba recorded_age_scale=0.7 physical_median_timbre_residual=0.0305263 attack_level_span_db=3.36404 close_stereo_residual=0.0305974 close_attack_span_db=3.3652
+VARIANCE_HISTORICAL model=3 amount=25 window_ms=[40,160] physical_median_timbre_residual=0.0264475 close_stereo_residual=0.0264777
+VARIANCE model=3 amount=50 physical_reference=complete_kalimba recorded_age_scale=0.7 physical_median_timbre_residual=0.049862 attack_level_span_db=3.85858 close_stereo_residual=0.0498925 close_attack_span_db=3.8598
+VARIANCE_HISTORICAL model=3 amount=50 window_ms=[40,160] physical_median_timbre_residual=0.0339026 close_stereo_residual=0.0340033
+VARIANCE model=3 amount=100 physical_reference=complete_kalimba recorded_age_scale=0.7 physical_median_timbre_residual=0.0528161 attack_level_span_db=4.10218 close_stereo_residual=0.0528783 close_attack_span_db=4.1034
+VARIANCE_HISTORICAL model=3 amount=100 window_ms=[40,160] physical_median_timbre_residual=0.0484578 close_stereo_residual=0.0484703
+StrikeVarianceTest PASSED failures=0 drained_hits=2304 longest_voice_damp_seconds=0.436 longest_engine_drain_seconds=1.696 total_engine_drain_seconds=3773.73
+<end of output>
+Test time = 1629.41 sec
+----------------------------------------------------------
+Test Passed.
+"Maremba.StrikeVariance" end time: Oct 21 14:22 CEST
+"Maremba.StrikeVariance" time elapsed: 00:27:09
+----------------------------------------------------------
+
+End testing: Oct 21 14:22 CEST
+
+unit = 1629.41 sec*proc
+

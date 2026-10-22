@@ -1,0 +1,230 @@
+{
+  "Init model 0": {
+    "rms_reference_dbfs": -22.0903,
+    "rms_min_dbfs": -22.0991485993,
+    "rms_max_dbfs": -22.0846442188,
+    "peak_min_dbfs": -7.00000128556,
+    "peak_max_dbfs": -6.96780177588
+  },
+  "Init model 1": {
+    "rms_reference_dbfs": -21.8999,
+    "rms_min_dbfs": -21.9092920457,
+    "rms_max_dbfs": -21.894130262,
+    "peak_min_dbfs": -7.00000012653,
+    "peak_max_dbfs": -6.97018664295
+  },
+  "Init model 2": {
+    "rms_reference_dbfs": -20.993,
+    "rms_min_dbfs": -21.0093696263,
+    "rms_max_dbfs": -20.9819592332,
+    "peak_min_dbfs": -7.00000012653,
+    "peak_max_dbfs": -6.96979681967
+  },
+  "Init model 3": {
+    "rms_reference_dbfs": -22.2698,
+    "rms_min_dbfs": -22.3150066572,
+    "rms_max_dbfs": -22.1951761365,
+    "peak_min_dbfs": -7.89793648957,
+    "peak_max_dbfs": -7.82786599951
+  },
+  "Ambient Cathedral Bloom": {
+    "rms_reference_dbfs": -23.6085,
+    "rms_min_dbfs": -23.6201793311,
+    "rms_max_dbfs": -23.5949633285,
+    "peak_min_dbfs": -7.4655573453,
+    "peak_max_dbfs": -7.45499592131,
+    "peak_reference_minimum_dbfs": -7.8603,
+    "peak_reference_maximum_dbfs": -7.0603,
+    "retained_peak_width_db": 0.8
+  },
+  "Concert Grand Rosewood": {
+    "rms_reference_dbfs": -24.4213,
+    "rms_min_dbfs": -24.429536403,
+    "rms_max_dbfs": -24.4161924098,
+    "peak_min_dbfs": -9.17373552523,
+    "peak_max_dbfs": -9.1342366099,
+    "peak_reference_minimum_dbfs": -9.554,
+    "peak_reference_maximum_dbfs": -8.754,
+    "retained_peak_width_db": 0.8
+  },
+  "Direct Piezo Mallet": {
+    "rms_reference_dbfs": -22.729,
+    "rms_min_dbfs": -22.7441448075,
+    "rms_max_dbfs": -22.7154593816,
+    "peak_min_dbfs": -1.42966818344,
+    "peak_max_dbfs": -1.06919904952,
+    "peak_reference_minimum_dbfs": -1.6494,
+    "peak_reference_maximum_dbfs": -0.8494,
+    "retained_peak_width_db": 0.8
+  },
+  "Hard Acrylic Virtuoso": {
+    "rms_reference_dbfs": -23.8474,
+    "rms_min_dbfs": -23.8722952607,
+    "rms_max_dbfs": -23.8321346502,
+    "peak_min_dbfs": -1.95964982087,
+    "peak_max_dbfs": -1.89945384489,
+    "peak_reference_minimum_dbfs": -2.3296,
+    "peak_reference_maximum_dbfs": -1.5296,
+    "retained_peak_width_db": 0.8
+  },
+  "Rosewood Dampened Etude": {
+    "rms_reference_dbfs": -25.3293,
+    "rms_min_dbfs": -25.3411476784,
+    "rms_max_dbfs": -25.3225646211,
+    "peak_min_dbfs": -10.3146115631,
+    "peak_max_dbfs": -10.2407928654,
+    "peak_reference_minimum_dbfs": -10.6777,
+    "peak_reference_maximum_dbfs": -9.8777,
+    "retained_peak_width_db": 0.8
+  },
+  "Rosewood Roll Chorale": {
+    "rms_reference_dbfs": -23.9408,
+    "rms_min_dbfs": -23.9500089151,
+    "rms_max_dbfs": -23.9261130984,
+    "peak_min_dbfs": -8.50562593229,
+    "peak_max_dbfs": -8.43438126488,
+    "peak_reference_minimum_dbfs": -8.87,
+    "peak_reference_maximum_dbfs": -8.07,
+    "retained_peak_width_db": 0.8
+  },
+  "Soft Yarn Nocturne": {
+    "rms_reference_dbfs": -25.1317,
+    "rms_min_dbfs": -25.142792499,
+    "rms_max_dbfs": -25.1230315033,
+    "peak_min_dbfs": -10.3804131361,
+    "peak_max_dbfs": -10.2838672174,
+    "peak_reference_minimum_dbfs": -10.6321,
+    "peak_reference_maximum_dbfs": -10.0321,
+    "retained_peak_width_db": 0.6
+  },
+  "Chiapas Folk Fiesta": {
+    "rms_reference_dbfs": -24.4818,
+    "rms_min_dbfs": -24.4902697867,
+    "rms_max_dbfs": -24.4732719735,
+    "peak_min_dbfs": -2.39393059961,
+    "peak_max_dbfs": -2.37560114771,
+    "peak_reference_minimum_dbfs": -2.7848,
+    "peak_reference_maximum_dbfs": -1.9848,
+    "retained_peak_width_db": 0.8
+  },
+  "Guatemalan Charleo": {
+    "rms_reference_dbfs": -24.743,
+    "rms_min_dbfs": -24.7464501376,
+    "rms_max_dbfs": -24.7377574159,
+    "peak_min_dbfs": -5.90371130821,
+    "peak_max_dbfs": -5.88462025123,
+    "peak_reference_minimum_dbfs": -6.2942,
+    "peak_reference_maximum_dbfs": -5.4942,
+    "retained_peak_width_db": 0.8
+  },
+  "Mayan Dance Padauk": {
+    "rms_reference_dbfs": -25.3841,
+    "rms_min_dbfs": -25.3882430718,
+    "rms_max_dbfs": -25.38077964,
+    "peak_min_dbfs": -9.74034672453,
+    "peak_max_dbfs": -9.70886941795,
+    "peak_reference_minimum_dbfs": -10.1246,
+    "peak_reference_maximum_dbfs": -9.3246,
+    "retained_peak_width_db": 0.8
+  },
+  "Ancestral Balafon": {
+    "rms_reference_dbfs": -24.5922,
+    "rms_min_dbfs": -24.5927773779,
+    "rms_max_dbfs": -24.5918206261,
+    "peak_min_dbfs": -5.00386195132,
+    "peak_max_dbfs": -4.99522763075,
+    "peak_reference_minimum_dbfs": -5.3995,
+    "peak_reference_maximum_dbfs": -4.5995,
+    "retained_peak_width_db": 0.8
+  },
+  "Birifor Gyil Buzz": {
+    "rms_reference_dbfs": -24.4024,
+    "rms_min_dbfs": -24.4058676082,
+    "rms_max_dbfs": -24.3995716034,
+    "peak_min_dbfs": -5.09075868243,
+    "peak_max_dbfs": -5.07190575629,
+    "peak_reference_minimum_dbfs": -5.4813,
+    "peak_reference_maximum_dbfs": -4.6813,
+    "retained_peak_width_db": 0.8
+  },
+  "Chopi Timbila Ensemble": {
+    "rms_reference_dbfs": -24.0481,
+    "rms_min_dbfs": -24.052095479,
+    "rms_max_dbfs": -24.0447945909,
+    "peak_min_dbfs": -3.41576920077,
+    "peak_max_dbfs": -3.39564245573,
+    "peak_reference_minimum_dbfs": -3.8057,
+    "peak_reference_maximum_dbfs": -3.0057,
+    "retained_peak_width_db": 0.8
+  },
+  "Equipentatonic Log Keys": {
+    "rms_reference_dbfs": -23.2505,
+    "rms_min_dbfs": -23.2663605642,
+    "rms_max_dbfs": -23.2373666345,
+    "peak_min_dbfs": -1.23688374747,
+    "peak_max_dbfs": -1.00068112061,
+    "peak_reference_minimum_dbfs": -1.5188,
+    "peak_reference_maximum_dbfs": -0.7188,
+    "retained_peak_width_db": 0.8
+  },
+  "Mandinka Bala Heptatonic": {
+    "rms_reference_dbfs": -24.1002,
+    "rms_min_dbfs": -24.1062953557,
+    "rms_max_dbfs": -24.0940394862,
+    "peak_min_dbfs": -3.50211752945,
+    "peak_max_dbfs": -3.4829758123,
+    "peak_reference_minimum_dbfs": -3.8925,
+    "peak_reference_maximum_dbfs": -3.0925,
+    "retained_peak_width_db": 0.8
+  },
+  "Midnight Village Ritual": {
+    "rms_reference_dbfs": -24.9438,
+    "rms_min_dbfs": -24.9491961501,
+    "rms_max_dbfs": -24.9342277475,
+    "peak_min_dbfs": -8.39169547793,
+    "peak_max_dbfs": -8.30544406647,
+    "peak_reference_minimum_dbfs": -8.7486,
+    "peak_reference_maximum_dbfs": -7.9486,
+    "retained_peak_width_db": 0.8
+  },
+  "Sambla Talking Balafon": {
+    "rms_reference_dbfs": -24.0067,
+    "rms_min_dbfs": -24.0118817067,
+    "rms_max_dbfs": -24.0035892207,
+    "peak_min_dbfs": -3.33809029389,
+    "peak_max_dbfs": -3.31682574105,
+    "peak_reference_minimum_dbfs": -3.7275,
+    "peak_reference_maximum_dbfs": -2.9275,
+    "retained_peak_width_db": 0.8
+  },
+  "Kalimba Muted Thumbs": {
+    "rms_reference_dbfs": -20.835,
+    "rms_min_dbfs": -20.8866611024,
+    "rms_max_dbfs": -20.7540172921,
+    "peak_min_dbfs": -6.26838946179,
+    "peak_max_dbfs": -6.17727527223,
+    "peak_reference_minimum_dbfs": -6.6228,
+    "peak_reference_maximum_dbfs": -5.8228,
+    "retained_peak_width_db": 0.8
+  },
+  "Kalimba Pick Sparkle": {
+    "rms_reference_dbfs": -22.7831,
+    "rms_min_dbfs": -22.8323280249,
+    "rms_max_dbfs": -22.704335241,
+    "peak_min_dbfs": -8.39777264533,
+    "peak_max_dbfs": -8.32851506227,
+    "peak_reference_minimum_dbfs": -8.7631,
+    "peak_reference_maximum_dbfs": -7.9631,
+    "retained_peak_width_db": 0.8
+  },
+  "Kalimba Thumb Lullaby": {
+    "rms_reference_dbfs": -25.3493,
+    "rms_min_dbfs": -25.437561381,
+    "rms_max_dbfs": -25.2110359241,
+    "peak_min_dbfs": -11.2399541238,
+    "peak_max_dbfs": -10.9818258512,
+    "peak_reference_minimum_dbfs": -11.5109,
+    "peak_reference_maximum_dbfs": -10.7109,
+    "retained_peak_width_db": 0.8
+  }
+}

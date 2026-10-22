@@ -1,0 +1,5 @@
+amount=0,scale=1,physical_median=0.00064008288269226915,stereo_median=0.00064365102957754882,gain_only_physical=1.5232748016909415e-07,gain_only_stereo=1.778801737176377e-07,begin_frame=1920,end_frame=7680
+amount=0,scale=0.69999999999999996,physical_median=0.00093782572524686678,stereo_median=0.00094304853533050685,gain_only_physical=1.2555941601360379e-07,gain_only_stereo=1.6049041769309353e-07,begin_frame=1344,end_frame=5376
+amount=5,scale=1,physical_median=0.0055577584408852193,stereo_median=0.0055887378532555954,gain_only_physical=1.4826468186179101e-07,gain_only_stereo=1.887807169455279e-07,begin_frame=1920,end_frame=7680
+amount=5,scale=0.69999999999999996,physical_median=0.0081450663480088434,stereo_median=0.0081904351716269603,gain_only_physical=1.1590383340495858e-07,gain_only_stereo=1.6391277313232422e-07,begin_frame=1344,end_frame=5376
+failures=0,drained_hits=96,longest_voice_damp_seconds=0.432,longest_engine_drain_seconds=1.712

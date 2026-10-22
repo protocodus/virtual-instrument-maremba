@@ -1,0 +1,9 @@
+{
+  "scope": "scratch-only natural-thumb residual changed0.008\u21921.0; exact canonical re-pluck fixture block used unchanged",
+  "header": "negative/Source/DSP/MarimbaModel.h",
+  "before_sha256": "0e2245339b7f9a187931b1cf7b2b347c54a14a220f57eae4a94a639f8e4a2d21",
+  "after_sha256": "bdff0444a7e5c8c4eecb77119916d7d6f283b09a4eade6c86c48d7537aa34f45",
+  "fixture_sha256": "d50728f0eb72c35fe5f0f8ff840a6fec874e987771d89efc339911449325e807",
+  "negative_code_sha256": "6d4e8e6c255137725eaf5c34f4cfb803bf3482ba3efbd0bd78928e1b8bb50b74",
+  "expected_exit_code": 1
+}

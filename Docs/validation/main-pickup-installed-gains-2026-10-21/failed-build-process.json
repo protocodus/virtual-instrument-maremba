@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "exit_code": 1,
+  "command": [
+    "/tmp/maremba-calibration-20261019/py311/bin/python3",
+    "build45.py",
+    "both45",
+    "Deployment"
+  ],
+  "cwd": "/Users/vojta/Dev/reason-rack-extension/maremba-rms-calibration-20261019/Examples/Maremba",
+  "started_utc": "2026-10-21T12:49:11.982867+00:00",
+  "finished_utc": "2026-10-21T12:53:57.529305+00:00",
+  "elapsed_seconds": 285.55431304103695,
+  "rack_commit": "13dcfa3f61857216b3bbcfb3461ce85a13b965c1",
+  "canonical_commit": "4262ef40a1263804c251abe5449384c2acfe249d",
+  "log": "/Users/vojta/Dev/reason-rack-extension/diagnostics/maremba-rms-reference-20261021/build-attempt4.log",
+  "log_sha256": "7cfdb4e2549fab1260d36e8ff77ea2a6171b3cff3cbdbd2e155b335afb8d290b",
+  "sdk_version": "JukeboxSDK_500_028",
+  "sdk_target_version": "5.0",
+  "test_profile": "compact",
+  "target": "both45 Deployment",
+  "stage_root": "/Users/vojta/Dev/reason-rack-extension/diagnostics/maremba-rms-reference-20261021/local45/Maremba"
+}

@@ -1,0 +1,38 @@
+{
+  "after-brush.csv": {
+    "sha256": "67992d4e512e75c0eb383ba49ef3f89ab0d6c933beaf1b1a9cb7f335f8679da9",
+    "bytes": 488
+  },
+  "after-receipt.json": {
+    "sha256": "07dcd7a76430f65676a74a340283b6af85aafe6fa644fa44c574d46c169b7b40",
+    "bytes": 16984
+  },
+  "after-tails.csv": {
+    "sha256": "e215388bf2a3dc9934e2703e42a869ce37293a5fe5d262912c2101548dbb2b7e",
+    "bytes": 3809
+  },
+  "before-brush.csv": {
+    "sha256": "3529e569d046874bd68a61dd018b7b388ff0198d588a3ca775ddd7dc8d3365bb",
+    "bytes": 487
+  },
+  "before-expanded-tails.csv": {
+    "sha256": "09dde30e44fcc9eb515a127a0a6893b659a52c1b220b2be97293a63cdcf17c6c",
+    "bytes": 3805
+  },
+  "before-receipt.json": {
+    "sha256": "252bb8cb46941d474ce912337cc74492d33819f28aacb49058889c2860195c14",
+    "bytes": 1296
+  },
+  "focused-after-test.log": {
+    "sha256": "11dd9e378ee6cc8779719f45671d62d9145f6a70f5a7db18f003d5f892c5475c",
+    "bytes": 297
+  },
+  "red-regression-result.json": {
+    "sha256": "05d93e8c2f0c8cfef164eb7bb4c78ef11e8141e75b1bc1decbfec12b7cf79d3f",
+    "bytes": 158
+  },
+  "red-regression.log": {
+    "sha256": "f2bc75d45b741c8227ee0d349786a146e0848fca35604eafc6930f16cf654434",
+    "bytes": 2943
+  }
+}
