@@ -93,11 +93,36 @@ public:
     // ear receives that same emitted pressure before its own propagation/HRTF.
     // Room expects pressure at its own reference distance, so inverse-distance
     // propagation requires this conversion before the Room path gain applies.
+    // Exactly Add(id, subsample, p, p, p * roomReferenceScale), specialized
+    // for its equal ears: the scale is below one, so a finite p gives a finite
+    // Room input, a zero p is the only all-zero contribution, and equal ear
+    // inputs never separate the ear lanes. Called per receiver and substep.
     void AddCompactPressure(int id, int subsample, float pressureAtCloseReference) {
         constexpr float roomReferenceScale = static_cast<float>(CloseCapture::kReferenceDistance
                                                                / RoomCapture::kReferenceDistance);
-        Add(id, subsample, pressureAtCloseReference, pressureAtCloseReference,
-            pressureAtCloseReference * roomReferenceScale);
+        static_assert(roomReferenceScale > 0.0f && roomReferenceScale <= 1.0f,
+                      "a finite compact pressure must give a finite Room input");
+        const float pressure = pressureAtCloseReference;
+        if (!std::isfinite(pressure)) {
+            mInvalidInput = true;
+            return;
+        }
+        if (pressure == 0.0f) return;
+        const float room = pressure * roomReferenceScale;
+        auto& source = mSource[id];
+        if (!source.active) {
+            source.active = true;
+            mActive[mCount++] = id;
+            mSourcesAdded = true;
+            for (auto& lane : source.buffer) lane.fill(0.0f);
+        }
+        source.receiving = true;
+        source.buffer[0][subsample] += pressure;
+        if (!source.equalEars) source.buffer[1][subsample] += pressure;
+        source.buffer[2][subsample] += room;
+        mInvalidInput = mInvalidInput || !std::isfinite(source.buffer[0][subsample])
+            || (!source.equalEars && !std::isfinite(source.buffer[1][subsample]))
+            || !std::isfinite(source.buffer[2][subsample]);
     }
     void Process(float& closeL, float& closeR, float& roomL, float& roomR) {
         // The capture renderers need only discover nonzero emitters, not scan
