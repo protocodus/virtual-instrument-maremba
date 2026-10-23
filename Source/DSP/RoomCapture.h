@@ -220,10 +220,24 @@ private:
             if (x != 0.0f) { source.remaining = mSpan + 1; mPristine = false; }
             float* history = mHistory.data() + static_cast<size_t>(id) * static_cast<size_t>(mStride);
             history[mWrite] = x;
-            for (int channel = 0; channel < 2; ++channel)
-                direct[channel] += Read(history, source.direct[static_cast<size_t>(channel)]);
-            ProcessSource(source, history, mActive, early[0], lateInput[0]);
-            if (mFade < 1.0f) ProcessSource(source, history, mNext, early[1], lateInput[1]);
+            // While the write position is past this source's longest tap,
+            // no read wraps: the same samples and arithmetic, without the
+            // per-read wrap tests.
+            if (mWrite > source.room[static_cast<size_t>(mActive)].longest) {
+                for (int channel = 0; channel < 2; ++channel)
+                    direct[channel] += Read<false>(history, source.direct[static_cast<size_t>(channel)]);
+                ProcessSource<false>(source, history, mActive, early[0], lateInput[0]);
+            } else {
+                for (int channel = 0; channel < 2; ++channel)
+                    direct[channel] += Read<true>(history, source.direct[static_cast<size_t>(channel)]);
+                ProcessSource<true>(source, history, mActive, early[0], lateInput[0]);
+            }
+            if (mFade < 1.0f) {
+                if (mWrite > source.room[static_cast<size_t>(mNext)].longest)
+                    ProcessSource<false>(source, history, mNext, early[1], lateInput[1]);
+                else
+                    ProcessSource<true>(source, history, mNext, early[1], lateInput[1]);
+            }
             if (--source.remaining > 0) mActiveSource[static_cast<size_t>(retained++)] = id;
             else mSourceQueued[static_cast<size_t>(id)] = false;
         }
@@ -319,6 +333,7 @@ private:
     struct SourceRoom {
         std::array<std::array<Tap,6>,2> image{};
         std::array<Tap,2> late{};
+        int longest=0; // the largest delay of these and the direct taps
     };
     struct Source {
         CapturePoint position{};
@@ -418,18 +433,32 @@ private:
                     =MakeTap(geometry[static_cast<size_t>(wall+1)].seconds,geometry[static_cast<size_t>(wall+1)].gain);
             room.late[static_cast<size_t>(channel)]=MakeTap(LateFeedSeconds(type,source.position,channel),1.0);
         }
+        for(auto& room:source.room) {
+            room.longest=0;
+            for(const auto& tap:source.direct)room.longest=std::max(room.longest,tap.delay);
+            for(const auto& channel:room.image)for(const auto& tap:channel)room.longest=std::max(room.longest,tap.delay);
+            for(const auto& tap:room.late)room.longest=std::max(room.longest,tap.delay);
+        }
     }
+    // Wrap=false requires mWrite > tap.delay, so both reads lie at or after
+    // the start of this source's history row.
+    template<bool Wrap>
     float Read(const float* history,const Tap& tap) const {
-        int a=mWrite-tap.delay;if(a<0)a+=mSpan;
-        int b=a-1;if(b<0)b+=mSpan;
+        int a=mWrite-tap.delay;
+        int b=a-1;
+        if constexpr (Wrap) {
+            if(a<0)a+=mSpan;
+            b=a-1;if(b<0)b+=mSpan;
+        }
         return (history[a]+tap.fraction*(history[b]-history[a]))*tap.gain;
     }
+    template<bool Wrap>
     void ProcessSource(Source& source,const float* history,int type,float early[2][6],float* late) {
         auto& paths=source.room[static_cast<size_t>(type)];
         for(int channel=0;channel<2;++channel) {
             for(int wall=0;wall<6;++wall)
-                early[channel][wall]+=Read(history,paths.image[static_cast<size_t>(channel)][static_cast<size_t>(wall)]);
-            late[channel]+=Read(history,paths.late[static_cast<size_t>(channel)]);
+                early[channel][wall]+=Read<Wrap>(history,paths.image[static_cast<size_t>(channel)][static_cast<size_t>(wall)]);
+            late[channel]+=Read<Wrap>(history,paths.late[static_cast<size_t>(channel)]);
         }
     }
     void ProcessTail(int type,const float early[2][6],const float* input,float* out) {
