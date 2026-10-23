@@ -82,6 +82,14 @@ public:
             mTwiddle[static_cast<std::size_t>(i)] = {static_cast<float>(std::cos(angle)),
                                                     static_cast<float>(std::sin(angle))};
         }
+        // The same twiddles, laid out contiguously per butterfly stage for the
+        // split-lane forward transform: stage `half` reads entry half-1+j.
+        for (int half = 1; half < mFftSize; half *= 2)
+            for (int j = 0; j < half; ++j) {
+                const Complex twiddle = mTwiddle[static_cast<std::size_t>(j*(mFftSize/2/half))];
+                mStageTwiddle.re[static_cast<std::size_t>(half-1+j)] = twiddle.real();
+                mStageTwiddle.im[static_cast<std::size_t>(half-1+j)] = twiddle.imag();
+            }
         int bits = 0;
         for (int n = mFftSize; n > 1; n >>= 1) ++bits;
         for (int i = 0; i < mFftSize; ++i) {
@@ -334,6 +342,64 @@ private:
         }
     }
 
+    // The forward transform of one real source block, on separate real and
+    // imaginary lanes so each stage's butterflies vectorize. Every butterfly
+    // evaluates exactly the expressions of FftStage<..., false>, in the same
+    // stage order, so the spectrum is bit-identical to the interleaved form.
+    struct SplitBlock { std::array<float, kMaximumFft> re, im; };
+
+    template<int Size, int Length>
+    void ForwardSplitStage(SplitBlock& data) const {
+        constexpr int half = Length/2;
+        const float* twiddleRe = mStageTwiddle.re.data() + (half-1);
+        const float* twiddleIm = mStageTwiddle.im.data() + (half-1);
+        for (int first = 0; first < Size; first += Length)
+            for (int j = 0; j < half; ++j) {
+                const int low = first+j, high = first+j+half;
+                const float valueRe = data.re[static_cast<std::size_t>(high)];
+                const float valueIm = data.im[static_cast<std::size_t>(high)];
+                const float oddRe = valueRe*twiddleRe[j]-valueIm*twiddleIm[j];
+                const float oddIm = valueRe*twiddleIm[j]+valueIm*twiddleRe[j];
+                const float evenRe = data.re[static_cast<std::size_t>(low)];
+                const float evenIm = data.im[static_cast<std::size_t>(low)];
+                data.re[static_cast<std::size_t>(low)] = evenRe+oddRe;
+                data.im[static_cast<std::size_t>(low)] = evenIm+oddIm;
+                data.re[static_cast<std::size_t>(high)] = evenRe-oddRe;
+                data.im[static_cast<std::size_t>(high)] = evenIm-oddIm;
+            }
+        if constexpr (Length < Size) ForwardSplitStage<Size, Length*2>(data);
+    }
+
+    // Input: bit-reversed real samples in re. The first stage's twiddle is
+    // exactly (1, -0) and every input imaginary part is +0, so its butterfly
+    // is exactly (a+b, +0) and (a-b, +0) for finite samples.
+    template<int Size>
+    void ForwardSplitFixed(SplitBlock& data) const {
+        for (int first = 0; first < Size; first += 2) {
+            const float even = data.re[static_cast<std::size_t>(first)];
+            const float value = data.re[static_cast<std::size_t>(first+1)];
+            data.re[static_cast<std::size_t>(first)] = even+value;
+            data.re[static_cast<std::size_t>(first+1)] = even-value;
+            data.im[static_cast<std::size_t>(first)] = 0.0f;
+            data.im[static_cast<std::size_t>(first+1)] = 0.0f;
+        }
+        if constexpr (Size > 2) ForwardSplitStage<Size, 4>(data);
+    }
+
+    void ForwardSplit(SplitBlock& data) const {
+        switch (mFftSize) {
+            case 2: ForwardSplitFixed<2>(data); break;
+            case 4: ForwardSplitFixed<4>(data); break;
+            case 8: ForwardSplitFixed<8>(data); break;
+            case 16: ForwardSplitFixed<16>(data); break;
+            case 32: ForwardSplitFixed<32>(data); break;
+            case 64: ForwardSplitFixed<64>(data); break;
+            case 128: ForwardSplitFixed<128>(data); break;
+            case 256: ForwardSplitFixed<256>(data); break;
+            case 512: ForwardSplitFixed<512>(data); break;
+        }
+    }
+
     void Fft(std::array<Complex, kMaximumFft>& data, bool inverse) const {
         if (inverse) FftDispatch<true>(data);
         else FftDispatch<false>(data);
@@ -385,20 +451,20 @@ private:
             auto& source = mSources[static_cast<std::size_t>(id)];
             if (!source.configured || source.remaining == 0) continue;
             for (int channel = 0; channel < 2; ++channel) {
-                std::array<Complex, kMaximumFft> block;
+                SplitBlock block;
                 for (int i = 0; i < mBlockSize; ++i) {
                     // Fill directly in the exact order the FFT's former swap
                     // pass produced. The transform needs no reorder pass for
                     // these real source inputs; no butterfly is changed.
-                    block[static_cast<std::size_t>(mReverse[i])] = source.previous[channel][static_cast<std::size_t>(i)];
-                    block[static_cast<std::size_t>(mReverse[i+mBlockSize])] = source.current[channel][static_cast<std::size_t>(i)];
+                    block.re[static_cast<std::size_t>(mReverse[i])] = source.previous[channel][static_cast<std::size_t>(i)];
+                    block.re[static_cast<std::size_t>(mReverse[i+mBlockSize])] = source.current[channel][static_cast<std::size_t>(i)];
                 }
                 std::copy_n(source.current[channel].data(), mBlockSize, source.previous[channel].data());
-                FftDispatch<false, false>(block);
+                ForwardSplit(block);
                 Complex* history = History(id, channel);
                 for (int i = 0; i <= mFftSize/2; ++i) history[mHistoryPosition[group]*mFftSize+i] =
-                    {Flush(block[static_cast<std::size_t>(i)].real()*source.rangeGain),
-                     Flush(block[static_cast<std::size_t>(i)].imag()*source.rangeGain)};
+                    {Flush(block.re[static_cast<std::size_t>(i)]*source.rangeGain),
+                     Flush(block.im[static_cast<std::size_t>(i)]*source.rangeGain)};
                 const Complex* filter = Filter(source.profile, channel);
                 int previous = mHistoryPosition[group];
                 for (int part = 0; part < mPartitions; ++part) {
@@ -434,6 +500,7 @@ private:
     std::vector<Complex> mHistory, mFilters;
     std::array<Complex, kMaximumBlock> mTwiddle{};
     std::array<int, kMaximumFft> mReverse{};
+    SplitBlock mStageTwiddle{};
     std::array<std::array<std::array<float, kMaximumBlock>, 2>, kMaximumGroups> mOutput{};
 };
 
