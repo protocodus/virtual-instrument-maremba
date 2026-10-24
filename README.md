@@ -108,7 +108,7 @@ One demo per factory preset, rendered by every main build from
 ## Downloads
 
 <!-- build-download-begin -->
-**[Download main build 20](https://github.com/protocodus/virtual-instrument-maremba/actions/runs/39922101310/artifacts/12494209163)**, built from [`1565c8710fc9`](https://github.com/protocodus/virtual-instrument-maremba/commit/1565c8710fc91372f54620d0d94dea2a005a969b). It holds the macOS, Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.
+**[Download main build 21](https://github.com/protocodus/virtual-instrument-maremba/actions/runs/40075307072/artifacts/12555941118)**, built from [`8ad80bb102b3`](https://github.com/protocodus/virtual-instrument-maremba/commit/8ad80bb102b3fb50a2d26e8a78b8a7f425af333d). It holds the macOS, Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.
 <!-- build-download-end -->
 
 ---
