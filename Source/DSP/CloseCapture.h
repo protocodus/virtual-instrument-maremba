@@ -82,6 +82,14 @@ public:
             mTwiddle[static_cast<std::size_t>(i)] = {static_cast<float>(std::cos(angle)),
                                                     static_cast<float>(std::sin(angle))};
         }
+        for (int half = 1; half < mFftSize; half *= 2)
+            for (int j = 0; j < half; ++j) {
+                const Complex twiddle = mTwiddle[static_cast<std::size_t>(j*(mFftSize/(2*half)))];
+                const auto at = static_cast<std::size_t>(half - 1 + j);
+                mStageCos[at] = twiddle.real();
+                mStageSin[at] = twiddle.imag();
+                mStageSinInverse[at] = -twiddle.imag();
+            }
         int bits = 0;
         for (int n = mFftSize; n > 1; n >>= 1) ++bits;
         for (int i = 0; i < mFftSize; ++i) {
@@ -286,57 +294,78 @@ private:
         return mFilters.data() + (static_cast<std::size_t>(profile)*2 + channel)*mSpectrumCapacity;
     }
 
+    // Radix-2 decimation-in-time transform on split real/imaginary arrays,
+    // input in bit-reversed order. Every butterfly keeps the expressions and
+    // order of the interleaved std::complex form it replaced, so the spectra
+    // are bit-identical. That form let GCC store each half of a complex
+    // separately and reload it whole, stalling on store forwarding in every
+    // butterfly (about 60% of a 48 kHz render). Separate arrays and
+    // per-stage contiguous twiddles let each stage run as plain vector code.
+    enum class FftOutput { Full, LowerHalf, UpperReal };
+
     template<int Size, int Length, bool Inverse>
-    void FftStage(std::array<Complex, kMaximumFft>& data) const {
-        constexpr int half = Length/2, stride = Size/Length;
-        for (int first = 0; first < Size; first += Length)
+    void FftButterflies(float* re, float* im) const {
+        constexpr int half = Length/2;
+        const float* wr = mStageCos.data() + (half - 1);
+        const float* wi = (Inverse ? mStageSinInverse : mStageSin).data() + (half - 1);
+        for (int first = 0; first < Size; first += Length) {
+            float* er = re + first; float* ei = im + first;
+            float* vr = er + half; float* vi = ei + half;
             for (int j = 0; j < half; ++j) {
-                const Complex twiddle = mTwiddle[static_cast<std::size_t>(j*stride)];
-                const Complex value = data[static_cast<std::size_t>(first+j+half)];
-                const float imaginary = Inverse ? -twiddle.imag() : twiddle.imag();
-                const Complex odd{value.real()*twiddle.real()-value.imag()*imaginary,
-                                  value.real()*imaginary+value.imag()*twiddle.real()};
-                const Complex even = data[static_cast<std::size_t>(first+j)];
-                data[static_cast<std::size_t>(first+j)] = even+odd;
-                data[static_cast<std::size_t>(first+j+half)] = even-odd;
-            }
-        if constexpr (Length < Size) FftStage<Size, Length*2, Inverse>(data);
-    }
-
-    template<int Size, bool Inverse, bool Reorder>
-    void FftFixed(std::array<Complex, kMaximumFft>& data) const {
-        if constexpr (Reorder) {
-            for (int i = 0; i < Size; ++i) {
-                const int j = mReverse[static_cast<std::size_t>(i)];
-                if (j > i) std::swap(data[static_cast<std::size_t>(i)], data[static_cast<std::size_t>(j)]);
+                const float oddR = vr[j]*wr[j]-vi[j]*wi[j];
+                const float oddI = vr[j]*wi[j]+vi[j]*wr[j];
+                const float evenR = er[j], evenI = ei[j];
+                er[j] = evenR+oddR; ei[j] = evenI+oddI;
+                vr[j] = evenR-oddR; vi[j] = evenI-oddI;
             }
         }
-        FftStage<Size, 2, Inverse>(data);
-        if constexpr (Inverse)
-            for (int i = 0; i < Size; ++i) data[static_cast<std::size_t>(i)] /= static_cast<float>(Size);
     }
 
-    template<bool Inverse, bool Reorder = true>
-    void FftDispatch(std::array<Complex, kMaximumFft>& data) const {
-        // Native-rate setup selects one of these powers of two. Compile each
-        // stage with its fixed stride and direction, keeping the original
-        // butterfly order while removing runtime stage/stride arithmetic.
+    template<int Size, int Length, bool Inverse, FftOutput Output>
+    void FftStage(float* re, float* im) const {
+        if constexpr (Length < Size || Output == FftOutput::Full) {
+            FftButterflies<Size, Length, Inverse>(re, im);
+            if constexpr (Length < Size) FftStage<Size, Length*2, Inverse, Output>(re, im);
+        } else {
+            // The final stage writes only the bins its caller reads: the
+            // non-negative frequencies of a real input's spectrum, or the
+            // real second half of the inverse's overlap-save output.
+            constexpr int half = Length/2;
+            const float* wr = mStageCos.data() + (half - 1);
+            const float* wi = (Inverse ? mStageSinInverse : mStageSin).data() + (half - 1);
+            float* vr = re + half; float* vi = im + half;
+            if constexpr (Output == FftOutput::LowerHalf) {
+                for (int j = 0; j < half; ++j) {
+                    const float oddR = vr[j]*wr[j]-vi[j]*wi[j];
+                    const float oddI = vr[j]*wi[j]+vi[j]*wr[j];
+                    const float evenR = re[j], evenI = im[j];
+                    re[j] = evenR+oddR; im[j] = evenI+oddI;
+                    if (j == 0) { vr[0] = evenR-oddR; vi[0] = evenI-oddI; }
+                }
+            } else {
+                for (int j = 0; j < half; ++j) {
+                    const float oddR = vr[j]*wr[j]-vi[j]*wi[j];
+                    vr[j] = re[j]-oddR;
+                }
+            }
+        }
+    }
+
+    template<bool Inverse, FftOutput Output>
+    void Fft(float* re, float* im) const {
+        // Native-rate setup selects one of these powers of two; each stage
+        // is compiled with its fixed length and direction.
         switch (mFftSize) {
-            case 2: FftFixed<2, Inverse, Reorder>(data); break;
-            case 4: FftFixed<4, Inverse, Reorder>(data); break;
-            case 8: FftFixed<8, Inverse, Reorder>(data); break;
-            case 16: FftFixed<16, Inverse, Reorder>(data); break;
-            case 32: FftFixed<32, Inverse, Reorder>(data); break;
-            case 64: FftFixed<64, Inverse, Reorder>(data); break;
-            case 128: FftFixed<128, Inverse, Reorder>(data); break;
-            case 256: FftFixed<256, Inverse, Reorder>(data); break;
-            case 512: FftFixed<512, Inverse, Reorder>(data); break;
+            case 2: FftStage<2, 2, Inverse, Output>(re, im); break;
+            case 4: FftStage<4, 2, Inverse, Output>(re, im); break;
+            case 8: FftStage<8, 2, Inverse, Output>(re, im); break;
+            case 16: FftStage<16, 2, Inverse, Output>(re, im); break;
+            case 32: FftStage<32, 2, Inverse, Output>(re, im); break;
+            case 64: FftStage<64, 2, Inverse, Output>(re, im); break;
+            case 128: FftStage<128, 2, Inverse, Output>(re, im); break;
+            case 256: FftStage<256, 2, Inverse, Output>(re, im); break;
+            case 512: FftStage<512, 2, Inverse, Output>(re, im); break;
         }
-    }
-
-    void Fft(std::array<Complex, kMaximumFft>& data, bool inverse) const {
-        if (inverse) FftDispatch<true>(data);
-        else FftDispatch<false>(data);
     }
 
     void BuildFilters() {
@@ -358,13 +387,15 @@ private:
             }
             Complex* filter = mFilters.data() + (static_cast<std::size_t>(profile)*2 + channel)*mSpectrumCapacity;
             for (int part = 0; part < mPartitions; ++part) {
-                std::array<Complex, kMaximumFft> block{};
+                std::array<float, kMaximumFft> re{}, im{};
                 for (int i = 0; i < mBlockSize; ++i) {
                     const int sample = part*mBlockSize+i;
-                    if (sample < mKernelLength) block[static_cast<std::size_t>(i)] = mKernelScratch[static_cast<std::size_t>(sample)];
+                    if (sample < mKernelLength)
+                        re[static_cast<std::size_t>(mReverse[static_cast<std::size_t>(i)])] = mKernelScratch[static_cast<std::size_t>(sample)];
                 }
-                Fft(block, false);
-                std::copy_n(block.data(), mFftSize, filter + part*mFftSize);
+                Fft<false, FftOutput::Full>(re.data(), im.data());
+                for (int i = 0; i < mFftSize; ++i)
+                    filter[part*mFftSize+i] = {re[static_cast<std::size_t>(i)], im[static_cast<std::size_t>(i)]};
             }
         }
     }
@@ -385,20 +416,19 @@ private:
             auto& source = mSources[static_cast<std::size_t>(id)];
             if (!source.configured || source.remaining == 0) continue;
             for (int channel = 0; channel < 2; ++channel) {
-                std::array<Complex, kMaximumFft> block;
+                // Fill directly in bit-reversed order; real source inputs
+                // have zero imaginary parts.
+                std::array<float, kMaximumFft> re, im{};
                 for (int i = 0; i < mBlockSize; ++i) {
-                    // Fill directly in the exact order the FFT's former swap
-                    // pass produced. The transform needs no reorder pass for
-                    // these real source inputs; no butterfly is changed.
-                    block[static_cast<std::size_t>(mReverse[i])] = source.previous[channel][static_cast<std::size_t>(i)];
-                    block[static_cast<std::size_t>(mReverse[i+mBlockSize])] = source.current[channel][static_cast<std::size_t>(i)];
+                    re[static_cast<std::size_t>(mReverse[i])] = source.previous[channel][static_cast<std::size_t>(i)];
+                    re[static_cast<std::size_t>(mReverse[i+mBlockSize])] = source.current[channel][static_cast<std::size_t>(i)];
                 }
                 std::copy_n(source.current[channel].data(), mBlockSize, source.previous[channel].data());
-                FftDispatch<false, false>(block);
+                Fft<false, FftOutput::LowerHalf>(re.data(), im.data());
                 Complex* history = History(id, channel);
                 for (int i = 0; i <= mFftSize/2; ++i) history[mHistoryPosition[group]*mFftSize+i] =
-                    {Flush(block[static_cast<std::size_t>(i)].real()*source.rangeGain),
-                     Flush(block[static_cast<std::size_t>(i)].imag()*source.rangeGain)};
+                    {Flush(re[static_cast<std::size_t>(i)]*source.rangeGain),
+                     Flush(im[static_cast<std::size_t>(i)]*source.rangeGain)};
                 const Complex* filter = Filter(source.profile, channel);
                 int previous = mHistoryPosition[group];
                 for (int part = 0; part < mPartitions; ++part) {
@@ -413,11 +443,20 @@ private:
             }
         }
         for (int channel = 0; channel < 2; ++channel) {
-            for (int i = 1; i < mFftSize/2; ++i)
-                sum[channel][static_cast<std::size_t>(mFftSize-i)] = std::conj(sum[channel][static_cast<std::size_t>(i)]);
-            Fft(sum[channel], true);
+            // Hermitian completion, placed directly in bit-reversed order.
+            std::array<float, kMaximumFft> re, im;
+            const auto& spectrum = sum[channel];
+            for (int i = 0; i < mFftSize; ++i) {
+                const auto at = static_cast<std::size_t>(mReverse[static_cast<std::size_t>(i)]);
+                const Complex value = i > mFftSize/2
+                    ? std::conj(spectrum[static_cast<std::size_t>(mFftSize-i)])
+                    : spectrum[static_cast<std::size_t>(i)];
+                re[at] = value.real(); im[at] = value.imag();
+            }
+            Fft<true, FftOutput::UpperReal>(re.data(), im.data());
             for (int i = 0; i < mBlockSize; ++i)
-                mOutput[group][channel][static_cast<std::size_t>(i)] = Flush(sum[channel][static_cast<std::size_t>(i+mBlockSize)].real());
+                mOutput[group][channel][static_cast<std::size_t>(i)] =
+                    Flush(re[static_cast<std::size_t>(i+mBlockSize)] / static_cast<float>(mFftSize));
         }
     }
 
@@ -433,6 +472,9 @@ private:
     std::vector<float> mFlight, mKernelScratch;
     std::vector<Complex> mHistory, mFilters;
     std::array<Complex, kMaximumBlock> mTwiddle{};
+    // Stage twiddles, contiguous per stage: a stage of h butterflies per
+    // group reads entries h-1 .. 2h-2.
+    std::array<float, kMaximumFft> mStageCos{}, mStageSin{}, mStageSinInverse{};
     std::array<int, kMaximumFft> mReverse{};
     std::array<std::array<std::array<float, kMaximumBlock>, 2>, kMaximumGroups> mOutput{};
 };
