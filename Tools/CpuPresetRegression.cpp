@@ -2,7 +2,7 @@
 // counting instructions and for proving an optimisation leaves the sound
 // unchanged. File I/O and allocation stay outside the engine's render calls.
 //
-// Measurement protocol (Docs/benchmarks/cpu-rack-build-2026-10-25.md):
+// Measurement protocol (Docs/benchmarks/cpu-capture-scene-2026-10-25.md):
 //
 //   Build the engine as the Rack compiles it, as nearly as the host allows
 //   (C++17, -O3 -fno-builtin; Maremba has no embedded define), and once more
@@ -20,9 +20,13 @@
 //       --callgrind-out-file=cg.out ./cpu_rack main
 //
 //   and take the total Ir: the rendered stream, MIDI handling included, and
-//   not the engine's construction, which the Rack does off the audio thread. Parity: run `./cpu_rack all out.f32` on the
-//   baseline and the candidate (same compiler and flags) and compare the two
-//   files byte for byte. Each candidate is graded exact (same double bits),
+//   not the engine's construction, which the Rack does off the audio thread.
+//
+//   Parity: run `./cpu_rack all out.f32` and `./cpu_rack main out.f32` on the
+//   baseline and the candidate (same compiler and flags) and compare the
+//   files byte for byte, together with the outputs of
+//   Tools/OptimizationRender.cpp and Tools/CpuEquivalenceRender.cpp (rates,
+//   qualities, rooms, voice steals and live control changes). Each candidate is graded exact (same double bits),
 //   last bit (float32 stream byte-identical) or measured inaudible (residual
 //   >= 90 dB under signal RMS on every preset, no residual peak above
 //   -80 dBFS); anything else is a listening decision and does not ship as an
@@ -33,8 +37,8 @@
 // varied velocity, a held four-note chord with a pitch-bend move, a
 // sixteen-note cluster struck together, released, and its decay. Then the
 // heaviest supported quality (8x) on one preset per model, the first 0.6 s
-// of the same phrase. "main"
-// connects the stereo Main outputs only; "all" connects all seven outputs.
+// of the same phrase. "main" connects the stereo Main outputs only; "all"
+// connects all seven outputs.
 // Usage: cpu_preset_regression main|all [output.f32]
 #include "DSP/MarembaPlayer.h"
 #include "FactoryPresets.h"
