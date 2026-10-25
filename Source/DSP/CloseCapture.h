@@ -301,10 +301,23 @@ private:
     // and every result leaves this renderer through Flush, which writes any
     // zero as +0: the source history, the output and the convolution are
     // bit for bit those of the full complex product, which is skipped.
-    template<int Size, int Length, bool Inverse>
+    //
+    // RealHalf is the source transform: real input (every imaginary part
+    // +0) and only bins 0..Size/2 read. Its first stage's sums keep +0
+    // imaginary parts exactly; in the second, a +0 imaginary part makes the
+    // twiddle product (real*cos, real*sin), again up to the sign of a zero;
+    // the last stage's differences above bin Size/2 are never read.
+    template<int Size, int Length, bool Inverse, bool RealHalf = false>
     void FftStage(std::array<Complex, kMaximumFft>& data) const {
         constexpr int half = Length/2, stride = Size/Length;
         for (int first = 0; first < Size; first += Length) {
+            if constexpr (RealHalf && Length == 2) {
+                const float odd = data[static_cast<std::size_t>(first+1)].real();
+                const float even = data[static_cast<std::size_t>(first)].real();
+                data[static_cast<std::size_t>(first)] = {even+odd, 0.0f};
+                data[static_cast<std::size_t>(first+1)] = {even-odd, 0.0f};
+                continue;
+            }
             {
                 const Complex odd = data[static_cast<std::size_t>(first+half)];
                 const Complex even = data[static_cast<std::size_t>(first)];
@@ -315,14 +328,19 @@ private:
                 const Complex twiddle = mTwiddle[static_cast<std::size_t>(j*stride)];
                 const Complex value = data[static_cast<std::size_t>(first+j+half)];
                 const float imaginary = Inverse ? -twiddle.imag() : twiddle.imag();
-                const Complex odd{value.real()*twiddle.real()-value.imag()*imaginary,
-                                  value.real()*imaginary+value.imag()*twiddle.real()};
+                Complex odd;
+                if constexpr (RealHalf && Length == 4)
+                    odd = {value.real()*twiddle.real(), value.real()*imaginary};
+                else
+                    odd = {value.real()*twiddle.real()-value.imag()*imaginary,
+                           value.real()*imaginary+value.imag()*twiddle.real()};
                 const Complex even = data[static_cast<std::size_t>(first+j)];
                 data[static_cast<std::size_t>(first+j)] = even+odd;
-                data[static_cast<std::size_t>(first+j+half)] = even-odd;
+                if constexpr (!(RealHalf && Length == Size))
+                    data[static_cast<std::size_t>(first+j+half)] = even-odd;
             }
         }
-        if constexpr (Length < Size) FftStage<Size, Length*2, Inverse>(data);
+        if constexpr (Length < Size) FftStage<Size, Length*2, Inverse, RealHalf>(data);
     }
 
     template<int Size, bool Inverse, bool Reorder>
@@ -333,7 +351,8 @@ private:
                 if (j > i) std::swap(data[static_cast<std::size_t>(i)], data[static_cast<std::size_t>(j)]);
             }
         }
-        FftStage<Size, 2, Inverse>(data);
+        // Only the source transform skips the reorder: it is the real one.
+        FftStage<Size, 2, Inverse, !Inverse && !Reorder>(data);
         if constexpr (Inverse)
             for (int i = 0; i < Size; ++i) data[static_cast<std::size_t>(i)] /= static_cast<float>(Size);
     }
