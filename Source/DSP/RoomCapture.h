@@ -120,7 +120,10 @@ public:
 
     void SetSampleRate(double rate) {
         mRate = std::isfinite(rate) ? std::clamp(rate, 8000.0, mMaxRate) : std::min(48000.0, mMaxRate);
-        mSpan = std::min(mStride, static_cast<int>(std::ceil(mHistorySeconds * mRate)) + 3);
+        // The first slot of each source's stride is the guard before its ring
+        // (History). The stride is this span at mMaxRate plus one, so the
+        // clamp never binds; it only states that the guard is never in it.
+        mSpan = std::min(mStride - 1, static_cast<int>(std::ceil(mHistorySeconds * mRate)) + 3);
         mFadeStep = static_cast<float>(1.0 / (.05 * mRate));
         for (auto& microphone : mMicrophone) microphone.SetSampleRate(mRate);
         for (int type = 0; type < 3; ++type) {
@@ -218,8 +221,9 @@ private:
             auto& source = mSource[static_cast<size_t>(id)];
             const float x = id < count ? maremba::FlushTiny(RoomExcitation(input[id])) : 0.0f;
             if (x != 0.0f) { source.remaining = mSpan + 1; mPristine = false; }
-            float* history = mHistory.data() + static_cast<size_t>(id) * static_cast<size_t>(mStride);
+            float* history = History(id);
             history[mWrite] = x;
+            if (mWrite == mSpan - 1) history[-1] = x;
             for (int channel = 0; channel < 2; ++channel)
                 direct[channel] += Read(history, source.direct[static_cast<size_t>(channel)]);
             ProcessSource(source, history, mActive, early[0], lateInput[0]);
@@ -419,10 +423,16 @@ private:
             room.late[static_cast<size_t>(channel)]=MakeTap(LateFeedSeconds(type,source.position,channel),1.0);
         }
     }
+    // Each source's ring is preceded by one guard slot that always holds the
+    // ring's last sample (ProcessPressure writes both), so the older of the
+    // two interpolated samples needs no second wrap: index -1 reads exactly
+    // the value index mSpan - 1 holds.
+    float* History(int id) {
+        return mHistory.data() + static_cast<size_t>(id) * static_cast<size_t>(mStride) + 1;
+    }
     float Read(const float* history,const Tap& tap) const {
         int a=mWrite-tap.delay;if(a<0)a+=mSpan;
-        int b=a-1;if(b<0)b+=mSpan;
-        return (history[a]+tap.fraction*(history[b]-history[a]))*tap.gain;
+        return (history[a]+tap.fraction*(history[a-1]-history[a]))*tap.gain;
     }
     void ProcessSource(Source& source,const float* history,int type,float early[2][6],float* late) {
         auto& paths=source.room[static_cast<size_t>(type)];
