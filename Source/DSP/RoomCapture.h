@@ -208,8 +208,10 @@ private:
         for (int candidate = 0; candidate < candidates; ++candidate) {
             const int id = sourceIds ? sourceIds[candidate] : candidate;
             if (id < 0 || id >= count) continue;
+            // A queued source is read below; only a new one needs its input.
+            if (mSourceQueued[static_cast<size_t>(id)]) continue;
             const float x = maremba::FlushTiny(RoomExcitation(input[id]));
-            if (x == 0.0f || mSourceQueued[static_cast<size_t>(id)]) continue;
+            if (x == 0.0f) continue;
             if (!mSource[static_cast<size_t>(id)].configured) continue;
             mActiveSource[static_cast<size_t>(mActiveSourceCount++)] = id;
             mSourceQueued[static_cast<size_t>(id)] = true; added = true;
