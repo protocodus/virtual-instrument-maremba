@@ -176,9 +176,18 @@ public:
                 if (at < 0) at += mDelayCapacity;
                 if (at >= mDelayCapacity) at -= mDelayCapacity;
                 float value = 0.0f;
-                for (int tap = 0; tap < 8; ++tap) {
-                    value += line[at] * source.fractional[channel][tap];
-                    if (--at < 0) at = mDelayCapacity - 1;
+                if (at >= 7) {
+                    // All eight taps lie below the read point without
+                    // wrapping (nearly every frame): the same products,
+                    // summed in the same order, without a wrap test per tap.
+                    const float* taps = line + at;
+                    for (int tap = 0; tap < 8; ++tap)
+                        value += taps[-tap] * source.fractional[channel][tap];
+                } else {
+                    for (int tap = 0; tap < 8; ++tap) {
+                        value += line[at] * source.fractional[channel][tap];
+                        if (--at < 0) at = mDelayCapacity - 1;
+                    }
                 }
                 source.current[channel][static_cast<std::size_t>(position)] = Flush(static_cast<float>(value));
             }
