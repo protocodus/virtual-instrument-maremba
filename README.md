@@ -43,6 +43,12 @@ One demo per factory preset, rendered by every main build from
 
 ## Version history
 
+### 1.5.7 — 2026-10-25 — lower CPU, sound unchanged
+
+- About 14 % fewer instructions on the factory presets (Rack-like build),
+  mostly in the Close and Room capture; the output is bit-identical.
+  [Measurements](Docs/benchmarks/cpu-capture-scene-2026-10-25.md).
+
 ### 1.5.4 — 2026-10-20 — preset VCA balance and dynamic headroom
 
 - Balance the factory bank around −8 dBFS on the normal velocity-80 Linear
