@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "written_utc": "2026-09-20T10:35:39.575232+00:00",
+  "base_commit": "7b001722c19ad5bf7dab252788a38b6d59964fe9",
+  "scope": "Working-tree native engine/wrapper and UI verification, not a rebuilt U45 or fresh Reason/Recon host test.",
+  "checks": {
+    "full_eight_step_suite": "PASS",
+    "factory_patch_rate_cases": 33,
+    "factory_phrase_rms_db_min": -23.5,
+    "factory_phrase_rms_db_max": -18.3,
+    "address_undefined_sanitizer_libcpp_fast": "PASS",
+    "sanitizer_inputs_match_current_sources": true,
+    "native_cpu_deadline_misses": {
+      "2x": 0,
+      "4x": 0,
+      "8x": 0
+    },
+    "audio_comparison": {
+      "status": "PASS",
+      "raw_seven_channel_renders": 12,
+      "wav_aac_pairs": 4,
+      "dry_all_seven_channels_bit_identical": true,
+      "five_direct_stems_bit_identical_across_versions_and_amounts": true,
+      "unshifted_onset_sample": 3528,
+      "shared_playback_gain_per_program": true,
+      "maximum_decoded_aac_peak": 0.694211
+    }
+  },
+  "source_sha256": {
+    "DSP/AcousticRoom.h": "16ccb9f656b7f604bf5a9445ee416a337af9ccc9355ce84c4e1fb6e5fe7f3953",
+    "DSP/AnalogLimiter.h": "49a968affc528562cbecad531b2bbff9bcb794b4efb145d3aab19a3db9984053",
+    "DSP/AnalogPreamp.h": "96dfba04a09894334985bc20e6d300c7ea3fd336f3dfdcfb074ddf8a8c83716a",
+    "DSP/ContactExcitation.h": "cac875971f3188d7536f8a8fc78a591beeef33b8b849ee803198b0730a1b2725",
+    "DSP/DspMath.h": "14207a2b4641f31b72da94759f4933e308840409a4b88e44d2281409df498b5e",
+    "DSP/FrameBody.h": "927eebbaa27a465b94759cac38eb45414d26730d03992cde112468e8962df0b1",
+    "DSP/MarembaEngine.h": "d7d2b0126f0c952b53c3223e022d0ff2aa1b9630c313bec4e39c422d22b4f47e",
+    "DSP/MarembaVoice.h": "11c5a518576392d8b334a028e5651435bc6fb1a3e108abcfef9133ec14b30a50",
+    "DSP/MarimbaModel.h": "10f32e90e8f980cbd2d7265d9022b25971e9cc150b9d19b8df860b0244779e62",
+    "DSP/MicMixer.h": "b06fc45ca4a56e67e4c1a8ccb66a3561d2d7de9560e5090b47a293600f688a62",
+    "DSP/ModalExcitation.h": "fea245afd29bed32dbbc957ee008e59c3b328468cb6ec8cb4b78f7c4a5eb0437",
+    "DSP/Oversampler.h": "ea1acddef65086501ec8519732fd52437e7795946d9bbdd35ccaec7b83f0e145",
+    "DSP/RandomArtifacts.h": "b615a0b1d041e28ca816789978a0197b98f136635492cc9840b7dc14fc139191",
+    "DSP/SympatheticMesh.h": "752a48c56b66dbf17cbeec7628a3cece76a9f8a87a0619000414548d4b397b06",
+    "DSP/MarembaEngine.cpp": "074c0a7606bb3985dc34d2978ce518401cbc0d7832095e4ab5c96ca5ecfa2c7d",
+    "DSP/MarembaVoice.cpp": "ede18a044bf1f670b95a668248f89f5e83e2b491bf44bc7684b189803f5f73a9",
+    "Tests/test_dsp.cpp": "13a40ba0a3282cd088e362d7c135edd34998a2c1e37dd3947e5d592603be1766",
+    "Tests/WrapperHostTest.cpp": "a404d8cf104131f4f458bcaf3464a5f15674454457536e732c731533131dd291",
+    "Tests/AllPatchRenderTest.cpp": "fbf72b9aab645a73699f900f59e111776636350d78e69f8f7280fd809f6fa06b",
+    "Maremba.cpp": "aa640ab7b9e5696e89789782804164185d42d1134802011ff219d0deaca81a51",
+    "motherboard_def.lua": "94481a3412db84d8a5bd792ccfd3a0ecb07e3f40cc902126c6116be8fb2bf730",
+    "Resources/English/texts.lua": "4c33982a24ec45c4f2808f8b2db23b7644138557a4754dcbab0f6ba274b892db",
+    "Design/render_panels.py": "2612acd9621da620dbbb2ce36e6d19c780e91cf6cff987346b11e4de5d3c8ceb",
+    "Demos/render_limiter_comparison.cpp": "c09121f670a584b46c865d111dbdc57857f8652fa7b2d7d182695869425d205e",
+    "Demos/compare_limiter.py": "1aff8f5effb14fc3e4cb8a0d213865f23ae22842fff48062901b50b44d07232d"
+  },
+  "evidence_sha256": {
+    "docs/validation/limiter-contracts.txt": "38af713e3e41add722a380bf0197e7a723d10d0393d186d4ba3e60d05686e428",
+    "docs/validation/limiter-sanitizer.txt": "6edc25a58c96adf548fdee52abc0f6f750ca916140a0756ef6eb306ecf406eaa",
+    "docs/validation/limiter-cpu-baseline.txt": "d369cb232f170cc316f5a3c57cfa7dfb8eab3b027284f2deef569493135a5b5e",
+    "docs/validation/limiter-cpu-final.txt": "7789175dc117741ced3351c4e76f97cdff30bd796809603b9d7568e5222725f7",
+    "docs/validation/ui-production-asset-report.json": "317454a407d3d7d4e4443b1647cf9bac24faa8fddfd587d175ebd199a4837219",
+    "Demos/LIMITER_COMPARISON.json": "ac2b1ed6e6a23e58d788efed7c2279908ca7ef8a561de905c60c9e62aacd8eba",
+    "Demos/LIMITER_COMPARISON.md": "0e8e5d906d7bf510261330e492c78fef840400f8728742050a6d629f71f973f1",
+    "docs/validation/limiter-sanitizer.json": "9d97fb5474cf7e7845c62a77e1700d8dd59583a38d1491e0978d351ebe72abf8"
+  }
+}

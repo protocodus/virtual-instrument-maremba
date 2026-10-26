@@ -1,0 +1,1544 @@
+{
+  "schema_version": 1,
+  "purpose": "Independent rendered-audio regression evidence for always-present strike character with Variance and Artifacts both zero.",
+  "baseline_revision": "4fd716e33bd981235787732c04c4360111592a63",
+  "source_sha256": {
+    "baseline_dsp": {
+      "DSP/AcousticRoom.h": "16ccb9f656b7f604bf5a9445ee416a337af9ccc9355ce84c4e1fb6e5fe7f3953",
+      "DSP/AnalogPreamp.h": "96dfba04a09894334985bc20e6d300c7ea3fd336f3dfdcfb074ddf8a8c83716a",
+      "DSP/Compressor.h": "b977ef1462c5aade127481963a2b4a8dc65270ccd88e54930c0b1e802cacbff3",
+      "DSP/ContactExcitation.h": "cac875971f3188d7536f8a8fc78a591beeef33b8b849ee803198b0730a1b2725",
+      "DSP/DspMath.h": "14207a2b4641f31b72da94759f4933e308840409a4b88e44d2281409df498b5e",
+      "DSP/FrameBody.h": "927eebbaa27a465b94759cac38eb45414d26730d03992cde112468e8962df0b1",
+      "DSP/MarembaEngine.cpp": "e42b4450cabb19aa545078cb8676450bdb7cf6f883bff2a3596d16bd6d443476",
+      "DSP/MarembaEngine.h": "87da1fa87c53e332a33daf1e2f8b666c2b0ca266401db827287165ba45477e3a",
+      "DSP/MarembaVoice.cpp": "e1f2ed0105e993225c01f0c93c6c2fe1020024f29b8418214fb024e351305f3d",
+      "DSP/MarembaVoice.h": "11c5a518576392d8b334a028e5651435bc6fb1a3e108abcfef9133ec14b30a50",
+      "DSP/MarimbaModel.h": "10f32e90e8f980cbd2d7265d9022b25971e9cc150b9d19b8df860b0244779e62",
+      "DSP/MicMixer.h": "b06fc45ca4a56e67e4c1a8ccb66a3561d2d7de9560e5090b47a293600f688a62",
+      "DSP/ModalExcitation.h": "fea245afd29bed32dbbc957ee008e59c3b328468cb6ec8cb4b78f7c4a5eb0437",
+      "DSP/Oversampler.h": "ea1acddef65086501ec8519732fd52437e7795946d9bbdd35ccaec7b83f0e145",
+      "DSP/RandomArtifacts.h": "3b3d6b2cc5021fc789888b990f4840265bb01b48b30b4d9adffcd9825ccabdce",
+      "DSP/SympatheticMesh.h": "752a48c56b66dbf17cbeec7628a3cece76a9f8a87a0619000414548d4b397b06"
+    },
+    "final_dsp": {
+      "DSP/AcousticRoom.h": "16ccb9f656b7f604bf5a9445ee416a337af9ccc9355ce84c4e1fb6e5fe7f3953",
+      "DSP/AnalogPreamp.h": "96dfba04a09894334985bc20e6d300c7ea3fd336f3dfdcfb074ddf8a8c83716a",
+      "DSP/Compressor.h": "b977ef1462c5aade127481963a2b4a8dc65270ccd88e54930c0b1e802cacbff3",
+      "DSP/ContactExcitation.h": "cac875971f3188d7536f8a8fc78a591beeef33b8b849ee803198b0730a1b2725",
+      "DSP/DspMath.h": "14207a2b4641f31b72da94759f4933e308840409a4b88e44d2281409df498b5e",
+      "DSP/FrameBody.h": "927eebbaa27a465b94759cac38eb45414d26730d03992cde112468e8962df0b1",
+      "DSP/MarembaEngine.cpp": "e42b4450cabb19aa545078cb8676450bdb7cf6f883bff2a3596d16bd6d443476",
+      "DSP/MarembaEngine.h": "87da1fa87c53e332a33daf1e2f8b666c2b0ca266401db827287165ba45477e3a",
+      "DSP/MarembaVoice.cpp": "ede18a044bf1f670b95a668248f89f5e83e2b491bf44bc7684b189803f5f73a9",
+      "DSP/MarembaVoice.h": "11c5a518576392d8b334a028e5651435bc6fb1a3e108abcfef9133ec14b30a50",
+      "DSP/MarimbaModel.h": "10f32e90e8f980cbd2d7265d9022b25971e9cc150b9d19b8df860b0244779e62",
+      "DSP/MicMixer.h": "b06fc45ca4a56e67e4c1a8ccb66a3561d2d7de9560e5090b47a293600f688a62",
+      "DSP/ModalExcitation.h": "fea245afd29bed32dbbc957ee008e59c3b328468cb6ec8cb4b78f7c4a5eb0437",
+      "DSP/Oversampler.h": "ea1acddef65086501ec8519732fd52437e7795946d9bbdd35ccaec7b83f0e145",
+      "DSP/RandomArtifacts.h": "b615a0b1d041e28ca816789978a0197b98f136635492cc9840b7dc14fc139191",
+      "DSP/SympatheticMesh.h": "752a48c56b66dbf17cbeec7628a3cece76a9f8a87a0619000414548d4b397b06"
+    },
+    "measurement_test": {
+      "path": "Tests/test_dsp.cpp",
+      "sha256": "1fc2f8ad1c8496dbf0d837b5e53a68eb0bcaf33d15073e6dc103391be9ce697c"
+    },
+    "baseline_measurement_test": {
+      "path": "Tests/test_dsp.cpp",
+      "sha256": "b39bdbddd310e793a3dd3fcd21dd7a0181825e5a6733b284fcebe188d0fcd2c4",
+      "difference_from_final": "Final test adds a silent-window guard and two zero-energy negative controls; no nonzero signal measurement changed."
+    }
+  },
+  "toolchain": {
+    "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+    "target": "Target: arm64-apple-darwin25.5.0",
+    "flags": "-std=c++17 -O3 -Wall -Wextra -Werror"
+  },
+  "reproduction": {
+    "current": "clang++ -std=c++17 -O3 -Wall -Wextra -Werror Tests/test_dsp.cpp DSP/*.cpp -o /tmp/maremba-repeat && /tmp/maremba-repeat --repeat-variation",
+    "baseline": "Compile the same measurement test against DSP from baseline_revision, preserving the test relative include layout; run --repeat-measure to collect rows, then --repeat-variation to verify the expected negative-control failure.",
+    "full_suite": "Run the compiled test without arguments.",
+    "raw_output": "REPEAT-prefixed CSV rows are emitted by both --repeat-measure and --repeat-variation. In raw output engine_idle pitch_span_cents=0 is an unmeasured sentinel; this report uses null."
+  },
+  "matrix": {
+    "model_names": [
+      "Imperial Rosewood",
+      "Mayan Padauk",
+      "Ancestral Balafon",
+      "Kalimba"
+    ],
+    "note": 60,
+    "isolated_rate_hz": 88200,
+    "isolated_velocities_midi": [
+      48,
+      112
+    ],
+    "isolated_positions": [
+      0.1,
+      0.5
+    ],
+    "isolated_paths": [
+      "cleared",
+      "new_voice",
+      "restrike"
+    ],
+    "isolated_rows": 48,
+    "hits_per_isolated_row": 16,
+    "isolated_duration_seconds": 0.18,
+    "isolated_controls": {
+      "hardness": 0.6,
+      "mallet_type": 1,
+      "resonator_coupling": 0,
+      "decay": 1,
+      "buzz": 0,
+      "artifacts": 0,
+      "strike_jitter": 0
+    },
+    "local_noise": "Same local noise seed for every cleared/new voice; copied identical local noise state in each restrike anchor.",
+    "restrike_anchor": "Same 60 ms ringing anchor and 40 percent of measured strike velocity, copied before each strike; event PRNG advances continuously.",
+    "engine_idle_rows": 4,
+    "engine_rate_hz": 44100,
+    "engine_velocity_midi": 90,
+    "engine_position": 0.5,
+    "hits_per_engine_row": 8,
+    "engine_controls": "CleanParams; decay 0.1; sympathetic/bodyBloom/farLevel/buzz/preampDrive/warmth/compAmount all 0; otherwise EngineParameters defaults.",
+    "engine_idle": "Allow natural release until IsSilent, bounded at 25 seconds per gap, without Reset or PRNG reseed.",
+    "explicit_reset_replay": "After the full 8-hit phrase, call Reset and render the same phrase; require bit-identical sample vectors for all 7 outputs, every hit."
+  },
+  "metric_definitions": {
+    "attack_residual": "Median adjacent-hit RMS residual after fitting the best scalar gain, over 0\u20138 ms. Amplitude ratio; 0.001 = 0.1 percent.",
+    "ring_residual": "Same gain-fit residual over 40\u2013160 ms; late enough to suppress clack contamination. Same local noise and fixed anchor exclude random noise and old-tail differences in isolated paths.",
+    "spectral_delta_db": "Median adjacent-hit RMS change in partial/fundamental power ratios over 8\u201345 ms, Hann window, first 4 model modes. Excludes partials below \u221250 dB relative to the fundamental in either hit. Zero can mean no eligible overtone, notably ideal bar-center strikes; it is not evidence that all spectral content is identical.",
+    "level_span_db": "Maximum minus minimum late-ring RMS level across the phrase.",
+    "pitch_span_cents": "Maximum minus minimum fitted fundamental frequency, using 40\u2013160 ms. null means unmeasured for engine_idle; isolated rows are measured.",
+    "min_adjacent": "Smallest adjacent late-ring gain-fit residual across the phrase.",
+    "min_lag_1_to_4": "Smallest median late-ring gain-fit residual among lag 1/2/3/4 comparisons. Covers obvious short loops in this 16-hit phrase, not aperiodicity over all possible future events."
+  },
+  "acceptance_bounds": {
+    "isolated": {
+      "attack_residual_gt": 0.0005,
+      "ring_residual_gt": 0.0005,
+      "attack_residual_lt": 0.08,
+      "ring_residual_lt": 0.06,
+      "spectral_delta_db_lt": 1,
+      "spectral_delta_db_gt_at_position_0_1": 0.005,
+      "level_span_db_lt": 0.6,
+      "pitch_span_cents_lt": 0.3,
+      "min_adjacent_gt": 1e-05,
+      "min_lag_gt_ring_median_times": 0.15
+    },
+    "engine_idle": {
+      "ring_residual_gt": 0.0005,
+      "min_adjacent_gt": 1e-05,
+      "min_lag_gt_ring_median_times": 0.15,
+      "finite_audible_wake": true,
+      "natural_idle": true,
+      "seven_output_reset_replay": "bit-identical"
+    },
+    "interpretation": "Numerical regression floors distinguish pitched contact changes from gain/noise residue. They are not calibrated perceptual audibility thresholds."
+  },
+  "results": {
+    "final_targeted": {
+      "status": "PASS",
+      "test_source_sha256": "1fc2f8ad1c8496dbf0d837b5e53a68eb0bcaf33d15073e6dc103391be9ce697c",
+      "includes_silent_window_negative_control": true,
+      "measurement_rows_identical_to_before_test_hardening": true
+    },
+    "baseline_measurement_upper_bounds": "PASS",
+    "baseline_new_regression_negative_control": "Expected FAIL, exit 1, 124 failed checks; all 48 isolated rows exactly repeat the pitched excitation.",
+    "scalar_gain_negative_control": "PASS: multiply each reference by 1.01; gain-fit ring residual < 1e-6.",
+    "attack_noise_negative_control": "PASS: add an independent 0\u20138 ms sinusoidal noise surrogate only; late-ring residual < 1e-6.",
+    "reset_replay": "PASS in baseline and final, 8 hits \u00d7 4 models \u00d7 7 outputs.",
+    "baseline_isolated": {
+      "attack_residual": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "ring_residual": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "spectral_delta_db": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "level_span_db": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "pitch_span_cents": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "min_adjacent": {
+        "min": 0.0,
+        "max": 0.0
+      },
+      "min_lag_1_to_4": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "final_isolated": {
+      "attack_residual": {
+        "min": 0.00166766,
+        "max": 0.00295414
+      },
+      "ring_residual": {
+        "min": 0.00164598,
+        "max": 0.00308673
+      },
+      "spectral_delta_db": {
+        "min": 0.0,
+        "max": 0.072491
+      },
+      "level_span_db": {
+        "min": 0.0515929,
+        "max": 0.0608003
+      },
+      "pitch_span_cents": {
+        "min": 2.61045e-05,
+        "max": 7.80655e-05
+      },
+      "min_adjacent": {
+        "min": 6.11236e-05,
+        "max": 0.000467207
+      },
+      "min_lag_1_to_4": {
+        "min": 0.00129225,
+        "max": 0.00283779
+      }
+    },
+    "baseline_engine_idle": {
+      "attack_residual": {
+        "min": 0.00987179,
+        "max": 0.0133965
+      },
+      "ring_residual": {
+        "min": 5.78465e-07,
+        "max": 1.13198e-05
+      },
+      "spectral_delta_db": {
+        "min": 0.0,
+        "max": 0.00566739
+      },
+      "level_span_db": {
+        "min": 4.39672e-07,
+        "max": 1.19909e-05
+      },
+      "pitch_span_cents": null,
+      "min_adjacent": {
+        "min": 4.65646e-07,
+        "max": 1.01159e-05
+      },
+      "min_lag_1_to_4": {
+        "min": 5.02569e-07,
+        "max": 1.13198e-05
+      }
+    },
+    "final_engine_idle": {
+      "attack_residual": {
+        "min": 0.0102112,
+        "max": 0.0142337
+      },
+      "ring_residual": {
+        "min": 0.000850191,
+        "max": 0.00131513
+      },
+      "spectral_delta_db": {
+        "min": 0.0,
+        "max": 0.0321797
+      },
+      "level_span_db": {
+        "min": 0.0447947,
+        "max": 0.04554
+      },
+      "pitch_span_cents": null,
+      "min_adjacent": {
+        "min": 0.000466342,
+        "max": 0.000701889
+      },
+      "min_lag_1_to_4": {
+        "min": 0.000850191,
+        "max": 0.00131513
+      }
+    },
+    "silent_window_negative_control": "PASS: both-silent and one-silent gain-fit comparisons return 0 and cannot satisfy the tonal variation floor.",
+    "full_dsp_suite_before_test_hardening": {
+      "status": "PASS",
+      "test_source_sha256": "b39bdbddd310e793a3dd3fcd21dd7a0181825e5a6733b284fcebe188d0fcd2c4",
+      "scope": "Full expanded suite, including all organic strike rows and existing regressions. Final silent-window test hardening is verified by the targeted suite; DSP source unchanged."
+    },
+    "final_sdk_prebuild_full_suite": "PASS: all eight suites during universal45, after silent-window metric hardening."
+  },
+  "limitations": [
+    "Finite deterministic test phrases cannot prove absence of every possible long repeat pattern.",
+    "Waveform and partial-balance evidence establishes subtle tonal variation, not a claim of listener discrimination or an acoustic-instrument listening study.",
+    "Raw public-voice comparisons bypass downstream processing deliberately; public-engine idle/replay cases verify integration separately.",
+    "This native test report does not replace Recon, exported payload or actual Reason GUI validation."
+  ],
+  "artifact_sha256": {
+    "baseline_csv": "9634bcc74da2ff05131413d2fd9a8e278bf4a06017a4fc40443ef0cfe17bafe8",
+    "final_csv": "2a5eb0aa5cae567ce22d94fdcadfba5f2d3532c5bf0da14bd0abd0262ca7188d",
+    "baseline_expected_failure_log": "dd8e35ce274ca29f76c7cc4bd9739620ebedbac039e67c4c3cd92666447bcd73",
+    "final_targeted_log": "fa42d95578487633ae372145deccf03fcdd9d5b6a5e0079270b7f4431270839e",
+    "final_targeted_binary": "809274c87bc5d19f67a751d44b9c804aab67690c5c2eefeba5921242f37f67b3",
+    "final_full_suite_log_before_test_hardening": "1842581f578aef39700c688a0a59d3d61ec749b83d3175488280970275e2bde9"
+  },
+  "rows": [
+    {
+      "model": 0,
+      "velocity": 48,
+      "position": 0.1,
+      "path": "cleared",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00284,
+        "ring_residual": 0.00297933,
+        "spectral_delta_db": 0.066988,
+        "level_span_db": 0.0607963,
+        "pitch_span_cents": 3.41694e-05,
+        "min_adjacent": 0.000466839,
+        "min_lag_1_to_4": 0.0023281
+      }
+    },
+    {
+      "model": 0,
+      "velocity": 48,
+      "position": 0.1,
+      "path": "new_voice",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00284,
+        "ring_residual": 0.00297933,
+        "spectral_delta_db": 0.066988,
+        "level_span_db": 0.0607963,
+        "pitch_span_cents": 3.41694e-05,
+        "min_adjacent": 0.000466839,
+        "min_lag_1_to_4": 0.0023281
+      }
+    },
+    {
+      "model": 0,
+      "velocity": 48,
+      "position": 0.1,
+      "path": "restrike",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00295074,
+        "ring_residual": 0.00308673,
+        "spectral_delta_db": 0.0686581,
+        "level_span_db": 0.0573623,
+        "pitch_span_cents": 6.73118e-05,
+        "min_adjacent": 0.000165151,
+        "min_lag_1_to_4": 0.00283779
+      }
+    },
+    {
+      "model": 0,
+      "velocity": 48,
+      "position": 0.5,
+      "path": "cleared",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00282294,
+        "ring_residual": 0.00297516,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0608003,
+        "pitch_span_cents": 4.8248e-05,
+        "min_adjacent": 0.000466231,
+        "min_lag_1_to_4": 0.00232428
+      }
+    },
+    {
+      "model": 0,
+      "velocity": 48,
+      "position": 0.5,
+      "path": "new_voice",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00282294,
+        "ring_residual": 0.00297516,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0608003,
+        "pitch_span_cents": 4.8248e-05,
+        "min_adjacent": 0.000466231,
+        "min_lag_1_to_4": 0.00232428
+      }
+    },
+    {
+      "model": 0,
+      "velocity": 48,
+      "position": 0.5,
+      "path": "restrike",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.0029152,
+        "ring_residual": 0.00306711,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0581674,
+        "pitch_span_cents": 5.90031e-05,
+        "min_adjacent": 0.000224142,
+        "min_lag_1_to_4": 0.00280325
+      }
+    },
+    {
+      "model": 0,
+      "velocity": 112,
+      "position": 0.1,
+      "path": "cleared",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00230978,
+        "ring_residual": 0.00233215,
+        "spectral_delta_db": 0.0393323,
+        "level_span_db": 0.0575803,
+        "pitch_span_cents": 4.45322e-05,
+        "min_adjacent": 0.000364515,
+        "min_lag_1_to_4": 0.00182226
+      }
+    },
+    {
+      "model": 0,
+      "velocity": 112,
+      "position": 0.1,
+      "path": "new_voice",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00230978,
+        "ring_residual": 0.00233215,
+        "spectral_delta_db": 0.0393323,
+        "level_span_db": 0.0575803,
+        "pitch_span_cents": 4.45322e-05,
+        "min_adjacent": 0.000364515,
+        "min_lag_1_to_4": 0.00182226
+      }
+    },
+    {
+      "model": 0,
+      "velocity": 112,
+      "position": 0.1,
+      "path": "restrike",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00236244,
+        "ring_residual": 0.00237944,
+        "spectral_delta_db": 0.040371,
+        "level_span_db": 0.0553868,
+        "pitch_span_cents": 5.96378e-05,
+        "min_adjacent": 7.87416e-05,
+        "min_lag_1_to_4": 0.00220098
+      }
+    },
+    {
+      "model": 0,
+      "velocity": 112,
+      "position": 0.5,
+      "path": "cleared",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00225374,
+        "ring_residual": 0.00232625,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0575757,
+        "pitch_span_cents": 4.01817e-05,
+        "min_adjacent": 0.000363661,
+        "min_lag_1_to_4": 0.00181658
+      }
+    },
+    {
+      "model": 0,
+      "velocity": 112,
+      "position": 0.5,
+      "path": "new_voice",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00225374,
+        "ring_residual": 0.00232625,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0575757,
+        "pitch_span_cents": 4.01817e-05,
+        "min_adjacent": 0.000363661,
+        "min_lag_1_to_4": 0.00181658
+      }
+    },
+    {
+      "model": 0,
+      "velocity": 112,
+      "position": 0.5,
+      "path": "restrike",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00229132,
+        "ring_residual": 0.0023675,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0559406,
+        "pitch_span_cents": 4.28705e-05,
+        "min_adjacent": 0.000135385,
+        "min_lag_1_to_4": 0.00217389
+      }
+    },
+    {
+      "model": 1,
+      "velocity": 48,
+      "position": 0.1,
+      "path": "cleared",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00285221,
+        "ring_residual": 0.00297979,
+        "spectral_delta_db": 0.0669176,
+        "level_span_db": 0.0606544,
+        "pitch_span_cents": 6.06638e-05,
+        "min_adjacent": 0.000466882,
+        "min_lag_1_to_4": 0.00232799
+      }
+    },
+    {
+      "model": 1,
+      "velocity": 48,
+      "position": 0.1,
+      "path": "new_voice",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00285221,
+        "ring_residual": 0.00297979,
+        "spectral_delta_db": 0.0669176,
+        "level_span_db": 0.0606544,
+        "pitch_span_cents": 6.06638e-05,
+        "min_adjacent": 0.000466882,
+        "min_lag_1_to_4": 0.00232799
+      }
+    },
+    {
+      "model": 1,
+      "velocity": 48,
+      "position": 0.1,
+      "path": "restrike",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00295414,
+        "ring_residual": 0.00307555,
+        "spectral_delta_db": 0.0682773,
+        "level_span_db": 0.0577428,
+        "pitch_span_cents": 5.25976e-05,
+        "min_adjacent": 0.000205583,
+        "min_lag_1_to_4": 0.00281616
+      }
+    },
+    {
+      "model": 1,
+      "velocity": 48,
+      "position": 0.5,
+      "path": "cleared",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00282335,
+        "ring_residual": 0.00297863,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0606644,
+        "pitch_span_cents": 6.12985e-05,
+        "min_adjacent": 0.000466719,
+        "min_lag_1_to_4": 0.00232694
+      }
+    },
+    {
+      "model": 1,
+      "velocity": 48,
+      "position": 0.5,
+      "path": "new_voice",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00282335,
+        "ring_residual": 0.00297863,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0606644,
+        "pitch_span_cents": 6.12985e-05,
+        "min_adjacent": 0.000466719,
+        "min_lag_1_to_4": 0.00232694
+      }
+    },
+    {
+      "model": 1,
+      "velocity": 48,
+      "position": 0.5,
+      "path": "restrike",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00290628,
+        "ring_residual": 0.00306016,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0584157,
+        "pitch_span_cents": 7.80655e-05,
+        "min_adjacent": 0.000257128,
+        "min_lag_1_to_4": 0.00275467
+      }
+    },
+    {
+      "model": 1,
+      "velocity": 112,
+      "position": 0.1,
+      "path": "cleared",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00233023,
+        "ring_residual": 0.00233084,
+        "spectral_delta_db": 0.0390921,
+        "level_span_db": 0.0574798,
+        "pitch_span_cents": 6.73107e-05,
+        "min_adjacent": 0.000364306,
+        "min_lag_1_to_4": 0.00182042
+      }
+    },
+    {
+      "model": 1,
+      "velocity": 112,
+      "position": 0.1,
+      "path": "new_voice",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00233023,
+        "ring_residual": 0.00233084,
+        "spectral_delta_db": 0.0390921,
+        "level_span_db": 0.0574798,
+        "pitch_span_cents": 6.73107e-05,
+        "min_adjacent": 0.000364306,
+        "min_lag_1_to_4": 0.00182042
+      }
+    },
+    {
+      "model": 1,
+      "velocity": 112,
+      "position": 0.1,
+      "path": "restrike",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00238257,
+        "ring_residual": 0.00237354,
+        "spectral_delta_db": 0.0413326,
+        "level_span_db": 0.0556266,
+        "pitch_span_cents": 5.5921e-05,
+        "min_adjacent": 0.000114662,
+        "min_lag_1_to_4": 0.00218519
+      }
+    },
+    {
+      "model": 1,
+      "velocity": 112,
+      "position": 0.5,
+      "path": "cleared",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00225234,
+        "ring_residual": 0.00232939,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0574846,
+        "pitch_span_cents": 5.15706e-05,
+        "min_adjacent": 0.000364119,
+        "min_lag_1_to_4": 0.00181901
+      }
+    },
+    {
+      "model": 1,
+      "velocity": 112,
+      "position": 0.5,
+      "path": "new_voice",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00225234,
+        "ring_residual": 0.00232939,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0574846,
+        "pitch_span_cents": 5.15706e-05,
+        "min_adjacent": 0.000364119,
+        "min_lag_1_to_4": 0.00181901
+      }
+    },
+    {
+      "model": 1,
+      "velocity": 112,
+      "position": 0.5,
+      "path": "restrike",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00228619,
+        "ring_residual": 0.00236639,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0560911,
+        "pitch_span_cents": 5.09359e-05,
+        "min_adjacent": 0.000166063,
+        "min_lag_1_to_4": 0.00216418
+      }
+    },
+    {
+      "model": 2,
+      "velocity": 48,
+      "position": 0.1,
+      "path": "cleared",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00285644,
+        "ring_residual": 0.00298211,
+        "spectral_delta_db": 0.0668299,
+        "level_span_db": 0.060534,
+        "pitch_span_cents": 2.61045e-05,
+        "min_adjacent": 0.000467207,
+        "min_lag_1_to_4": 0.00232965
+      }
+    },
+    {
+      "model": 2,
+      "velocity": 48,
+      "position": 0.1,
+      "path": "new_voice",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00285644,
+        "ring_residual": 0.00298211,
+        "spectral_delta_db": 0.0668299,
+        "level_span_db": 0.060534,
+        "pitch_span_cents": 2.61045e-05,
+        "min_adjacent": 0.000467207,
+        "min_lag_1_to_4": 0.00232965
+      }
+    },
+    {
+      "model": 2,
+      "velocity": 48,
+      "position": 0.1,
+      "path": "restrike",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00295221,
+        "ring_residual": 0.00307065,
+        "spectral_delta_db": 0.0679876,
+        "level_span_db": 0.0580706,
+        "pitch_span_cents": 4.55616e-05,
+        "min_adjacent": 0.000238616,
+        "min_lag_1_to_4": 0.0027972
+      }
+    },
+    {
+      "model": 2,
+      "velocity": 48,
+      "position": 0.5,
+      "path": "cleared",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00282229,
+        "ring_residual": 0.00298177,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0605402,
+        "pitch_span_cents": 2.71316e-05,
+        "min_adjacent": 0.000467162,
+        "min_lag_1_to_4": 0.00232935
+      }
+    },
+    {
+      "model": 2,
+      "velocity": 48,
+      "position": 0.5,
+      "path": "new_voice",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00282229,
+        "ring_residual": 0.00298177,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0605402,
+        "pitch_span_cents": 2.71316e-05,
+        "min_adjacent": 0.000467162,
+        "min_lag_1_to_4": 0.00232935
+      }
+    },
+    {
+      "model": 2,
+      "velocity": 48,
+      "position": 0.5,
+      "path": "restrike",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00289877,
+        "ring_residual": 0.00305664,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0586286,
+        "pitch_span_cents": 3.78872e-05,
+        "min_adjacent": 0.000283573,
+        "min_lag_1_to_4": 0.00270538
+      }
+    },
+    {
+      "model": 2,
+      "velocity": 112,
+      "position": 0.1,
+      "path": "cleared",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00233628,
+        "ring_residual": 0.00233259,
+        "spectral_delta_db": 0.038805,
+        "level_span_db": 0.0573993,
+        "pitch_span_cents": 6.3357e-05,
+        "min_adjacent": 0.00036457,
+        "min_lag_1_to_4": 0.00182156
+      }
+    },
+    {
+      "model": 2,
+      "velocity": 112,
+      "position": 0.1,
+      "path": "new_voice",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00233628,
+        "ring_residual": 0.00233259,
+        "spectral_delta_db": 0.038805,
+        "level_span_db": 0.0573993,
+        "pitch_span_cents": 6.3357e-05,
+        "min_adjacent": 0.00036457,
+        "min_lag_1_to_4": 0.00182156
+      }
+    },
+    {
+      "model": 2,
+      "velocity": 112,
+      "position": 0.1,
+      "path": "restrike",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00238575,
+        "ring_residual": 0.00237323,
+        "spectral_delta_db": 0.0411956,
+        "level_span_db": 0.0558469,
+        "pitch_span_cents": 5.19665e-05,
+        "min_adjacent": 0.000145404,
+        "min_lag_1_to_4": 0.00217629
+      }
+    },
+    {
+      "model": 2,
+      "velocity": 112,
+      "position": 0.5,
+      "path": "cleared",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00225072,
+        "ring_residual": 0.00233224,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.057403,
+        "pitch_span_cents": 5.09395e-05,
+        "min_adjacent": 0.000364533,
+        "min_lag_1_to_4": 0.00182121
+      }
+    },
+    {
+      "model": 2,
+      "velocity": 112,
+      "position": 0.5,
+      "path": "new_voice",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00225072,
+        "ring_residual": 0.00233224,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.057403,
+        "pitch_span_cents": 5.09395e-05,
+        "min_adjacent": 0.000364533,
+        "min_lag_1_to_4": 0.00182121
+      }
+    },
+    {
+      "model": 2,
+      "velocity": 112,
+      "position": 0.5,
+      "path": "restrike",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00228349,
+        "ring_residual": 0.00236701,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0562298,
+        "pitch_span_cents": 3.68601e-05,
+        "min_adjacent": 0.000190628,
+        "min_lag_1_to_4": 0.00214324
+      }
+    },
+    {
+      "model": 3,
+      "velocity": 48,
+      "position": 0.1,
+      "path": "cleared",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00206945,
+        "ring_residual": 0.00201762,
+        "spectral_delta_db": 0.0660117,
+        "level_span_db": 0.0548543,
+        "pitch_span_cents": 4.05307e-05,
+        "min_adjacent": 0.000310637,
+        "min_lag_1_to_4": 0.00158475
+      }
+    },
+    {
+      "model": 3,
+      "velocity": 48,
+      "position": 0.1,
+      "path": "new_voice",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00206945,
+        "ring_residual": 0.00201762,
+        "spectral_delta_db": 0.0660117,
+        "level_span_db": 0.0548543,
+        "pitch_span_cents": 4.05307e-05,
+        "min_adjacent": 0.000310637,
+        "min_lag_1_to_4": 0.00158475
+      }
+    },
+    {
+      "model": 3,
+      "velocity": 48,
+      "position": 0.1,
+      "path": "restrike",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00211421,
+        "ring_residual": 0.002013,
+        "spectral_delta_db": 0.072491,
+        "level_span_db": 0.0515929,
+        "pitch_span_cents": 5.19084e-05,
+        "min_adjacent": 0.000176764,
+        "min_lag_1_to_4": 0.00196628
+      }
+    },
+    {
+      "model": 3,
+      "velocity": 48,
+      "position": 0.5,
+      "path": "cleared",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00193336,
+        "ring_residual": 0.00193912,
+        "spectral_delta_db": 0.0660093,
+        "level_span_db": 0.054625,
+        "pitch_span_cents": 4.21907e-05,
+        "min_adjacent": 0.000299125,
+        "min_lag_1_to_4": 0.00151283
+      }
+    },
+    {
+      "model": 3,
+      "velocity": 48,
+      "position": 0.5,
+      "path": "new_voice",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00193336,
+        "ring_residual": 0.00193912,
+        "spectral_delta_db": 0.0660093,
+        "level_span_db": 0.054625,
+        "pitch_span_cents": 4.21907e-05,
+        "min_adjacent": 0.000299125,
+        "min_lag_1_to_4": 0.00151283
+      }
+    },
+    {
+      "model": 3,
+      "velocity": 48,
+      "position": 0.5,
+      "path": "restrike",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00196226,
+        "ring_residual": 0.00193907,
+        "spectral_delta_db": 0.0724573,
+        "level_span_db": 0.052946,
+        "pitch_span_cents": 3.84789e-05,
+        "min_adjacent": 6.11236e-05,
+        "min_lag_1_to_4": 0.00179241
+      }
+    },
+    {
+      "model": 3,
+      "velocity": 112,
+      "position": 0.1,
+      "path": "cleared",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.0018501,
+        "ring_residual": 0.00176026,
+        "spectral_delta_db": 0.0388797,
+        "level_span_db": 0.0539508,
+        "pitch_span_cents": 4.21907e-05,
+        "min_adjacent": 0.000271344,
+        "min_lag_1_to_4": 0.00138913
+      }
+    },
+    {
+      "model": 3,
+      "velocity": 112,
+      "position": 0.1,
+      "path": "new_voice",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.0018501,
+        "ring_residual": 0.00176026,
+        "spectral_delta_db": 0.0388797,
+        "level_span_db": 0.0539508,
+        "pitch_span_cents": 4.21907e-05,
+        "min_adjacent": 0.000271344,
+        "min_lag_1_to_4": 0.00138913
+      }
+    },
+    {
+      "model": 3,
+      "velocity": 112,
+      "position": 0.1,
+      "path": "restrike",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00184789,
+        "ring_residual": 0.00174613,
+        "spectral_delta_db": 0.0556312,
+        "level_span_db": 0.0518408,
+        "pitch_span_cents": 4.88306e-05,
+        "min_adjacent": 0.000186187,
+        "min_lag_1_to_4": 0.00170908
+      }
+    },
+    {
+      "model": 3,
+      "velocity": 112,
+      "position": 0.5,
+      "path": "cleared",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00167797,
+        "ring_residual": 0.00165515,
+        "spectral_delta_db": 0.0388832,
+        "level_span_db": 0.0537388,
+        "pitch_span_cents": 5.15165e-05,
+        "min_adjacent": 0.000255261,
+        "min_lag_1_to_4": 0.00129225
+      }
+    },
+    {
+      "model": 3,
+      "velocity": 112,
+      "position": 0.5,
+      "path": "new_voice",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00167797,
+        "ring_residual": 0.00165515,
+        "spectral_delta_db": 0.0388832,
+        "level_span_db": 0.0537388,
+        "pitch_span_cents": 5.15165e-05,
+        "min_adjacent": 0.000255261,
+        "min_lag_1_to_4": 0.00129225
+      }
+    },
+    {
+      "model": 3,
+      "velocity": 112,
+      "position": 0.5,
+      "path": "restrike",
+      "baseline": {
+        "attack_residual": 0.0,
+        "ring_residual": 0.0,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0,
+        "pitch_span_cents": 0.0,
+        "min_adjacent": 0.0,
+        "min_lag_1_to_4": 0.0
+      },
+      "final": {
+        "attack_residual": 0.00166766,
+        "ring_residual": 0.00164598,
+        "spectral_delta_db": 0.057414,
+        "level_span_db": 0.0527695,
+        "pitch_span_cents": 4.81965e-05,
+        "min_adjacent": 6.5062e-05,
+        "min_lag_1_to_4": 0.0015188
+      }
+    },
+    {
+      "model": 0,
+      "velocity": 90,
+      "position": 0.5,
+      "path": "engine_idle",
+      "baseline": {
+        "attack_residual": 0.00987179,
+        "ring_residual": 8.98467e-07,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 1.17814e-06,
+        "pitch_span_cents": null,
+        "min_adjacent": 6.16285e-07,
+        "min_lag_1_to_4": 8.0259e-07
+      },
+      "final": {
+        "attack_residual": 0.0102112,
+        "ring_residual": 0.00127167,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.04554,
+        "pitch_span_cents": null,
+        "min_adjacent": 0.000676789,
+        "min_lag_1_to_4": 0.00127167
+      }
+    },
+    {
+      "model": 1,
+      "velocity": 90,
+      "position": 0.5,
+      "path": "engine_idle",
+      "baseline": {
+        "attack_residual": 0.0118592,
+        "ring_residual": 3.63608e-06,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 6.31854e-06,
+        "pitch_span_cents": null,
+        "min_adjacent": 3.12202e-06,
+        "min_lag_1_to_4": 3.34603e-06
+      },
+      "final": {
+        "attack_residual": 0.0123684,
+        "ring_residual": 0.00129405,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0452377,
+        "pitch_span_cents": null,
+        "min_adjacent": 0.000690198,
+        "min_lag_1_to_4": 0.00129405
+      }
+    },
+    {
+      "model": 2,
+      "velocity": 90,
+      "position": 0.5,
+      "path": "engine_idle",
+      "baseline": {
+        "attack_residual": 0.0133965,
+        "ring_residual": 1.13198e-05,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 1.19909e-05,
+        "pitch_span_cents": null,
+        "min_adjacent": 1.01159e-05,
+        "min_lag_1_to_4": 1.13198e-05
+      },
+      "final": {
+        "attack_residual": 0.0142337,
+        "ring_residual": 0.00131513,
+        "spectral_delta_db": 0.0,
+        "level_span_db": 0.0449541,
+        "pitch_span_cents": null,
+        "min_adjacent": 0.000701889,
+        "min_lag_1_to_4": 0.00131513
+      }
+    },
+    {
+      "model": 3,
+      "velocity": 90,
+      "position": 0.5,
+      "path": "engine_idle",
+      "baseline": {
+        "attack_residual": 0.0129711,
+        "ring_residual": 5.78465e-07,
+        "spectral_delta_db": 0.00566739,
+        "level_span_db": 4.39672e-07,
+        "pitch_span_cents": null,
+        "min_adjacent": 4.65646e-07,
+        "min_lag_1_to_4": 5.02569e-07
+      },
+      "final": {
+        "attack_residual": 0.0129984,
+        "ring_residual": 0.000850191,
+        "spectral_delta_db": 0.0321797,
+        "level_span_db": 0.0447947,
+        "pitch_span_cents": null,
+        "min_adjacent": 0.000466342,
+        "min_lag_1_to_4": 0.000850191
+      }
+    }
+  ],
+  "final_sdk_prebuild": {
+    "test_sha256": "1fc2f8ad1c8496dbf0d837b5e53a68eb0bcaf33d15073e6dc103391be9ce697c",
+    "log_sha256": "712b3adac0be5516b56e1a4ca70d5471c5ce08945603fbc000debb9c4802235e",
+    "log": "Release/validation/1.2.2f1/universal45-build.log",
+    "suite": "Tests/run_all_tests.sh, all eight steps; SDK 5 present"
+  }
+}

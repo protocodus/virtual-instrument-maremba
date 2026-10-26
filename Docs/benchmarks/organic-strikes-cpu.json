@@ -1,0 +1,192 @@
+{
+  "schema_version": 1,
+  "candidate_version": "1.2.2f1",
+  "scope": "Native engine scheduling probe, not a Reason/Recon performance qualification.",
+  "measurement_log_written_at_utc": "2026-09-20T07:08:59.783854+00:00",
+  "measurement_conditions": "Quiet interval after all test-agent work; root held compilation and demo rendering until this run completed. Sanitizer runs and later concurrent SDK builds are separate correctness evidence.",
+  "workload": {
+    "sample_rate_hz": 48000,
+    "frames_per_block": 64,
+    "deadline_microseconds": 1333.3333333333333,
+    "measured_blocks_per_quality": 4096,
+    "warmup_blocks_per_quality": 256,
+    "voices": 16,
+    "initial_midi_notes": [
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57
+    ],
+    "velocity": 0.8,
+    "parameters": "EngineParameters shipped defaults, changing only quality. Source hashes below pin the exact defaults.",
+    "parameter_delivery": "SetParameters before every block",
+    "restrike": "After warmup, strike 42 + (block / 32) % 16 at every block divisible by 32, including block 0.",
+    "outputs": "All seven outputs rendered.",
+    "clock_sources": {
+      "wall": "std::chrono::steady_clock",
+      "thread_cpu": "clock_gettime(CLOCK_THREAD_CPUTIME_ID)"
+    },
+    "distribution": "Sort 4096 measured durations; p50 index 2048, p95 index 3891, p99 index 4055. CPU p95 was not recorded.",
+    "realtime_priority": "No scheduling/QoS override performed by this probe."
+  },
+  "hardware": {
+    "model": "MacBookPro18,2",
+    "cpu": "Apple M1 Max",
+    "architecture": "arm64",
+    "logical_cores": 10,
+    "physical_cores": 10,
+    "memory_bytes": 34359738368
+  },
+  "software": {
+    "macos_version": "26.5.1",
+    "macos_build": "25F80",
+    "compiler": [
+      "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+      "Target: arm64-apple-darwin25.5.0",
+      "Thread model: posix",
+      "InstalledDir: /Library/Developer/CommandLineTools/usr/bin"
+    ],
+    "build_flags": [
+      "-std=c++17",
+      "-O3",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-I",
+      "Tests"
+    ],
+    "sdk": "JukeboxSDK_500_028 TargetVersion=5.0; this standalone DSP benchmark does not link the SDK wrapper."
+  },
+  "results": [
+    {
+      "oversampling_factor": 2,
+      "wall_microseconds": {
+        "p50": 68.375,
+        "p95": 72.916,
+        "p99": 75.833,
+        "max": 133.0
+      },
+      "thread_cpu_microseconds": {
+        "p50": 68.5,
+        "p99": 76.0,
+        "max": 102.167
+      },
+      "deadline_misses": {
+        "wall": 0,
+        "thread_cpu": 0
+      }
+    },
+    {
+      "oversampling_factor": 4,
+      "wall_microseconds": {
+        "p50": 130.042,
+        "p95": 139.583,
+        "p99": 145.417,
+        "max": 189.542
+      },
+      "thread_cpu_microseconds": {
+        "p50": 130.25,
+        "p99": 145.167,
+        "max": 157.417
+      },
+      "deadline_misses": {
+        "wall": 0,
+        "thread_cpu": 0
+      }
+    },
+    {
+      "oversampling_factor": 8,
+      "wall_microseconds": {
+        "p50": 255.584,
+        "p95": 267.834,
+        "p99": 273.709,
+        "max": 360.625
+      },
+      "thread_cpu_microseconds": {
+        "p50": 255.75,
+        "p99": 273.458,
+        "max": 347.0
+      },
+      "deadline_misses": {
+        "wall": 0,
+        "thread_cpu": 0
+      }
+    }
+  ],
+  "all_deadline_checks_pass": true,
+  "source": {
+    "base_revision": "4fd716e33bd981235787732c04c4360111592a63",
+    "state": "Uncommitted frozen DSP candidate on codex/maremba-organic-strikes; the following SHA-256 values identify exactly what was compiled.",
+    "sha256": {
+      "DSP/AcousticRoom.h": "16ccb9f656b7f604bf5a9445ee416a337af9ccc9355ce84c4e1fb6e5fe7f3953",
+      "DSP/AnalogPreamp.h": "96dfba04a09894334985bc20e6d300c7ea3fd336f3dfdcfb074ddf8a8c83716a",
+      "DSP/Compressor.h": "b977ef1462c5aade127481963a2b4a8dc65270ccd88e54930c0b1e802cacbff3",
+      "DSP/ContactExcitation.h": "cac875971f3188d7536f8a8fc78a591beeef33b8b849ee803198b0730a1b2725",
+      "DSP/DspMath.h": "14207a2b4641f31b72da94759f4933e308840409a4b88e44d2281409df498b5e",
+      "DSP/FrameBody.h": "927eebbaa27a465b94759cac38eb45414d26730d03992cde112468e8962df0b1",
+      "DSP/MarembaEngine.h": "87da1fa87c53e332a33daf1e2f8b666c2b0ca266401db827287165ba45477e3a",
+      "DSP/MarembaVoice.h": "11c5a518576392d8b334a028e5651435bc6fb1a3e108abcfef9133ec14b30a50",
+      "DSP/MarimbaModel.h": "10f32e90e8f980cbd2d7265d9022b25971e9cc150b9d19b8df860b0244779e62",
+      "DSP/MicMixer.h": "b06fc45ca4a56e67e4c1a8ccb66a3561d2d7de9560e5090b47a293600f688a62",
+      "DSP/ModalExcitation.h": "fea245afd29bed32dbbc957ee008e59c3b328468cb6ec8cb4b78f7c4a5eb0437",
+      "DSP/Oversampler.h": "ea1acddef65086501ec8519732fd52437e7795946d9bbdd35ccaec7b83f0e145",
+      "DSP/RandomArtifacts.h": "b615a0b1d041e28ca816789978a0197b98f136635492cc9840b7dc14fc139191",
+      "DSP/SympatheticMesh.h": "752a48c56b66dbf17cbeec7628a3cece76a9f8a87a0619000414548d4b397b06",
+      "DSP/MarembaEngine.cpp": "e42b4450cabb19aa545078cb8676450bdb7cf6f883bff2a3596d16bd6d443476",
+      "DSP/MarembaVoice.cpp": "ede18a044bf1f670b95a668248f89f5e83e2b491bf44bc7684b189803f5f73a9"
+    },
+    "harness_source_revision": "4fd716e33bd981235787732c04c4360111592a63",
+    "harness_source_path": "Examples/Maremba/Tests/test_dsp.cpp",
+    "harness_source_sha256": "3201b9c72f4bfdd41308e0fda778c87ad6db3e970d73ef2b0cea561551b5da5d",
+    "benchmark_function_sha256": "3b095b4e514e78b187efc0bd0710e902d47f8932cce9dd0567cb569d28080259",
+    "benchmark_function_matches_final_test_source": true,
+    "benchmark_binary_sha256": "5f0f0bd62d888da749189a3560a59e5735b18e7dcc2486186a9ed3756ea911c3"
+  },
+  "raw_log": {
+    "local_path": "Release/validation/1.2.2f1/organic-strikes/cpu-final.txt",
+    "sha256": "10514b6ce1f3251bfbe76616527df7fd5daf5916109a2144de07c43536e32f8f",
+    "text": "48000 Hz, 64 frames, 16 voices, 2x; 4096 blocks; wall us p50=68.375 p95=72.916 p99=75.833 max=133; CPU us p50=68.5 p99=76 max=102.167; deadline misses wall=0 CPU=0\n48000 Hz, 64 frames, 16 voices, 4x; 4096 blocks; wall us p50=130.042 p95=139.583 p99=145.417 max=189.542; CPU us p50=130.25 p99=145.167 max=157.417; deadline misses wall=0 CPU=0\n48000 Hz, 64 frames, 16 voices, 8x; 4096 blocks; wall us p50=255.584 p95=267.834 p99=273.709 max=360.625; CPU us p50=255.75 p99=273.458 max=347; deadline misses wall=0 CPU=0\n"
+  },
+  "reproduction": {
+    "working_directory": "Examples/Maremba",
+    "harness": "Extract Tests/test_dsp.cpp from the pinned harness revision; compile with -I Tests so its relative DSP includes resolve to the frozen candidate.",
+    "compile": "clang++ -std=c++17 -O3 -Wall -Wextra -Werror -I Tests <pinned-test_dsp.cpp> DSP/*.cpp -o <benchmark>",
+    "run": "<benchmark> --benchmark",
+    "note": "The final tracked test file has the identical benchmark function and can also be compiled directly. Absolute timings vary with environment and scheduling."
+  },
+  "prior_version_context": {
+    "version": "1.2.1f1",
+    "interpretation": "Separate earlier invocation of the same workload, supplied only as context. This is not a paired comparison or a speedup/regression attribution.",
+    "results": [
+      {
+        "oversampling_factor": 2,
+        "thread_cpu_p50_microseconds": 64.792,
+        "wall_p50_microseconds": 64.625
+      },
+      {
+        "oversampling_factor": 4,
+        "thread_cpu_p50_microseconds": 127.708,
+        "wall_p50_microseconds": 127.542
+      },
+      {
+        "oversampling_factor": 8,
+        "thread_cpu_p50_microseconds": 253.708,
+        "wall_p50_microseconds": 253.541
+      }
+    ],
+    "raw_log_sha256": "12812b3d2ba378b77a644ac00633c5644fad2b1c9dd6aae5f851a34da65ecb9d",
+    "local_raw_log": "Release/validation/1.2.1f1/no-glide/cpu-final.txt"
+  }
+}

@@ -1,0 +1,14 @@
+Maremba limiter baseline CPU probe
+UTC: 2026-09-20T10:23:59.932822+00:00
+Machine: macOS-26.5.1-arm64-arm-64bit / arm64
+Binary SHA256: e3c51c5c0c04135a88d3250b0877fc8639fb8778a72206e60bece103c689bce7
+Command: /tmp/maremba-limiter-baseline-dsp --benchmark
+EngineParameters defaults; the first 2x row uses the shipped default quality. This is not an exact Concert Grand factory-patch render.
+Quiet interval coordinated with root and DSP agent; 4096 measured 64-frame blocks at 48 kHz, 16 voices, after 256 warmup blocks. Deadline: 1333.333 microseconds.
+
+48000 Hz, 64 frames, 16 voices, 2x; 4096 blocks; wall us p50=66.416 p95=73.583 p99=90.416 max=153.875; CPU us p50=66.542 p99=80.125 max=137; deadline misses wall=0 CPU=0
+48000 Hz, 64 frames, 16 voices, 4x; 4096 blocks; wall us p50=129.5 p95=143.083 p99=172.542 max=332.791; CPU us p50=129.708 p99=151.125 max=211.083; deadline misses wall=0 CPU=0
+48000 Hz, 64 frames, 16 voices, 8x; 4096 blocks; wall us p50=255.958 p95=281.5 p99=306.292 max=379.667; CPU us p50=256.084 p99=294.083 max=361; deadline misses wall=0 CPU=0
+
+Exit code: 0
+Elapsed wall seconds: 2.504

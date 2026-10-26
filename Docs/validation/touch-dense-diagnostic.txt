@@ -1,0 +1,73 @@
+Dense touch-response diagnostic — 2026-09-19
+
+Supplementary public-voice diagnostic; this does not replace the committed
+TouchResponseTest gates or alter the finalized baseline/final CSV evidence.
+DSP source hashes: touch-final-source-sha256.json in this directory.
+Base harness: Tests/TouchResponseTest.cpp, SHA-256:
+78d32f66b9eb7f5d7f93f44a822087e9abb28164aebb79b5eb578ea65ad26c42
+
+Temporary diagnostic source paths and SHA-256 hashes:
+/tmp/MarembaTouchDenseVelocity.cpp
+e20d88b97fbcdd88c4dcfe496a1eb43e49d7d4255158b0e83f5db4e052babf4e
+/tmp/MarembaTouchDensePosition.cpp
+be0f89737b0436b85bdf647a4e8b890176084b2c5284d1e8b52e5e333d8d0ca4
+/tmp/MarembaTouchPositionContinuity.cpp
+20edc1a767f83124ab1fe78c878d97100e6e83a8ef14ae9c44289154ad695893
+
+The first two sources are copies of the base harness with only their initial
+velocity/position arrays replaced. DenseVelocity uses all integers 1 through
+127 and keeps positions .05, .10, .2242, .35, .50, .65, .95. DensePosition uses
+velocities 16, 64, 127 and positions .05 + .9*i/20 for i=0 through 20.
+The exact replacement declarations are:
+
+constexpr std::array<int, 127> velocities = [] { std::array<int, 127> v{}; for (int i=0;i<127;++i) v[i]=i+1; return v; }();
+
+constexpr std::array<int, 3> velocities = {16, 64, 127};
+constexpr std::array<double, 21> positions = [] { std::array<double, 21> p{}; for (int i=0;i<21;++i) p[i]=.05+.9*i/20; return p; }();
+
+Compile/run commands from SDK/Examples/Maremba:
+
+clang++ -std=c++17 -O3 -Wall -Wextra -Werror -I DSP /tmp/MarembaTouchDenseVelocity.cpp DSP/MarembaVoice.cpp -o /tmp/maremba-touch-dense-velocity
+/tmp/maremba-touch-dense-velocity --measure > /tmp/maremba-touch-dense-velocity.csv 2> /tmp/maremba-touch-dense-velocity-summary.txt
+clang++ -std=c++17 -O3 -Wall -Wextra -Werror -I DSP /tmp/MarembaTouchDensePosition.cpp DSP/MarembaVoice.cpp -o /tmp/maremba-touch-dense-position
+/tmp/maremba-touch-dense-position --measure > /tmp/maremba-touch-dense-position.csv 2> /tmp/maremba-touch-dense-position-summary.txt
+clang++ -std=c++17 -O3 -Wall -Wextra -Werror -I DSP /tmp/MarembaTouchPositionContinuity.cpp DSP/MarembaVoice.cpp -o /tmp/maremba-touch-position-continuity
+/tmp/maremba-touch-position-continuity
+
+The continuity source includes the base harness with main renamed touch_main.
+For all four models, four strikers and velocities 16/64/127, it renders each of
+positions .05, .2242, .23, .5, .77, .7758, .95 at position +/- .00001. It sums
+the squared close-output sample differences over the complete 180 ms and divides
+by the close-output energy of a matching center strike. The maximum ratio,
+expressed as 10*log10, measures local waveform continuity without amplifying
+relative errors inside an almost silent spatial null. Its include path is
+/Users/vojta/Dev/reason-rack-extension/SDK/Examples/Maremba/Tests/TouchResponseTest.cpp;
+adjust that path for a different checkout location.
+
+Observed results:
+
+- Dense velocity: 14,224 C4 strikes, 14,112 adjacent-velocity comparisons.
+  Close ring, far ring and close attack energy all increased strictly.
+  Minimum increases: +0.0885258, +0.0885261 and +0.0886027 dB, respectively.
+  Five piezo ring decreases occurred only at position .2242, cord striker,
+  Rosewood/Padauk, velocities 6 through 9. Largest decrease: -0.740014 dB.
+  Those piezo outputs were approximately -101 to -104 dB relative to unit
+  amplitude, while close output continued rising. This is consistent with
+  nearly silent modal/contact cancellation at the fundamental node, rather
+  than a global velocity response failure. Native matrix runtime: 4.69076 s.
+- Dense position: 1,008 C4 strikes across 21 positions and three velocities.
+  All metrics finite. Maximum mirrored bar ring asymmetry: 0.106947 dB.
+  The largest neighboring position-level change, 20.0187 dB, lies beside the
+  fundamental nodes (.23 to .275 and their mirror), consistent with a null.
+  Native matrix runtime: 0.451708 s.
+- Continuity: 336 position pairs. Worst difference energy relative to the
+  corresponding center strike: -77.6367 dB (Rosewood, yarn, velocity 127,
+  position .7758). No abrupt position discontinuity was found in these pairs.
+- All inspected matrix values were finite; maximum raw voice peak was
+  1.31398678 before engine/mixer processing. This is not normalized PCM output.
+
+Analysis uses the CSV sweep rows. DensePosition's inherited full-span dynamic
+range and attack-reversal summary fields assume an initial velocity of 1 and
+are inapplicable to its 16/64/127 array; they were not used as findings or gates.
+Individual modal amplitudes need not be monotonic at spatial/contact nulls.
+No DSP, committed test source, acceptance gate or finalized CSV/hash was changed.

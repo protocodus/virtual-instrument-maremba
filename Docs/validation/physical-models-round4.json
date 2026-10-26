@@ -1,0 +1,195 @@
+{
+ "date": "2026-09-22",
+ "version": "1.3.0b4 (unchanged development identity)",
+ "baseline": {
+  "commit": "181d5a3ff97e272a2845c3d5839129aa7107b25e",
+  "frozen_dsp": "/tmp/maremba-realism-baseline/DSP",
+  "review_copy": "Release/validation/physical-models-round4-20260922/sources/before"
+ },
+ "environment": {
+  "platform": "Linux x86_64 VM",
+  "compiler": "clang 18 (-O3 contracts), gcc 13 (ASan+UBSan)",
+  "sdk": "not present: wrapper host and all-patch render (steps 7-8) not run"
+ },
+ "contracts": {
+  "sdk_free_steps": [
+   "validate_extension",
+   "validate_patches",
+   "validate_panel_geometry",
+   "test_dsp",
+   "TouchResponseTest",
+   "Demos/test_renderer.py"
+  ],
+  "realism": [
+   "PiezoPickupTest",
+   "MechanicalArtifactsTest",
+   "CollisionResponseTest",
+   "EngineRealismTest",
+   "PhysicalResponseTest",
+   "CavityPhysicsTest",
+   "Round2ResponseTest",
+   "ModalRadiationTest",
+   "KalimbaModesTest",
+   "MalletContactTest",
+   "Round3ResponseTest",
+   "Round4ResponseTest"
+  ],
+  "result": "all passed at -O3; all also passed under ASan+UBSan",
+  "generators": {
+   "Tests/generate_kalimba_modes.py": "matches",
+   "Tests/generate_kalimba_mount.py": "matches; Chapman RMS 0.084"
+  },
+  "rewritten": {
+   "test_dsp tuning": "settled pitch within 1 cent; onset within 2 cents (tube bloom phase)",
+   "Round2 buzz release": "layer energy falls 60 dB within 20 ms (the drain makes released != dry)",
+   "buzz and pickup": "membranes change the pickup only indirectly (< -30 dB); kalimba buzzers knock it",
+   "buzz ordering": "inaudible layers (< -60 dB) excepted",
+   "steal victim": "E3 with a windowed measurement (C3 tube twelfth and torsion sit on G4 and E4)",
+   "kalimba partial balance": "measured at mounted ratios"
+  }
+ },
+ "round4_contract_output": [
+  "BLOOM model=rosewood fundamental_peak_s=0.112 rise_db=7.92684 partial_peak_s=0.01 resonator_gain_db=12.8245",
+  "BLOOM model=padauk fundamental_peak_s=0.042 rise_db=3.85413 partial_peak_s=0.01 resonator_gain_db=9.6671",
+  "BLOOM model=balafon fundamental_peak_s=0.058 rise_db=5.15475 partial_peak_s=0.01 resonator_gain_db=11.2945",
+  "DECAY model=rosewood note=48 t60_4x_ratio=0.320712 t60_10x_ratio=0.133204",
+  "DECAY model=rosewood note=60 t60_4x_ratio=0.320239 t60_10x_ratio=0.132992",
+  "DECAY model=padauk note=48 t60_4x_ratio=0.296733 t60_10x_ratio=0.114251",
+  "DECAY model=padauk note=60 t60_4x_ratio=0.296233 t60_10x_ratio=0.113296",
+  "DECAY model=balafon note=48 t60_4x_ratio=0.263114 t60_10x_ratio=0.104455",
+  "DECAY model=balafon note=60 t60_4x_ratio=0.259435 t60_10x_ratio=0.102181",
+  "TORSION rosewood C3 T2_line_db=[-64.2565,-36.1473]",
+  "MEMBRANE model=balafon mid_buzz_hf_db[v.2,v.3,v1]=-36.6863,-36.6868,-9.77224 centroid_hz=1388.66",
+  "MEMBRANE model=padauk mid_buzz_hf_db[v.2,v.3,v1]=-47.0862,-47.1114,-23.3395 centroid_hz=660.521",
+  "MOUNT chapman_rms=0.0997086 C4_ratio=5.97921 C4_t60_ratio=0.173716",
+  "BUZZER forte_full_db=-26.8034 rate_error_db=0.0839669",
+  "Round4ResponseTest PASSED failures=0"
+ ],
+ "measurements": {
+  "rosewood_tube_over_bar_db": {
+   "C2": 18.1,
+   "C3": 13.6,
+   "C4": 8.1,
+   "C5": 3.4,
+   "C6": -2.4
+  },
+  "rosewood_fundamental_peak_ms": {
+   "C2": 218,
+   "C3": 112,
+   "C4": 60,
+   "C5": 30,
+   "C6": 16
+  },
+  "reference_recordings_fundamental_peak_ms": {
+   "C3": 160,
+   "G3": 110,
+   "C4": 80,
+   "E4": 60,
+   "G4": 50
+  },
+  "kalimba_first_overtone_ratio_rendered": {
+   "before": 6.42,
+   "G3": 5.97,
+   "C4": 5.98,
+   "G4": 5.72,
+   "C5": 5.52,
+   "G5": 5.15,
+   "C6": 5.05
+  },
+  "kalimba_overtone_t60_ratio": {
+   "before": "0.37-0.43",
+   "after": "0.17-0.24"
+  },
+  "default_patch_rms_change_db_vel08": {
+   "rosewood": {
+    "C2": 3.0,
+    "C3": 0.2,
+    "C4": 0.5,
+    "C5": 0.9,
+    "C6": 1.0,
+    "C7": 1.7
+   },
+   "padauk": {
+    "C2": 1.9,
+    "C3": 0.2,
+    "C4": -0.3,
+    "C5": 0.0,
+    "C6": 0.7,
+    "C7": 1.4
+   },
+   "balafon": {
+    "C2": 1.2,
+    "C3": 1.7,
+    "C4": 0.0,
+    "C5": 0.2,
+    "C6": 0.2,
+    "C7": 2.0
+   },
+   "kalimba": {
+    "C2": 0.1,
+    "C3": 0.2,
+    "C4": -0.1,
+    "C5": -0.2,
+    "C6": 0.1,
+    "C7": 0.0
+   }
+  },
+  "hard_far_coupling_100_level_change_db": {
+   "rosewood": 7.82,
+   "padauk": 5.65,
+   "balafon": 8.42,
+   "kalimba": -0.01
+  }
+ },
+ "performance": {
+  "host": "Linux VM, 48 kHz, 64 frames, 16 voices, 2x, thread CPU median per block",
+  "steady_us": {
+   "rosewood_before": "225-240",
+   "rosewood_after": "225-241",
+   "kalimba_before": "201-205",
+   "kalimba_after": "216-220"
+  },
+  "restrike_burst_us": {
+   "wood_before": "277-286",
+   "wood_after": "305-308",
+   "kalimba_before": "219-223",
+   "kalimba_after": "251-285"
+  },
+  "burst_p99_ms": "0.62-0.93 against a 1.333 ms deadline",
+  "note": "not Apple M1 or target-chip figures; no host scheduling claim"
+ },
+ "source_sha256": {
+  "DSP/AcousticRoom.h": "16ccb9f656b7f604bf5a9445ee416a337af9ccc9355ce84c4e1fb6e5fe7f3953",
+  "DSP/AnalogLimiter.h": "49a968affc528562cbecad531b2bbff9bcb794b4efb145d3aab19a3db9984053",
+  "DSP/AnalogPreamp.h": "34f24b8781a9c6257a4059f4ecc427bab2acf60bed008a4a367861d5887133fd",
+  "DSP/BuzzerRattle.h": "9bd7ada138468f2a72799406f790f069309cbc2696c4851fc47d5034c876e843",
+  "DSP/ContactExcitation.h": "cac875971f3188d7536f8a8fc78a591beeef33b8b849ee803198b0730a1b2725",
+  "DSP/DspMath.h": "14207a2b4641f31b72da94759f4933e308840409a4b88e44d2281409df498b5e",
+  "DSP/FrameBody.h": "9600bfb3205f460b41e52dd38104b45dec1139689f399c69e03c619c0b6f5ae6",
+  "DSP/KalimbaModes.h": "c388290812037df1c706e78e60d0a6b1eaf7016437c124cf757d04022fcd9f16",
+  "DSP/MalletContact.h": "854177f94da7dc8878f358188779ac6ae60593800c0901c3f238d2f308663c85",
+  "DSP/MarembaEngine.cpp": "57a27ce8b51dbc4d4f828efbdac2b626dffd0397f3a4ebcf64c1c799b2b43ae9",
+  "DSP/MarembaEngine.h": "9ec7f75f22d86db8207df23de2615d2ba10514a700e4c84fc3453672264dc201",
+  "DSP/MarembaVoice.cpp": "942314ad39cff0aa557c0edeafc17b580be995a6727c31daaa572f55eee57ec8",
+  "DSP/MarembaVoice.h": "2a84ae5672a9b4cf3f6ec1de79aae67696e4be029183f76c3a9cd507a8151fcf",
+  "DSP/MarimbaModel.h": "d4e6fbbf2cc0ebfcec07863c822b815a0a056433e7fc6e66c42a75877c70f06f",
+  "DSP/MicMixer.h": "699f0019666ee11225c585bb395a613820ae92f9f0cc1b54fdf95ffa74eaf501",
+  "DSP/ModalExcitation.h": "3cfd0cc1a067d676e52ad5164ba56a111a15d9d0daf9ee58f03f4df54e486646",
+  "DSP/ModalRadiation.h": "41673a3ed8118ef97344e1ef4d5a8c7ebf6b189246a1326e1ce12676cde3fc6c",
+  "DSP/Oversampler.h": "ea1acddef65086501ec8519732fd52437e7795946d9bbdd35ccaec7b83f0e145",
+  "DSP/PiezoPickup.h": "bc7243ed88de31d15dc9ac1ca050b789a90c6158c71e61a3ac5fb4eeb6a8f56d",
+  "DSP/RandomArtifacts.h": "6fca8efe4e877f63ef07c37976bbbdd0dd9b20c269a73079bef786fb7d68a48b",
+  "DSP/RoomAlgorithms.h": "02955c79eae78467dae23cfc81404d12d06d83c2b1bc1b5ef2303d620ae98e53",
+  "DSP/SlackMembrane.h": "aea28e652973e2f1132119509ae4026455a00d5961c6d7982792725d9aabb5f8",
+  "DSP/SympatheticMesh.h": "03a20a3dd8c6d4787c69cf5dce0a8a8a885971ddc4ca6fadbb9b2208de0107c1",
+  "Tests/Round4ResponseTest.cpp": "975c6b5a0a28c04bcb453cc8475cbaf3f1de729710cd6a7146789b22b01c4692",
+  "Tests/generate_kalimba_mount.py": "29503273feb5fb471c7ba50e5a5b7b67c05376392639d962f119a7895e2f8549"
+ },
+ "limitations": [
+  "radiation balance is a relative scaling calibrated to published directivity and reference recordings",
+  "torsional drive, off-axis spread and shear loss are voiced; only the frequency law is measured",
+  "membrane formants, gaps, stiffness and drain are voiced; the reactive detuning of the cavity is not modelled",
+  "kalimba mount law fitted to one five-tine instrument and held outside C3-A5; tine shapes remain the rigid-bridge solution",
+  "no listening test; SDK wrapper and all-patch render not run"
+ ]
+}

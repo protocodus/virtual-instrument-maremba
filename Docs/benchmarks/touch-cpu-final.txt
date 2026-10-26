@@ -1,0 +1,3 @@
+48000 Hz, 64 frames, 16 voices, 2x; 4096 blocks; wall us p50=72.375 p95=82 p99=122.292 max=2513.12; CPU us p50=72.541 p99=94.666 max=345.375; deadline misses wall=2 CPU=0
+48000 Hz, 64 frames, 16 voices, 4x; 4096 blocks; wall us p50=142.708 p95=160.792 p99=188.625 max=1185; CPU us p50=142.875 p99=170.125 max=472.583; deadline misses wall=0 CPU=0
+48000 Hz, 64 frames, 16 voices, 8x; 4096 blocks; wall us p50=286.125 p95=367.708 p99=696.708 max=1623.79; CPU us p50=286.208 p99=460.042 max=917.875; deadline misses wall=2 CPU=0

@@ -8,7 +8,7 @@ namespace maremba {
 // Euler-Bernoulli tine: clamp -- rear span -- bridge -- free playing span.
 // Rear/free length=.30 is a representative geometry, not a specimen fit. The
 // bridge fixes displacement while slope and bending moment remain continuous.
-// See the Rack device's Docs/research/physical-model-round3-references.md and the offline table generator.
+// See Docs/research/physical-model-round3-references.md and the offline table generator.
 static constexpr double kKalimbaRearSpan = .30;
 
 struct KalimbaBeamSegment {

@@ -1,0 +1,532 @@
+{
+  "date": "2026-09-24",
+  "status": "Implemented and validated locally; source change, no new universal artifact or release.",
+  "scope": "Consistent undercut bar / yielding tine geometry, nonlinear membrane material; accepted smooth Strike Variance retained.",
+  "baseline": {
+    "revision": "e9de63d55e01554eb9e71533ed65f4e357b21e1c",
+    "local_delta": "Includes the accepted smooth Strike Variance curve from the preceding turn.",
+    "sources": {
+      "DSP/AcousticRoom.h": "16ccb9f656b7f604bf5a9445ee416a337af9ccc9355ce84c4e1fb6e5fe7f3953",
+      "DSP/AnalogLimiter.h": "49a968affc528562cbecad531b2bbff9bcb794b4efb145d3aab19a3db9984053",
+      "DSP/AnalogPreamp.h": "34f24b8781a9c6257a4059f4ecc427bab2acf60bed008a4a367861d5887133fd",
+      "DSP/BuzzerRattle.h": "9bd7ada138468f2a72799406f790f069309cbc2696c4851fc47d5034c876e843",
+      "DSP/ContactExcitation.h": "cac875971f3188d7536f8a8fc78a591beeef33b8b849ee803198b0730a1b2725",
+      "DSP/DspMath.h": "14207a2b4641f31b72da94759f4933e308840409a4b88e44d2281409df498b5e",
+      "DSP/FrameBody.h": "9600bfb3205f460b41e52dd38104b45dec1139689f399c69e03c619c0b6f5ae6",
+      "DSP/KalimbaModes.h": "c388290812037df1c706e78e60d0a6b1eaf7016437c124cf757d04022fcd9f16",
+      "DSP/MalletContact.h": "854177f94da7dc8878f358188779ac6ae60593800c0901c3f238d2f308663c85",
+      "DSP/MarembaEngine.cpp": "57a27ce8b51dbc4d4f828efbdac2b626dffd0397f3a4ebcf64c1c799b2b43ae9",
+      "DSP/MarembaEngine.h": "b7eb1d85ba93f693d540505a0afb60527afe20730b162729ec01141152c866da",
+      "DSP/MarembaVoice.cpp": "35c581e523d07a7ea7331a1dca8b23a1123ae07248310091a31f954817747928",
+      "DSP/MarembaVoice.h": "ed48b12f6996d55f2f4519ca7058c712f7b424b6aa5ca31047a8ed6a89c3d438",
+      "DSP/MarimbaModel.h": "d4e6fbbf2cc0ebfcec07863c822b815a0a056433e7fc6e66c42a75877c70f06f",
+      "DSP/MicMixer.h": "699f0019666ee11225c585bb395a613820ae92f9f0cc1b54fdf95ffa74eaf501",
+      "DSP/ModalExcitation.h": "3cfd0cc1a067d676e52ad5164ba56a111a15d9d0daf9ee58f03f4df54e486646",
+      "DSP/ModalRadiation.h": "41673a3ed8118ef97344e1ef4d5a8c7ebf6b189246a1326e1ce12676cde3fc6c",
+      "DSP/Oversampler.h": "ea1acddef65086501ec8519732fd52437e7795946d9bbdd35ccaec7b83f0e145",
+      "DSP/PiezoPickup.h": "bc7243ed88de31d15dc9ac1ca050b789a90c6158c71e61a3ac5fb4eeb6a8f56d",
+      "DSP/RandomArtifacts.h": "8f923daa7bfddeb36a961916697c73061d9965c234b3682e41519ac75ec64f26",
+      "DSP/RoomAlgorithms.h": "02955c79eae78467dae23cfc81404d12d06d83c2b1bc1b5ef2303d620ae98e53",
+      "DSP/SlackMembrane.h": "aea28e652973e2f1132119509ae4026455a00d5961c6d7982792725d9aabb5f8",
+      "DSP/SympatheticMesh.h": "0742bab75e339fa5e2429cdbfb68880ed2472ad75cdd31b7e9218bb22ae56396",
+      "Demos/Showcase/render_showcase.cpp": "8f40762a0c606894d6e8999e5188767b47e46527ef2a76c1933b2dd120d92195",
+      "Demos/render_physics_review.cpp": "b88f27c277a3a4fc1564f79aac5fdd11bdb7b1acaeef671aacf7cd7697bbd2e4",
+      "Tests/FactoryCpuBenchmark.cpp": "1e95a4114071ab1af44ce7e5f07e6c0efb100df046701720b1aab7d933ee3240",
+      "Tests/test_dsp.cpp": "d6857c693f288e0223c9fdf357315924b2e7e0f8a85450a9e51d7e394b3cc825"
+    }
+  },
+  "source_sha256": {
+    "DSP/ModalExcitation.h": "2058a4979f81e2d74bbedda72d9863ba533cde7761e4dd197f4d725a6d4adb62",
+    "DSP/SympatheticMesh.h": "0742bab75e339fa5e2429cdbfb68880ed2472ad75cdd31b7e9218bb22ae56396",
+    "DSP/AnalogPreamp.h": "34f24b8781a9c6257a4059f4ecc427bab2acf60bed008a4a367861d5887133fd",
+    "DSP/BarModes.h": "b18b2c2da957b291fff2e901b319e0da8d102f6aaab179c7e666235dcee72323",
+    "DSP/AnalogLimiter.h": "49a968affc528562cbecad531b2bbff9bcb794b4efb145d3aab19a3db9984053",
+    "DSP/ModalRadiation.h": "ba09ff3103c46b85b4a16c0384bdba52994f4a581e7ab35ee1b359eb9a91736d",
+    "DSP/MicMixer.h": "699f0019666ee11225c585bb395a613820ae92f9f0cc1b54fdf95ffa74eaf501",
+    "DSP/AcousticRoom.h": "16ccb9f656b7f604bf5a9445ee416a337af9ccc9355ce84c4e1fb6e5fe7f3953",
+    "DSP/PiezoPickup.h": "ab926f73dcdaa83b313cff7ea55ea581034cf0fa477776486741215ca0e42b77",
+    "DSP/DspMath.h": "14207a2b4641f31b72da94759f4933e308840409a4b88e44d2281409df498b5e",
+    "DSP/MarembaVoice.h": "ed48b12f6996d55f2f4519ca7058c712f7b424b6aa5ca31047a8ed6a89c3d438",
+    "DSP/BuzzerRattle.h": "9bd7ada138468f2a72799406f790f069309cbc2696c4851fc47d5034c876e843",
+    "DSP/MarimbaModel.h": "d4e6fbbf2cc0ebfcec07863c822b815a0a056433e7fc6e66c42a75877c70f06f",
+    "DSP/KalimbaMountShapes.h": "1d4ec7dc848f2f5b666c3a5554cc6ccf53f2c3cbbd4e872a8a80ed3e7291b2e6",
+    "DSP/FrameBody.h": "9600bfb3205f460b41e52dd38104b45dec1139689f399c69e03c619c0b6f5ae6",
+    "DSP/SlackMembrane.h": "d97682becb753deff362008be36b48bb6248cb211d19dfb1c752ea76362c6ab9",
+    "DSP/MarembaEngine.h": "b7eb1d85ba93f693d540505a0afb60527afe20730b162729ec01141152c866da",
+    "DSP/RandomArtifacts.h": "8f923daa7bfddeb36a961916697c73061d9965c234b3682e41519ac75ec64f26",
+    "DSP/ContactExcitation.h": "cac875971f3188d7536f8a8fc78a591beeef33b8b849ee803198b0730a1b2725",
+    "DSP/MalletContact.h": "68b8609a4ce1a03de67c8ff3484b68738cf84b36f5d2a294171d2683dbd04fac",
+    "DSP/Oversampler.h": "ea1acddef65086501ec8519732fd52437e7795946d9bbdd35ccaec7b83f0e145",
+    "DSP/RoomAlgorithms.h": "02955c79eae78467dae23cfc81404d12d06d83c2b1bc1b5ef2303d620ae98e53",
+    "DSP/KalimbaModes.h": "c388290812037df1c706e78e60d0a6b1eaf7016437c124cf757d04022fcd9f16",
+    "DSP/MarembaVoice.cpp": "640c259782a3d54efc1a5dc5e8964a65eca689b70bae7a120ce30a289f0c6220",
+    "DSP/MarembaEngine.cpp": "57a27ce8b51dbc4d4f828efbdac2b626dffd0397f3a4ebcf64c1c799b2b43ae9",
+    "Tests/BarModesTest.cpp": "0edd9a7baba905b7e0656ced9540050b08ceba561ecdec2245a75cf5982f796a",
+    "Tests/KalimbaMountShapesTest.cpp": "13892404ae061944546036378996eb4a43277f822a406c477bddf8e73e3d9d34",
+    "Tests/SlackMembraneStretchTest.cpp": "197bd7b8191f91fcc45be9badb1ef267bca624b725627aa955301cf86eaf1b2f",
+    "Tests/Round5ResponseTest.cpp": "ef7bf4d9a174e3de45e09dbac5f2564f74121abe6460de48d3d7d69539b11aa9",
+    "Tests/test_dsp.cpp": "d0475dbbfa543464de39792eca42cb304ab732cd8254b7f74a826a50d36b7bd1",
+    "Tests/TouchResponseTest.cpp": "d55576d221fd2e6ea96f4f0b15ab45d7451e56869cc5e66f33e7db5e36d9d93c",
+    "Tests/generate_bar_modes.py": "6cf81e2b726a1a45dd7a2153b133cfa0478358de6cda2cefa752e83cf788a858",
+    "Tests/generate_kalimba_shapes.py": "da8e2443823bdf37f17eb29e950760a8a2cd9f9a21a529324aeb6a1e9ac8d6a8",
+    "Tests/run_all_tests.sh": "768a4d0aa13b9c477abe42942f025b1df55cb0a9e0f5fed103f8937ac781190a",
+    "Demos/performance_review.cpp": "4c9510943409c9f8dd213639a1adf3c3716612d9845343c192deeb049f405e6b"
+  },
+  "sdk": {
+    "version": "JukeboxSDK_500_028",
+    "target": "5.0",
+    "build": "staged project local45 Deployment, normal preflight and SDK static analysis",
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "installed_user_device": false,
+    "module_sha256": {
+      "Maremba-arm64.dylib": "cfa60af764f170f62085fdff72cfc0f3c308748678392896b889c4e1e6bc6165",
+      "Maremba.dylib": "5b313e52f0b0de5a1530577cf022209f466764f3edc77ad04a34d898662d7c6a"
+    },
+    "actual_arm64_module_render": {
+      "presets": 11,
+      "outputs": "all seven",
+      "pattern": "chords",
+      "rate": 48000,
+      "frames": 64,
+      "allocation_traps": true,
+      "finite_audio": true,
+      "module_sha256": "cfa60af764f170f62085fdff72cfc0f3c308748678392896b889c4e1e6bc6165",
+      "fixture_sha256": "7a4d6acddad0b574fbf9457456b92d7c5dfe538b95c89405adb1b46ed7a552c9",
+      "maximum_peak": 0.7250913978,
+      "peak_allocated_bytes": 2006036,
+      "raw_report": "sdk-module-renders/report.json"
+    }
+  },
+  "validation": {
+    "full_contract_suite": "pass",
+    "engine_ASan_UBSan": "pass",
+    "new_geometry_material_ASan_UBSan": "pass",
+    "generated_fixtures": "pass",
+    "thresholds_relaxed": false,
+    "initial_failures_retained": true,
+    "test_changes": "Physical nodes follow new undercut geometry; repeat detector probes solved partial frequencies including fixed key scatter."
+  },
+  "cpu": {
+    "scope": "Native engine timing, not SDK or Reason host CPU.",
+    "plan": {
+      "started_utc": "2026-09-24T13:14:57.431992+00:00",
+      "machine": "macOS-26.5.1-arm64-arm-64bit",
+      "processor": "Apple M1 Max",
+      "workload": {
+        "rate": 48000,
+        "frames": 64,
+        "voices": 16,
+        "blocks_per_case": 4096,
+        "warmup_blocks": 256,
+        "deadline_us": 1333.3333333333333
+      },
+      "sequence": [
+        [
+          "all-models",
+          "before",
+          1
+        ],
+        [
+          "all-models",
+          "after",
+          1
+        ],
+        [
+          "all-models",
+          "after",
+          2
+        ],
+        [
+          "all-models",
+          "before",
+          2
+        ],
+        [
+          "chord-burst",
+          "before",
+          1
+        ],
+        [
+          "chord-burst",
+          "after",
+          1
+        ],
+        [
+          "max-buzz",
+          "before",
+          1
+        ],
+        [
+          "max-buzz",
+          "after",
+          1
+        ]
+      ],
+      "scope": "Native engine, wall and thread CPU; no Reason scheduler or target translation. All raw runs retained.",
+      "driver_source_sha256": "4c9510943409c9f8dd213639a1adf3c3716612d9845343c192deeb049f405e6b",
+      "binaries": {
+        "before": "b4ae3bc8585cd46c5b3e4d89ad53e05d7fbe68cc9d4f2eb07ee5a6a77213768f",
+        "after": "cc743f252c9f3765312e3e9b28ff8e91dbc0c10f62f4752e569d089a4d04729a"
+      }
+    },
+    "method": "Median of per-run thread-CPU medians; two opposite-order pairs for quality matrix, one pair each stress scenario. Positive change means more CPU. All runs retained.",
+    "summary": [
+      {
+        "scenario": "all-models",
+        "model": 0,
+        "quality": 2,
+        "before_cpu_p50_us": 167.0205,
+        "after_cpu_p50_us": 170.10399999999998,
+        "change_percent": 1.8461805586739377,
+        "after_worst_cpu_p99_us": 219.375,
+        "before_cpu_misses": 0,
+        "after_cpu_misses": 0,
+        "before_wall_misses": 2,
+        "after_wall_misses": 0
+      },
+      {
+        "scenario": "all-models",
+        "model": 0,
+        "quality": 4,
+        "before_cpu_p50_us": 329.35400000000004,
+        "after_cpu_p50_us": 337.16650000000004,
+        "change_percent": 2.372067744736661,
+        "after_worst_cpu_p99_us": 519.875,
+        "before_cpu_misses": 1,
+        "after_cpu_misses": 0,
+        "before_wall_misses": 19,
+        "after_wall_misses": 75
+      },
+      {
+        "scenario": "all-models",
+        "model": 0,
+        "quality": 8,
+        "before_cpu_p50_us": 653.666,
+        "after_cpu_p50_us": 674.271,
+        "change_percent": 3.152221470904082,
+        "after_worst_cpu_p99_us": 1076.04,
+        "before_cpu_misses": 7,
+        "after_cpu_misses": 9,
+        "before_wall_misses": 51,
+        "after_wall_misses": 283
+      },
+      {
+        "scenario": "all-models",
+        "model": 1,
+        "quality": 2,
+        "before_cpu_p50_us": 166.2505,
+        "after_cpu_p50_us": 172.25,
+        "change_percent": 3.608710951245264,
+        "after_worst_cpu_p99_us": 401.0,
+        "before_cpu_misses": 0,
+        "after_cpu_misses": 0,
+        "before_wall_misses": 0,
+        "after_wall_misses": 31
+      },
+      {
+        "scenario": "all-models",
+        "model": 1,
+        "quality": 4,
+        "before_cpu_p50_us": 326.583,
+        "after_cpu_p50_us": 335.583,
+        "change_percent": 2.7558078650756546,
+        "after_worst_cpu_p99_us": 548.125,
+        "before_cpu_misses": 0,
+        "after_cpu_misses": 0,
+        "before_wall_misses": 3,
+        "after_wall_misses": 15
+      },
+      {
+        "scenario": "all-models",
+        "model": 1,
+        "quality": 8,
+        "before_cpu_p50_us": 649.896,
+        "after_cpu_p50_us": 664.5625,
+        "change_percent": 2.256745694695783,
+        "after_worst_cpu_p99_us": 946.334,
+        "before_cpu_misses": 1,
+        "after_cpu_misses": 4,
+        "before_wall_misses": 90,
+        "after_wall_misses": 100
+      },
+      {
+        "scenario": "all-models",
+        "model": 2,
+        "quality": 2,
+        "before_cpu_p50_us": 166.89600000000002,
+        "after_cpu_p50_us": 170.5625,
+        "change_percent": 2.196877097114358,
+        "after_worst_cpu_p99_us": 245.75,
+        "before_cpu_misses": 0,
+        "after_cpu_misses": 0,
+        "before_wall_misses": 1,
+        "after_wall_misses": 1
+      },
+      {
+        "scenario": "all-models",
+        "model": 2,
+        "quality": 4,
+        "before_cpu_p50_us": 329.20849999999996,
+        "after_cpu_p50_us": 335.29150000000004,
+        "change_percent": 1.847765170097393,
+        "after_worst_cpu_p99_us": 488.458,
+        "before_cpu_misses": 0,
+        "after_cpu_misses": 0,
+        "before_wall_misses": 7,
+        "after_wall_misses": 11
+      },
+      {
+        "scenario": "all-models",
+        "model": 2,
+        "quality": 8,
+        "before_cpu_p50_us": 651.666,
+        "after_cpu_p50_us": 665.25,
+        "change_percent": 2.0845034112566774,
+        "after_worst_cpu_p99_us": 932.541,
+        "before_cpu_misses": 0,
+        "after_cpu_misses": 1,
+        "before_wall_misses": 21,
+        "after_wall_misses": 43
+      },
+      {
+        "scenario": "all-models",
+        "model": 3,
+        "quality": 2,
+        "before_cpu_p50_us": 139.042,
+        "after_cpu_p50_us": 139.0205,
+        "change_percent": -0.015462953639910904,
+        "after_worst_cpu_p99_us": 194.458,
+        "before_cpu_misses": 0,
+        "after_cpu_misses": 0,
+        "before_wall_misses": 4,
+        "after_wall_misses": 1
+      },
+      {
+        "scenario": "all-models",
+        "model": 3,
+        "quality": 4,
+        "before_cpu_p50_us": 268.66700000000003,
+        "after_cpu_p50_us": 271.79150000000004,
+        "change_percent": 1.1629638176627655,
+        "after_worst_cpu_p99_us": 381.542,
+        "before_cpu_misses": 0,
+        "after_cpu_misses": 0,
+        "before_wall_misses": 1,
+        "after_wall_misses": 2
+      },
+      {
+        "scenario": "all-models",
+        "model": 3,
+        "quality": 8,
+        "before_cpu_p50_us": 530.625,
+        "after_cpu_p50_us": 535.1875,
+        "change_percent": 0.8598351001177784,
+        "after_worst_cpu_p99_us": 701.583,
+        "before_cpu_misses": 9,
+        "after_cpu_misses": 1,
+        "before_wall_misses": 39,
+        "after_wall_misses": 12
+      },
+      {
+        "scenario": "chord-burst",
+        "model": 0,
+        "quality": 2,
+        "before_cpu_p50_us": 226.125,
+        "after_cpu_p50_us": 218.083,
+        "change_percent": -3.556440022111662,
+        "after_worst_cpu_p99_us": 544.042,
+        "before_cpu_misses": 0,
+        "after_cpu_misses": 0,
+        "before_wall_misses": 5,
+        "after_wall_misses": 2
+      },
+      {
+        "scenario": "chord-burst",
+        "model": 1,
+        "quality": 2,
+        "before_cpu_p50_us": 231.666,
+        "after_cpu_p50_us": 220.667,
+        "change_percent": -4.747783446858833,
+        "after_worst_cpu_p99_us": 514.917,
+        "before_cpu_misses": 0,
+        "after_cpu_misses": 0,
+        "before_wall_misses": 16,
+        "after_wall_misses": 13
+      },
+      {
+        "scenario": "chord-burst",
+        "model": 2,
+        "quality": 2,
+        "before_cpu_p50_us": 230.333,
+        "after_cpu_p50_us": 222.625,
+        "change_percent": -3.3464592568151375,
+        "after_worst_cpu_p99_us": 565.584,
+        "before_cpu_misses": 0,
+        "after_cpu_misses": 0,
+        "before_wall_misses": 7,
+        "after_wall_misses": 9
+      },
+      {
+        "scenario": "chord-burst",
+        "model": 3,
+        "quality": 2,
+        "before_cpu_p50_us": 194.833,
+        "after_cpu_p50_us": 194.167,
+        "change_percent": -0.3418312092920539,
+        "after_worst_cpu_p99_us": 384.167,
+        "before_cpu_misses": 0,
+        "after_cpu_misses": 0,
+        "before_wall_misses": 6,
+        "after_wall_misses": 2
+      },
+      {
+        "scenario": "max-buzz",
+        "model": 0,
+        "quality": 2,
+        "before_cpu_p50_us": 187.125,
+        "after_cpu_p50_us": 188.834,
+        "change_percent": 0.9132932531730198,
+        "after_worst_cpu_p99_us": 261.875,
+        "before_cpu_misses": 0,
+        "after_cpu_misses": 0,
+        "before_wall_misses": 0,
+        "after_wall_misses": 2
+      },
+      {
+        "scenario": "max-buzz",
+        "model": 1,
+        "quality": 2,
+        "before_cpu_p50_us": 185.709,
+        "after_cpu_p50_us": 187.959,
+        "change_percent": 1.2115729447684354,
+        "after_worst_cpu_p99_us": 263.75,
+        "before_cpu_misses": 0,
+        "after_cpu_misses": 0,
+        "before_wall_misses": 0,
+        "after_wall_misses": 2
+      },
+      {
+        "scenario": "max-buzz",
+        "model": 2,
+        "quality": 2,
+        "before_cpu_p50_us": 201.291,
+        "after_cpu_p50_us": 204.667,
+        "change_percent": 1.6771738428444483,
+        "after_worst_cpu_p99_us": 277.0,
+        "before_cpu_misses": 0,
+        "after_cpu_misses": 0,
+        "before_wall_misses": 0,
+        "after_wall_misses": 0
+      },
+      {
+        "scenario": "max-buzz",
+        "model": 3,
+        "quality": 2,
+        "before_cpu_p50_us": 140.958,
+        "after_cpu_p50_us": 142.125,
+        "change_percent": 0.8279061848210034,
+        "after_worst_cpu_p99_us": 212.291,
+        "before_cpu_misses": 0,
+        "after_cpu_misses": 0,
+        "before_wall_misses": 6,
+        "after_wall_misses": 4
+      }
+    ],
+    "raw_summaries": "cpu-summary.json",
+    "default_2x_thread_cpu_deadline_misses": 0,
+    "matrix_8x_thread_cpu_misses_before": 17,
+    "matrix_8x_thread_cpu_misses_after": 15,
+    "wall_deadline_misses_remain": true,
+    "not_a_cpu_optimization_claim": true
+  },
+  "audio": {
+    "player": "comparison-reviewed/physics-review.html",
+    "report_sha256": "8cefb0e558c62710f6ba1dc254c089e5196ce99d7523e35cd521e9a003a3aa81",
+    "clips": 32,
+    "gain": 1.0,
+    "comparisons": {
+      "Imperial Rosewood": {
+        "dry_close": {
+          "after_minus_before_rms_db_relative_to_before": -45.557,
+          "after_vs_before_rms_db": 0.005
+        },
+        "default_mix": {
+          "after_minus_before_rms_db_relative_to_before": -44.762,
+          "after_vs_before_rms_db": 0.004
+        },
+        "hard_far": {
+          "after_minus_before_rms_db_relative_to_before": -22.341,
+          "after_vs_before_rms_db": 0.597
+        },
+        "quiet_restrike": {
+          "after_minus_before_rms_db_relative_to_before": -23.775,
+          "after_vs_before_rms_db": 0.095
+        }
+      },
+      "Mayan Padauk": {
+        "dry_close": {
+          "after_minus_before_rms_db_relative_to_before": -41.404,
+          "after_vs_before_rms_db": -0.014
+        },
+        "default_mix": {
+          "after_minus_before_rms_db_relative_to_before": -32.063,
+          "after_vs_before_rms_db": -0.144
+        },
+        "hard_far": {
+          "after_minus_before_rms_db_relative_to_before": -26.937,
+          "after_vs_before_rms_db": -0.07
+        },
+        "quiet_restrike": {
+          "after_minus_before_rms_db_relative_to_before": -24.959,
+          "after_vs_before_rms_db": -0.173
+        }
+      },
+      "Balafon Ancestral": {
+        "dry_close": {
+          "after_minus_before_rms_db_relative_to_before": -40.323,
+          "after_vs_before_rms_db": -0.029
+        },
+        "default_mix": {
+          "after_minus_before_rms_db_relative_to_before": -40.019,
+          "after_vs_before_rms_db": -0.028
+        },
+        "hard_far": {
+          "after_minus_before_rms_db_relative_to_before": -30.362,
+          "after_vs_before_rms_db": -0.2
+        },
+        "quiet_restrike": {
+          "after_minus_before_rms_db_relative_to_before": -24.691,
+          "after_vs_before_rms_db": -0.239
+        }
+      },
+      "Kalimba Artisan": {
+        "dry_close": {
+          "after_minus_before_rms_db_relative_to_before": -56.222,
+          "after_vs_before_rms_db": 0.01
+        },
+        "default_mix": {
+          "after_minus_before_rms_db_relative_to_before": -56.54,
+          "after_vs_before_rms_db": 0.01
+        },
+        "hard_far": {
+          "after_minus_before_rms_db_relative_to_before": -36.132,
+          "after_vs_before_rms_db": 0.081
+        },
+        "quiet_restrike": {
+          "after_minus_before_rms_db_relative_to_before": -42.897,
+          "after_vs_before_rms_db": 0.031
+        }
+      }
+    },
+    "human_listening_preference_test": false
+  },
+  "evidence_root": "Release/validation/physical-models-round5-20260924",
+  "limits": [
+    "Representative voiced families, not calibrated specimen replicas.",
+    "Cavity/torsion/brush/body remain reduced systems; full reciprocal membrane reactance and shared Kalimba board are future work.",
+    "No live Reason session, universal target or release performed."
+  ]
+}

@@ -9,7 +9,7 @@
 namespace maremba {
 
 // Original implementations of standard reverb structures. See
-// the Rack device's Docs/research/character-and-rooms.md for design sources and measured responses.
+// Docs/research/character-and-rooms.md for design sources and measured responses.
 // Memory is reserved once; control/rate changes never resize a vector.
 class RoomDelay {
 public:

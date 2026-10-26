@@ -5,7 +5,7 @@
 // Piezo's 35% gain reserves another 6.02 dB of peak headroom. Capture balance varies
 // naturally by model; the stems need not approach
 // full scale or match each other's peaks. Changing Model while a note rings
-// moves the calibration smoothly (the Rack device's Docs/research/output-level.md).
+// moves the calibration smoothly (Docs/research/output-level.md).
 #include "MarembaEngine.h"
 #include "OutputHeadroom.h"
 #include <algorithm>

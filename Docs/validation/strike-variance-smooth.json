@@ -1,0 +1,585 @@
+{
+  "baseline_revision": "e9de63d55e01554eb9e71533ed65f4e357b21e1c",
+  "response": "For a=clamp(variance,0,100)/100, expressive=a*(2-a). Existing linear spreads and endpoints unchanged.",
+  "source_sha256": {
+    "DSP/RandomArtifacts.h": "8f923daa7bfddeb36a961916697c73061d9965c234b3682e41519ac75ec64f26",
+    "Tests/StrikeVarianceTest.cpp": "7c169998c9f072d8a8c1937935a20195ca4e94eed54e8faacedf4d6f38dc27b1",
+    "Demos/compare_variance.py": "2122f32c1aedc06ebcad8b32d56bf6d2ef231313edcd533ecb9bba24f0196a36"
+  },
+  "suite": "All local DSP, renderer, physical model, wrapper and 11 factory patch contracts passed; wrapper patches at 44.1/48/96 kHz.",
+  "isolated_probe": {
+    "sample_rate": 48000,
+    "oversampling": 2,
+    "note": 60,
+    "velocity": 90,
+    "hits": 12,
+    "window_seconds": [
+      0.04,
+      0.16
+    ],
+    "metric": "Median adjacent waveform residual after best-fit scalar gain removal; fully damped between hits.",
+    "current": [
+      {
+        "model": 0.0,
+        "amount": 0.0,
+        "median_timbre_residual": 0.00228402,
+        "attack_level_span_db": 0.0478219
+      },
+      {
+        "model": 0.0,
+        "amount": 5.0,
+        "median_timbre_residual": 0.0107458,
+        "attack_level_span_db": 0.417043
+      },
+      {
+        "model": 0.0,
+        "amount": 15.0,
+        "median_timbre_residual": 0.0265169,
+        "attack_level_span_db": 1.12493
+      },
+      {
+        "model": 0.0,
+        "amount": 25.0,
+        "median_timbre_residual": 0.0406957,
+        "attack_level_span_db": 1.76637
+      },
+      {
+        "model": 0.0,
+        "amount": 50.0,
+        "median_timbre_residual": 0.0690757,
+        "attack_level_span_db": 3.06778
+      },
+      {
+        "model": 0.0,
+        "amount": 100.0,
+        "median_timbre_residual": 0.0948846,
+        "attack_level_span_db": 4.2552
+      },
+      {
+        "model": 1.0,
+        "amount": 0.0,
+        "median_timbre_residual": 0.00163407,
+        "attack_level_span_db": 0.0485876
+      },
+      {
+        "model": 1.0,
+        "amount": 5.0,
+        "median_timbre_residual": 0.00793728,
+        "attack_level_span_db": 0.420507
+      },
+      {
+        "model": 1.0,
+        "amount": 15.0,
+        "median_timbre_residual": 0.0197426,
+        "attack_level_span_db": 1.13541
+      },
+      {
+        "model": 1.0,
+        "amount": 25.0,
+        "median_timbre_residual": 0.0303145,
+        "attack_level_span_db": 1.78408
+      },
+      {
+        "model": 1.0,
+        "amount": 50.0,
+        "median_timbre_residual": 0.051315,
+        "attack_level_span_db": 3.0947
+      },
+      {
+        "model": 1.0,
+        "amount": 100.0,
+        "median_timbre_residual": 0.0704441,
+        "attack_level_span_db": 4.28495
+      },
+      {
+        "model": 2.0,
+        "amount": 0.0,
+        "median_timbre_residual": 0.00258495,
+        "attack_level_span_db": 0.0456859
+      },
+      {
+        "model": 2.0,
+        "amount": 5.0,
+        "median_timbre_residual": 0.0127755,
+        "attack_level_span_db": 0.409514
+      },
+      {
+        "model": 2.0,
+        "amount": 15.0,
+        "median_timbre_residual": 0.0315853,
+        "attack_level_span_db": 1.10677
+      },
+      {
+        "model": 2.0,
+        "amount": 25.0,
+        "median_timbre_residual": 0.048538,
+        "attack_level_span_db": 1.73878
+      },
+      {
+        "model": 2.0,
+        "amount": 50.0,
+        "median_timbre_residual": 0.0824028,
+        "attack_level_span_db": 3.02176
+      },
+      {
+        "model": 2.0,
+        "amount": 100.0,
+        "median_timbre_residual": 0.113158,
+        "attack_level_span_db": 4.19357
+      },
+      {
+        "model": 3.0,
+        "amount": 0.0,
+        "median_timbre_residual": 0.00157157,
+        "attack_level_span_db": 0.050927
+      },
+      {
+        "model": 3.0,
+        "amount": 5.0,
+        "median_timbre_residual": 0.00784514,
+        "attack_level_span_db": 0.42675
+      },
+      {
+        "model": 3.0,
+        "amount": 15.0,
+        "median_timbre_residual": 0.0197253,
+        "attack_level_span_db": 1.15075
+      },
+      {
+        "model": 3.0,
+        "amount": 25.0,
+        "median_timbre_residual": 0.0303621,
+        "attack_level_span_db": 1.80611
+      },
+      {
+        "model": 3.0,
+        "amount": 50.0,
+        "median_timbre_residual": 0.0515306,
+        "attack_level_span_db": 3.13527
+      },
+      {
+        "model": 3.0,
+        "amount": 100.0,
+        "median_timbre_residual": 0.0707662,
+        "attack_level_span_db": 4.3476
+      }
+    ],
+    "previous": [
+      {
+        "model": 0.0,
+        "amount": 0.0,
+        "median_timbre_residual": 0.00228402,
+        "attack_level_span_db": 0.0478219
+      },
+      {
+        "model": 0.0,
+        "amount": 5.0,
+        "median_timbre_residual": 0.00270518,
+        "attack_level_span_db": 0.0618469
+      },
+      {
+        "model": 0.0,
+        "amount": 15.0,
+        "median_timbre_residual": 0.00392923,
+        "attack_level_span_db": 0.0900006
+      },
+      {
+        "model": 0.0,
+        "amount": 25.0,
+        "median_timbre_residual": 0.00517381,
+        "attack_level_span_db": 0.118217
+      },
+      {
+        "model": 0.0,
+        "amount": 50.0,
+        "median_timbre_residual": 0.0165561,
+        "attack_level_span_db": 0.612846
+      },
+      {
+        "model": 0.0,
+        "amount": 100.0,
+        "median_timbre_residual": 0.0948846,
+        "attack_level_span_db": 4.2552
+      },
+      {
+        "model": 1.0,
+        "amount": 0.0,
+        "median_timbre_residual": 0.00163407,
+        "attack_level_span_db": 0.0485876
+      },
+      {
+        "model": 1.0,
+        "amount": 5.0,
+        "median_timbre_residual": 0.00208138,
+        "attack_level_span_db": 0.0634064
+      },
+      {
+        "model": 1.0,
+        "amount": 15.0,
+        "median_timbre_residual": 0.00280825,
+        "attack_level_span_db": 0.092946
+      },
+      {
+        "model": 1.0,
+        "amount": 25.0,
+        "median_timbre_residual": 0.00362664,
+        "attack_level_span_db": 0.121796
+      },
+      {
+        "model": 1.0,
+        "amount": 50.0,
+        "median_timbre_residual": 0.0123297,
+        "attack_level_span_db": 0.619614
+      },
+      {
+        "model": 1.0,
+        "amount": 100.0,
+        "median_timbre_residual": 0.0704441,
+        "attack_level_span_db": 4.28495
+      },
+      {
+        "model": 2.0,
+        "amount": 0.0,
+        "median_timbre_residual": 0.00258495,
+        "attack_level_span_db": 0.0456859
+      },
+      {
+        "model": 2.0,
+        "amount": 5.0,
+        "median_timbre_residual": 0.00323754,
+        "attack_level_span_db": 0.0587048
+      },
+      {
+        "model": 2.0,
+        "amount": 15.0,
+        "median_timbre_residual": 0.00458842,
+        "attack_level_span_db": 0.0855337
+      },
+      {
+        "model": 2.0,
+        "amount": 25.0,
+        "median_timbre_residual": 0.00581988,
+        "attack_level_span_db": 0.114649
+      },
+      {
+        "model": 2.0,
+        "amount": 50.0,
+        "median_timbre_residual": 0.019824,
+        "attack_level_span_db": 0.601536
+      },
+      {
+        "model": 2.0,
+        "amount": 100.0,
+        "median_timbre_residual": 0.113158,
+        "attack_level_span_db": 4.19357
+      },
+      {
+        "model": 3.0,
+        "amount": 0.0,
+        "median_timbre_residual": 0.00157157,
+        "attack_level_span_db": 0.050927
+      },
+      {
+        "model": 3.0,
+        "amount": 5.0,
+        "median_timbre_residual": 0.00198041,
+        "attack_level_span_db": 0.0659566
+      },
+      {
+        "model": 3.0,
+        "amount": 15.0,
+        "median_timbre_residual": 0.00279833,
+        "attack_level_span_db": 0.096038
+      },
+      {
+        "model": 3.0,
+        "amount": 25.0,
+        "median_timbre_residual": 0.00361658,
+        "attack_level_span_db": 0.126176
+      },
+      {
+        "model": 3.0,
+        "amount": 50.0,
+        "median_timbre_residual": 0.0122256,
+        "attack_level_span_db": 0.628693
+      },
+      {
+        "model": 3.0,
+        "amount": 100.0,
+        "median_timbre_residual": 0.0707662,
+        "attack_level_span_db": 4.3476
+      }
+    ],
+    "negative_control_failures": 8
+  },
+  "phrase_pairs": 24,
+  "endpoint_pairs_bit_identical": 8,
+  "endpoint_sha256": [
+    {
+      "model": "Rosewood",
+      "variance": 0,
+      "sha256": "fa11052d74219118efaf3250d9179a4b64a403579a5f839fc69adaaf1d9eff8c"
+    },
+    {
+      "model": "Rosewood",
+      "variance": 100,
+      "sha256": "f2a73ff22022d7ac211295ff7fbe47013a0bb099f1641b51baf18e4ac552e77a"
+    },
+    {
+      "model": "Padauk",
+      "variance": 0,
+      "sha256": "1a5ae76d2900c171674da2f5a2810d243ad671bceda4dee74f0c165577217a9e"
+    },
+    {
+      "model": "Padauk",
+      "variance": 100,
+      "sha256": "1ce3600fcbd353bbc1ec986c55785977d07a5f07abc2e22c8c60b05e1fcc11e5"
+    },
+    {
+      "model": "Balafon",
+      "variance": 0,
+      "sha256": "8b70b98c4d17dfbd4ea03c6c0223a18c5513d83af221da482aa869a50685d05a"
+    },
+    {
+      "model": "Balafon",
+      "variance": 100,
+      "sha256": "7c8ea84116dc0aa2ca36887fa19e791782d0d60e7f4b85577247dc0149c13a19"
+    },
+    {
+      "model": "Kalimba",
+      "variance": 0,
+      "sha256": "6e3233d15c01e41452ab75451e337401a127307afaaf8b5f86ddee071f212399"
+    },
+    {
+      "model": "Kalimba",
+      "variance": 100,
+      "sha256": "5c2259fabeb83a082ff03520963ed28dc77b3bb9c58e9000d63592717f53fa25"
+    }
+  ],
+  "cpu_probe": {
+    "sample_rate": 48000,
+    "block_frames": 64,
+    "voices": 16,
+    "blocks_per_case": 4096,
+    "scope": "Native engine timing only; excludes Reason scheduling and SDK target execution.",
+    "runs": [
+      {
+        "run": "before-1",
+        "oversampling": 2,
+        "wall_us": {
+          "p50": 167.459,
+          "p95": 195.125,
+          "p99": 262.417,
+          "max": 10899.5
+        },
+        "thread_cpu_us": {
+          "p50": 167.625,
+          "p99": 215.125,
+          "max": 684.667
+        },
+        "wall_deadline_misses": 5,
+        "thread_cpu_deadline_misses": 0
+      },
+      {
+        "run": "before-1",
+        "oversampling": 4,
+        "wall_us": {
+          "p50": 337.0,
+          "p95": 390.125,
+          "p99": 489.083,
+          "max": 3202.25
+        },
+        "thread_cpu_us": {
+          "p50": 337.042,
+          "p99": 415.166,
+          "max": 1281.25
+        },
+        "wall_deadline_misses": 6,
+        "thread_cpu_deadline_misses": 0
+      },
+      {
+        "run": "before-1",
+        "oversampling": 8,
+        "wall_us": {
+          "p50": 651.208,
+          "p95": 729.5,
+          "p99": 783.5,
+          "max": 1038.42
+        },
+        "thread_cpu_us": {
+          "p50": 651.167,
+          "p99": 753.083,
+          "max": 866.125
+        },
+        "wall_deadline_misses": 0,
+        "thread_cpu_deadline_misses": 0
+      },
+      {
+        "run": "after-1",
+        "oversampling": 2,
+        "wall_us": {
+          "p50": 161.75,
+          "p95": 180.167,
+          "p99": 232.959,
+          "max": 3957.54
+        },
+        "thread_cpu_us": {
+          "p50": 161.958,
+          "p99": 204.834,
+          "max": 638.25
+        },
+        "wall_deadline_misses": 3,
+        "thread_cpu_deadline_misses": 0
+      },
+      {
+        "run": "after-1",
+        "oversampling": 4,
+        "wall_us": {
+          "p50": 319.917,
+          "p95": 357.625,
+          "p99": 414.875,
+          "max": 3741.0
+        },
+        "thread_cpu_us": {
+          "p50": 320.042,
+          "p99": 379.709,
+          "max": 1262.08
+        },
+        "wall_deadline_misses": 3,
+        "thread_cpu_deadline_misses": 0
+      },
+      {
+        "run": "after-1",
+        "oversampling": 8,
+        "wall_us": {
+          "p50": 637.583,
+          "p95": 710.167,
+          "p99": 1050.25,
+          "max": 6264.96
+        },
+        "thread_cpu_us": {
+          "p50": 637.417,
+          "p99": 746.291,
+          "max": 2422.46
+        },
+        "wall_deadline_misses": 26,
+        "thread_cpu_deadline_misses": 5
+      },
+      {
+        "run": "after-2",
+        "oversampling": 2,
+        "wall_us": {
+          "p50": 169.125,
+          "p95": 190.459,
+          "p99": 218.166,
+          "max": 346.5
+        },
+        "thread_cpu_us": {
+          "p50": 169.25,
+          "p99": 206.542,
+          "max": 273.25
+        },
+        "wall_deadline_misses": 0,
+        "thread_cpu_deadline_misses": 0
+      },
+      {
+        "run": "after-2",
+        "oversampling": 4,
+        "wall_us": {
+          "p50": 331.417,
+          "p95": 366.25,
+          "p99": 425.625,
+          "max": 1875.58
+        },
+        "thread_cpu_us": {
+          "p50": 331.583,
+          "p99": 402.125,
+          "max": 1230.79
+        },
+        "wall_deadline_misses": 3,
+        "thread_cpu_deadline_misses": 0
+      },
+      {
+        "run": "after-2",
+        "oversampling": 8,
+        "wall_us": {
+          "p50": 660.375,
+          "p95": 719.333,
+          "p99": 794.167,
+          "max": 3897.25
+        },
+        "thread_cpu_us": {
+          "p50": 660.458,
+          "p99": 758.542,
+          "max": 1640.96
+        },
+        "wall_deadline_misses": 8,
+        "thread_cpu_deadline_misses": 4
+      },
+      {
+        "run": "before-2",
+        "oversampling": 2,
+        "wall_us": {
+          "p50": 165.584,
+          "p95": 178.5,
+          "p99": 188.916,
+          "max": 286.583
+        },
+        "thread_cpu_us": {
+          "p50": 165.75,
+          "p99": 187.542,
+          "max": 258.834
+        },
+        "wall_deadline_misses": 0,
+        "thread_cpu_deadline_misses": 0
+      },
+      {
+        "run": "before-2",
+        "oversampling": 4,
+        "wall_us": {
+          "p50": 325.375,
+          "p95": 350.25,
+          "p99": 377.417,
+          "max": 510.292
+        },
+        "thread_cpu_us": {
+          "p50": 325.542,
+          "p99": 370.041,
+          "max": 454.625
+        },
+        "wall_deadline_misses": 0,
+        "thread_cpu_deadline_misses": 0
+      },
+      {
+        "run": "before-2",
+        "oversampling": 8,
+        "wall_us": {
+          "p50": 648.125,
+          "p95": 717.0,
+          "p99": 768.458,
+          "max": 1627.29
+        },
+        "thread_cpu_us": {
+          "p50": 648.166,
+          "p99": 741.625,
+          "max": 906.084
+        },
+        "wall_deadline_misses": 1,
+        "thread_cpu_deadline_misses": 0
+      }
+    ],
+    "interpretation": "Default 2x and 4x had zero charged-thread deadline misses before and after. Medians are comparable. Optional 8x had 9 charged-thread misses after and 0 before; cause unresolved, and no claim that 8x is realtime-safe or unaffected by the change. Wall-time misses also occurred; all observations retained."
+  },
+  "evidence_sha256": {
+    "all-contracts.txt": "d6e8e30ae058313d0616478fb6d26cabd03706c0df27a96d93d021ba5c9f69a8",
+    "strike-variance-contract.txt": "444d480bbb60525cff9e72c217835f05bde66bc592be39cd21ea9aebacf1a9c1",
+    "strike-variance-negative-control.txt": "196af4e6b70ac7d42146cf247d817fa8215df2bc4dd3c14b477ccc3e90ac38f8",
+    "comparison-report.json": "8bf72edfcbb808dd296276221c913550537464fe56deb9d62587515624bba6ac",
+    "cpu-after-1.txt": "cbabb6e1a88dfd9a64619b9268fcce044583d7327a4e0099bceacf4a310d0130",
+    "cpu-after-2.txt": "64dfc32eb189ad5f0b7cfa8e26eb22db8f974f90e531cdd24e81088e6acf8b61",
+    "cpu-before-1.txt": "398ece0af0c36f9561eb469d63b6f95b051128700053cebc69700786de293875",
+    "cpu-before-2.txt": "b9c34c654f402f3d33e8ebb28f8ebe2437bc5bfdd5e3426e2c1374e255cb031e"
+  },
+  "evidence_directory": "Release/validation/variance-smooth",
+  "release_status": "Source change only; existing 1.3.0f4 U45, release ZIP and showcase audio unchanged."
+}

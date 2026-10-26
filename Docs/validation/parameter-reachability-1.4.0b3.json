@@ -1,0 +1,93 @@
+{
+  "schema": 1,
+  "result": "pass",
+  "change": "All-model parameter reachability and dry support tension",
+  "source_sha256": {
+    "DSP/BuzzerRattle.h": "15aa428543421ed7c1ca76c58d147dbf33c54a77b03a79eb90f520a00cd9d368",
+    "DSP/MarembaEngine.h": "5e791a55da1f142c4dc4667f7fc157bd94f553243a7af71c14d0b90f5b89e120",
+    "DSP/MarembaVoice.h": "bbfedd6ebbf0bbada2c2908930283c3aad831005aa1c7e9fa118f9aefb4d38e5",
+    "DSP/MarembaVoice.cpp": "686c18a7eea91d8b0591e7ba8d7bdb2ac9217e8b5e9ceaa9ea6686f375921d17",
+    "Tests/ParameterReachabilityTest.cpp": "2524fe1ad82853dae19134920a1a3d72882d553cd031a2eea0658be52ff3a1f1",
+    "Tests/contracts.txt": "09859769f1cfddf42122060d91a2b3660dd3f19e9cf119a62f0f20cbd35956ea",
+    "docs/PARAMETER_MEANING.md": "d72f26b9c9fccc99b76eab072ad195396d6eb28b872bcd4805ed153098305231"
+  },
+  "sdk": "JukeboxSDK_500_028 TargetVersion=5.0",
+  "new_test": {
+    "control_model_context_comparisons": 172,
+    "all_active_engine_fields_covered": true,
+    "conditional_Buzz_context": "firm treble pick strokes for Kalimba",
+    "dry_Buzz_velocity_depth_identity": true,
+    "Tension_passivity_pitch_stability": true,
+    "baseline_negative_failures": 19,
+    "final_log": "reachability-passive.log"
+  },
+  "contracts": {
+    "main_dsp_suite": "pass",
+    "physics_behavior_contracts": 28,
+    "all_pass": true,
+    "fuzz_failures": 0,
+    "fuzz_seconds": 99.7
+  },
+  "neutral_audio": {
+    "scenarios": 8,
+    "outputs": 7,
+    "notes_per_scenario": 10,
+    "Carving": 1,
+    "Tension": 0.5,
+    "velocityToCarving": 0,
+    "velocityToTension": 0,
+    "before_after_bit_identical": true,
+    "sha256": "9d6e5e84b599e5e279d4f6f20e7388f586a3d554ac739021fe46eee9464a7e4f"
+  },
+  "performance": {
+    "scope": "native engine only; Recon remained open; not wrapper, host scheduling or target-chip evidence",
+    "rate": 48000,
+    "frames": 64,
+    "voices": 16,
+    "oversampling": 2,
+    "all_outputs": true,
+    "all_velocity_depths": 0.1,
+    "Buzz": 0,
+    "warmup_blocks": 256,
+    "measured_blocks_per_model": 4096,
+    "deadline_us": 1333.3333,
+    "updated_mean_thread_cpu_us": [
+      172.12467,
+      175.2791,
+      183.19947,
+      149.55966
+    ],
+    "updated_wall_misses": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "updated_thread_cpu_misses": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "baseline_wall_misses": [
+      0,
+      0,
+      3,
+      0
+    ],
+    "baseline_thread_cpu_misses": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "baseline_Balafon_max_wall_us": 2429,
+    "baseline_miss_cause": "not isolated; failed baseline wall gate retained",
+    "source_mean_cpu_increase_percent": [
+      4.917744,
+      6.942258,
+      6.151399,
+      1.83218
+    ]
+  }
+}

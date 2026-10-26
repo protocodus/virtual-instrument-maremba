@@ -1,0 +1,139 @@
+{
+  "recorded_at_utc": "2026-09-26T11:21:39.613194+00:00",
+  "baseline_commit": "615c4b4629a15479f8f0ed37794673f41a90e3a3",
+  "sdk": "JukeboxSDK_500_028 / TargetVersion=5.0",
+  "scope": "Kalimba Decay source voicing and native validation; installed Recon and packaged 1.4.0f1 unchanged.",
+  "calibration": {
+    "nominal_control_range": [
+      0.1,
+      8
+    ],
+    "natural_setting": 1,
+    "kalimba_physical_scale": "d <= 1 ? d : 1 + (d - 1) / 7",
+    "maximum_physical_sustain_multiple": 2,
+    "evaluated_after_additive_velocity_modulation": true,
+    "other_models_unchanged": true,
+    "saved_values_and_nominal_display_unchanged": true
+  },
+  "audio_measurement": {
+    "method": "Hann-windowed fundamental amplitude in dry close output; 60 dB decay inferred from amplitude loss between two windows, without room, Bloom, Sympathetic or optional VOL. This measures the pitched ring, not total silence of a wet preset.",
+    "sample_rate": 48000,
+    "oversampling": 2,
+    "velocity": 0.8,
+    "comparisons": [
+      {
+        "note": 48,
+        "nominal_decay": 1.0,
+        "before_t60_seconds": 5.986056695,
+        "after_t60_seconds": 5.986056695
+      },
+      {
+        "note": 48,
+        "nominal_decay": 8.0,
+        "before_t60_seconds": 47.888313748,
+        "after_t60_seconds": 11.972088634
+      },
+      {
+        "note": 60,
+        "nominal_decay": 1.0,
+        "before_t60_seconds": 5.268810836,
+        "after_t60_seconds": 5.268810836
+      },
+      {
+        "note": 60,
+        "nominal_decay": 8.0,
+        "before_t60_seconds": 42.150485931,
+        "after_t60_seconds": 10.53762605
+      },
+      {
+        "note": 84,
+        "nominal_decay": 1.0,
+        "before_t60_seconds": 0.648289331,
+        "after_t60_seconds": 0.648289331
+      },
+      {
+        "note": 84,
+        "nominal_decay": 8.0,
+        "before_t60_seconds": 5.186313685,
+        "after_t60_seconds": 1.29657842
+      }
+    ]
+  },
+  "identity_comparison": {
+    "render_count": 33,
+    "seconds_per_render": 0.4,
+    "outputs": 7,
+    "cases": "Three wooden models at .1/.5/1/4.05/8 nominal Decay and VOL 0/.5; Kalimba at .1/.5/1 and VOL0; note60 velocity.8.",
+    "bit_identical": true,
+    "raw_float_sha256": "a197bbcf2b3e05815a20c565e630d895c024f419b24f94cfa9030081e556fd7f"
+  },
+  "validation": {
+    "focused_contracts_passed": true,
+    "modal_cases": 4352,
+    "velocity_cases": 364,
+    "kalimba_decay_checks": 17686,
+    "maximum_factory_10_percent_vol_ratio": 1.11285714,
+    "existing_contracts": [
+      "PhysicalResponseTest",
+      "Round5ResponseTest",
+      "Round7BalafonKalimbaTest",
+      "VelocityRoutesTest",
+      "ParameterReachabilityTest",
+      "KalimbaExcitationBoundsTest",
+      "test_dsp",
+      "EngineFuzzTest",
+      "WrapperHostTest",
+      "AllPatchRenderTest"
+    ],
+    "fuzz_result": "PASSED: 0 failure(s) in 142.9 s",
+    "factory_patch_count": 20,
+    "factory_patch_rates": [
+      44100,
+      48000,
+      96000
+    ],
+    "metadata_and_patch_checks_passed": true,
+    "fixture_adjustment": "PhysicalResponseTest initially compared nominal2.5 to natural1; the deliberately smaller Kalimba range reduced that tail difference below its original2dB bound. Its Kalimba upper sample now uses full knob8; the2dB acceptance bound and wooden fixtures are unchanged. Original failed observations retained."
+  },
+  "performance": {
+    "scope": "Native engine only; no SDK target or live host claim. Two 4096-block workloads per revision at48kHz/64frames/16voices/2x and factory VOL depths: rolling phrase and16-note restrike bursts.",
+    "raw_measurements": {
+      "before": [
+        "48000Hz / 64 frames / 16 voices / model 3 / 2x / room 0 / 4096 blocks: wall_us p50=211.041 p95=226.75 p99=252.334 max=317.084; thread_cpu_us p50=211.208 p95=225.625 p99=238.041 max=293.792; deadline_misses wall=0 cpu=0",
+        "48000Hz / 64 frames / 16 voices / model 3 / 2x / room 0 / 16-note restrike burst every32 blocks / 4096 blocks: wall_us p50=233.125 p95=263.833 p99=290.833 max=338.417; thread_cpu_us p50=233.292 p95=256.417 p99=288.417 max=324.292; deadline_misses wall=0 cpu=0"
+      ],
+      "after": [
+        "48000Hz / 64 frames / 16 voices / model 3 / 2x / room 0 / 4096 blocks: wall_us p50=210.25 p95=235.792 p99=264.417 max=475.875; thread_cpu_us p50=210.375 p95=226.792 p99=241.666 max=367.875; deadline_misses wall=0 cpu=0",
+        "48000Hz / 64 frames / 16 voices / model 3 / 2x / room 0 / 16-note restrike burst every32 blocks / 4096 blocks: wall_us p50=233.208 p95=266.916 p99=287.292 max=365.625; thread_cpu_us p50=233.417 p95=257.041 p99=285.708 max=330.125; deadline_misses wall=0 cpu=0"
+      ]
+    },
+    "final_thread_cpu_deadline_misses": 0,
+    "final_wall_deadline_misses": 0
+  },
+  "delivery": {
+    "native_plugin_rebuilt": false,
+    "universal_archive_rebuilt": false,
+    "recon_updated": false
+  },
+  "raw_evidence_sha256": {
+    "heard-after.csv": "ca93e288dc583a98c1e471f49fb13bcbf9fca5cb5c81ed83f29a7fc6a26d8621",
+    "contracts-final.log": "e586578528627b8cf65d9bd4d24b787104af6cc6f8bfbaaf78709c65db61127e",
+    "contracts.log": "ee8ce0f1be20ea21020fa7898922fb9203f6433014be6225bdd0597243894a9b",
+    "heard-before.csv": "1f39ebf7eba9aed082de2e450a242dfdaaaf874385181d76cb21794b9955c667",
+    "kalimba-decay-contract.log": "d7772b49f10d34731573d95b20737e188fdc44dbfbb4bb54fcfbb7cc00dc26bb",
+    "performance-before.log": "ba2d00364806d3cd98e1cd15578b1c8e003d6955813ef7a2f56d7cd28c275a88",
+    "performance-after.log": "d51e0f67ee956faad9c37343a6007cd36d2e6bb9ac6194b9134585c58512842c"
+  },
+  "changed_source_sha256": {
+    "Examples/Maremba/DSP/MarembaEngine.h": "9270fd8c7c2d9b89bb25d4f26cbf5939935055266b1af4b36a265172399a659d",
+    "Examples/Maremba/DSP/MarembaVoice.cpp": "c3459cfc229be82f82b8fe410ddc89e809f075c4ad4faa5c0023442f79778150",
+    "Examples/Maremba/README.md": "bd7d43bf4aba69644076192bec0f1e7aaf30f439afb9e8742ad9f5e5911fc4ec",
+    "Examples/Maremba/Tests/PhysicalResponseTest.cpp": "f6535fe51bd154a714ff59bf3a148891e051f4446b881b585b39933868c04b0f",
+    "Examples/Maremba/Tests/contracts.txt": "954f92eab527fdc0086802de9ef09f382c482b7ad0a7497f917a2542a5a70c3b",
+    "Examples/Maremba/docs/PARAMETER_MEANING.md": "7db6617de5d491c1cb1f38efdc7cecb48070a848e93d5ba9ae19e14dc029ec4d",
+    "Examples/Maremba/docs/USER_GUIDE.md": "aee43ff40bc8b3d23229326f4eb84697ce7e709c98a2619ea67bced11bc94515",
+    "Examples/Maremba/docs/VELOCITY_DEPTHS.md": "7911089cb18c85ce058768d0c4a1fe21fc0ebf8008e68ccd2ae849455f2498a6",
+    "Examples/Maremba/motherboard_def.lua": "aae64a80439db88cf9065ddff39028aa6369901b297b34075e69a08f7670e118",
+    "Examples/Maremba/Tests/KalimbaDecayTest.cpp": "2a0d60472dd8e5571627d4a96f33d82f8ee809c4116bef147a26fa1870e0f29a"
+  }
+}

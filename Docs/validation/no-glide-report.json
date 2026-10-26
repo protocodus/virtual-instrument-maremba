@@ -1,0 +1,59 @@
+{
+  "release": "1.2.1f1",
+  "baseline_revision": "1345fd59d0f2f9c0c7fbed48997bfab627080ccf",
+  "source_sha256": {
+    "DSP/AcousticRoom.h": "16ccb9f656b7f604bf5a9445ee416a337af9ccc9355ce84c4e1fb6e5fe7f3953",
+    "DSP/AnalogPreamp.h": "96dfba04a09894334985bc20e6d300c7ea3fd336f3dfdcfb074ddf8a8c83716a",
+    "DSP/Compressor.h": "b977ef1462c5aade127481963a2b4a8dc65270ccd88e54930c0b1e802cacbff3",
+    "DSP/ContactExcitation.h": "cac875971f3188d7536f8a8fc78a591beeef33b8b849ee803198b0730a1b2725",
+    "DSP/DspMath.h": "14207a2b4641f31b72da94759f4933e308840409a4b88e44d2281409df498b5e",
+    "DSP/FrameBody.h": "927eebbaa27a465b94759cac38eb45414d26730d03992cde112468e8962df0b1",
+    "DSP/MarembaEngine.cpp": "e42b4450cabb19aa545078cb8676450bdb7cf6f883bff2a3596d16bd6d443476",
+    "DSP/MarembaEngine.h": "87da1fa87c53e332a33daf1e2f8b666c2b0ca266401db827287165ba45477e3a",
+    "DSP/MarembaVoice.cpp": "e1f2ed0105e993225c01f0c93c6c2fe1020024f29b8418214fb024e351305f3d",
+    "DSP/MarembaVoice.h": "11c5a518576392d8b334a028e5651435bc6fb1a3e108abcfef9133ec14b30a50",
+    "DSP/MarimbaModel.h": "10f32e90e8f980cbd2d7265d9022b25971e9cc150b9d19b8df860b0244779e62",
+    "DSP/MicMixer.h": "b06fc45ca4a56e67e4c1a8ccb66a3561d2d7de9560e5090b47a293600f688a62",
+    "DSP/ModalExcitation.h": "fea245afd29bed32dbbc957ee008e59c3b328468cb6ec8cb4b78f7c4a5eb0437",
+    "DSP/Oversampler.h": "ea1acddef65086501ec8519732fd52437e7795946d9bbdd35ccaec7b83f0e145",
+    "DSP/RandomArtifacts.h": "3b3d6b2cc5021fc789888b990f4840265bb01b48b30b4d9adffcd9825ccabdce",
+    "DSP/SympatheticMesh.h": "752a48c56b66dbf17cbeec7628a3cece76a9f8a87a0619000414548d4b397b06",
+    "Maremba.cpp": "aa640ab7b9e5696e89789782804164185d42d1134802011ff219d0deaca81a51",
+    "Maremba.h": "f046a3eae9947104959ba766cfa31059c046db140369b40c44adf7df1c190b1d",
+    "Tests/WrapperHostTest.cpp": "672321b6341fde0cd1aa26fbddd551ddc4b5126c455fd45e988edf1a3070272f",
+    "Tests/test_dsp.cpp": "3201b9c72f4bfdd41308e0fda778c87ad6db3e970d73ef2b0cea561551b5da5d"
+  },
+  "zero_glide_before_after": {
+    "baseline": {
+      "bytes": 8257536,
+      "sha256": "00144bc63b4d52e375a0e8bd409fcacb2d2e6b81d601b04ac798810349a5164e"
+    },
+    "current": {
+      "bytes": 8257536,
+      "sha256": "00144bc63b4d52e375a0e8bd409fcacb2d2e6b81d601b04ac798810349a5164e"
+    },
+    "bit_identical": true,
+    "scope": "Glide0; all4models;44.1/48/96kHz;2x/4x/8x;all7outputs;new pitches,restrikes,pitch bend,master tune"
+  },
+  "onset_pitch_error_max_cents": 0.18951,
+  "onset_window_ms": [
+    4,
+    24
+  ],
+  "legacy_values_tested": [
+    0,
+    0.3,
+    1
+  ],
+  "wrapper_scope": "Saved values and mid-note automation compared with a no-automation baseline; all seven outputs bit-identical. Stored host value .66 preserved.",
+  "dsp_suite": "pass",
+  "wrapper_suite": "pass",
+  "cpu_environment": "Apple M1 Max arm64, Apple clang 21.0.0, -O3, 48kHz,16voices,64frames,4096blocks",
+  "cpu_deadline_us": 1333.3333333333333,
+  "cpu_benchmark": [
+    "48000 Hz, 64 frames, 16 voices, 2x; 4096 blocks; wall us p50=64.625 p95=72.875 p99=89.625 max=167; CPU us p50=64.792 p99=82.041 max=146.541; deadline misses wall=0 CPU=0",
+    "48000 Hz, 64 frames, 16 voices, 4x; 4096 blocks; wall us p50=127.542 p95=141.208 p99=164.833 max=241.5; CPU us p50=127.708 p99=151.25 max=217.75; deadline misses wall=0 CPU=0",
+    "48000 Hz, 64 frames, 16 voices, 8x; 4096 blocks; wall us p50=253.541 p95=280.75 p99=346.542 max=400.042; CPU us p50=253.708 p99=328.5 max=363.125; deadline misses wall=0 CPU=0"
+  ],
+  "limits": "Native engine timing, not performance measured inside Reason. Tests are bounded probes, not acoustic equivalence evidence."
+}

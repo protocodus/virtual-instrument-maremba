@@ -1,0 +1,47 @@
+TREBLE model=0 note=72 attack_hf_growth_db=0.249553 gain_fit_temporal_residual=0.263996
+TREBLE model=0 note=96 attack_hf_growth_db=0.0479116 gain_fit_temporal_residual=0.240282
+TREBLE model=1 note=72 attack_hf_growth_db=0.253874 gain_fit_temporal_residual=0.263952
+TREBLE model=1 note=96 attack_hf_growth_db=0.0479387 gain_fit_temporal_residual=0.240233
+TREBLE model=2 note=72 attack_hf_growth_db=0.258248 gain_fit_temporal_residual=0.263919
+TREBLE model=2 note=96 attack_hf_growth_db=0.0499867 gain_fit_temporal_residual=0.239998
+NOISE model=0 striker=0 note=48 normalized_attack_growth_db=2.16744
+NOISE model=0 striker=0 note=60 normalized_attack_growth_db=1.12532
+NOISE model=0 striker=1 note=48 normalized_attack_growth_db=4.59298
+NOISE model=0 striker=1 note=60 normalized_attack_growth_db=1.00865
+NOISE model=0 striker=2 note=48 normalized_attack_growth_db=8.70146
+NOISE model=0 striker=2 note=60 normalized_attack_growth_db=3.67796
+NOISE model=0 striker=3 note=48 normalized_attack_growth_db=6.45983
+NOISE model=0 striker=3 note=60 normalized_attack_growth_db=8.63237
+NOISE model=1 striker=0 note=48 normalized_attack_growth_db=2.19044
+NOISE model=1 striker=0 note=60 normalized_attack_growth_db=1.13538
+NOISE model=1 striker=1 note=48 normalized_attack_growth_db=5.00836
+NOISE model=1 striker=1 note=60 normalized_attack_growth_db=1.04627
+NOISE model=1 striker=2 note=48 normalized_attack_growth_db=8.93646
+NOISE model=1 striker=2 note=60 normalized_attack_growth_db=3.96376
+NOISE model=1 striker=3 note=48 normalized_attack_growth_db=6.36277
+NOISE model=1 striker=3 note=60 normalized_attack_growth_db=8.92513
+NOISE model=2 striker=0 note=48 normalized_attack_growth_db=2.18918
+NOISE model=2 striker=0 note=60 normalized_attack_growth_db=1.13003
+NOISE model=2 striker=1 note=48 normalized_attack_growth_db=5.52996
+NOISE model=2 striker=1 note=60 normalized_attack_growth_db=1.1263
+NOISE model=2 striker=2 note=48 normalized_attack_growth_db=9.08787
+NOISE model=2 striker=2 note=60 normalized_attack_growth_db=4.09092
+NOISE model=2 striker=3 note=48 normalized_attack_growth_db=6.39621
+NOISE model=2 striker=3 note=60 normalized_attack_growth_db=8.88238
+NOISE model=3 striker=0 note=48 normalized_attack_growth_db=1.86267
+NOISE model=3 striker=0 note=60 normalized_attack_growth_db=0.671747
+NOISE model=3 striker=1 note=48 normalized_attack_growth_db=4.73914
+NOISE model=3 striker=1 note=60 normalized_attack_growth_db=1.84336
+NOISE model=3 striker=2 note=48 normalized_attack_growth_db=7.11544
+NOISE model=3 striker=2 note=60 normalized_attack_growth_db=3.17714
+NOISE model=3 striker=3 note=48 normalized_attack_growth_db=5.98743
+NOISE model=3 striker=3 note=60 normalized_attack_growth_db=3.78648
+RESTRIKE model=0 fundamental_node_protection_db=8.68285 odd_center_protection_db=7.35693
+RESTRIKE model=1 fundamental_node_protection_db=8.66752 odd_center_protection_db=7.33741
+RESTRIKE model=2 fundamental_node_protection_db=8.65716 odd_center_protection_db=7.31397
+PARITY model=0 center_second_mode_db=-105.925 node_fundamental_db=-53.9017
+PARITY model=1 center_second_mode_db=-100.023 node_fundamental_db=-53.9016
+PARITY model=2 center_second_mode_db=-94.1246 node_fundamental_db=-53.9015
+SUMMARY min_velocity_step_db=3.12251 min_dynamic_range_db=50.4104 worst_close_far_mix_loss_db=-0.00314876 max_rate_ring_error_db=0.0108135 reversed_attack_brightness_cases=0 tine_tip_gain_db=4.9686
+CONTACT min_C5_brightness_growth_db=0.249553 min_C7_brightness_growth_db=0.0479116 min_treble_temporal_residual=0.239998 min_normalized_noise_growth_db=0.671747 min_restrike_node_protection_db=8.65716 min_restrike_odd_protection_db=7.31397
+TouchResponseTest PASSED failures=0 elapsed_sec=0.374454

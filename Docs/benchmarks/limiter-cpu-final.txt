@@ -1,0 +1,14 @@
+Maremba analog limiter final CPU probe
+UTC: 2026-09-20T10:33:47.057370+00:00
+Machine: macOS-26.5.1-arm64-arm-64bit
+Binary SHA256: 3579f044809be828387197f5d99c858b19caec1a93a88358b853f31d06ff8854
+Command: Tests/test_dsp --benchmark
+EngineParameters defaults, including amount0.25; defaultquality2x. Native engine only, not Reason/Recon or target-chip evidence.
+Quiet interval after native and sanitizer suites; A/B agent instructed to hold compilation/rendering. 4096 measured64-frame blocks,48kHz,16voices,256warmup blocks. Deadline1333.333us.
+
+48000 Hz, 64 frames, 16 voices, 2x; 4096 blocks; wall us p50=61.75 p95=69.5 p99=83.667 max=171.958; CPU us p50=61.875 p99=79.167 max=151.292; deadline misses wall=0 CPU=0
+48000 Hz, 64 frames, 16 voices, 4x; 4096 blocks; wall us p50=120.958 p95=134.666 p99=160.792 max=237.709; CPU us p50=121.125 p99=147 max=215.209; deadline misses wall=0 CPU=0
+48000 Hz, 64 frames, 16 voices, 8x; 4096 blocks; wall us p50=238.542 p95=261.916 p99=325.5 max=381.5; CPU us p50=238.708 p99=306.292 max=354.458; deadline misses wall=0 CPU=0
+
+Exit code: 0
+Elapsed wall seconds: 1.876

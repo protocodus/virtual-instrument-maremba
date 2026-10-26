@@ -1,0 +1,53 @@
+TREBLE model=0 note=72 attack_hf_growth_db=-0.0188683 gain_fit_temporal_residual=2.85468e-05
+TREBLE model=0 note=96 attack_hf_growth_db=-0.00581879 gain_fit_temporal_residual=2.02411e-05
+TREBLE model=1 note=72 attack_hf_growth_db=-0.0232903 gain_fit_temporal_residual=4.24846e-05
+TREBLE model=1 note=96 attack_hf_growth_db=-0.00743628 gain_fit_temporal_residual=3.05246e-05
+TREBLE model=2 note=72 attack_hf_growth_db=-0.0267459 gain_fit_temporal_residual=5.41167e-05
+TREBLE model=2 note=96 attack_hf_growth_db=-0.00914469 gain_fit_temporal_residual=3.86859e-05
+NOISE model=0 striker=0 note=48 normalized_attack_growth_db=0.704807
+NOISE model=0 striker=0 note=60 normalized_attack_growth_db=0.756393
+NOISE model=0 striker=1 note=48 normalized_attack_growth_db=-7.77048
+NOISE model=0 striker=1 note=60 normalized_attack_growth_db=-3.50171
+NOISE model=0 striker=2 note=48 normalized_attack_growth_db=-7.58677
+NOISE model=0 striker=2 note=60 normalized_attack_growth_db=-5.34784
+NOISE model=0 striker=3 note=48 normalized_attack_growth_db=-7.16568
+NOISE model=0 striker=3 note=60 normalized_attack_growth_db=-2.26444
+NOISE model=1 striker=0 note=48 normalized_attack_growth_db=0.56608
+NOISE model=1 striker=0 note=60 normalized_attack_growth_db=0.745641
+NOISE model=1 striker=1 note=48 normalized_attack_growth_db=-7.85459
+NOISE model=1 striker=1 note=60 normalized_attack_growth_db=-3.79273
+NOISE model=1 striker=2 note=48 normalized_attack_growth_db=-7.52203
+NOISE model=1 striker=2 note=60 normalized_attack_growth_db=-5.59816
+NOISE model=1 striker=3 note=48 normalized_attack_growth_db=-7.06913
+NOISE model=1 striker=3 note=60 normalized_attack_growth_db=-2.28828
+NOISE model=2 striker=0 note=48 normalized_attack_growth_db=0.266382
+NOISE model=2 striker=0 note=60 normalized_attack_growth_db=0.689653
+NOISE model=2 striker=1 note=48 normalized_attack_growth_db=-8.12605
+NOISE model=2 striker=1 note=60 normalized_attack_growth_db=-4.42603
+NOISE model=2 striker=2 note=48 normalized_attack_growth_db=-7.67025
+NOISE model=2 striker=2 note=60 normalized_attack_growth_db=-6.2521
+NOISE model=2 striker=3 note=48 normalized_attack_growth_db=-7.29361
+NOISE model=2 striker=3 note=60 normalized_attack_growth_db=-3.12564
+NOISE model=3 striker=0 note=48 normalized_attack_growth_db=-4.78665
+NOISE model=3 striker=0 note=60 normalized_attack_growth_db=-0.920449
+NOISE model=3 striker=1 note=48 normalized_attack_growth_db=-8.63447
+NOISE model=3 striker=1 note=60 normalized_attack_growth_db=-4.11906
+NOISE model=3 striker=2 note=48 normalized_attack_growth_db=-9.98379
+NOISE model=3 striker=2 note=60 normalized_attack_growth_db=-7.09745
+NOISE model=3 striker=3 note=48 normalized_attack_growth_db=-10.8309
+NOISE model=3 striker=3 note=60 normalized_attack_growth_db=-7.609
+RESTRIKE model=0 fundamental_node_protection_db=-1.40145 odd_center_protection_db=-0.050963
+RESTRIKE model=1 fundamental_node_protection_db=-1.4218 odd_center_protection_db=-0.0592935
+RESTRIKE model=2 fundamental_node_protection_db=-1.43546 odd_center_protection_db=-0.0693351
+PARITY model=0 center_second_mode_db=-104.713 node_fundamental_db=-54.7205
+PARITY model=1 center_second_mode_db=-98.8333 node_fundamental_db=-54.7204
+PARITY model=2 center_second_mode_db=-92.9273 node_fundamental_db=-54.7204
+SUMMARY min_velocity_step_db=3.0691 min_dynamic_range_db=50.8946 worst_close_far_mix_loss_db=-0.0468179 max_rate_ring_error_db=0.101771 reversed_attack_brightness_cases=29 tine_tip_gain_db=4.96818
+CONTACT min_C5_brightness_growth_db=-0.0267459 min_C7_brightness_growth_db=-0.00914469 min_treble_temporal_residual=2.02411e-05 min_normalized_noise_growth_db=-10.8309 min_restrike_node_protection_db=-1.43546 min_restrike_odd_protection_db=-0.0693351
+FAIL soft C5 velocity changes gain without meaningful spectral response
+FAIL soft treble attack is only a gain-scaled waveform
+FAIL quiet controlled strikes are disproportionately noisy relative to their ring
+FAIL restrike at a fundamental node damps the ring like an antinode
+FAIL center restrike damps an antisymmetric mode like an off-center strike
+TouchResponseTest FAILED failures=5 elapsed_sec=0.371936
+Expected negative-control exit status: 1

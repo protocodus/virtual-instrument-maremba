@@ -1,0 +1,17 @@
+{
+  "AcousticRoom.h": "16ccb9f656b7f604bf5a9445ee416a337af9ccc9355ce84c4e1fb6e5fe7f3953",
+  "AnalogPreamp.h": "96dfba04a09894334985bc20e6d300c7ea3fd336f3dfdcfb074ddf8a8c83716a",
+  "Compressor.h": "b977ef1462c5aade127481963a2b4a8dc65270ccd88e54930c0b1e802cacbff3",
+  "DspMath.h": "14207a2b4641f31b72da94759f4933e308840409a4b88e44d2281409df498b5e",
+  "FrameBody.h": "927eebbaa27a465b94759cac38eb45414d26730d03992cde112468e8962df0b1",
+  "MarembaEngine.cpp": "cc848d11dcccc83ae5e236daa8a5b4fb6c780d02a169faef1d27b409c93dcc97",
+  "MarembaEngine.h": "8485282742fefccfc9703e916e4979d644d487eac57791237c396cdc0b18ef9c",
+  "MarembaVoice.cpp": "4f50f195421593a728ef8a2aff622f7e75a9fbab3db5deffa2138ed678517b16",
+  "MarembaVoice.h": "3ff31c8f21ec2cc64aa70a3016a957e7b0b9ba75b6651f1936d55b59ce6afaa6",
+  "MarimbaModel.h": "de5c44727233906e67480e7d834c476748db3b62368f665d5099ce3b6c8f9917",
+  "MicMixer.h": "b06fc45ca4a56e67e4c1a8ccb66a3561d2d7de9560e5090b47a293600f688a62",
+  "ModalExcitation.h": "46a5c07d6a167d555b78c3d844276af9e3633ac6a659eab19d1c8c872780b920",
+  "Oversampler.h": "ea1acddef65086501ec8519732fd52437e7795946d9bbdd35ccaec7b83f0e145",
+  "RandomArtifacts.h": "3b3d6b2cc5021fc789888b990f4840265bb01b48b30b4d9adffcd9825ccabdce",
+  "SympatheticMesh.h": "752a48c56b66dbf17cbeec7628a3cece76a9f8a87a0619000414548d4b397b06"
+}

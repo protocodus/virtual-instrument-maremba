@@ -93,7 +93,7 @@ public:
     // Calibration of the direct outputs: a capture's fixed gain is its trim times
     // CaptureScene::kMasterMixScale. Volume, the Level knobs, Drive, Width, Warmth and
     // Limit shape Main only and never reach a direct output. The calibration and
-    // its evidence are in MarembaEngine.cpp and the Rack device's Docs/research/output-level.md.
+    // its evidence are in MarembaEngine.cpp and Docs/research/output-level.md.
     static constexpr float kCloseStemTrim = 0.28f;
     static constexpr float kRoomStemTrim = 0.385f;
     // The clean wooden pickup needs 6.02 dB more peak margin after removal of
