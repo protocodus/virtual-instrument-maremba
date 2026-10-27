@@ -26,9 +26,10 @@ int main(int argc, char** argv) {
     protocodus::demos::Instrument instrument;
     instrument.name = "Maremba";
     for (const auto& preset : maremba::kFactoryPresets) instrument.presets.emplace_back(preset.name);
-    // U7 perf budget: 0 reports without failing until the CI runner's median
-    // is measured.
-    instrument.cpuBudget = 0.0;
+    // U7 perf budget: about 3x the slowest demo's median realtime factor on
+    // the CI runner, 0.320 (01-ambient-cathedral-bloom) in ci.yml run 45
+    // (ubuntu-24.04, AMD EPYC 9V74, three repeats), 2026-10-27.
+    instrument.cpuBudget = 1.0;
     instrument.open = [](std::size_t preset, double rate, int, std::uint32_t) {
         return std::make_unique<MarembaVoice>(preset, rate);
     };
