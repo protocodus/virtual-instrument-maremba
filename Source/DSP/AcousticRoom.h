@@ -425,7 +425,7 @@ private:
         const double wp2 = warped(kLowShelfHz);
         auto loss = [&](double t60) { return std::pow(10.0, -6.0 * seconds / t60); }; // power per pass
         const double t1 = loss(p.t125), t2 = loss(p.t500), t3 = loss(p.t4k), t4 = loss(p.t10k);
-        double g2 = t2, z2 = wp2, a2 = 0.0, b2 = 0.0;
+        double g2, z2 = wp2, a2 = 0.0, b2 = 0.0;
         auto high = [&](double w) { return (1.0 + w * a2) / (1.0 + w * b2); };
         auto low = [&](double w) { return (w + z2) / (w + wp2); };
         for (int round = 0; round < 4; ++round) {

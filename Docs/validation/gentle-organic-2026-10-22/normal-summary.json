@@ -1,0 +1,99 @@
+{
+  "version": "1.5.7d1",
+  "scope": "Preset-only; Source/DSP unchanged from preceding canonical c3cfa3e.",
+  "normal_reference": "MIDI60 alone /60+64, velocity100, Linear,1x;150ms hold,2s observed;equal-power mean max300ms stereoRMS.",
+  "factory_targets": {
+    "default": -22.2,
+    "Direct Piezo Mallet": -22.6
+  },
+  "rates": {
+    "44100": {
+      "minimum_dbfs": -22.609409833535913,
+      "maximum_dbfs": -22.092047271309315,
+      "spread_db": 0.517362562226598,
+      "scores": {
+        "Ambient Cathedral Bloom.repatch": -22.20522932891936,
+        "Ancestral Balafon.repatch": -22.160922494606318,
+        "Birifor Gyil Buzz.repatch": -22.16322249895811,
+        "Chiapas Folk Fiesta.repatch": -22.1983273438163,
+        "Chopi Timbila Ensemble.repatch": -22.147055150201446,
+        "Concert Grand Rosewood.repatch": -22.337855871702473,
+        "Direct Piezo Mallet.repatch": -22.609409833535913,
+        "Equipentatonic Log Keys.repatch": -22.408849534645817,
+        "Guatemalan Charleo.repatch": -22.146869967069712,
+        "Hard Acrylic Virtuoso.repatch": -22.191941534037788,
+        "Kalimba Muted Thumbs.repatch": -22.317527537255888,
+        "Kalimba Pick Sparkle.repatch": -22.220996397467193,
+        "Kalimba Thumb Lullaby.repatch": -22.34709090608807,
+        "Mandinka Bala Heptatonic.repatch": -22.161942589718656,
+        "Mayan Dance Padauk.repatch": -22.092047271309315,
+        "Midnight Village Ritual.repatch": -22.20310736321487,
+        "Rosewood Dampened Etude.repatch": -22.352547998122752,
+        "Rosewood Roll Chorale.repatch": -22.20777175803086,
+        "Sambla Talking Balafon.repatch": -22.153775603542968,
+        "Soft Yarn Nocturne.repatch": -22.236380019409378
+      }
+    },
+    "48000": {
+      "minimum_dbfs": -22.599999760955825,
+      "maximum_dbfs": -22.091042083283988,
+      "spread_db": 0.5089576776718374,
+      "scores": {
+        "Ambient Cathedral Bloom.repatch": -22.199999511545457,
+        "Ancestral Balafon.repatch": -22.164336928062816,
+        "Birifor Gyil Buzz.repatch": -22.166015713881922,
+        "Chiapas Folk Fiesta.repatch": -22.200000546153213,
+        "Chopi Timbila Ensemble.repatch": -22.147701677339896,
+        "Concert Grand Rosewood.repatch": -22.33837624471053,
+        "Direct Piezo Mallet.repatch": -22.599999760955825,
+        "Equipentatonic Log Keys.repatch": -22.405364106822606,
+        "Guatemalan Charleo.repatch": -22.146792944968006,
+        "Hard Acrylic Virtuoso.repatch": -22.199998453410675,
+        "Kalimba Muted Thumbs.repatch": -22.28504551380423,
+        "Kalimba Pick Sparkle.repatch": -22.194337953627688,
+        "Kalimba Thumb Lullaby.repatch": -22.31902216894119,
+        "Mandinka Bala Heptatonic.repatch": -22.162534483642325,
+        "Mayan Dance Padauk.repatch": -22.091042083283988,
+        "Midnight Village Ritual.repatch": -22.19999896139642,
+        "Rosewood Dampened Etude.repatch": -22.35262024551629,
+        "Rosewood Roll Chorale.repatch": -22.202833356517097,
+        "Sambla Talking Balafon.repatch": -22.155613229020204,
+        "Soft Yarn Nocturne.repatch": -22.232251414494186
+      }
+    },
+    "96000": {
+      "minimum_dbfs": -22.64455144301904,
+      "maximum_dbfs": -22.005244461566242,
+      "spread_db": 0.6393069814527976,
+      "scores": {
+        "Ambient Cathedral Bloom.repatch": -22.176371910293028,
+        "Ancestral Balafon.repatch": -22.170753454864034,
+        "Birifor Gyil Buzz.repatch": -22.171136646664237,
+        "Chiapas Folk Fiesta.repatch": -22.20132505552587,
+        "Chopi Timbila Ensemble.repatch": -22.154125963846546,
+        "Concert Grand Rosewood.repatch": -22.335775331739445,
+        "Direct Piezo Mallet.repatch": -22.64455144301904,
+        "Equipentatonic Log Keys.repatch": -22.005244461566242,
+        "Guatemalan Charleo.repatch": -22.14458547340669,
+        "Hard Acrylic Virtuoso.repatch": -22.23139486555176,
+        "Kalimba Muted Thumbs.repatch": -22.097242268503518,
+        "Kalimba Pick Sparkle.repatch": -22.039250454686602,
+        "Kalimba Thumb Lullaby.repatch": -22.129122764003135,
+        "Mandinka Bala Heptatonic.repatch": -22.171769880418427,
+        "Mayan Dance Padauk.repatch": -22.083449983164364,
+        "Midnight Village Ritual.repatch": -22.191775750772646,
+        "Rosewood Dampened Etude.repatch": -22.350512586890222,
+        "Rosewood Roll Chorale.repatch": -22.171861272198626,
+        "Sambla Talking Balafon.repatch": -22.165606388895146,
+        "Soft Yarn Nocturne.repatch": -22.20025169670098
+      }
+    }
+  },
+  "all_rows": 126,
+  "maximum_main_gr_db": 1.207703,
+  "maximum_main_energy_loss_db": 0.742304,
+  "maximum_main_over1_longest_ms": 42.222222,
+  "maximum_main_peak_dbfs": -1.116404,
+  "all_other_reduction_zero": true,
+  "zero_nonfinite_safety_resets": true
+}

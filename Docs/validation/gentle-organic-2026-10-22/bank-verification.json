@@ -1,0 +1,1856 @@
+{
+  "schema": 1,
+  "valid": true,
+  "applied": false,
+  "target_rms_dbfs": -22.2,
+  "rms_tolerance_db": 0.35,
+  "verify_existing": true,
+  "existing_bank_verified": true,
+  "rms_reference_exceptions": {
+    "Direct Piezo Mallet.repatch": -22.6
+  },
+  "allow_gentle_main": true,
+  "gentle_main_bounds": {
+    "main_guard_gr_max_db": 3.0,
+    "main_guard_energy_loss_db": 2.0,
+    "main_guard_over_1db_longest_ms": 100.0
+  },
+  "projected_raw_main_peak_limit_dbfs": 1.9999999986965524,
+  "projection_limitation": "Opt-in projections allow up to 3 dB raw Main excess, but cannot predict protected RMS; fresh actual RMS and gentle-Main verification remain mandatory",
+  "metric": "10*log10(mean powers of the two maximum 300ms rectangular stereo-RMS windows); NOT actual Reason VU",
+  "anchor_rate": 48000,
+  "peak_ceiling_dbfs": -1.0000000013034476,
+  "maximum_common_no_guard_target_dbfs": -23.613067108126057,
+  "fresh_wrapper_verification_required": true,
+  "issues": [],
+  "presets": [
+    {
+      "patch": "Ambient Cathedral Bloom.repatch",
+      "reference_target_dbfs": -22.2,
+      "source_path": "Resources/Public/Ambient Cathedral Bloom.repatch",
+      "source_sha256": "e449fc687d2f5adcc115cb86dedcf4ee39772e9bb08ff9775c0056ccf9d1556f",
+      "old_volume": 0.88236296,
+      "proposed_volume": 0.88236294,
+      "old_gain": 1.1022485977382257,
+      "required_gain": 1.1022485357528284,
+      "gain_delta_db": -6.365733430758586e-07,
+      "volume_reachable": true,
+      "maximum_no_guard_target_dbfs": -16.001940249252513,
+      "projections": [
+        {
+          "sample_rate": 44100,
+          "baseline_metric_dbfs": -22.20522932891936,
+          "projected_metric_dbfs": -22.205229965492702,
+          "observed_target_error_db": -0.005229328919359233,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -0.005229965492702604,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -10.961265636573343,
+          "projected_detector_peak_dbfs": -10.960980636573343,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.479121636573343,
+              "projected_full_rms_dbfs": -30.794319636573345
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.720419636573343,
+              "projected_full_rms_dbfs": -27.153201636573343
+            }
+          ]
+        },
+        {
+          "sample_rate": 48000,
+          "baseline_metric_dbfs": -22.199999511545457,
+          "projected_metric_dbfs": -22.2000001481188,
+          "observed_target_error_db": 4.884545425909437e-07,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -1.4811880078013928e-07,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -10.944066636573343,
+          "projected_detector_peak_dbfs": -10.940589636573343,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.465295636573344,
+              "projected_full_rms_dbfs": -30.778568636573343
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.718812636573343,
+              "projected_full_rms_dbfs": -27.149477636573344
+            }
+          ]
+        },
+        {
+          "sample_rate": 96000,
+          "baseline_metric_dbfs": -22.176371910293028,
+          "projected_metric_dbfs": -22.17637254686637,
+          "observed_target_error_db": 0.023628089706971167,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 0.023627453133627796,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -10.944145636573344,
+          "projected_detector_peak_dbfs": -10.944127636573343,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.421540636573344,
+              "projected_full_rms_dbfs": -30.737695636573342
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.703707636573345,
+              "projected_full_rms_dbfs": -27.134442636573343
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "patch": "Ancestral Balafon.repatch",
+      "reference_target_dbfs": -22.2,
+      "source_path": "Resources/Public/Ancestral Balafon.repatch",
+      "source_sha256": "a1793683faf226f7dd3d6f46723cfd60b0c6337ccf749c45d2b225b1e4ed09e2",
+      "old_volume": 0.62586819,
+      "proposed_volume": 0.62458464,
+      "old_gain": 0.5421605415278563,
+      "required_gain": 0.5399390683326205,
+      "gain_delta_db": -0.03566316871153814,
+      "volume_reachable": true,
+      "maximum_no_guard_target_dbfs": -15.102275929366261,
+      "projections": [
+        {
+          "sample_rate": 44100,
+          "baseline_metric_dbfs": -22.160922494606318,
+          "projected_metric_dbfs": -22.196585663317855,
+          "observed_target_error_db": 0.03907750539368138,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 0.0034143366821446364,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -8.132739168711538,
+          "projected_detector_peak_dbfs": -8.131168168711538,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.479046168711537,
+              "projected_full_rms_dbfs": -32.650664168711536
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.708174168711537,
+              "projected_full_rms_dbfs": -28.909313168711538
+            }
+          ]
+        },
+        {
+          "sample_rate": 48000,
+          "baseline_metric_dbfs": -22.164336928062813,
+          "projected_metric_dbfs": -22.20000009677435,
+          "observed_target_error_db": 0.03566307193718643,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -9.677435031107962e-08,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -8.105692168711538,
+          "projected_detector_peak_dbfs": -8.097724168711538,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.480944168711538,
+              "projected_full_rms_dbfs": -32.64979316871154
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.712225168711537,
+              "projected_full_rms_dbfs": -28.910591168711537
+            }
+          ]
+        },
+        {
+          "sample_rate": 96000,
+          "baseline_metric_dbfs": -22.170753454864034,
+          "projected_metric_dbfs": -22.20641662357557,
+          "observed_target_error_db": 0.029246545135965363,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -0.0064166235755713785,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -8.10025316871154,
+          "projected_detector_peak_dbfs": -8.09990216871154,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.48804316871154,
+              "projected_full_rms_dbfs": -32.656898168711535
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.718355168711536,
+              "projected_full_rms_dbfs": -28.916732168711537
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "patch": "Birifor Gyil Buzz.repatch",
+      "reference_target_dbfs": -22.2,
+      "source_path": "Resources/Public/Birifor Gyil Buzz.repatch",
+      "source_sha256": "93e398264dca5b137fa9ac9d6e66cb5b1114dc4fa05a347ff1523a33e5160ce6",
+      "old_volume": 0.62606838,
+      "proposed_volume": 0.6248448,
+      "old_gain": 0.5425074275928367,
+      "required_gain": 0.5403889679112607,
+      "gain_delta_db": -0.033984402443813115,
+      "volume_reachable": true,
+      "maximum_no_guard_target_dbfs": -15.506858715185373,
+      "projections": [
+        {
+          "sample_rate": 44100,
+          "baseline_metric_dbfs": -22.163222498958113,
+          "projected_metric_dbfs": -22.197206901401927,
+          "observed_target_error_db": 0.03677750104188604,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 0.0027930985980724188,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -7.695656402443813,
+          "projected_detector_peak_dbfs": -7.693141402443813,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.481581402443812,
+              "projected_full_rms_dbfs": -32.64380140244381
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.707992402443814,
+              "projected_full_rms_dbfs": -28.903618402443815
+            }
+          ]
+        },
+        {
+          "sample_rate": 48000,
+          "baseline_metric_dbfs": -22.166015713881926,
+          "projected_metric_dbfs": -22.20000011632574,
+          "observed_target_error_db": 0.03398428611807347,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -1.1632574015152386e-07,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -7.702805402443813,
+          "projected_detector_peak_dbfs": -7.700595402443812,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.482425402443813,
+              "projected_full_rms_dbfs": -32.64189340244381
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.711603402443814,
+              "projected_full_rms_dbfs": -28.904460402443814
+            }
+          ]
+        },
+        {
+          "sample_rate": 96000,
+          "baseline_metric_dbfs": -22.171136646664234,
+          "projected_metric_dbfs": -22.205121049108048,
+          "observed_target_error_db": 0.028863353335765396,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -0.005121049108048226,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -7.706186402443813,
+          "projected_detector_peak_dbfs": -7.703495402443813,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.487989402443812,
+              "projected_full_rms_dbfs": -32.647459402443815
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.716538402443813,
+              "projected_full_rms_dbfs": -28.909386402443815
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "patch": "Chiapas Folk Fiesta.repatch",
+      "reference_target_dbfs": -22.2,
+      "source_path": "Resources/Public/Chiapas Folk Fiesta.repatch",
+      "source_sha256": "69788760cb7b86a7f7420c3f38986dc8267d787acb546b772269bf9519d3ad65",
+      "old_volume": 0.65422248,
+      "proposed_volume": 0.6542225,
+      "old_gain": 0.5923973056572326,
+      "required_gain": 0.5923973429061177,
+      "gain_delta_db": 5.310664041558688e-07,
+      "volume_reachable": true,
+      "maximum_no_guard_target_dbfs": -18.40143954745666,
+      "projections": [
+        {
+          "sample_rate": 44100,
+          "baseline_metric_dbfs": -22.198327343816302,
+          "projected_metric_dbfs": -22.198326812749897,
+          "observed_target_error_db": 0.0016726561836968301,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 0.001673187250101904,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -4.803495468933596,
+          "projected_detector_peak_dbfs": -4.798560468933596,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.151617468933594,
+              "projected_full_rms_dbfs": -32.35362846893359
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.855854468933593,
+              "projected_full_rms_dbfs": -29.075618468933595
+            }
+          ]
+        },
+        {
+          "sample_rate": 48000,
+          "baseline_metric_dbfs": -22.200000546153216,
+          "projected_metric_dbfs": -22.20000001508681,
+          "observed_target_error_db": -5.461532168737904e-07,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -1.5086811799847055e-08,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -4.805898468933596,
+          "projected_detector_peak_dbfs": -4.801322468933596,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.152114468933593,
+              "projected_full_rms_dbfs": -32.3513554689336
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.858078468933595,
+              "projected_full_rms_dbfs": -29.075072468933595
+            }
+          ]
+        },
+        {
+          "sample_rate": 96000,
+          "baseline_metric_dbfs": -22.201325055525874,
+          "projected_metric_dbfs": -22.20132452445947,
+          "observed_target_error_db": -0.0013250555258750296,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -0.0013245244594699557,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -4.8158524689335955,
+          "projected_detector_peak_dbfs": -4.815784468933596,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.153177468933595,
+              "projected_full_rms_dbfs": -32.3523654689336
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.859525468933594,
+              "projected_full_rms_dbfs": -29.076491468933593
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "patch": "Chopi Timbila Ensemble.repatch",
+      "reference_target_dbfs": -22.2,
+      "source_path": "Resources/Public/Chopi Timbila Ensemble.repatch",
+      "source_sha256": "a9a668b5eb774de5cb7ce4d6108d0fd9cb02edd9909a846784ea68576a31c4b0",
+      "old_volume": 0.65786568,
+      "proposed_volume": 0.65588813,
+      "old_gain": 0.5990134988537889,
+      "required_gain": 0.5954176348312286,
+      "gain_delta_db": -0.05229836487243934,
+      "volume_reachable": true,
+      "maximum_no_guard_target_dbfs": -15.62791267864334,
+      "projections": [
+        {
+          "sample_rate": 44100,
+          "baseline_metric_dbfs": -22.147055150201446,
+          "projected_metric_dbfs": -22.199353515073884,
+          "observed_target_error_db": 0.052944849798553406,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 0.0006464849261149652,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -7.651634364872439,
+          "projected_detector_peak_dbfs": -7.64552336487244,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.553970364872438,
+              "projected_full_rms_dbfs": -32.718135364872445
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.681013364872438,
+              "projected_full_rms_dbfs": -28.877356364872437
+            }
+          ]
+        },
+        {
+          "sample_rate": 48000,
+          "baseline_metric_dbfs": -22.147701677339892,
+          "projected_metric_dbfs": -22.20000004221233,
+          "observed_target_error_db": 0.05229832266010703,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -4.2212331408109094e-08,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -7.62817036487244,
+          "projected_detector_peak_dbfs": -7.62627636487244,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.55277936487244,
+              "projected_full_rms_dbfs": -32.71417236487244
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.68241336487244,
+              "projected_full_rms_dbfs": -28.875985364872438
+            }
+          ]
+        },
+        {
+          "sample_rate": 96000,
+          "baseline_metric_dbfs": -22.154125963846546,
+          "projected_metric_dbfs": -22.206424328718985,
+          "observed_target_error_db": 0.04587403615345309,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -0.00642432871898535,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -7.57218236487244,
+          "projected_detector_peak_dbfs": -7.57208736487244,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.56023336487244,
+              "projected_full_rms_dbfs": -32.721631364872444
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.688415364872437,
+              "projected_full_rms_dbfs": -28.88201436487244
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "patch": "Concert Grand Rosewood.repatch",
+      "reference_target_dbfs": -22.2,
+      "source_path": "Resources/Public/Concert Grand Rosewood.repatch",
+      "source_sha256": "4821fd5d1b24c716ae25480de3d958f9d43ed4cbd6d9c63e70844441d1096ec1",
+      "old_volume": 0.78734778,
+      "proposed_volume": 0.7936445,
+      "old_gain": 0.8580159538697971,
+      "required_gain": 0.8717946015516068,
+      "gain_delta_db": 0.1383761448605489,
+      "volume_reachable": true,
+      "maximum_no_guard_target_dbfs": -13.975930246013979,
+      "projections": [
+        {
+          "sample_rate": 44100,
+          "baseline_metric_dbfs": -22.337855871702473,
+          "projected_metric_dbfs": -22.199479726841925,
+          "observed_target_error_db": -0.13785587170247382,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 0.0005202731580737918,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -9.22978685513945,
+          "projected_detector_peak_dbfs": -9.22406985513945,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.58874985513945,
+              "projected_full_rms_dbfs": -32.59051985513945
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.66701385513945,
+              "projected_full_rms_dbfs": -28.725605855139452
+            }
+          ]
+        },
+        {
+          "sample_rate": 48000,
+          "baseline_metric_dbfs": -22.33837624471053,
+          "projected_metric_dbfs": -22.200000099849984,
+          "observed_target_error_db": -0.1383762447105319,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -9.984998428080871e-08,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -9.23624885513945,
+          "projected_detector_peak_dbfs": -9.23044885513945,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.588624855139454,
+              "projected_full_rms_dbfs": -32.58761685513945
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.667795855139452,
+              "projected_full_rms_dbfs": -28.723614855139452
+            }
+          ]
+        },
+        {
+          "sample_rate": 96000,
+          "baseline_metric_dbfs": -22.335775331739445,
+          "projected_metric_dbfs": -22.197399186878897,
+          "observed_target_error_db": -0.13577533173944545,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 0.0026008131211021634,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -9.238023855139451,
+          "projected_detector_peak_dbfs": -9.237776855139451,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.57864085513945,
+              "projected_full_rms_dbfs": -32.577571855139446
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.66819185513945,
+              "projected_full_rms_dbfs": -28.72388685513945
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "patch": "Direct Piezo Mallet.repatch",
+      "reference_target_dbfs": -22.6,
+      "source_path": "Resources/Public/Direct Piezo Mallet.repatch",
+      "source_sha256": "add02f59be6bb7b0344e186218c97ec07e7ce3e6f26dda42e2280e94862a3ded",
+      "old_volume": 0.68524592,
+      "proposed_volume": 0.68524591,
+      "old_gain": 0.6499127624590261,
+      "required_gain": 0.6499127445727918,
+      "gain_delta_db": -2.535116048981478e-07,
+      "volume_reachable": true,
+      "maximum_no_guard_target_dbfs": -21.519380762259278,
+      "projections": [
+        {
+          "sample_rate": 44100,
+          "baseline_metric_dbfs": -22.60940983353591,
+          "projected_metric_dbfs": -22.609410087047515,
+          "observed_target_error_db": -0.009409833535908518,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -0.009410087047513116,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -2.1334622535116052,
+          "projected_detector_peak_dbfs": -2.086957253511605,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.464241253511606,
+              "projected_full_rms_dbfs": -32.678965253511606
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -21.313814253511605,
+              "projected_full_rms_dbfs": -29.534744253511604
+            }
+          ]
+        },
+        {
+          "sample_rate": 48000,
+          "baseline_metric_dbfs": -22.59999976095583,
+          "projected_metric_dbfs": -22.600000014467433,
+          "observed_target_error_db": 2.390441729005488e-07,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -1.4467431697084976e-08,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -2.126726253511605,
+          "projected_detector_peak_dbfs": -2.080619253511605,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.453346253511604,
+              "projected_full_rms_dbfs": -32.66530025351161
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -21.305123253511603,
+              "projected_full_rms_dbfs": -29.523276253511604
+            }
+          ]
+        },
+        {
+          "sample_rate": 96000,
+          "baseline_metric_dbfs": -22.64455144301904,
+          "projected_metric_dbfs": -22.644551696530645,
+          "observed_target_error_db": -0.04455144301903857,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -0.04455169653064317,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -2.127640253511605,
+          "projected_detector_peak_dbfs": -2.123338253511605,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.500919253511604,
+              "projected_full_rms_dbfs": -32.712827253511605
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -21.348212253511605,
+              "projected_full_rms_dbfs": -29.566356253511604
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "patch": "Equipentatonic Log Keys.repatch",
+      "reference_target_dbfs": -22.2,
+      "source_path": "Resources/Public/Equipentatonic Log Keys.repatch",
+      "source_sha256": "a110e789905543212ffe91901a9ab74e0d5474ca882fe4aa2b7c0c84ac08c12e",
+      "old_volume": 0.79974633,
+      "proposed_volume": 0.8092568,
+      "old_gain": 0.8852514772989188,
+      "required_gain": 0.9064312410827682,
+      "gain_delta_db": 0.20536406257646408,
+      "volume_reachable": true,
+      "maximum_no_guard_target_dbfs": -23.613067108126057,
+      "projections": [
+        {
+          "sample_rate": 44100,
+          "baseline_metric_dbfs": -22.40884953464582,
+          "projected_metric_dbfs": -22.203485472069357,
+          "observed_target_error_db": -0.20884953464582168,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -0.0034854720693573427,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -1.320173937423536,
+          "projected_detector_peak_dbfs": 0.4130670625764641,
+          "no_guard_reduction_projected": false,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -23.875951937423537,
+              "projected_full_rms_dbfs": -31.953401937423536
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.999005937423536,
+              "projected_full_rms_dbfs": -29.113277937423536
+            }
+          ]
+        },
+        {
+          "sample_rate": 48000,
+          "baseline_metric_dbfs": -22.40536410682261,
+          "projected_metric_dbfs": -22.200000044246146,
+          "observed_target_error_db": -0.20536410682261064,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -4.424614630238466e-08,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -0.9110399374235358,
+          "projected_detector_peak_dbfs": 0.37017906257646405,
+          "no_guard_reduction_projected": false,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -23.894444937423536,
+              "projected_full_rms_dbfs": -31.969079937423537
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.984231937423537,
+              "projected_full_rms_dbfs": -29.096611937423535
+            }
+          ]
+        },
+        {
+          "sample_rate": 96000,
+          "baseline_metric_dbfs": -22.005244461566242,
+          "projected_metric_dbfs": -21.799880398989778,
+          "observed_target_error_db": 0.19475553843375693,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 0.40011960101022126,
+          "within_rms_tolerance": false,
+          "projected_peak_dbfs": -1.614287937423536,
+          "projected_detector_peak_dbfs": -1.515851937423536,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.032212937423537,
+              "projected_full_rms_dbfs": -32.106356937423534
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.332679937423535,
+              "projected_full_rms_dbfs": -28.464659937423537
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "patch": "Guatemalan Charleo.repatch",
+      "reference_target_dbfs": -22.2,
+      "source_path": "Resources/Public/Guatemalan Charleo.repatch",
+      "source_sha256": "aaad748f49bf993006a7ffb9b8655105e97970611327860797455ca735e0e732",
+      "old_volume": 0.63264146,
+      "proposed_volume": 0.63070674,
+      "old_gain": 0.5539587777313932,
+      "required_gain": 0.5505757709700834,
+      "gain_delta_db": -0.0532071127745445,
+      "volume_reachable": true,
+      "maximum_no_guard_target_dbfs": -16.63747294627145,
+      "projections": [
+        {
+          "sample_rate": 44100,
+          "baseline_metric_dbfs": -22.146869967069712,
+          "projected_metric_dbfs": -22.200077079844256,
+          "observed_target_error_db": 0.053130032930287285,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -7.707984425664449e-05,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -6.569419112774545,
+          "projected_detector_peak_dbfs": -6.562527112774545,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.054200112774545,
+              "projected_full_rms_dbfs": -32.22806311277454
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.904824112774545,
+              "projected_full_rms_dbfs": -29.108453112774544
+            }
+          ]
+        },
+        {
+          "sample_rate": 48000,
+          "baseline_metric_dbfs": -22.146792944968006,
+          "projected_metric_dbfs": -22.20000005774255,
+          "observed_target_error_db": 0.05320705503199363,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -5.774255029677988e-08,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -6.567710112774545,
+          "projected_detector_peak_dbfs": -6.5659581127745446,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.052783112774545,
+              "projected_full_rms_dbfs": -32.223891112774545
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.905396112774543,
+              "projected_full_rms_dbfs": -29.106258112774544
+            }
+          ]
+        },
+        {
+          "sample_rate": 96000,
+          "baseline_metric_dbfs": -22.14458547340669,
+          "projected_metric_dbfs": -22.197792586181233,
+          "observed_target_error_db": 0.05541452659331014,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 0.002207413818766213,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -6.567315112774545,
+          "projected_detector_peak_dbfs": -6.566995112774545,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.049716112774544,
+              "projected_full_rms_dbfs": -32.22086411277454
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.903605112774542,
+              "projected_full_rms_dbfs": -29.104480112774542
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "patch": "Hard Acrylic Virtuoso.repatch",
+      "reference_target_dbfs": -22.2,
+      "source_path": "Resources/Public/Hard Acrylic Virtuoso.repatch",
+      "source_sha256": "97dca437c121d47c75aff2020e11193217a58b97e20486cc9cdadd205b18c0a7",
+      "old_volume": 0.71603494,
+      "proposed_volume": 0.71603488,
+      "old_gain": 0.7096277305201435,
+      "required_gain": 0.7096276041654901,
+      "gain_delta_db": -1.4556647182712337e-06,
+      "volume_reachable": true,
+      "maximum_no_guard_target_dbfs": -19.392337454714124,
+      "projections": [
+        {
+          "sample_rate": 44100,
+          "baseline_metric_dbfs": -22.191941534037788,
+          "projected_metric_dbfs": -22.191942989702508,
+          "observed_target_error_db": 0.008058465962211159,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 0.008057010297491729,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -3.829367455664718,
+          "projected_detector_peak_dbfs": -3.807662455664718,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.19091845566472,
+              "projected_full_rms_dbfs": -32.383121455664714
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.82824545566472,
+              "projected_full_rms_dbfs": -29.02882145566472
+            }
+          ]
+        },
+        {
+          "sample_rate": 48000,
+          "baseline_metric_dbfs": -22.199998453410675,
+          "projected_metric_dbfs": -22.199999909075395,
+          "observed_target_error_db": 1.5465893241639606e-06,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 9.09246047342549e-08,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -3.820887455664718,
+          "projected_detector_peak_dbfs": -3.8208614556647182,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.19905545566472,
+              "projected_full_rms_dbfs": -32.38844945566471
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.83626545566472,
+              "projected_full_rms_dbfs": -29.03404345566472
+            }
+          ]
+        },
+        {
+          "sample_rate": 96000,
+          "baseline_metric_dbfs": -22.23139486555176,
+          "projected_metric_dbfs": -22.23139632121648,
+          "observed_target_error_db": -0.03139486555176063,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -0.03139632121648006,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -3.8586564556647183,
+          "projected_detector_peak_dbfs": -3.8581414556647182,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.231613455664718,
+              "projected_full_rms_dbfs": -32.42071845566472
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.86712645566472,
+              "projected_full_rms_dbfs": -29.06470745566472
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "patch": "Kalimba Muted Thumbs.repatch",
+      "reference_target_dbfs": -22.2,
+      "source_path": "Resources/Public/Kalimba Muted Thumbs.repatch",
+      "source_sha256": "aa7ea027f812cc7e5c65eb1750e454d4461ccc8cb691f9aab341eebeab111826",
+      "old_volume": 0.8983038,
+      "proposed_volume": 0.90055031,
+      "old_gain": 1.1746040693528699,
+      "required_gain": 1.1861613717315602,
+      "gain_delta_db": 0.08504547755019827,
+      "volume_reachable": true,
+      "maximum_no_guard_target_dbfs": -16.639225173567183,
+      "projections": [
+        {
+          "sample_rate": 44100,
+          "baseline_metric_dbfs": -22.317527537255888,
+          "projected_metric_dbfs": -22.23248205970569,
+          "observed_target_error_db": -0.1175275372558886,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -0.03248205970568918,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -7.626844522449802,
+          "projected_detector_peak_dbfs": -7.626450522449802,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -23.8068405224498,
+              "projected_full_rms_dbfs": -32.047783522449805
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -21.0794655224498,
+              "projected_full_rms_dbfs": -29.3206885224498
+            }
+          ]
+        },
+        {
+          "sample_rate": 48000,
+          "baseline_metric_dbfs": -22.285045513804228,
+          "projected_metric_dbfs": -22.20000003625403,
+          "observed_target_error_db": -0.08504551380422853,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -3.625402911211495e-08,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -7.616239522449802,
+          "projected_detector_peak_dbfs": -7.606168522449802,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -23.7777015224498,
+              "projected_full_rms_dbfs": -32.015891522449806
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -21.0452005224498,
+              "projected_full_rms_dbfs": -29.2836705224498
+            }
+          ]
+        },
+        {
+          "sample_rate": 96000,
+          "baseline_metric_dbfs": -22.09724226850352,
+          "projected_metric_dbfs": -22.012196790953322,
+          "observed_target_error_db": 0.10275773149647804,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 0.18780320904667747,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -7.484910522449802,
+          "projected_detector_peak_dbfs": -7.484599522449802,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -23.6111355224498,
+              "projected_full_rms_dbfs": -31.8493485224498
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.8461195224498,
+              "projected_full_rms_dbfs": -29.0846105224498
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "patch": "Kalimba Pick Sparkle.repatch",
+      "reference_target_dbfs": -22.2,
+      "source_path": "Resources/Public/Kalimba Pick Sparkle.repatch",
+      "source_sha256": "10d50f8b70004330db8c8477887d857072a286845c83f03a44c74ada31da4a9d",
+      "old_volume": 0.803565,
+      "proposed_volume": 0.80330313,
+      "old_gain": 0.893725549100346,
+      "required_gain": 0.8931431485926904,
+      "gain_delta_db": -0.005662129697367066,
+      "volume_reachable": true,
+      "maximum_no_guard_target_dbfs": -14.534900954931139,
+      "projections": [
+        {
+          "sample_rate": 44100,
+          "baseline_metric_dbfs": -22.22099639746719,
+          "projected_metric_dbfs": -22.226658527164556,
+          "observed_target_error_db": -0.020996397467190064,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -0.026658527164556745,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -8.814463129697367,
+          "projected_detector_peak_dbfs": -8.809293129697366,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -23.607266129697365,
+              "projected_full_rms_dbfs": -30.295924129697365
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -21.180688129697366,
+              "projected_full_rms_dbfs": -28.087286129697368
+            }
+          ]
+        },
+        {
+          "sample_rate": 48000,
+          "baseline_metric_dbfs": -22.19433795362769,
+          "projected_metric_dbfs": -22.200000083325058,
+          "observed_target_error_db": 0.005662046372307827,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -8.332505885277897e-08,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -8.791202129697366,
+          "projected_detector_peak_dbfs": -8.786484129697367,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -23.582620129697368,
+              "projected_full_rms_dbfs": -30.268155129697366
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -21.152879129697368,
+              "projected_full_rms_dbfs": -28.056571129697367
+            }
+          ]
+        },
+        {
+          "sample_rate": 96000,
+          "baseline_metric_dbfs": -22.039250454686606,
+          "projected_metric_dbfs": -22.044912584383972,
+          "observed_target_error_db": 0.16074954531339358,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 0.1550874156160269,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -8.666011129697367,
+          "projected_detector_peak_dbfs": -8.665099129697367,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -23.440315129697368,
+              "projected_full_rms_dbfs": -30.124947129697368
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.990503129697366,
+              "projected_full_rms_dbfs": -27.894043129697366
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "patch": "Kalimba Thumb Lullaby.repatch",
+      "reference_target_dbfs": -22.2,
+      "source_path": "Resources/Public/Kalimba Thumb Lullaby.repatch",
+      "source_sha256": "23faef5c0f6b2bb46dd6b7e4e3e40098a8599a55d6689a67fba6f5d682173d38",
+      "old_volume": 0.94042001,
+      "proposed_volume": 0.94267448,
+      "old_gain": 1.4604406213552488,
+      "required_gain": 1.480590684402202,
+      "gain_delta_db": 0.11902239856977512,
+      "volume_reachable": true,
+      "maximum_no_guard_target_dbfs": -18.565049888886243,
+      "projections": [
+        {
+          "sample_rate": 44100,
+          "baseline_metric_dbfs": -22.34709090608807,
+          "projected_metric_dbfs": -22.228068507518294,
+          "observed_target_error_db": -0.14709090608807074,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -0.02806850751829515,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -10.392476601430225,
+          "projected_detector_peak_dbfs": -10.392058601430225,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -23.149552601430223,
+              "projected_full_rms_dbfs": -29.782789601430224
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -21.468292601430225,
+              "projected_full_rms_dbfs": -28.279856601430225
+            }
+          ]
+        },
+        {
+          "sample_rate": 48000,
+          "baseline_metric_dbfs": -22.31902216894119,
+          "projected_metric_dbfs": -22.199999770371413,
+          "observed_target_error_db": -0.11902216894118922,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 2.2962858636788042e-07,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -10.350613601430224,
+          "projected_detector_peak_dbfs": -10.350389601430225,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -23.103770601430224,
+              "projected_full_rms_dbfs": -29.734186601430224
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -21.452292601430223,
+              "projected_full_rms_dbfs": -28.259287601430223
+            }
+          ]
+        },
+        {
+          "sample_rate": 96000,
+          "baseline_metric_dbfs": -22.129122764003135,
+          "projected_metric_dbfs": -22.01010036543336,
+          "observed_target_error_db": 0.07087723599686413,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 0.18989963456663972,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -10.209148601430224,
+          "projected_detector_peak_dbfs": -10.209112601430224,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -22.940283601430224,
+              "projected_full_rms_dbfs": -29.570459601430226
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -21.244427601430225,
+              "projected_full_rms_dbfs": -28.053740601430224
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "patch": "Mandinka Bala Heptatonic.repatch",
+      "reference_target_dbfs": -22.2,
+      "source_path": "Resources/Public/Mandinka Bala Heptatonic.repatch",
+      "source_sha256": "ea009c7d82d248d3a1ff181bc270c408fdde098409775c3914d72ca99891851f",
+      "old_volume": 0.66504136,
+      "proposed_volume": 0.66360862,
+      "old_gain": 0.61215226368256,
+      "required_gain": 0.6095175066394211,
+      "gain_delta_db": -0.03746547708125831,
+      "volume_reachable": true,
+      "maximum_no_guard_target_dbfs": -15.42231848494577,
+      "projections": [
+        {
+          "sample_rate": 44100,
+          "baseline_metric_dbfs": -22.161942589718656,
+          "projected_metric_dbfs": -22.199408066799915,
+          "observed_target_error_db": 0.03805741028134335,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 0.0005919332000843269,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -7.809922477081258,
+          "projected_detector_peak_dbfs": -7.799082477081258,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.600804477081258,
+              "projected_full_rms_dbfs": -32.771334477081254
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.66203647708126,
+              "projected_full_rms_dbfs": -28.863453477081258
+            }
+          ]
+        },
+        {
+          "sample_rate": 48000,
+          "baseline_metric_dbfs": -22.16253448364232,
+          "projected_metric_dbfs": -22.19999996072358,
+          "observed_target_error_db": 0.037465516357677586,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 3.927641856193986e-08,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -7.7818954770812585,
+          "projected_detector_peak_dbfs": -7.777681477081258,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.60238447708126,
+              "projected_full_rms_dbfs": -32.770152477081254
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.662229477081258,
+              "projected_full_rms_dbfs": -28.86090047708126
+            }
+          ]
+        },
+        {
+          "sample_rate": 96000,
+          "baseline_metric_dbfs": -22.171769880418427,
+          "projected_metric_dbfs": -22.209235357499686,
+          "observed_target_error_db": 0.028230119581571955,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -0.009235357499687069,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -7.809889477081258,
+          "projected_detector_peak_dbfs": -7.808954477081258,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.61058047708126,
+              "projected_full_rms_dbfs": -32.778333477081254
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.67188447708126,
+              "projected_full_rms_dbfs": -28.870534477081257
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "patch": "Mayan Dance Padauk.repatch",
+      "reference_target_dbfs": -22.2,
+      "source_path": "Resources/Public/Mayan Dance Padauk.repatch",
+      "source_sha256": "f298e1fe532e05bf64337789bc8063a72fe9f499aefabc3ebf781b3aef6f58c4",
+      "old_volume": 0.64605695,
+      "proposed_volume": 0.64201748,
+      "old_gain": 0.5777018444889999,
+      "required_gain": 0.5705002752976387,
+      "gain_delta_db": -0.10895800684389967,
+      "volume_reachable": true,
+      "maximum_no_guard_target_dbfs": -15.412636084587435,
+      "projections": [
+        {
+          "sample_rate": 44100,
+          "baseline_metric_dbfs": -22.092047271309315,
+          "projected_metric_dbfs": -22.201005278153215,
+          "observed_target_error_db": 0.10795272869068384,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -0.0010052781532152721,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -7.7895670068439,
+          "projected_detector_peak_dbfs": -7.7873640068439,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.0116760068439,
+              "projected_full_rms_dbfs": -32.1561400068439
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.9269510068439,
+              "projected_full_rms_dbfs": -29.112071006843898
+            }
+          ]
+        },
+        {
+          "sample_rate": 48000,
+          "baseline_metric_dbfs": -22.091042083283988,
+          "projected_metric_dbfs": -22.200000090127887,
+          "observed_target_error_db": 0.10895791671601174,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -9.012788737550181e-08,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -7.8004190068439,
+          "projected_detector_peak_dbfs": -7.8004070068439,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.009694006843898,
+              "projected_full_rms_dbfs": -32.1513800068439
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.9264260068439,
+              "projected_full_rms_dbfs": -29.1087660068439
+            }
+          ]
+        },
+        {
+          "sample_rate": 96000,
+          "baseline_metric_dbfs": -22.083449983164364,
+          "projected_metric_dbfs": -22.192407990008263,
+          "observed_target_error_db": 0.11655001683563526,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 0.007592009991736148,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -7.7961340068439,
+          "projected_detector_peak_dbfs": -7.7948920068439,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -23.9954950068439,
+              "projected_full_rms_dbfs": -32.1371660068439
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.922086006843898,
+              "projected_full_rms_dbfs": -29.1043310068439
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "patch": "Midnight Village Ritual.repatch",
+      "reference_target_dbfs": -22.2,
+      "source_path": "Resources/Public/Midnight Village Ritual.repatch",
+      "source_sha256": "4abb2ef797aa9b6915428bab921fcdf1a0cccd289335a9806fa156a324d9d073",
+      "old_volume": 0.61268451,
+      "proposed_volume": 0.61268447,
+      "old_gain": 0.5195602889881525,
+      "required_gain": 0.5195602268624331,
+      "gain_delta_db": -1.1341419304767969e-06,
+      "volume_reachable": true,
+      "maximum_no_guard_target_dbfs": -14.97097996269987,
+      "projections": [
+        {
+          "sample_rate": 44100,
+          "baseline_metric_dbfs": -22.203107363214865,
+          "projected_metric_dbfs": -22.203108497356794,
+          "observed_target_error_db": -0.0031073632148661545,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -0.0031084973567949703,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -8.29151513414193,
+          "projected_detector_peak_dbfs": -8.29130413414193,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.06987313414193,
+              "projected_full_rms_dbfs": -31.894707134141928
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.901747134141928,
+              "projected_full_rms_dbfs": -28.84680313414193
+            }
+          ]
+        },
+        {
+          "sample_rate": 48000,
+          "baseline_metric_dbfs": -22.19999896139642,
+          "projected_metric_dbfs": -22.20000009553835,
+          "observed_target_error_db": 1.0386035782516956e-06,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -9.553835056408388e-08,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -8.33245313414193,
+          "projected_detector_peak_dbfs": -8.32438813414193,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.064591134141928,
+              "projected_full_rms_dbfs": -31.886633134141928
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.899687134141928,
+              "projected_full_rms_dbfs": -28.84196913414193
+            }
+          ]
+        },
+        {
+          "sample_rate": 96000,
+          "baseline_metric_dbfs": -22.191775750772646,
+          "projected_metric_dbfs": -22.191776884914574,
+          "observed_target_error_db": 0.008224249227353653,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 0.008223115085424837,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -8.22908113414193,
+          "projected_detector_peak_dbfs": -8.22902013414193,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.05203713414193,
+              "projected_full_rms_dbfs": -31.87404813414193
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.89355513414193,
+              "projected_full_rms_dbfs": -28.83567713414193
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "patch": "Rosewood Dampened Etude.repatch",
+      "reference_target_dbfs": -22.2,
+      "source_path": "Resources/Public/Rosewood Dampened Etude.repatch",
+      "source_sha256": "ea3acfedf217070bf92ba1e1458a4eee5410d3e0105d624fb89bc0db3a3fed7a",
+      "old_volume": 0.76007818,
+      "proposed_volume": 0.76678529,
+      "old_gain": 0.7996108508126124,
+      "required_gain": 0.8137850200152859,
+      "gain_delta_db": 0.15262030459827808,
+      "volume_reachable": true,
+      "maximum_no_guard_target_dbfs": -14.56518624681974,
+      "projections": [
+        {
+          "sample_rate": 44100,
+          "baseline_metric_dbfs": -22.352547998122756,
+          "projected_metric_dbfs": -22.199927693524476,
+          "observed_target_error_db": -0.1525479981227562,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 7.230647552347591e-05,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -8.636302695401723,
+          "projected_detector_peak_dbfs": -8.634813695401721,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.62996169540172,
+              "projected_full_rms_dbfs": -32.87180269540172
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.65104669540172,
+              "projected_full_rms_dbfs": -28.89288669540172
+            }
+          ]
+        },
+        {
+          "sample_rate": 48000,
+          "baseline_metric_dbfs": -22.35262024551629,
+          "projected_metric_dbfs": -22.199999940918012,
+          "observed_target_error_db": -0.15262024551629239,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 5.908198730253389e-08,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -8.643454695401722,
+          "projected_detector_peak_dbfs": -8.641052695401722,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.62940469540172,
+              "projected_full_rms_dbfs": -32.86848869540172
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.65137069540172,
+              "projected_full_rms_dbfs": -28.890454695401722
+            }
+          ]
+        },
+        {
+          "sample_rate": 96000,
+          "baseline_metric_dbfs": -22.35051258689022,
+          "projected_metric_dbfs": -22.19789228229194,
+          "observed_target_error_db": -0.15051258689021907,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 0.002107717708060619,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -8.656410695401721,
+          "projected_detector_peak_dbfs": -8.656376695401722,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.61787269540172,
+              "projected_full_rms_dbfs": -32.85695769540172
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.65303969540172,
+              "projected_full_rms_dbfs": -28.89212369540172
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "patch": "Rosewood Roll Chorale.repatch",
+      "reference_target_dbfs": -22.2,
+      "source_path": "Resources/Public/Rosewood Roll Chorale.repatch",
+      "source_sha256": "60b23532534d765b0000c9acf6ac449b8093aa8ea26bdd390de6d7ffc80e5fa4",
+      "old_volume": 0.87029207,
+      "proposed_volume": 0.87039476,
+      "old_gain": 1.0576793948321281,
+      "required_gain": 1.058024468481806,
+      "gain_delta_db": 0.0028333671728669185,
+      "volume_reachable": true,
+      "maximum_no_guard_target_dbfs": -15.646263868953637,
+      "projections": [
+        {
+          "sample_rate": 44100,
+          "baseline_metric_dbfs": -22.20777175803086,
+          "projected_metric_dbfs": -22.204938390857993,
+          "observed_target_error_db": -0.007771758030859388,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -0.004938390857994079,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -10.202082632827134,
+          "projected_detector_peak_dbfs": -10.202078632827133,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.592999632827134,
+              "projected_full_rms_dbfs": -31.818934632827133
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.672962632827133,
+              "projected_full_rms_dbfs": -28.003629632827135
+            }
+          ]
+        },
+        {
+          "sample_rate": 48000,
+          "baseline_metric_dbfs": -22.202833356517097,
+          "projected_metric_dbfs": -22.19999998934423,
+          "observed_target_error_db": -0.002833356517097485,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 1.0655767823664064e-08,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -10.205499632827133,
+          "projected_detector_peak_dbfs": -10.204993632827133,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.585289632827134,
+              "projected_full_rms_dbfs": -31.808587632827134
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.669148632827135,
+              "projected_full_rms_dbfs": -27.997081632827136
+            }
+          ]
+        },
+        {
+          "sample_rate": 96000,
+          "baseline_metric_dbfs": -22.171861272198626,
+          "projected_metric_dbfs": -22.16902790502576,
+          "observed_target_error_db": 0.028138727801373165,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 0.030972094974238473,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -10.187148632827133,
+          "projected_detector_peak_dbfs": -10.186942632827133,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.539206632827135,
+              "projected_full_rms_dbfs": -31.762840632827135
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.644324632827136,
+              "projected_full_rms_dbfs": -27.972055632827136
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "patch": "Sambla Talking Balafon.repatch",
+      "reference_target_dbfs": -22.2,
+      "source_path": "Resources/Public/Sambla Talking Balafon.repatch",
+      "source_sha256": "6f2ef2ddfdbc8d082cac19c8c27b11c3b92b0774ef44dd02f88f175bf13f27cb",
+      "old_volume": 0.67264663,
+      "proposed_volume": 0.67093014,
+      "old_gain": 0.6262332025610478,
+      "required_gain": 0.6230411786298682,
+      "gain_delta_db": -0.044386747818446454,
+      "volume_reachable": true,
+      "maximum_no_guard_target_dbfs": -15.852417230323649,
+      "projections": [
+        {
+          "sample_rate": 44100,
+          "baseline_metric_dbfs": -22.153775603542968,
+          "projected_metric_dbfs": -22.198162351361415,
+          "observed_target_error_db": 0.04622439645703125,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 0.0018376486385847102,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -7.369452747818446,
+          "projected_detector_peak_dbfs": -7.363067747818446,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.633769747818448,
+              "projected_full_rms_dbfs": -32.829322747818445
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.647053747818447,
+              "projected_full_rms_dbfs": -28.863922747818446
+            }
+          ]
+        },
+        {
+          "sample_rate": 48000,
+          "baseline_metric_dbfs": -22.1556132290202,
+          "projected_metric_dbfs": -22.199999976838647,
+          "observed_target_error_db": 0.044386770979798484,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 2.3161351947464937e-08,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -7.392437747818446,
+          "projected_detector_peak_dbfs": -7.386361747818446,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.635493747818447,
+              "projected_full_rms_dbfs": -32.82828874781844
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.648936747818446,
+              "projected_full_rms_dbfs": -28.863053747818448
+            }
+          ]
+        },
+        {
+          "sample_rate": 96000,
+          "baseline_metric_dbfs": -22.16560638889515,
+          "projected_metric_dbfs": -22.209993136713596,
+          "observed_target_error_db": 0.03439361110484995,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -0.009993136713596584,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -7.347584747818447,
+          "projected_detector_peak_dbfs": -7.347582747818446,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.645747747818447,
+              "projected_full_rms_dbfs": -32.83854074781844
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.658825747818447,
+              "projected_full_rms_dbfs": -28.872943747818447
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "patch": "Soft Yarn Nocturne.repatch",
+      "reference_target_dbfs": -22.2,
+      "source_path": "Resources/Public/Soft Yarn Nocturne.repatch",
+      "source_sha256": "4caa7c7a774317fd549653d2724b1bd1504d4dc04dc95076b40b07c0300502ae",
+      "old_volume": 0.865865,
+      "proposed_volume": 0.86709451,
+      "old_gain": 1.0433334138597343,
+      "required_gain": 1.047214596775773,
+      "gain_delta_db": 0.03225130618949592,
+      "volume_reachable": true,
+      "maximum_no_guard_target_dbfs": -15.5570633791957,
+      "projections": [
+        {
+          "sample_rate": 44100,
+          "baseline_metric_dbfs": -22.236380019409378,
+          "projected_metric_dbfs": -22.20412871321988,
+          "observed_target_error_db": -0.036380019409378406,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -0.004128713219881064,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -10.821787693810505,
+          "projected_detector_peak_dbfs": -10.819892693810504,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.636170693810502,
+              "projected_full_rms_dbfs": -32.3220336938105
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.654444693810504,
+              "projected_full_rms_dbfs": -28.4437616938105
+            }
+          ]
+        },
+        {
+          "sample_rate": 48000,
+          "baseline_metric_dbfs": -22.23225141449419,
+          "projected_metric_dbfs": -22.200000108304693,
+          "observed_target_error_db": -0.032251414494190556,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": -1.0830469321376768e-07,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -10.729851693810504,
+          "projected_detector_peak_dbfs": -10.729668693810504,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.626804693810502,
+              "projected_full_rms_dbfs": -32.30992769381051
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.652411693810503,
+              "projected_full_rms_dbfs": -28.438872693810502
+            }
+          ]
+        },
+        {
+          "sample_rate": 96000,
+          "baseline_metric_dbfs": -22.20025169670098,
+          "projected_metric_dbfs": -22.168000390511484,
+          "observed_target_error_db": -0.0002516967009817961,
+          "observed_within_rms_tolerance": true,
+          "target_error_db": 0.031999609488515546,
+          "within_rms_tolerance": true,
+          "projected_peak_dbfs": -10.752338693810504,
+          "projected_detector_peak_dbfs": -10.752163693810504,
+          "no_guard_reduction_projected": true,
+          "within_projected_main_allowance": true,
+          "scenarios": [
+            {
+              "scenario": "vu_single_C4_v100",
+              "projected_max_300ms_rms_dbfs": -24.576195693810504,
+              "projected_full_rms_dbfs": -32.2594156938105
+            },
+            {
+              "scenario": "vu_pair_C4_E4_v100",
+              "projected_max_300ms_rms_dbfs": -20.627886693810503,
+              "projected_full_rms_dbfs": -28.4140776938105
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "provenance": {
+    "source_inputs": "/Users/vojta/Dev/reason-rack-extension/diagnostics/maremba-gentle-organic-20261022/rms-preset-only/source-inputs.json",
+    "source_inputs_sha256": "5304525729164cba5c9ec1f253e4c84aac14930dad121d08840ae3892fdb220f",
+    "source_root": "/Users/vojta/Dev/reason-rack-extension/maremba-organic-20261022/Examples/Maremba",
+    "csvs": [
+      {
+        "path": "/Users/vojta/Dev/reason-rack-extension/diagnostics/maremba-gentle-organic-20261022/rms-preset-only/final-vu-reference-44100.csv",
+        "sha256": "a35e1f7257a238ffa3950ff6660e3fd4da4d53b03f7217f9fb92d619555be111",
+        "rate": 44100,
+        "rows": 42
+      },
+      {
+        "path": "/Users/vojta/Dev/reason-rack-extension/diagnostics/maremba-gentle-organic-20261022/rms-preset-only/final-vu-reference-48000.csv",
+        "sha256": "1cd5fd5d82b61f6e6577136326bc481fbf9969ac161a19a402ad0c01f6aec4b5",
+        "rate": 48000,
+        "rows": 42
+      },
+      {
+        "path": "/Users/vojta/Dev/reason-rack-extension/diagnostics/maremba-gentle-organic-20261022/rms-preset-only/final-vu-reference-96000.csv",
+        "sha256": "9768b0bb47c309424c7063daf27e8f4ef4f882215e02f51ce91c7e9f6b8faa6b",
+        "rate": 96000,
+        "rows": 42
+      }
+    ],
+    "main_volume_header_sha256": "150294c8f7d47068d45bf122ba6cf1ed6ad25fe356d2cf3efa00691bcd0d9bc4",
+    "current_source_mismatches": [],
+    "limitation": "Source hashes bind the supplied capture snapshot; CSV hashes are recorded now, not proof of historic execution."
+  }
+}

@@ -1,0 +1,2 @@
+# Preserve measured CSV bytes used by the retained SHA-256 receipts.
+*.csv -text whitespace=cr-at-eol

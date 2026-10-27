@@ -35,30 +35,30 @@ constexpr double kMainCeiling = .8912509381337456; // -1 dBFS, independent of st
 struct FactoryReference {
     const char* name; double rmsDb, peakMinimumDb, peakMaximumDb; bool maximumVca;
 };
-// Frozen installed-gain/final-bank three-rate measurements; RMS includes natural crest and tails.
+// Frozen preset-only 1.5.7 three-rate measurements; RMS includes natural crest and tails.
 // Retain the existing +/-0.35 dB RMS tolerance and peak-window widths. The
 // rebalanced bank no longer needs the former full-VCA soft-preset exceptions.
 constexpr std::array<FactoryReference, 20> kFactoryReferences {{
-    {"Ambient Cathedral Bloom", -23.6085, -7.8603, -7.0603, false},
-    {"Concert Grand Rosewood", -24.4213, -9.5540, -8.7540, false},
-    {"Direct Piezo Mallet", -22.7290, -1.6494, -0.8494, false},
-    {"Hard Acrylic Virtuoso", -23.8474, -2.3296, -1.5296, false},
-    {"Rosewood Dampened Etude", -25.3293, -10.6777, -9.8777, false},
-    {"Rosewood Roll Chorale", -23.9408, -8.8700, -8.0700, false},
-    {"Soft Yarn Nocturne", -25.1317, -10.6321, -10.0321, false},
-    {"Chiapas Folk Fiesta", -24.4818, -2.7848, -1.9848, false},
-    {"Guatemalan Charleo", -24.7430, -6.2942, -5.4942, false},
-    {"Mayan Dance Padauk", -25.3841, -10.1246, -9.3246, false},
-    {"Ancestral Balafon", -24.5922, -5.3995, -4.5995, false},
-    {"Birifor Gyil Buzz", -24.4024, -5.4813, -4.6813, false},
-    {"Chopi Timbila Ensemble", -24.0481, -3.8057, -3.0057, false},
-    {"Equipentatonic Log Keys", -23.2505, -1.5188, -0.7188, false},
-    {"Mandinka Bala Heptatonic", -24.1002, -3.8925, -3.0925, false},
-    {"Midnight Village Ritual", -24.9438, -8.7486, -7.9486, false},
-    {"Sambla Talking Balafon", -24.0067, -3.7275, -2.9275, false},
-    {"Kalimba Muted Thumbs", -20.8350, -6.6228, -5.8228, false},
-    {"Kalimba Pick Sparkle", -22.7831, -8.7631, -7.9631, false},
-    {"Kalimba Thumb Lullaby", -25.3493, -11.5109, -10.7109, false},
+    {"Ambient Cathedral Bloom", -23.6076, -7.8603, -7.0603, false},
+    {"Concert Grand Rosewood", -24.3869, -9.6317, -8.8317, false},
+    {"Direct Piezo Mallet", -24.5365, -3.3566, -2.5566, false},
+    {"Hard Acrylic Virtuoso", -24.0889, -2.7067, -1.9067, false},
+    {"Rosewood Dampened Etude", -25.3015, -10.1926, -9.3926, false},
+    {"Rosewood Roll Chorale", -23.9397, -8.8702, -8.0702, false},
+    {"Soft Yarn Nocturne", -25.0764, -10.4512, -9.8512, false},
+    {"Chiapas Folk Fiesta", -24.6479, -3.2005, -2.4005, false},
+    {"Guatemalan Charleo", -24.6991, -6.3785, -5.5785, false},
+    {"Mayan Dance Padauk", -25.3177, -10.3702, -9.5702, false},
+    {"Ancestral Balafon", -24.5968, -5.4641, -4.6641, false},
+    {"Birifor Gyil Buzz", -24.4074, -5.5336, -4.7336, false},
+    {"Chopi Timbila Ensemble", -24.0593, -3.8334, -3.0334, false},
+    {"Equipentatonic Log Keys", -23.2555, -1.5204, -0.7204, false},
+    {"Mandinka Bala Heptatonic", -24.1025, -3.8688, -3.0688, false},
+    {"Midnight Village Ritual", -24.9417, -8.7486, -7.9486, false},
+    {"Sambla Talking Balafon", -24.0055, -3.7722, -2.9722, false},
+    {"Kalimba Muted Thumbs", -21.0533, -6.9600, -6.1600, false},
+    {"Kalimba Pick Sparkle", -22.7781, -8.8209, -8.0209, false},
+    {"Kalimba Thumb Lullaby", -25.4674, -11.7098, -10.9098, false},
 }};
 constexpr double kSeconds = 5.0;
 // Shared musical reference: Rack Tests/AllPatchRenderTest.cpp, kPhraseNotes.
