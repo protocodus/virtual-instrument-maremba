@@ -153,6 +153,18 @@ defensible on their own physics. It does not license drawing a constant, fitting
 a curve, or keeping a formulation the measurements reject. If every candidate
 needs an invented number, the answer is still that none of them ships.
 
+## Demo songs
+
+The README demos play the committed MIDI in `Docs/audio/midi/` (More demos in
+`more/`), written only by `Tools/write_preset_midi.py`; `<Name>.DemoMidiSources`
+fails when the files and the script differ. Change a phrase in the script, on
+purpose, and commit it with its regenerated `.mid` files on their own. Never
+edit a `.mid` by hand or rewrite a phrase because the DSP changed. The demos
+play each preset as a freshly loaded plug-in does, with no per-demo trims.
+The WAVs and the README table come only from the main build. Use the
+`portfolio-demo-songs` skill when choosing presets, writing phrases or changing
+the renderer.
+
 ## Build and verify
 
 ```sh
