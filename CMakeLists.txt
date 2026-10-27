@@ -323,6 +323,11 @@ if(BUILD_TESTING)
                  COMMAND "${Python3_EXECUTABLE}" Tests/generate_close_hrtf.py --check
                  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
         set_tests_properties(Maremba.OutputPeakKernel Maremba.CloseHrtf PROPERTIES LABELS unit)
+        # The committed demo phrases are what the writer writes (G3a).
+        add_test(NAME Maremba.DemoMidiSources
+                 COMMAND "${Python3_EXECUTABLE}" Tools/write_preset_midi.py --check
+                 WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+        set_tests_properties(Maremba.DemoMidiSources PROPERTIES LABELS unit)
 
         # Tools/Demos/run_benchmark.py builds its renderer with clang++ as a
         # POSIX tool (extensionless binary, filenames Windows rejects), so the

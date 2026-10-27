@@ -189,6 +189,9 @@ with `-DMAREMBA_ENABLE_SANITIZERS=ON` under Clang, a time-boxed libFuzzer run of
 contracts. `EngineFuzzTest --extended` and `ExtremeRangeTest --full` run the
 long matrices.
 
+`Tools/write_preset_midi.py` writes the preset demo phrases in
+`Docs/audio/midi/`; rerun it only to change a phrase on purpose.
+
 `Tools/Demos/` holds the offline research tools, which drive the engine directly
 (they need clang++, and some need ffmpeg). `run_benchmark.py` renders the repertoire, touch and idiom studies
 behind [`Docs/audio/demo-player.html`](Docs/audio/demo-player.html). The
