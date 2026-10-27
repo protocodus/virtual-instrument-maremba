@@ -32,6 +32,14 @@ shipping engine.
 
 ## Version history
 
+### 1.5.7 — 2026-10-23 — lower CPU, identical sound
+
+- Render the same audio with about 56% less CPU time (24% fewer instructions)
+  on factory-preset phrases at 48 kHz: the Close capture's FFTs and spectral
+  sums run on vectorizable split lanes, and the capture and Room paths skip
+  redundant checks. Every output is bit-identical to 1.5.6 with the same
+  compiler and settings; sound, parameters and saved sessions are unchanged.
+
 ### 1.5.4 — 2026-10-20 — preset VCA balance and dynamic headroom
 
 - Balance the factory bank around −8 dBFS on the normal velocity-80 Linear
