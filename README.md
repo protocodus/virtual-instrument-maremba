@@ -11,33 +11,22 @@ both built from the JUCE-free C++17 engine in `Source/DSP/`.
 
 ## Audio demos
 
-One demo per factory preset, rendered by every main build from
-`Docs/audio/midi/` through the shipping engine.
+Eight of the 20 factory presets, each showing a different side of the
+instrument, rendered by every main build from `Docs/audio/midi/` through the
+shipping engine.
 
 <!-- audio-demos-begin -->
 
 | # | Preset | Demo | Length | Peak |
 | --- | --- | --- | --- | --- |
-| 1 | Ambient Cathedral Bloom | [01-ambient-cathedral-bloom.mp3](Docs/audio/01-ambient-cathedral-bloom.mp3) | 20.0 s | -13.3 dBFS |
-| 2 | Concert Grand Rosewood | [02-concert-grand-rosewood.mp3](Docs/audio/02-concert-grand-rosewood.mp3) | 20.0 s | -6.9 dBFS |
-| 3 | Direct Piezo Mallet | [03-direct-piezo-mallet.mp3](Docs/audio/03-direct-piezo-mallet.mp3) | 18.3 s | -1.0 dBFS |
-| 4 | Hard Acrylic Virtuoso | [04-hard-acrylic-virtuoso.mp3](Docs/audio/04-hard-acrylic-virtuoso.mp3) | 20.0 s | -4.6 dBFS |
-| 5 | Rosewood Dampened Etude | [05-rosewood-dampened-etude.mp3](Docs/audio/05-rosewood-dampened-etude.mp3) | 18.6 s | -9.2 dBFS |
-| 6 | Rosewood Roll Chorale | [06-rosewood-roll-chorale.mp3](Docs/audio/06-rosewood-roll-chorale.mp3) | 20.0 s | -11.7 dBFS |
-| 7 | Soft Yarn Nocturne | [07-soft-yarn-nocturne.mp3](Docs/audio/07-soft-yarn-nocturne.mp3) | 20.0 s | -12.5 dBFS |
-| 8 | Chiapas Folk Fiesta | [08-chiapas-folk-fiesta.mp3](Docs/audio/08-chiapas-folk-fiesta.mp3) | 18.8 s | -1.0 dBFS |
-| 9 | Guatemalan Charleo | [09-guatemalan-charleo.mp3](Docs/audio/09-guatemalan-charleo.mp3) | 20.0 s | -2.7 dBFS |
-| 10 | Mayan Dance Padauk | [10-mayan-dance-padauk.mp3](Docs/audio/10-mayan-dance-padauk.mp3) | 19.4 s | -5.1 dBFS |
-| 11 | Ancestral Balafon | [11-ancestral-balafon.mp3](Docs/audio/11-ancestral-balafon.mp3) | 20.0 s | -4.8 dBFS |
-| 12 | Birifor Gyil Buzz | [12-birifor-gyil-buzz.mp3](Docs/audio/12-birifor-gyil-buzz.mp3) | 20.0 s | -6.2 dBFS |
-| 13 | Chopi Timbila Ensemble | [13-chopi-timbila-ensemble.mp3](Docs/audio/13-chopi-timbila-ensemble.mp3) | 20.0 s | -5.1 dBFS |
-| 14 | Equipentatonic Log Keys | [14-equipentatonic-log-keys.mp3](Docs/audio/14-equipentatonic-log-keys.mp3) | 19.0 s | -1.1 dBFS |
-| 15 | Mandinka Bala Heptatonic | [15-mandinka-bala-heptatonic.mp3](Docs/audio/15-mandinka-bala-heptatonic.mp3) | 20.0 s | -1.1 dBFS |
-| 16 | Midnight Village Ritual | [16-midnight-village-ritual.mp3](Docs/audio/16-midnight-village-ritual.mp3) | 20.0 s | -10.0 dBFS |
-| 17 | Sambla Talking Balafon | [17-sambla-talking-balafon.mp3](Docs/audio/17-sambla-talking-balafon.mp3) | 20.0 s | -2.7 dBFS |
-| 18 | Kalimba Muted Thumbs | [18-kalimba-muted-thumbs.mp3](Docs/audio/18-kalimba-muted-thumbs.mp3) | 20.0 s | -4.7 dBFS |
-| 19 | Kalimba Pick Sparkle | [19-kalimba-pick-sparkle.mp3](Docs/audio/19-kalimba-pick-sparkle.mp3) | 20.0 s | -7.1 dBFS |
-| 20 | Kalimba Thumb Lullaby | [20-kalimba-thumb-lullaby.mp3](Docs/audio/20-kalimba-thumb-lullaby.mp3) | 20.0 s | -13.1 dBFS |
+| 1 | Ambient Cathedral Bloom | [01-ambient-cathedral-bloom.wav](Docs/audio/01-ambient-cathedral-bloom.wav) | 12.0 s | -13.7 dBFS |
+| 2 | Concert Grand Rosewood | [02-concert-grand-rosewood.wav](Docs/audio/02-concert-grand-rosewood.wav) | 12.0 s | -8.1 dBFS |
+| 4 | Hard Acrylic Virtuoso | [04-hard-acrylic-virtuoso.wav](Docs/audio/04-hard-acrylic-virtuoso.wav) | 11.5 s | -4.7 dBFS |
+| 6 | Rosewood Roll Chorale | [06-rosewood-roll-chorale.wav](Docs/audio/06-rosewood-roll-chorale.wav) | 11.4 s | -11.9 dBFS |
+| 9 | Guatemalan Charleo | [09-guatemalan-charleo.wav](Docs/audio/09-guatemalan-charleo.wav) | 11.4 s | -2.7 dBFS |
+| 12 | Birifor Gyil Buzz | [12-birifor-gyil-buzz.wav](Docs/audio/12-birifor-gyil-buzz.wav) | 11.8 s | -8.6 dBFS |
+| 13 | Chopi Timbila Ensemble | [13-chopi-timbila-ensemble.wav](Docs/audio/13-chopi-timbila-ensemble.wav) | 11.7 s | -10.0 dBFS |
+| 19 | Kalimba Pick Sparkle | [19-kalimba-pick-sparkle.wav](Docs/audio/19-kalimba-pick-sparkle.wav) | 11.4 s | -8.0 dBFS |
 
 <!-- audio-demos-end -->
 
@@ -193,7 +182,7 @@ ctest --test-dir build-plugin -L 'unit|render' --output-on-failure
 `scripts/build-macos.sh` builds the universal macOS plug-in, and the
 `scripts/package-*` scripts write the distribution packages. Every test is a
 `Maremba.<Suite>` CTest test with one tier label: `unit`, `audio` (every preset
-demo renders, finite, below 0 dBFS and byte-identical on a second render),
+demo renders 8–12 s, finite, below 0 dBFS and byte-identical on a second render),
 `render` (the editor screenshot) or `fuzz` (the bounded parameter matrices and,
 with `-DMAREMBA_ENABLE_SANITIZERS=ON` under Clang, a time-boxed libFuzzer run of
 `Tests/DspFuzz.cpp`). `Tests/contracts.txt` lists the physics and behaviour

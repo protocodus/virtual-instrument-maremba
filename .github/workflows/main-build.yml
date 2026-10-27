@@ -37,10 +37,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install ffmpeg
+      - name: Install Ninja
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg ninja-build
+          sudo apt-get install -y --no-install-recommends ninja-build
 
       - name: Build the renderer and run the audio tier
         run: |
@@ -49,7 +49,7 @@ jobs:
           cmake --build build-dsp --parallel --target RenderMarembaPresetDemos
           ctest --test-dir build-dsp -L '^audio$' --no-tests=error --output-on-failure
 
-      - name: Render and encode the demos
+      - name: Render the demos
         run: |
           set -euo pipefail
           generated="build-dsp/generated-media"

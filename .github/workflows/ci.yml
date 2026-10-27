@@ -33,12 +33,12 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install Ninja, ffmpeg, JUCE Linux dependencies and the Python check packages
+      - name: Install Ninja, JUCE Linux dependencies and the Python check packages
         run: |
           python3 -m pip install --disable-pip-version-check $PYTHON_PACKAGES
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            ninja-build pkg-config ffmpeg \
+            ninja-build pkg-config \
             libasound2-dev \
             libfreetype-dev libfontconfig1-dev \
             libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
@@ -70,7 +70,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ci-audio-maremba-build-${{ github.run_number }}
-          path: build-dsp/demo-audio/*.mp3
+          path: build-dsp/demo-audio/*.wav
           if-no-files-found: error
           retention-days: 7
 
