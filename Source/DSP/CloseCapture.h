@@ -82,6 +82,15 @@ public:
             mTwiddle[static_cast<std::size_t>(i)] = {static_cast<float>(std::cos(angle)),
                                                     static_cast<float>(std::sin(angle))};
         }
+        // The same twiddles, laid out contiguously per butterfly stage for the
+        // split-lane forward transform: stage `half` reads entry half-1+j.
+        for (int half = 1; half < mFftSize; half *= 2)
+            for (int j = 0; j < half; ++j) {
+                const Complex twiddle = mTwiddle[static_cast<std::size_t>(j*(mFftSize/2/half))];
+                mStageTwiddle.re[static_cast<std::size_t>(half-1+j)] = twiddle.real();
+                mStageTwiddle.im[static_cast<std::size_t>(half-1+j)] = twiddle.imag();
+                mInverseTwiddleIm[static_cast<std::size_t>(half-1+j)] = -twiddle.imag();
+            }
         int bits = 0;
         for (int n = mFftSize; n > 1; n >>= 1) ++bits;
         for (int i = 0; i < mFftSize; ++i) {
@@ -334,6 +343,116 @@ private:
         }
     }
 
+    // The forward transform of one real source block, on separate real and
+    // imaginary lanes so each stage's butterflies vectorize. Every butterfly
+    // evaluates exactly the expressions of FftStage<..., false>, in the same
+    // stage order, so the spectrum is bit-identical to the interleaved form.
+    struct SplitBlock { std::array<float, kMaximumFft> re, im; };
+
+    // Inverse stages negate the twiddle's imaginary part, as FftStage<..., true>
+    // does. The final stage computes only the outputs its caller reads: bins
+    // 0..Size/2 of a forward transform, the real upper half of an inverse.
+    template<int Size, int Length, bool Inverse>
+    void SplitStage(SplitBlock& data) const {
+        constexpr int half = Length/2;
+        const float* twiddleRe = mStageTwiddle.re.data() + (half-1);
+        const float* twiddleIm = (Inverse ? mInverseTwiddleIm.data() : mStageTwiddle.im.data()) + (half-1);
+        if constexpr (Length == Size) {
+            if constexpr (Inverse) {
+                for (int j = 0; j < half; ++j) {
+                    const float valueRe = data.re[static_cast<std::size_t>(j+half)];
+                    const float valueIm = data.im[static_cast<std::size_t>(j+half)];
+                    const float oddRe = valueRe*twiddleRe[j]-valueIm*twiddleIm[j];
+                    data.re[static_cast<std::size_t>(j+half)] = data.re[static_cast<std::size_t>(j)]-oddRe;
+                }
+            } else {
+                {
+                    const float valueRe = data.re[static_cast<std::size_t>(half)];
+                    const float valueIm = data.im[static_cast<std::size_t>(half)];
+                    const float oddRe = valueRe*twiddleRe[0]-valueIm*twiddleIm[0];
+                    const float oddIm = valueRe*twiddleIm[0]+valueIm*twiddleRe[0];
+                    const float evenRe = data.re[0], evenIm = data.im[0];
+                    data.re[0] = evenRe+oddRe;
+                    data.im[0] = evenIm+oddIm;
+                    data.re[static_cast<std::size_t>(half)] = evenRe-oddRe;
+                    data.im[static_cast<std::size_t>(half)] = evenIm-oddIm;
+                }
+                for (int j = 1; j < half; ++j) {
+                    const float valueRe = data.re[static_cast<std::size_t>(j+half)];
+                    const float valueIm = data.im[static_cast<std::size_t>(j+half)];
+                    const float oddRe = valueRe*twiddleRe[j]-valueIm*twiddleIm[j];
+                    const float oddIm = valueRe*twiddleIm[j]+valueIm*twiddleRe[j];
+                    data.re[static_cast<std::size_t>(j)] += oddRe;
+                    data.im[static_cast<std::size_t>(j)] += oddIm;
+                }
+            }
+            return;
+        }
+        for (int first = 0; first < Size; first += Length)
+            for (int j = 0; j < half; ++j) {
+                const int low = first+j, high = first+j+half;
+                const float valueRe = data.re[static_cast<std::size_t>(high)];
+                const float valueIm = data.im[static_cast<std::size_t>(high)];
+                const float oddRe = valueRe*twiddleRe[j]-valueIm*twiddleIm[j];
+                const float oddIm = valueRe*twiddleIm[j]+valueIm*twiddleRe[j];
+                const float evenRe = data.re[static_cast<std::size_t>(low)];
+                const float evenIm = data.im[static_cast<std::size_t>(low)];
+                data.re[static_cast<std::size_t>(low)] = evenRe+oddRe;
+                data.im[static_cast<std::size_t>(low)] = evenIm+oddIm;
+                data.re[static_cast<std::size_t>(high)] = evenRe-oddRe;
+                data.im[static_cast<std::size_t>(high)] = evenIm-oddIm;
+            }
+        if constexpr (Length < Size) SplitStage<Size, Length*2, Inverse>(data);
+    }
+
+    // Input: bit-reversed real samples in re. The first stage's twiddle is
+    // exactly (1, -0) and every input imaginary part is +0, so its butterfly
+    // is exactly (a+b, +0) and (a-b, +0) for finite samples.
+    template<int Size>
+    void ForwardSplitFixed(SplitBlock& data) const {
+        for (int first = 0; first < Size; first += 2) {
+            const float even = data.re[static_cast<std::size_t>(first)];
+            const float value = data.re[static_cast<std::size_t>(first+1)];
+            data.re[static_cast<std::size_t>(first)] = even+value;
+            data.re[static_cast<std::size_t>(first+1)] = even-value;
+            data.im[static_cast<std::size_t>(first)] = 0.0f;
+            data.im[static_cast<std::size_t>(first+1)] = 0.0f;
+        }
+        if constexpr (Size > 2) SplitStage<Size, 4, false>(data);
+    }
+
+    void ForwardSplit(SplitBlock& data) const {
+        switch (mFftSize) {
+            case 2: ForwardSplitFixed<2>(data); break;
+            case 4: ForwardSplitFixed<4>(data); break;
+            case 8: ForwardSplitFixed<8>(data); break;
+            case 16: ForwardSplitFixed<16>(data); break;
+            case 32: ForwardSplitFixed<32>(data); break;
+            case 64: ForwardSplitFixed<64>(data); break;
+            case 128: ForwardSplitFixed<128>(data); break;
+            case 256: ForwardSplitFixed<256>(data); break;
+            case 512: ForwardSplitFixed<512>(data); break;
+        }
+    }
+
+    template<int Size>
+    void InverseSplitFixed(SplitBlock& data) const { SplitStage<Size, 2, true>(data); }
+
+    // Bit-reversed spectrum in, the real upper half out (unscaled).
+    void InverseSplit(SplitBlock& data) const {
+        switch (mFftSize) {
+            case 2: InverseSplitFixed<2>(data); break;
+            case 4: InverseSplitFixed<4>(data); break;
+            case 8: InverseSplitFixed<8>(data); break;
+            case 16: InverseSplitFixed<16>(data); break;
+            case 32: InverseSplitFixed<32>(data); break;
+            case 64: InverseSplitFixed<64>(data); break;
+            case 128: InverseSplitFixed<128>(data); break;
+            case 256: InverseSplitFixed<256>(data); break;
+            case 512: InverseSplitFixed<512>(data); break;
+        }
+    }
+
     void Fft(std::array<Complex, kMaximumFft>& data, bool inverse) const {
         if (inverse) FftDispatch<true>(data);
         else FftDispatch<false>(data);
@@ -378,46 +497,67 @@ private:
             for (auto& channel : mOutput[group]) std::fill_n(channel.data(), mBlockSize, 0.0f);
             return;
         }
-        std::array<std::array<Complex, kMaximumFft>, 2> sum{};
+        // The spectra sum on split lanes; each bin receives exactly the
+        // complex product and += of the interleaved form, in the same order.
+        std::array<SplitBlock, 2> sum;
+        for (auto& channel : sum) {
+            std::fill_n(channel.re.data(), mFftSize/2+1, 0.0f);
+            std::fill_n(channel.im.data(), mFftSize/2+1, 0.0f);
+        }
         for (int active = 0; active < mActiveCount; ++active) {
             const int id = mActiveSources[static_cast<std::size_t>(active)];
             if (id % mGroupCount != group) continue;
             auto& source = mSources[static_cast<std::size_t>(id)];
             if (!source.configured || source.remaining == 0) continue;
             for (int channel = 0; channel < 2; ++channel) {
-                std::array<Complex, kMaximumFft> block;
+                SplitBlock block;
                 for (int i = 0; i < mBlockSize; ++i) {
                     // Fill directly in the exact order the FFT's former swap
                     // pass produced. The transform needs no reorder pass for
                     // these real source inputs; no butterfly is changed.
-                    block[static_cast<std::size_t>(mReverse[i])] = source.previous[channel][static_cast<std::size_t>(i)];
-                    block[static_cast<std::size_t>(mReverse[i+mBlockSize])] = source.current[channel][static_cast<std::size_t>(i)];
+                    block.re[static_cast<std::size_t>(mReverse[i])] = source.previous[channel][static_cast<std::size_t>(i)];
+                    block.re[static_cast<std::size_t>(mReverse[i+mBlockSize])] = source.current[channel][static_cast<std::size_t>(i)];
                 }
                 std::copy_n(source.current[channel].data(), mBlockSize, source.previous[channel].data());
-                FftDispatch<false, false>(block);
+                ForwardSplit(block);
                 Complex* history = History(id, channel);
                 for (int i = 0; i <= mFftSize/2; ++i) history[mHistoryPosition[group]*mFftSize+i] =
-                    {Flush(block[static_cast<std::size_t>(i)].real()*source.rangeGain),
-                     Flush(block[static_cast<std::size_t>(i)].imag()*source.rangeGain)};
+                    {Flush(block.re[static_cast<std::size_t>(i)]*source.rangeGain),
+                     Flush(block.im[static_cast<std::size_t>(i)]*source.rangeGain)};
                 const Complex* filter = Filter(source.profile, channel);
+                float* sumRe = sum[static_cast<std::size_t>(channel)].re.data();
+                float* sumIm = sum[static_cast<std::size_t>(channel)].im.data();
                 int previous = mHistoryPosition[group];
                 for (int part = 0; part < mPartitions; ++part) {
                     const Complex* h = filter+part*mFftSize;
                     const Complex* x = history+previous*mFftSize;
-                    for (int i = 0; i <= mFftSize/2; ++i)
-                        sum[channel][static_cast<std::size_t>(i)] += Complex(
-                            x[i].real()*h[i].real()-x[i].imag()*h[i].imag(),
-                            x[i].real()*h[i].imag()+x[i].imag()*h[i].real());
+                    for (int i = 0; i <= mFftSize/2; ++i) {
+                        sumRe[i] += x[i].real()*h[i].real()-x[i].imag()*h[i].imag();
+                        sumIm[i] += x[i].real()*h[i].imag()+x[i].imag()*h[i].real();
+                    }
                     if (--previous < 0) previous = mPartitions-1;
                 }
             }
         }
+        const float scale = static_cast<float>(mFftSize);
         for (int channel = 0; channel < 2; ++channel) {
-            for (int i = 1; i < mFftSize/2; ++i)
-                sum[channel][static_cast<std::size_t>(mFftSize-i)] = std::conj(sum[channel][static_cast<std::size_t>(i)]);
-            Fft(sum[channel], true);
+            // The conjugate-symmetric spectrum, bit-reversed into place as
+            // the inverse FFT's swap pass would leave it.
+            const SplitBlock& spectrum = sum[static_cast<std::size_t>(channel)];
+            SplitBlock block;
+            for (int i = 0; i < mFftSize; ++i) {
+                const int bin = mReverse[static_cast<std::size_t>(i)];
+                const bool mirrored = bin > mFftSize/2;
+                const int source = mirrored ? mFftSize-bin : bin;
+                block.re[static_cast<std::size_t>(i)] = spectrum.re[static_cast<std::size_t>(source)];
+                block.im[static_cast<std::size_t>(i)] = mirrored ? -spectrum.im[static_cast<std::size_t>(source)]
+                                                                 : spectrum.im[static_cast<std::size_t>(source)];
+            }
+            InverseSplit(block);
+            // std::complex<float> /= float divides each part by the float.
             for (int i = 0; i < mBlockSize; ++i)
-                mOutput[group][channel][static_cast<std::size_t>(i)] = Flush(sum[channel][static_cast<std::size_t>(i+mBlockSize)].real());
+                mOutput[group][channel][static_cast<std::size_t>(i)] =
+                    Flush(block.re[static_cast<std::size_t>(i+mBlockSize)] / scale);
         }
     }
 
@@ -434,6 +574,8 @@ private:
     std::vector<Complex> mHistory, mFilters;
     std::array<Complex, kMaximumBlock> mTwiddle{};
     std::array<int, kMaximumFft> mReverse{};
+    SplitBlock mStageTwiddle{};
+    std::array<float, kMaximumFft> mInverseTwiddleIm{};
     std::array<std::array<std::array<float, kMaximumBlock>, 2>, kMaximumGroups> mOutput{};
 };
 
