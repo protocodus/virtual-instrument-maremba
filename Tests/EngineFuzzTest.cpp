@@ -17,6 +17,7 @@
 //   ./engine_fuzz --only determinism --determinism-seeds 50
 //   ./engine_fuzz --only reset --seeds 12 --reset-rate 192000 --reset-os 2
 //   ./engine_fuzz --only denormal --tail-rate 96000 --tail-os 1 --tail-seconds 5
+//   ./engine_fuzz --only denormal --timing   also gates I8's cost (perf tier only)
 // Exit status 0 = every invariant held; failures are listed (first 60).
 //
 // API contract exercised (MarembaEngine.h): any EngineParameters value (NaN,
@@ -40,8 +41,9 @@
 //   I6  right after Reset(): IsSilent() and no active voice
 //   I7  a render after Reset() equals a fresh engine's render with the same
 //       parameters and bend (the MarembaEngine.h contract)
-//   I8  long decays: no subnormal state in voices or shared tails, and the
-//       same render time with and without hardware flush-to-zero
+//   I8  long decays: no subnormal state in voices or shared tails, and, with
+//       --timing (Maremba.DenormalCost in the perf tier, never instrumented),
+//       the same render time with and without hardware flush-to-zero
 // Determinism (the same MIDI and automation give the same audio, bit for bit):
 //   D1  a random performance (notes, releases, parameter jumps to extremes,
 //       bends, transport stops at exact sample positions) renders identically
@@ -168,6 +170,7 @@ struct Options {
     bool verbose = false;
     bool extended = false;
     bool listControls = false;
+    bool timing = false;          // gate I8's cost; no other tier may fail on time
     std::string only;
     double tailRate = 44100.0;
     int tailOversampling = 0;
@@ -1092,7 +1095,7 @@ void DenormalTail(int model, double rate, int oversampling, double seconds, cons
         gReport.Fail(where + ": thread CPU clock failed");
     // Preserve the original slowdown bound. Thread CPU excludes time spent
     // descheduled by simultaneous SDK suites or other desktop applications.
-    if (plain.cpu > 1.5 * flushed.cpu + 0.2)
+    if (o.timing && plain.cpu > 1.5 * flushed.cpu + 0.2)
         gReport.Fail(Fmt("%s: thread CPU %.2f s gradual vs %.2f s flushed (denormal slowdown); wall %.2f / %.2f s",
                          where.c_str(), plain.cpu, flushed.cpu, plain.wall, flushed.wall));
     std::printf("  %s: %.1f s tail, thread CPU gradual %.3f / flushed %.3f s, wall %.3f / %.3f s\n",
@@ -1503,7 +1506,7 @@ void Usage() {
                 "               [--seeds N] [--determinism-seeds N] [--first S] [--steps K] [--drain SECONDS]\n"
                 "               [--only controls|hostile|fuzz|drain|determinism|reset|denormal|denormal-mode|scenarios]\n"
                 "               [--tail-rate HZ] [--tail-os 0|1|2|3] [--tail-seconds S]\n"
-                "               [--reset-rate HZ] [--reset-os 0|1|2|3] [--verbose]\n"
+                "               [--reset-rate HZ] [--reset-os 0|1|2|3] [--timing] [--verbose]\n"
                 "Compact (default): explicit control states, hostile API, representative regressions and true tails.\n"
                 "Extended: additionally retains all original scenarios, 24 x 160 random steps and 8 determinism seeds.\n");
 }
@@ -1571,6 +1574,7 @@ int main(int argc, char** argv) {
         else if (a == "--drain") o.drainSeconds = NumberArgument(a, value());
         else if (a == "--only") { o.only = value(); onlySet = true; }
         else if (a == "--verbose") o.verbose = true;
+        else if (a == "--timing") o.timing = true;
         else if (a == "--tail-rate") o.tailRate = NumberArgument(a, value());
         else if (a == "--reset-rate") o.resetRate = NumberArgument(a, value());
         else if (a == "--reset-os") {

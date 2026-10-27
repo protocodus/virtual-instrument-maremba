@@ -187,7 +187,8 @@ to `build-dsp`. Maremba's suites by tier: `unit`, `audio` (the preset demos),
 `render` (the editor screenshot), `fuzz` (`Maremba.ParameterMatrix`, one
 rotation shard of the matrix the main build runs in full across eight shards;
 `Maremba.DspFuzz` with `-DMAREMBA_BUILD_FUZZER=ON` and Clang) and `perf`
-(`Maremba.CpuBudget`, Release builds without sanitizers). Select the suites
+(`Maremba.CpuBudget` and `Maremba.DenormalCost`, the gradual against
+flushed denormal-tail cost; Release builds without sanitizers). Select the suites
 that cover a change with `-R`. Add a contract to `Tests/contracts.txt` and it
 is built and registered automatically. `scripts/validate-plugins.sh
 build-plugin Maremba aumu Mrb1 Mrmb 0x4d524d42` runs the host validators on a

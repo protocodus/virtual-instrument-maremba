@@ -60,8 +60,8 @@ jobs:
       - name: Audio tier
         run: ctest --test-dir build-dsp -L '^audio$' --no-tests=error --output-on-failure
 
-      # U7: fails above the budget in Tools/RenderPresetDemos.cpp; the figures
-      # are printed for the record.
+      # U7: fails above the budget in Tools/RenderPresetDemos.cpp or on a
+      # denormal-tail slowdown; the demo figures are printed for the record.
       - name: Perf tier
         run: |
           ctest --test-dir build-dsp -L '^perf$' --no-tests=error --output-on-failure

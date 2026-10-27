@@ -298,6 +298,13 @@ if(BUILD_TESTING)
             set_tests_properties(Maremba.${suite} PROPERTIES LABELS unit TIMEOUT 1800)
         endif()
     endforeach()
+    # U7: EngineFuzz's denormal tails with their gradual/flushed thread-CPU
+    # bound enforced. The fuzz tier runs the same tails for subnormal state
+    # only, because it also runs under ASan, where the timing means nothing.
+    if(CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT MAREMBA_ENABLE_SANITIZERS AND NOT MAREMBA_BUILD_FUZZER)
+        add_test(NAME Maremba.DenormalCost COMMAND MarembaEngineFuzzTests --only denormal --timing)
+        set_tests_properties(Maremba.DenormalCost PROPERTIES LABELS perf RUN_SERIAL TRUE TIMEOUT 1800)
+    endif()
 
     # The shared U4 tools (Tests/FuzzHarness.h, Tests/ParameterMatrix.h): the
     # fuzz harness replays committed reproducers and seeded inputs on every
