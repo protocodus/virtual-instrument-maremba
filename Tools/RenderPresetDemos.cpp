@@ -26,6 +26,9 @@ int main(int argc, char** argv) {
     protocodus::demos::Instrument instrument;
     instrument.name = "Maremba";
     for (const auto& preset : maremba::kFactoryPresets) instrument.presets.emplace_back(preset.name);
+    // U7 perf budget: 0 reports without failing until the CI runner's median
+    // is measured.
+    instrument.cpuBudget = 0.0;
     instrument.open = [](std::size_t preset, double rate, int, std::uint32_t) {
         return std::make_unique<MarembaVoice>(preset, rate);
     };

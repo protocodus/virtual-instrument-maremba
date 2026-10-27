@@ -35,7 +35,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(MAREMBA_BUILD_PLUGIN "Build the JUCE plug-in and standalone app" ON)
 option(MAREMBA_BUILD_CLAP "Build the CLAP format through clap-juce-extensions" ON)
 option(MAREMBA_BUILD_TOOLS "Build the demo renderer and the other offline tools" ON)
-option(MAREMBA_ENABLE_SANITIZERS "Instrument the build with ASan and UBSan, and build the libFuzzer harness" OFF)
+option(MAREMBA_ENABLE_SANITIZERS "Instrument the build with ASan and UBSan" OFF)
+option(MAREMBA_BUILD_FUZZER "Build the Clang libFuzzer DSP harness (Maremba.DspFuzz), instrumented like the sanitizer build" OFF)
 option(MAREMBA_REQUIRE_PYTHON_TESTS
     "Fail to configure unless every Python check can be registered (CI sets it)" OFF)
 set(MAREMBA_JUCE_PATH "" CACHE PATH "Optional local JUCE 8.0.14 checkout (avoids downloading JUCE)")
@@ -51,12 +52,15 @@ else()
     set(MAREMBA_BUILD_NUMBER "local")
 endif()
 
-if(MAREMBA_ENABLE_SANITIZERS)
+if(MAREMBA_BUILD_FUZZER AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    message(FATAL_ERROR "MAREMBA_BUILD_FUZZER requires Clang's libFuzzer")
+endif()
+if(MAREMBA_ENABLE_SANITIZERS OR MAREMBA_BUILD_FUZZER)
     if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         message(FATAL_ERROR "MAREMBA_ENABLE_SANITIZERS requires Clang or GCC")
     endif()
-    add_compile_options(-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer)
-    add_link_options(-fsanitize=address,undefined)
+    add_compile_options(-fsanitize=address,undefined,float-cast-overflow -fno-sanitize-recover=all -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address,undefined,float-cast-overflow)
     add_compile_definitions(MAREMBA_SANITIZED)
 endif()
 
@@ -224,7 +228,7 @@ if(MAREMBA_BUILD_TOOLS)
     endif()
 endif()
 
-if(MAREMBA_ENABLE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+if(MAREMBA_BUILD_FUZZER)
     # Coverage-guided input fuzzing of the public DSP API (Tests/DspFuzz.cpp).
     # It compiles the engine itself so the engine carries the coverage guides.
     add_executable(MarembaDspFuzz Tests/DspFuzz.cpp ${MAREMBA_DSP_SOURCES})
@@ -305,12 +309,12 @@ if(BUILD_TESTING)
         set_target_properties(${target} PROPERTIES CXX_STANDARD 17)
     endforeach()
     target_compile_definitions(MarembaDspFuzzReplay PRIVATE PROTOCODUS_FUZZ_MAIN)
-    file(GLOB MAREMBA_FUZZ_REPRODUCERS CONFIGURE_DEPENDS Tests/fuzz-regressions/*)
+    file(GLOB MAREMBA_FUZZ_REPRODUCERS CONFIGURE_DEPENDS Tests/Fixtures/fuzz/*)
     add_test(NAME Maremba.DspFuzzReplay COMMAND MarembaDspFuzzReplay -runs=200 ${MAREMBA_FUZZ_REPRODUCERS})
     set_tests_properties(Maremba.DspFuzzReplay PROPERTIES LABELS unit TIMEOUT 1800)
     # A sixteenth of the cases, one configuration each, so the sanitizer job
     # stays bounded; main-build.yml runs the full matrix in shards.
-    add_test(NAME Maremba.ParameterMatrix COMMAND MarembaParameterMatrix --rotate --jobs 4 --shard 0/16)
+    add_test(NAME Maremba.ParameterMatrix COMMAND MarembaParameterMatrix --rotation --jobs 4 --shard 0/16)
     set_tests_properties(Maremba.ParameterMatrix PROPERTIES LABELS fuzz TIMEOUT 3600)
 
     find_package(Python3 COMPONENTS Interpreter)
@@ -387,6 +391,14 @@ if(BUILD_TESTING)
         add_test(NAME Maremba.AudioDemos
                  COMMAND RenderMarembaPresetDemos --check "${CMAKE_CURRENT_SOURCE_DIR}/Docs/audio/midi")
         set_tests_properties(Maremba.AudioDemos PROPERTIES LABELS audio TIMEOUT 3600)
+        # U7: the preset demos timed on one thread against the budget in
+        # Tools/RenderPresetDemos.cpp. Timing means nothing instrumented.
+        if(CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT MAREMBA_ENABLE_SANITIZERS AND NOT MAREMBA_BUILD_FUZZER)
+            add_test(NAME Maremba.CpuBudget
+                     COMMAND RenderMarembaPresetDemos --cpu --json "${CMAKE_BINARY_DIR}/cpu.json"
+                             "${CMAKE_CURRENT_SOURCE_DIR}/Docs/audio/midi")
+            set_tests_properties(Maremba.CpuBudget PROPERTIES LABELS perf RUN_SERIAL TRUE TIMEOUT 3600)
+        endif()
     endif()
 
     if(MAREMBA_BUILD_PLUGIN)

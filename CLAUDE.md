@@ -153,6 +153,26 @@ defensible on their own physics. It does not license drawing a constant, fitting
 a curve, or keeping a formulation the measurements reject. If every candidate
 needs an invented number, the answer is still that none of them ships.
 
+## Testing
+
+Tests follow the portfolio testing standard (U1–U10); the `portfolio-testing`
+skill has the procedures. These hold in every session:
+
+- Every CTest test is `<Name>.<Suite>` with exactly one tier label: `unit`,
+  `audio`, `render`, `fuzz` or `perf`.
+- A test is never skipped, disabled, loosened or given a longer timeout to
+  get green. Diagnose a failure against the baseline first; when a fixture or
+  limit was wrong, fix it and say why beside it, in the same commit.
+- Checks run in Release builds: use the file's always-on helper, never a bare
+  `assert()`. Seeds, rates and block sizes are fixed.
+- No test outside the `perf` tier passes or fails on time, and `perf` never
+  runs in a Debug or sanitized build. CPU figures are development-machine
+  figures, never Reason or DAW CPU.
+- A fixed fuzz crash's input goes in `Tests/Fixtures/fuzz/`, which
+  `<Name>.DspFuzzReplay` replays in the `unit` tier.
+- A DSP change is done when the suites it touches, the `unit`, `audio` and
+  `perf` tiers and `<Name>DSPCxx17` pass.
+
 ## Build and verify
 
 ```sh
@@ -163,12 +183,12 @@ ctest --test-dir build-dsp -L unit --output-on-failure
 
 Use a separate `build-plugin` directory (`-DMAREMBA_BUILD_PLUGIN=ON`, the
 default) for the processor, editor and packaging; add `-DMAREMBA_BUILD_PLUGIN=OFF`
-to `build-dsp`. Every test is `Maremba.<Suite>` with one tier label: `unit`,
-`audio` (the preset demos), `render` (the editor screenshot) or `fuzz`. Select
-the suites that cover a change with `-R`, then run the full suite before a
-substantive DSP change is called done. Add a contract to `Tests/contracts.txt`
-and it is built and registered automatically.
-
-A test is never skipped, disabled or loosened to get green. Diagnose a failed
-contract against the baseline before changing a fixture, and document why an
-assumption was stale.
+to `build-dsp`. Maremba's suites by tier: `unit`, `audio` (the preset demos),
+`render` (the editor screenshot), `fuzz` (`Maremba.ParameterMatrix`, one
+rotation shard of the matrix the main build runs in full across eight shards;
+`Maremba.DspFuzz` with `-DMAREMBA_BUILD_FUZZER=ON` and Clang) and `perf`
+(`Maremba.CpuBudget`, Release builds without sanitizers). Select the suites
+that cover a change with `-R`. Add a contract to `Tests/contracts.txt` and it
+is built and registered automatically. `scripts/validate-plugins.sh
+build-plugin Maremba aumu Mrb1 Mrmb 0x4d524d42` runs the host validators on a
+plug-in build.

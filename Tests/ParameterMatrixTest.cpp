@@ -2,18 +2,22 @@
 // plug-in's parameter list: every control the plug-in exposes, a knob as its
 // 0..1 value and a choice by its steps, and the factory presets.
 //
-//   MarembaParameterMatrix [--rotate] [--jobs N] [--shard K/N] [--quality-only]
+//   MarembaParameterMatrix [--jobs N] [--rotation] [--shard K/N] [--case LABEL]
+//                          [--count] [--list] [--quality-only]
 //
-// --rotate runs each case at one rate and block size, for a quick pass;
-// --shard runs every Nth case from the Kth, for splitting the matrix across jobs.
+// The shared command line (U9): --rotation runs each case at one rate and
+// block size, for a quick pass; --shard K/N runs the cases whose index modulo
+// N is K, numbered from 0, for splitting the matrix across jobs.
 
 #include "DSP/MarembaPlayer.h"
 #include "FactoryPresets.h"
 #include "ParameterMatrix.h"
 #include "PluginControls.h"
 
+#include <algorithm>
 #include <cstring>
 #include <string>
+#include <vector>
 
 namespace {
 using namespace maremba;
@@ -129,27 +133,15 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "error: matrix must expose four Quality states with native 1x as default index 3\n");
         return 1;
     }
+    // --quality-only, Maremba's own flag, keeps the Quality cases; the rest of
+    // the command line is the shared matrix CLI (U9).
     protocodus::matrix::Options options;
     options.jobs = 1;
-    for (int i = 1; i < argc; ++i) {
-        const std::string arg = argv[i];
-        if (arg == "--rotate") options.everyConfiguration = false;
-        else if (arg == "--quality-only")
-            options.select = [](std::size_t, const protocodus::matrix::Case& c) { return c.label.rfind("oversampling=", 0) == 0; };
-        else if (arg == "--jobs" && i + 1 < argc) options.jobs = std::max(1, std::stoi(argv[++i]));
-        else if (arg == "--shard" && i + 1 < argc) {
-            const std::string shard = argv[++i];
-            const std::size_t k = std::stoul(shard), n = std::stoul(shard.substr(shard.find('/') + 1));
-            if (n == 0 || k >= n) {
-                std::fprintf(stderr, "error: --shard needs K/N with K < N\n");
-                return 2;
-            }
-            options.select = [k, n](std::size_t index, const protocodus::matrix::Case&) { return index % n == k; };
-        }
-        else {
-            std::fprintf(stderr, "usage: %s [--rotate] [--jobs N] [--shard K/N] [--quality-only]\n", argv[0]);
-            return 2;
-        }
+    std::vector<char*> args(argv, argv + argc);
+    const auto qualityOnly = std::find_if(args.begin() + 1, args.end(), [](const char* arg) { return std::string(arg) == "--quality-only"; });
+    if (qualityOnly != args.end()) {
+        options.select = [](std::size_t, const protocodus::matrix::Case& c) { return c.label.rfind("oversampling=", 0) == 0; };
+        args.erase(qualityOnly);
     }
-    return protocodus::matrix::Run([] { return std::make_unique<MarembaDevice>(); }, options) == 0 ? 0 : 1;
+    return protocodus::matrix::Main(static_cast<int>(args.size()), args.data(), [] { return std::make_unique<MarembaDevice>(); }, options);
 }

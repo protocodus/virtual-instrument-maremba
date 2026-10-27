@@ -8,7 +8,7 @@
 //   MarembaDspFuzzReplay [-seed=N] [-runs=N] [file ...] (any compiler)
 //
 // A crash leaves a crash-* reproducer; once fixed, commit it under
-// Tests/fuzz-regressions/ so the unit tier replays it.
+// Tests/Fixtures/fuzz/ so the unit tier replays it.
 
 #include "DSP/MarembaPlayer.h"
 #include "FuzzHarness.h"

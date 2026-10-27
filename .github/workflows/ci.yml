@@ -60,6 +60,13 @@ jobs:
       - name: Audio tier
         run: ctest --test-dir build-dsp -L '^audio$' --no-tests=error --output-on-failure
 
+      # U7: fails above the budget in Tools/RenderPresetDemos.cpp; the figures
+      # are printed for the record.
+      - name: Perf tier
+        run: |
+          ctest --test-dir build-dsp -L '^perf$' --no-tests=error --output-on-failure
+          cat build-dsp/cpu.json
+
       - name: Render the demos for review
         run: |
           set -euo pipefail
@@ -208,7 +215,7 @@ jobs:
           -DCMAKE_BUILD_TYPE=RelWithDebInfo
           -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
           -DMAREMBA_BUILD_PLUGIN=OFF
-          -DMAREMBA_ENABLE_SANITIZERS=ON
+          -DMAREMBA_ENABLE_SANITIZERS=ON -DMAREMBA_BUILD_FUZZER=ON
           -DCMAKE_DISABLE_FIND_PACKAGE_Python3=TRUE
           -DBUILD_TESTING=ON
 

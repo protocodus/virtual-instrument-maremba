@@ -21,10 +21,6 @@ env:
   # The table checks compare generated text exactly, so these are the versions
   # that reproduce the committed tables.
   PYTHON_PACKAGES: numpy==2.5.3 scipy==1.18.1 mpmath==1.4.1
-  PLUGINVAL_VERSION: v1.0.4
-  PLUGINVAL_LINUX_SHA256: c01c49d8063965c4c2dea8324468336768f5c9139e0b1caebde14c2400b55352
-  PLUGINVAL_MACOS_SHA256: 3c4c533bda0c5059eea3ddaea752d757ee2025041f0f47e6bcb0e87f6082b29f
-  PLUGINVAL_WINDOWS_SHA256: c08e61ce3b96db41636f8ec7e76f4c7e2c13ebdac7fa1b5a1f52b4f32ec715ab
 
 jobs:
   # Render into a staging tree holding a copy of the README, so its demo table
@@ -63,6 +59,19 @@ jobs:
           python3 Tools/update_readme_blocks.py demos --readme "$generated/README.md" \
             --manifest "$generated/Docs/audio/demos.json"
           ls -l "$generated/Docs/audio"
+
+      # U7: the perf tier's figures for the record, one file per main build.
+      - name: Time the demos (perf tier)
+        run: |
+          ./build-dsp/RenderMarembaPresetDemos --cpu --json build-dsp/cpu.json --note "${GITHUB_SHA}" Docs/audio/midi
+
+      - name: Upload the CPU figures
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpu-maremba-main-build-${{ github.run_number }}
+          path: build-dsp/cpu.json
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Upload demo audio and README copy
         uses: actions/upload-artifact@v4
@@ -103,26 +112,9 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Validate the AU with auval
-        run: |
-          set -euo pipefail
-          components="$HOME/Library/Audio/Plug-Ins/Components"
-          mkdir -p "$components"
-          ditto "build-macos/Maremba_artefacts/Release/AU/Maremba.component" "$components/Maremba.component"
-          # The registrar caches the component list; restarting it rescans.
-          killall -9 AudioComponentRegistrar 2>/dev/null || true
-          auval -strict -v aumu Mrb1 Mrmb
-
-      - name: Validate the VST3 with pluginval
-        working-directory: build-macos
-        run: |
-          set -euo pipefail
-          curl -sSfL -o pluginval.zip "https://github.com/Tracktion/pluginval/releases/download/${PLUGINVAL_VERSION}/pluginval_macOS.zip"
-          echo "${PLUGINVAL_MACOS_SHA256}  pluginval.zip" | shasum -a 256 -c -
-          ditto -x -k pluginval.zip .
-          pluginval.app/Contents/MacOS/pluginval --strictness-level 10 \
-            --random-seed 0x4d524d42 --timeout-ms 120000 --output-dir pluginval-logs \
-            --validate "Maremba_artefacts/Release/VST3/Maremba.vst3"
+      - name: Validate the plug-ins (pluginval, clap-validator, auval on macOS)
+        shell: bash
+        run: ./scripts/validate-plugins.sh build-macos Maremba aumu Mrb1 Mrmb 0x4d524d42
 
       - name: Package (ad-hoc-signed bundles)
         run: ./scripts/sign-and-package-macos.sh
@@ -169,15 +161,9 @@ jobs:
           cmake --build build-plugin --parallel
           ctest --test-dir build-plugin -L '^unit$' --no-tests=error --output-on-failure
 
-      - name: Validate the VST3 with pluginval
-        working-directory: build-plugin
-        run: |
-          set -euo pipefail
-          curl -sSfL -o pluginval.zip "https://github.com/Tracktion/pluginval/releases/download/${PLUGINVAL_VERSION}/pluginval_Linux.zip"
-          echo "${PLUGINVAL_LINUX_SHA256}  pluginval.zip" | sha256sum -c -
-          unzip -q -o pluginval.zip
-          xvfb-run -a ./pluginval --strictness-level 10 --random-seed 0x4d524d42 \
-            --timeout-ms 120000 --validate "Maremba_artefacts/Release/VST3/Maremba.vst3"
+      - name: Validate the plug-ins (pluginval, clap-validator, auval on macOS)
+        shell: bash
+        run: ./scripts/validate-plugins.sh build-plugin Maremba aumu Mrb1 Mrmb 0x4d524d42
 
       - name: Package Linux VST3, CLAP and standalone
         run: python3 scripts/package-linux.py --build-dir build-plugin
@@ -207,16 +193,9 @@ jobs:
           cmake -S . -B build-plugin -A x64 -DMAREMBA_BUILD_PLUGIN=ON -DMAREMBA_BUILD_TOOLS=OFF -DBUILD_TESTING=OFF
           cmake --build build-plugin --config Release --parallel --target Maremba_VST3 Maremba_CLAP Maremba_Standalone
 
-      - name: Validate the VST3 with pluginval
-        working-directory: build-plugin
+      - name: Validate the plug-ins (pluginval, clap-validator, auval on macOS)
         shell: bash
-        run: |
-          set -euo pipefail
-          curl -sSfL -o pluginval.zip "https://github.com/Tracktion/pluginval/releases/download/${PLUGINVAL_VERSION}/pluginval_Windows.zip"
-          echo "${PLUGINVAL_WINDOWS_SHA256}  pluginval.zip" | sha256sum -c -
-          7z x -y pluginval.zip
-          ./pluginval.exe --strictness-level 10 --random-seed 0x4d524d42 \
-            --timeout-ms 120000 --validate "Maremba_artefacts/Release/VST3/Maremba.vst3"
+        run: ./scripts/validate-plugins.sh build-plugin Maremba aumu Mrb1 Mrmb 0x4d524d42
 
       - name: Package Windows VST3, CLAP and standalone
         run: python scripts/package-windows.py --build-dir build-plugin
@@ -233,6 +212,9 @@ jobs:
     name: Long libFuzzer run (fuzz tier)
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    env:
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
     steps:
       - uses: actions/checkout@v4
         with:
@@ -248,7 +230,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends ninja-build
           cmake -S . -B build-fuzz -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
-            -DMAREMBA_BUILD_PLUGIN=OFF -DMAREMBA_ENABLE_SANITIZERS=ON -DBUILD_TESTING=OFF
+            -DMAREMBA_BUILD_PLUGIN=OFF -DMAREMBA_BUILD_FUZZER=ON -DBUILD_TESTING=OFF
           cmake --build build-fuzz --parallel --target MarembaDspFuzz
 
       - name: Fuzz for 30 minutes
