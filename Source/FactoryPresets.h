@@ -100,7 +100,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         0, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0500, // velocityToPosition
         0.0000, // velocityToDecay
         0, // tuningScale
         0, // noteOffMode
@@ -108,12 +108,12 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.5000, // membraneTension
         0.1000, // velocityToCarving
         0.1000, // velocityToCoupling
-        0.1000, // velocityToBloom
-        0.1000, // velocityToSympathetic
+        0.0500, // velocityToBloom
+        0.0500, // velocityToSympathetic
         0.0000, // velocityToBuzz
         0.1000, // velocityToTension
-        0.1000, // velocityToArtifacts
-        0.1000, // velocityToVariance
+        0.0500, // velocityToArtifacts
+        0.0500, // velocityToVariance
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -142,7 +142,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0500, // compAmount
         0.0204, // compAttack
         0.0833, // compRelease
-        0.79275309, // volume
+        0.68524592, // volume
         3, // oversampling
         1, // velocityCurve
         1, // polyphony
@@ -150,7 +150,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         0, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0500, // velocityToPosition
         0.0000, // velocityToDecay
         0, // tuningScale
         0, // noteOffMode
@@ -158,12 +158,12 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.5000, // membraneTension
         0.1000, // velocityToCarving
         0.1000, // velocityToCoupling
-        0.1000, // velocityToBloom
-        0.1000, // velocityToSympathetic
+        0.0500, // velocityToBloom
+        0.0500, // velocityToSympathetic
         0.0000, // velocityToBuzz
         0.1000, // velocityToTension
-        0.1000, // velocityToArtifacts
-        0.1000, // velocityToVariance
+        0.0500, // velocityToArtifacts
+        0.0500, // velocityToVariance
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -192,7 +192,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0500, // compAmount
         0.0612, // compAttack
         0.1250, // compRelease
-        0.74850572, // volume
+        0.71603494, // volume
         3, // oversampling
         1, // velocityCurve
         1, // polyphony
@@ -200,7 +200,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         0, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0750, // velocityToPosition
         0.0000, // velocityToDecay
         0, // tuningScale
         0, // noteOffMode
@@ -208,12 +208,12 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.5000, // membraneTension
         0.1000, // velocityToCarving
         0.1000, // velocityToCoupling
-        0.1000, // velocityToBloom
-        0.1000, // velocityToSympathetic
+        0.0750, // velocityToBloom
+        0.0750, // velocityToSympathetic
         0.0000, // velocityToBuzz
         0.1000, // velocityToTension
-        0.1000, // velocityToArtifacts
-        0.1000, // velocityToVariance
+        0.0750, // velocityToArtifacts
+        0.0750, // velocityToVariance
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -250,7 +250,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         0, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0500, // velocityToPosition
         0.0000, // velocityToDecay
         0, // tuningScale
         1, // noteOffMode
@@ -258,12 +258,12 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.5000, // membraneTension
         0.1000, // velocityToCarving
         0.1000, // velocityToCoupling
-        0.1000, // velocityToBloom
-        0.1000, // velocityToSympathetic
+        0.0500, // velocityToBloom
+        0.0500, // velocityToSympathetic
         0.0000, // velocityToBuzz
         0.1000, // velocityToTension
-        0.1000, // velocityToArtifacts
-        0.1000, // velocityToVariance
+        0.0500, // velocityToArtifacts
+        0.0500, // velocityToVariance
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -278,9 +278,9 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.58934215, // decay
         0.0000, // buzzAmount
         0.2500, // artifacts
-        0.6000, // sympathetic
+        0.5700, // sympathetic
         0.1500, // pitchGlide
-        0.7000, // bodyBloom
+        0.6650, // bodyBloom
         0.77228107, // closeLevel
         0.18526630, // farLevel
         0.08580901, // piezoLevel
@@ -328,9 +328,9 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.58934215, // decay
         0.0000, // buzzAmount
         0.2500, // artifacts
-        0.6500, // sympathetic
+        0.6175, // sympathetic
         0.1500, // pitchGlide
-        0.7000, // bodyBloom
+        0.6650, // bodyBloom
         0.97210857, // closeLevel
         0.20785770, // farLevel
         0.10801206, // piezoLevel
@@ -350,7 +350,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         0, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0500, // velocityToPosition
         0.0000, // velocityToDecay
         0, // tuningScale
         0, // noteOffMode
@@ -358,12 +358,12 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.5000, // membraneTension
         0.1000, // velocityToCarving
         0.1000, // velocityToCoupling
-        0.1000, // velocityToBloom
-        0.1000, // velocityToSympathetic
+        0.0500, // velocityToBloom
+        0.0500, // velocityToSympathetic
         0.0000, // velocityToBuzz
         0.1000, // velocityToTension
-        0.1000, // velocityToArtifacts
-        0.1000, // velocityToVariance
+        0.0500, // velocityToArtifacts
+        0.0500, // velocityToVariance
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -392,7 +392,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0500, // compAmount
         0.1020, // compAttack
         0.1458, // compRelease
-        0.66956412, // volume
+        0.65422248, // volume
         3, // oversampling
         1, // velocityCurve
         1, // polyphony
@@ -400,7 +400,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         1, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0750, // velocityToPosition
         0.0000, // velocityToDecay
         0, // tuningScale
         0, // noteOffMode
@@ -408,12 +408,12 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.5000, // membraneTension
         0.1000, // velocityToCarving
         0.1000, // velocityToCoupling
-        0.1000, // velocityToBloom
-        0.1000, // velocityToSympathetic
+        0.0750, // velocityToBloom
+        0.0750, // velocityToSympathetic
         0.0000, // velocityToBuzz
         0.1000, // velocityToTension
-        0.1000, // velocityToArtifacts
-        0.1000, // velocityToVariance
+        0.0750, // velocityToArtifacts
+        0.0750, // velocityToVariance
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -430,7 +430,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.4500, // artifacts
         0.4500, // sympathetic
         0.4000, // pitchGlide
-        0.6000, // bodyBloom
+        0.5700, // bodyBloom
         1.00000000, // closeLevel
         0.16770510, // farLevel
         0.43750000, // piezoLevel
@@ -450,7 +450,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         1, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0750, // velocityToPosition
         0.0000, // velocityToDecay
         0, // tuningScale
         0, // noteOffMode
@@ -458,12 +458,12 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.5000, // membraneTension
         0.1000, // velocityToCarving
         0.1000, // velocityToCoupling
-        0.1000, // velocityToBloom
-        0.1000, // velocityToSympathetic
+        0.0750, // velocityToBloom
+        0.0750, // velocityToSympathetic
         0.0000, // velocityToBuzz
         0.1000, // velocityToTension
-        0.1000, // velocityToArtifacts
-        0.1000, // velocityToVariance
+        0.0750, // velocityToArtifacts
+        0.0750, // velocityToVariance
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -480,7 +480,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.4500, // artifacts
         0.5000, // sympathetic
         0.4000, // pitchGlide
-        0.6000, // bodyBloom
+        0.5700, // bodyBloom
         0.99999998, // closeLevel
         0.16770510, // farLevel
         0.43749999, // piezoLevel
@@ -500,7 +500,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         1, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0750, // velocityToPosition
         0.0000, // velocityToDecay
         0, // tuningScale
         0, // noteOffMode
@@ -508,12 +508,12 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.5000, // membraneTension
         0.1000, // velocityToCarving
         0.1000, // velocityToCoupling
-        0.1000, // velocityToBloom
-        0.1000, // velocityToSympathetic
+        0.0750, // velocityToBloom
+        0.0750, // velocityToSympathetic
         0.0000, // velocityToBuzz
         0.1000, // velocityToTension
-        0.1000, // velocityToArtifacts
-        0.1000, // velocityToVariance
+        0.0750, // velocityToArtifacts
+        0.0750, // velocityToVariance
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -528,9 +528,9 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.48886180, // decay
         0.0000, // buzzAmount
         0.6500, // artifacts
-        0.5500, // sympathetic
+        0.5225, // sympathetic
         0.3500, // pitchGlide
-        0.7500, // bodyBloom
+        0.7125, // bodyBloom
         0.99999996, // closeLevel
         0.19885292, // farLevel
         0.35294116, // piezoLevel
@@ -550,7 +550,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         0, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0750, // velocityToPosition
         0.0000, // velocityToDecay
         0, // tuningScale
         0, // noteOffMode
@@ -558,8 +558,8 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.5000, // membraneTension
         0.1000, // velocityToCarving
         0.1000, // velocityToCoupling
-        0.1000, // velocityToBloom
-        0.1000, // velocityToSympathetic
+        0.0750, // velocityToBloom
+        0.0750, // velocityToSympathetic
         0.0000, // velocityToBuzz
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
@@ -578,9 +578,9 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.48886180, // decay
         0.0000, // buzzAmount
         0.6500, // artifacts
-        0.5500, // sympathetic
+        0.5225, // sympathetic
         0.3500, // pitchGlide
-        0.7500, // bodyBloom
+        0.7125, // bodyBloom
         0.99999998, // closeLevel
         0.19885292, // farLevel
         0.35294117, // piezoLevel
@@ -600,7 +600,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         0, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0750, // velocityToPosition
         0.0000, // velocityToDecay
         5, // tuningScale
         0, // noteOffMode
@@ -608,8 +608,8 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.4500, // membraneTension
         0.1000, // velocityToCarving
         0.1000, // velocityToCoupling
-        0.1000, // velocityToBloom
-        0.1000, // velocityToSympathetic
+        0.0750, // velocityToBloom
+        0.0750, // velocityToSympathetic
         0.0000, // velocityToBuzz
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
@@ -628,9 +628,9 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.50000000, // decay
         0.0000, // buzzAmount
         0.6500, // artifacts
-        0.6000, // sympathetic
+        0.5700, // sympathetic
         0.3500, // pitchGlide
-        0.7500, // bodyBloom
+        0.7125, // bodyBloom
         1.00000000, // closeLevel
         0.19885292, // farLevel
         0.05882353, // piezoLevel
@@ -650,7 +650,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         1, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0750, // velocityToPosition
         0.0000, // velocityToDecay
         2, // tuningScale
         0, // noteOffMode
@@ -658,8 +658,8 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.5000, // membraneTension
         0.1000, // velocityToCarving
         0.1000, // velocityToCoupling
-        0.1000, // velocityToBloom
-        0.1000, // velocityToSympathetic
+        0.0750, // velocityToBloom
+        0.0750, // velocityToSympathetic
         0.0000, // velocityToBuzz
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
@@ -708,8 +708,8 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.5000, // membraneTension
         0.1000, // velocityToCarving
         0.1000, // velocityToCoupling
-        0.1000, // velocityToBloom
-        0.1000, // velocityToSympathetic
+        0.0750, // velocityToBloom
+        0.0750, // velocityToSympathetic
         0.0000, // velocityToBuzz
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
@@ -728,9 +728,9 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.48886180, // decay
         0.0000, // buzzAmount
         0.5500, // artifacts
-        0.5500, // sympathetic
+        0.5225, // sympathetic
         0.3500, // pitchGlide
-        0.7500, // bodyBloom
+        0.7125, // bodyBloom
         1.00000000, // closeLevel
         0.16269784, // farLevel
         0.11764706, // piezoLevel
@@ -750,7 +750,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         0, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0750, // velocityToPosition
         0.0000, // velocityToDecay
         1, // tuningScale
         0, // noteOffMode
@@ -758,8 +758,8 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.5000, // membraneTension
         0.1000, // velocityToCarving
         0.1000, // velocityToCoupling
-        0.1000, // velocityToBloom
-        0.1000, // velocityToSympathetic
+        0.0750, // velocityToBloom
+        0.0750, // velocityToSympathetic
         0.0000, // velocityToBuzz
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
@@ -828,9 +828,9 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.46470946, // decay
         0.0000, // buzzAmount
         0.6000, // artifacts
-        0.5500, // sympathetic
+        0.5225, // sympathetic
         0.3500, // pitchGlide
-        0.7500, // bodyBloom
+        0.7125, // bodyBloom
         0.99999999, // closeLevel
         0.14462030, // farLevel
         0.17647059, // piezoLevel
@@ -850,7 +850,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         0, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0750, // velocityToPosition
         0.0000, // velocityToDecay
         4, // tuningScale
         0, // noteOffMode
@@ -858,8 +858,8 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.5000, // membraneTension
         0.1000, // velocityToCarving
         0.1000, // velocityToCoupling
-        0.1000, // velocityToBloom
-        0.1000, // velocityToSympathetic
+        0.0750, // velocityToBloom
+        0.0750, // velocityToSympathetic
         0.0000, // velocityToBuzz
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
@@ -880,7 +880,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.2000, // artifacts
         0.3000, // sympathetic
         0.1000, // pitchGlide
-        0.7500, // bodyBloom
+        0.7125, // bodyBloom
         0.99999994, // closeLevel
         0.13679711, // farLevel
         0.05263158, // piezoLevel
@@ -900,7 +900,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         0, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0500, // velocityToPosition
         0.0000, // velocityToDecay
         0, // tuningScale
         1, // noteOffMode
@@ -908,12 +908,12 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.5000, // membraneTension
         0.1000, // velocityToCarving
         0.1000, // velocityToCoupling
-        0.1000, // velocityToBloom
-        0.1000, // velocityToSympathetic
+        0.0500, // velocityToBloom
+        0.0500, // velocityToSympathetic
         0.0000, // velocityToBuzz
         0.1000, // velocityToTension
-        0.1000, // velocityToArtifacts
-        0.1000, // velocityToVariance
+        0.0500, // velocityToArtifacts
+        0.0500, // velocityToVariance
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -950,7 +950,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         0, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0750, // velocityToPosition
         0.0000, // velocityToDecay
         0, // tuningScale
         0, // noteOffMode
@@ -958,12 +958,12 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.5000, // membraneTension
         0.1000, // velocityToCarving
         0.1000, // velocityToCoupling
-        0.1000, // velocityToBloom
-        0.1000, // velocityToSympathetic
+        0.0750, // velocityToBloom
+        0.0750, // velocityToSympathetic
         0.0000, // velocityToBuzz
         0.1000, // velocityToTension
-        0.1000, // velocityToArtifacts
-        0.1000, // velocityToVariance
+        0.0500, // velocityToArtifacts
+        0.0500, // velocityToVariance
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -978,9 +978,9 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.59749375, // decay
         0.0000, // buzzAmount
         0.2000, // artifacts
-        0.6000, // sympathetic
+        0.5700, // sympathetic
         0.1000, // pitchGlide
-        0.7500, // bodyBloom
+        0.7125, // bodyBloom
         1.0000, // closeLevel
         0.19333333333333333, // farLevel
         0.0500, // piezoLevel
@@ -1000,7 +1000,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         0, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0500, // velocityToPosition
         0.0000, // velocityToDecay
         0, // tuningScale
         0, // noteOffMode
@@ -1008,12 +1008,12 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.5000, // membraneTension
         0.1000, // velocityToCarving
         0.1000, // velocityToCoupling
-        0.1000, // velocityToBloom
-        0.1000, // velocityToSympathetic
+        0.0500, // velocityToBloom
+        0.0500, // velocityToSympathetic
         0.0000, // velocityToBuzz
         0.1000, // velocityToTension
-        0.1000, // velocityToArtifacts
-        0.1000, // velocityToVariance
+        0.0500, // velocityToArtifacts
+        0.0500, // velocityToVariance
         0.0, // modWheel
         0.5, // pitchBend
     }} },

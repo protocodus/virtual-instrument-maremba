@@ -1,0 +1,744 @@
+{
+  "scope": "OnlyfrozenfactoryRMS/peakcentersanddescriptivecomment;DSPandInitanchorsunchanged",
+  "centering": "For eachpreset,midpoint(min,max)acrossthreefresh44100/48000/96000measurements;format.4f;peakwindowwidthfromoldDecimalendpointsretainedexactly",
+  "RMS_tolerance_db": 0.35,
+  "init_anchors_unchanged": true,
+  "all_existing_assertions_unchanged": true,
+  "wrapper_stimulus_audit": {
+    "notes_identical": [
+      60,
+      64,
+      67,
+      72,
+      67,
+      64,
+      60,
+      60,
+      62,
+      65,
+      69,
+      74,
+      69,
+      65,
+      62,
+      62,
+      48,
+      55,
+      36,
+      84
+    ],
+    "velocity": 80,
+    "onset_interval_seconds": 0.15,
+    "hold_seconds": 0.1,
+    "mapping": "samecompletefactorycontrols; velocityfloat80/127; lroundeventframes; Linearnative1x",
+    "window_difference": "At44100wrapperfloors64framebatches:220480observedvs220500canonical;48k/96kwindowsexact;finalactualwrappersuitestillrequired"
+  },
+  "measure_manifest_sha256": "8a8a2e779184c553a373b6110fde3e642391374557ece42015a515969facbd1d",
+  "updated_sources": {
+    "canonical_MainCalibrationTest.cpp": "cffaa9a28fb05cd01072fe9eb203b762c7d778bec4ae30e23999da5531e2a056",
+    "Rack_AllPatchRenderTest.cpp": "a5ec44b36ccc57cae7e93614eb8384aff1f31ca181894316f4ccc199526b8a60",
+    "Instrument_MainCalibrationTest.cpp": "cffaa9a28fb05cd01072fe9eb203b762c7d778bec4ae30e23999da5531e2a056"
+  },
+  "presets": [
+    {
+      "preset": "Ambient Cathedral Bloom",
+      "old_rms_center_dbfs": "-23.6085",
+      "new_rms_center_dbfs": "-23.6076",
+      "old_peak_window_dbfs": [
+        "-7.8603",
+        "-7.0603"
+      ],
+      "new_peak_window_dbfs": [
+        "-7.8603",
+        "-7.0603"
+      ],
+      "preserved_peak_window_width_db": "0.8000",
+      "maximum_rms_error_db": 0.012636671500001029,
+      "observations": [
+        {
+          "sample_rate": "44100",
+          "volume": "0.88236296",
+          "main_rms_dbfs": "-23.5949633285",
+          "main_peak_dbfs": "-7.45499592131"
+        },
+        {
+          "sample_rate": "48000",
+          "volume": "0.88236296",
+          "main_rms_dbfs": "-23.6103748594",
+          "main_peak_dbfs": "-7.45988946281"
+        },
+        {
+          "sample_rate": "96000",
+          "volume": "0.88236296",
+          "main_rms_dbfs": "-23.6201793311",
+          "main_peak_dbfs": "-7.4655573453"
+        }
+      ]
+    },
+    {
+      "preset": "Concert Grand Rosewood",
+      "old_rms_center_dbfs": "-24.4213",
+      "new_rms_center_dbfs": "-24.3869",
+      "old_peak_window_dbfs": [
+        "-9.5540",
+        "-8.7540"
+      ],
+      "new_peak_window_dbfs": [
+        "-9.6317",
+        "-8.8317"
+      ],
+      "preserved_peak_window_width_db": "0.8000",
+      "maximum_rms_error_db": 0.0037594317999989357,
+      "observations": [
+        {
+          "sample_rate": "44100",
+          "volume": "0.78734778",
+          "main_rms_dbfs": "-24.3831932247",
+          "main_peak_dbfs": "-9.22209718154"
+        },
+        {
+          "sample_rate": "48000",
+          "volume": "0.78734778",
+          "main_rms_dbfs": "-24.3831831848",
+          "main_peak_dbfs": "-9.22424103888"
+        },
+        {
+          "sample_rate": "96000",
+          "volume": "0.78734778",
+          "main_rms_dbfs": "-24.3906594318",
+          "main_peak_dbfs": "-9.24136296565"
+        }
+      ]
+    },
+    {
+      "preset": "Direct Piezo Mallet",
+      "old_rms_center_dbfs": "-22.7290",
+      "new_rms_center_dbfs": "-24.5365",
+      "old_peak_window_dbfs": [
+        "-1.6494",
+        "-0.8494"
+      ],
+      "new_peak_window_dbfs": [
+        "-3.3566",
+        "-2.5566"
+      ],
+      "preserved_peak_window_width_db": "0.8000",
+      "maximum_rms_error_db": 0.015617076200001634,
+      "observations": [
+        {
+          "sample_rate": "44100",
+          "volume": "0.68524592",
+          "main_rms_dbfs": "-24.5208829238",
+          "main_peak_dbfs": "-3.06908428424"
+        },
+        {
+          "sample_rate": "48000",
+          "volume": "0.68524592",
+          "main_rms_dbfs": "-24.530947764",
+          "main_peak_dbfs": "-2.94445550936"
+        },
+        {
+          "sample_rate": "96000",
+          "volume": "0.68524592",
+          "main_rms_dbfs": "-24.5521080762",
+          "main_peak_dbfs": "-2.84406737806"
+        }
+      ]
+    },
+    {
+      "preset": "Hard Acrylic Virtuoso",
+      "old_rms_center_dbfs": "-23.8474",
+      "new_rms_center_dbfs": "-24.0889",
+      "old_peak_window_dbfs": [
+        "-2.3296",
+        "-1.5296"
+      ],
+      "new_peak_window_dbfs": [
+        "-2.7067",
+        "-1.9067"
+      ],
+      "preserved_peak_window_width_db": "0.8000",
+      "maximum_rms_error_db": 0.019169904800001802,
+      "observations": [
+        {
+          "sample_rate": "44100",
+          "volume": "0.71603494",
+          "main_rms_dbfs": "-24.069795279",
+          "main_peak_dbfs": "-2.27554946106"
+        },
+        {
+          "sample_rate": "48000",
+          "volume": "0.71603494",
+          "main_rms_dbfs": "-24.076645363",
+          "main_peak_dbfs": "-2.33201655868"
+        },
+        {
+          "sample_rate": "96000",
+          "volume": "0.71603494",
+          "main_rms_dbfs": "-24.1080699048",
+          "main_peak_dbfs": "-2.33777099084"
+        }
+      ]
+    },
+    {
+      "preset": "Rosewood Dampened Etude",
+      "old_rms_center_dbfs": "-25.3293",
+      "new_rms_center_dbfs": "-25.3015",
+      "old_peak_window_dbfs": [
+        "-10.6777",
+        "-9.8777"
+      ],
+      "new_peak_window_dbfs": [
+        "-10.1926",
+        "-9.3926"
+      ],
+      "preserved_peak_window_width_db": "0.8000",
+      "maximum_rms_error_db": 0.009007471300002123,
+      "observations": [
+        {
+          "sample_rate": "44100",
+          "volume": "0.76007818",
+          "main_rms_dbfs": "-25.293933679",
+          "main_peak_dbfs": "-9.80772246308"
+        },
+        {
+          "sample_rate": "48000",
+          "volume": "0.76007818",
+          "main_rms_dbfs": "-25.2924925287",
+          "main_peak_dbfs": "-9.79946593353"
+        },
+        {
+          "sample_rate": "96000",
+          "volume": "0.76007818",
+          "main_rms_dbfs": "-25.3104402896",
+          "main_peak_dbfs": "-9.77742218628"
+        }
+      ]
+    },
+    {
+      "preset": "Rosewood Roll Chorale",
+      "old_rms_center_dbfs": "-23.9408",
+      "new_rms_center_dbfs": "-23.9397",
+      "old_peak_window_dbfs": [
+        "-8.8700",
+        "-8.0700"
+      ],
+      "new_peak_window_dbfs": [
+        "-8.8702",
+        "-8.0702"
+      ],
+      "preserved_peak_window_width_db": "0.8000",
+      "maximum_rms_error_db": 0.011953667199996687,
+      "observations": [
+        {
+          "sample_rate": "44100",
+          "volume": "0.87029207",
+          "main_rms_dbfs": "-23.9480190984",
+          "main_peak_dbfs": "-8.43548461817"
+        },
+        {
+          "sample_rate": "48000",
+          "volume": "0.87029207",
+          "main_rms_dbfs": "-23.9516395851",
+          "main_peak_dbfs": "-8.43457608474"
+        },
+        {
+          "sample_rate": "96000",
+          "volume": "0.87029207",
+          "main_rms_dbfs": "-23.9277463328",
+          "main_peak_dbfs": "-8.50577824698"
+        }
+      ]
+    },
+    {
+      "preset": "Soft Yarn Nocturne",
+      "old_rms_center_dbfs": "-25.1317",
+      "new_rms_center_dbfs": "-25.0764",
+      "old_peak_window_dbfs": [
+        "-10.6321",
+        "-10.0321"
+      ],
+      "new_peak_window_dbfs": [
+        "-10.4512",
+        "-9.8512"
+      ],
+      "preserved_peak_window_width_db": "0.6000",
+      "maximum_rms_error_db": 0.009705964400001932,
+      "observations": [
+        {
+          "sample_rate": "44100",
+          "volume": "0.865865",
+          "main_rms_dbfs": "-25.0714663331",
+          "main_peak_dbfs": "-10.1173684242"
+        },
+        {
+          "sample_rate": "48000",
+          "volume": "0.865865",
+          "main_rms_dbfs": "-25.0667903878",
+          "main_peak_dbfs": "-10.0973379763"
+        },
+        {
+          "sample_rate": "96000",
+          "volume": "0.865865",
+          "main_rms_dbfs": "-25.0861059644",
+          "main_peak_dbfs": "-10.2050565388"
+        }
+      ]
+    },
+    {
+      "preset": "Chiapas Folk Fiesta",
+      "old_rms_center_dbfs": "-24.4818",
+      "new_rms_center_dbfs": "-24.6479",
+      "old_peak_window_dbfs": [
+        "-2.7848",
+        "-1.9848"
+      ],
+      "new_peak_window_dbfs": [
+        "-3.2005",
+        "-2.4005"
+      ],
+      "preserved_peak_window_width_db": "0.8000",
+      "maximum_rms_error_db": 0.008108398899999258,
+      "observations": [
+        {
+          "sample_rate": "44100",
+          "volume": "0.65422248",
+          "main_rms_dbfs": "-24.6398229406",
+          "main_peak_dbfs": "-2.80211532659"
+        },
+        {
+          "sample_rate": "48000",
+          "volume": "0.65422248",
+          "main_rms_dbfs": "-24.6473822555",
+          "main_peak_dbfs": "-2.80502086427"
+        },
+        {
+          "sample_rate": "96000",
+          "volume": "0.65422248",
+          "main_rms_dbfs": "-24.6560083989",
+          "main_peak_dbfs": "-2.79604928964"
+        }
+      ]
+    },
+    {
+      "preset": "Guatemalan Charleo",
+      "old_rms_center_dbfs": "-24.7430",
+      "new_rms_center_dbfs": "-24.6991",
+      "old_peak_window_dbfs": [
+        "-6.2942",
+        "-5.4942"
+      ],
+      "new_peak_window_dbfs": [
+        "-6.3785",
+        "-5.5785"
+      ],
+      "preserved_peak_window_width_db": "0.8000",
+      "maximum_rms_error_db": 0.004255113599999305,
+      "observations": [
+        {
+          "sample_rate": "44100",
+          "volume": "0.63264146",
+          "main_rms_dbfs": "-24.7033551136",
+          "main_peak_dbfs": "-5.9901214678"
+        },
+        {
+          "sample_rate": "48000",
+          "volume": "0.63264146",
+          "main_rms_dbfs": "-24.7017899266",
+          "main_peak_dbfs": "-5.99385949431"
+        },
+        {
+          "sample_rate": "96000",
+          "volume": "0.63264146",
+          "main_rms_dbfs": "-24.6949218017",
+          "main_peak_dbfs": "-5.96314438119"
+        }
+      ]
+    },
+    {
+      "preset": "Mayan Dance Padauk",
+      "old_rms_center_dbfs": "-25.3841",
+      "new_rms_center_dbfs": "-25.3177",
+      "old_peak_window_dbfs": [
+        "-10.1246",
+        "-9.3246"
+      ],
+      "new_peak_window_dbfs": [
+        "-10.3702",
+        "-9.5702"
+      ],
+      "preserved_peak_window_width_db": "0.8000",
+      "maximum_rms_error_db": 0.004114456399999966,
+      "observations": [
+        {
+          "sample_rate": "44100",
+          "volume": "0.64605695",
+          "main_rms_dbfs": "-25.3145019049",
+          "main_peak_dbfs": "-9.96415700824"
+        },
+        {
+          "sample_rate": "48000",
+          "volume": "0.64605695",
+          "main_rms_dbfs": "-25.3135855436",
+          "main_peak_dbfs": "-9.95683212829"
+        },
+        {
+          "sample_rate": "96000",
+          "volume": "0.64605695",
+          "main_rms_dbfs": "-25.3217429806",
+          "main_peak_dbfs": "-9.98364619543"
+        }
+      ]
+    },
+    {
+      "preset": "Ancestral Balafon",
+      "old_rms_center_dbfs": "-24.5922",
+      "new_rms_center_dbfs": "-24.5968",
+      "old_peak_window_dbfs": [
+        "-5.3995",
+        "-4.5995"
+      ],
+      "new_peak_window_dbfs": [
+        "-5.4641",
+        "-4.6641"
+      ],
+      "preserved_peak_window_width_db": "0.8000",
+      "maximum_rms_error_db": 0.0006769353999978023,
+      "observations": [
+        {
+          "sample_rate": "44100",
+          "volume": "0.62586819",
+          "main_rms_dbfs": "-24.5974769354",
+          "main_peak_dbfs": "-5.05825372887"
+        },
+        {
+          "sample_rate": "48000",
+          "volume": "0.62586819",
+          "main_rms_dbfs": "-24.5967604796",
+          "main_peak_dbfs": "-5.06991384673"
+        },
+        {
+          "sample_rate": "96000",
+          "volume": "0.62586819",
+          "main_rms_dbfs": "-24.5961617015",
+          "main_peak_dbfs": "-5.06819890568"
+        }
+      ]
+    },
+    {
+      "preset": "Birifor Gyil Buzz",
+      "old_rms_center_dbfs": "-24.4024",
+      "new_rms_center_dbfs": "-24.4074",
+      "old_peak_window_dbfs": [
+        "-5.4813",
+        "-4.6813"
+      ],
+      "new_peak_window_dbfs": [
+        "-5.5336",
+        "-4.7336"
+      ],
+      "preserved_peak_window_width_db": "0.8000",
+      "maximum_rms_error_db": 0.003454179500000265,
+      "observations": [
+        {
+          "sample_rate": "44100",
+          "volume": "0.62606838",
+          "main_rms_dbfs": "-24.4108541795",
+          "main_peak_dbfs": "-5.12712929711"
+        },
+        {
+          "sample_rate": "48000",
+          "volume": "0.62606838",
+          "main_rms_dbfs": "-24.4066046313",
+          "main_peak_dbfs": "-5.13801515065"
+        },
+        {
+          "sample_rate": "96000",
+          "volume": "0.62606838",
+          "main_rms_dbfs": "-24.4039923581",
+          "main_peak_dbfs": "-5.14009852574"
+        }
+      ]
+    },
+    {
+      "preset": "Chopi Timbila Ensemble",
+      "old_rms_center_dbfs": "-24.0481",
+      "new_rms_center_dbfs": "-24.0593",
+      "old_peak_window_dbfs": [
+        "-3.8057",
+        "-3.0057"
+      ],
+      "new_peak_window_dbfs": [
+        "-3.8334",
+        "-3.0334"
+      ],
+      "preserved_peak_window_width_db": "0.8000",
+      "maximum_rms_error_db": 0.0034664480000010656,
+      "observations": [
+        {
+          "sample_rate": "44100",
+          "volume": "0.65786568",
+          "main_rms_dbfs": "-24.055833552",
+          "main_peak_dbfs": "-3.42272470673"
+        },
+        {
+          "sample_rate": "48000",
+          "volume": "0.65786568",
+          "main_rms_dbfs": "-24.0584213082",
+          "main_peak_dbfs": "-3.42869155413"
+        },
+        {
+          "sample_rate": "96000",
+          "volume": "0.65786568",
+          "main_rms_dbfs": "-24.06268536",
+          "main_peak_dbfs": "-3.44399413112"
+        }
+      ]
+    },
+    {
+      "preset": "Equipentatonic Log Keys",
+      "old_rms_center_dbfs": "-23.2505",
+      "new_rms_center_dbfs": "-23.2555",
+      "old_peak_window_dbfs": [
+        "-1.5188",
+        "-0.7188"
+      ],
+      "new_peak_window_dbfs": [
+        "-1.5204",
+        "-0.7204"
+      ],
+      "preserved_peak_window_width_db": "0.8000",
+      "maximum_rms_error_db": 0.014232467000002913,
+      "observations": [
+        {
+          "sample_rate": "44100",
+          "volume": "0.79974633",
+          "main_rms_dbfs": "-23.241267533",
+          "main_peak_dbfs": "-1.04493377427"
+        },
+        {
+          "sample_rate": "48000",
+          "volume": "0.79974633",
+          "main_rms_dbfs": "-23.2517456147",
+          "main_peak_dbfs": "-1.24018013872"
+        },
+        {
+          "sample_rate": "96000",
+          "volume": "0.79974633",
+          "main_rms_dbfs": "-23.2696951116",
+          "main_peak_dbfs": "-1.00069041559"
+        }
+      ]
+    },
+    {
+      "preset": "Mandinka Bala Heptatonic",
+      "old_rms_center_dbfs": "-24.1002",
+      "new_rms_center_dbfs": "-24.1025",
+      "old_peak_window_dbfs": [
+        "-3.8925",
+        "-3.0925"
+      ],
+      "new_peak_window_dbfs": [
+        "-3.8688",
+        "-3.0688"
+      ],
+      "preserved_peak_window_width_db": "0.8000",
+      "maximum_rms_error_db": 0.005618694900000776,
+      "observations": [
+        {
+          "sample_rate": "44100",
+          "volume": "0.66504136",
+          "main_rms_dbfs": "-24.0968813051",
+          "main_peak_dbfs": "-3.45567143306"
+        },
+        {
+          "sample_rate": "48000",
+          "volume": "0.66504136",
+          "main_rms_dbfs": "-24.1029280778",
+          "main_peak_dbfs": "-3.45796221661"
+        },
+        {
+          "sample_rate": "96000",
+          "volume": "0.66504136",
+          "main_rms_dbfs": "-24.1080354026",
+          "main_peak_dbfs": "-3.48184095597"
+        }
+      ]
+    },
+    {
+      "preset": "Midnight Village Ritual",
+      "old_rms_center_dbfs": "-24.9438",
+      "new_rms_center_dbfs": "-24.9417",
+      "old_peak_window_dbfs": [
+        "-8.7486",
+        "-7.9486"
+      ],
+      "new_peak_window_dbfs": [
+        "-8.7486",
+        "-7.9486"
+      ],
+      "preserved_peak_window_width_db": "0.8000",
+      "maximum_rms_error_db": 0.00749615009999971,
+      "observations": [
+        {
+          "sample_rate": "44100",
+          "volume": "0.61268451",
+          "main_rms_dbfs": "-24.9491961501",
+          "main_peak_dbfs": "-8.30544406647"
+        },
+        {
+          "sample_rate": "48000",
+          "volume": "0.61268451",
+          "main_rms_dbfs": "-24.9478687984",
+          "main_peak_dbfs": "-8.39169547793"
+        },
+        {
+          "sample_rate": "96000",
+          "volume": "0.61268451",
+          "main_rms_dbfs": "-24.9342277475",
+          "main_peak_dbfs": "-8.35538381363"
+        }
+      ]
+    },
+    {
+      "preset": "Sambla Talking Balafon",
+      "old_rms_center_dbfs": "-24.0067",
+      "new_rms_center_dbfs": "-24.0055",
+      "old_peak_window_dbfs": [
+        "-3.7275",
+        "-2.9275"
+      ],
+      "new_peak_window_dbfs": [
+        "-3.7722",
+        "-2.9722"
+      ],
+      "preserved_peak_window_width_db": "0.8000",
+      "maximum_rms_error_db": 0.0037229399000011654,
+      "observations": [
+        {
+          "sample_rate": "44100",
+          "volume": "0.67264663",
+          "main_rms_dbfs": "-24.0017770601",
+          "main_peak_dbfs": "-3.3688763399"
+        },
+        {
+          "sample_rate": "48000",
+          "volume": "0.67264663",
+          "main_rms_dbfs": "-24.0025366418",
+          "main_peak_dbfs": "-3.37180760984"
+        },
+        {
+          "sample_rate": "96000",
+          "volume": "0.67264663",
+          "main_rms_dbfs": "-24.0091952226",
+          "main_peak_dbfs": "-3.37545457155"
+        }
+      ]
+    },
+    {
+      "preset": "Kalimba Muted Thumbs",
+      "old_rms_center_dbfs": "-20.8350",
+      "new_rms_center_dbfs": "-21.0533",
+      "old_peak_window_dbfs": [
+        "-6.6228",
+        "-5.8228"
+      ],
+      "new_peak_window_dbfs": [
+        "-6.9600",
+        "-6.1600"
+      ],
+      "preserved_peak_window_width_db": "0.8000",
+      "maximum_rms_error_db": 0.06829518149999814,
+      "observations": [
+        {
+          "sample_rate": "44100",
+          "volume": "0.8983038",
+          "main_rms_dbfs": "-21.1215951815",
+          "main_peak_dbfs": "-6.60593038542"
+        },
+        {
+          "sample_rate": "48000",
+          "volume": "0.8983038",
+          "main_rms_dbfs": "-21.0989866933",
+          "main_peak_dbfs": "-6.59452163824"
+        },
+        {
+          "sample_rate": "96000",
+          "volume": "0.8983038",
+          "main_rms_dbfs": "-20.9850395806",
+          "main_peak_dbfs": "-6.51409849935"
+        }
+      ]
+    },
+    {
+      "preset": "Kalimba Pick Sparkle",
+      "old_rms_center_dbfs": "-22.7831",
+      "new_rms_center_dbfs": "-22.7781",
+      "old_peak_window_dbfs": [
+        "-8.7631",
+        "-7.9631"
+      ],
+      "new_peak_window_dbfs": [
+        "-8.8209",
+        "-8.0209"
+      ],
+      "preserved_peak_window_width_db": "0.8000",
+      "maximum_rms_error_db": 0.06424807400000176,
+      "observations": [
+        {
+          "sample_rate": "44100",
+          "volume": "0.803565",
+          "main_rms_dbfs": "-22.842348074",
+          "main_peak_dbfs": "-8.45648665479"
+        },
+        {
+          "sample_rate": "48000",
+          "volume": "0.803565",
+          "main_rms_dbfs": "-22.8228411161",
+          "main_peak_dbfs": "-8.43647255958"
+        },
+        {
+          "sample_rate": "96000",
+          "volume": "0.803565",
+          "main_rms_dbfs": "-22.7139140401",
+          "main_peak_dbfs": "-8.38536561999"
+        }
+      ]
+    },
+    {
+      "preset": "Kalimba Thumb Lullaby",
+      "old_rms_center_dbfs": "-25.3493",
+      "new_rms_center_dbfs": "-25.4674",
+      "old_peak_window_dbfs": [
+        "-11.5109",
+        "-10.7109"
+      ],
+      "new_peak_window_dbfs": [
+        "-11.7098",
+        "-10.9098"
+      ],
+      "preserved_peak_window_width_db": "0.8000",
+      "maximum_rms_error_db": 0.10736722139999699,
+      "observations": [
+        {
+          "sample_rate": "44100",
+          "volume": "0.94042001",
+          "main_rms_dbfs": "-25.5747672214",
+          "main_peak_dbfs": "-11.3989547848"
+        },
+        {
+          "sample_rate": "48000",
+          "volume": "0.94042001",
+          "main_rms_dbfs": "-25.5579708614",
+          "main_peak_dbfs": "-11.4151773917"
+        },
+        {
+          "sample_rate": "96000",
+          "volume": "0.94042001",
+          "main_rms_dbfs": "-25.3601011418",
+          "main_peak_dbfs": "-11.2045162498"
+        }
+      ]
+    }
+  ]
+}
