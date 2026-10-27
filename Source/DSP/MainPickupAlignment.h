@@ -104,9 +104,17 @@ public:
             if (at < 0) at += mCapacity;
             if (at >= mCapacity) at -= mCapacity;
             float value = 0.0f;
-            for (int tap = 0; tap < kTaps; ++tap) {
-                value += line[at] * source.coefficient[tap];
-                if (--at < 0) at = mCapacity - 1;
+            if (at >= kTaps - 1) {
+                // No tap wraps (nearly every frame): the same products,
+                // summed in the same order, without a wrap test per tap.
+                const float* taps = line + at;
+                for (int tap = 0; tap < kTaps; ++tap)
+                    value += taps[-tap] * source.coefficient[tap];
+            } else {
+                for (int tap = 0; tap < kTaps; ++tap) {
+                    value += line[at] * source.coefficient[tap];
+                    if (--at < 0) at = mCapacity - 1;
+                }
             }
             output += value;
             if (--source.remaining > 0) mActive[nextCount++] = id;
