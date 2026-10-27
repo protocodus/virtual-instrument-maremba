@@ -105,6 +105,10 @@ jobs:
         with:
           persist-credentials: false
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Build universal plug-in and run tests
         env:
           BUILD_UNIVERSAL: "ON"
@@ -142,6 +146,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       # The engine tests keep several engines on the stack; give main 32 MB.
       - name: Configure DSP tests
@@ -183,6 +191,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       - name: Install Ninja
         run: |

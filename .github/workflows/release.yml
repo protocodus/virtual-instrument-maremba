@@ -37,6 +37,10 @@ jobs:
         with:
           persist-credentials: false
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Build universal plug-in and run every tier
         env:
           BUILD_UNIVERSAL: "ON"
@@ -187,6 +191,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       # /STACK as in CI: the test suites expect more than Windows' 1 MB.
       - name: Configure and build
