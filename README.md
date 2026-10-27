@@ -32,13 +32,17 @@ shipping engine.
 
 ## Version history
 
-### 1.5.7 — 2026-10-23 — lower CPU, identical sound
+### 1.5.7 — gentle factory touch and lower capture CPU
 
-- Render the same audio with about 56% less CPU time (24% fewer instructions)
-  on factory-preset phrases at 48 kHz: the Close capture's FFTs and spectral
-  sums run on vectorizable split lanes, and the capture and Room paths skip
-  redundant checks. Every output is bit-identical to 1.5.6 with the same
-  compiler and settings; sound, parameters and saved sessions are unchanged.
+- Refine existing factory velocity routes and selected shared-resonance
+  coefficients; restore normal-playing balance with authored VCA adjustments.
+  Saved user patches retain their controls. See the
+  [bank scope and measurements](Docs/validation/gentle-organic-2026-10-22/README.md).
+- Reduce Close convolution overhead with split real/imaginary FFT lanes and
+  contiguous twiddles; reduce repeated work in the capture scene and Room path.
+  These implementation changes preserve audio for the same controls. Earlier
+  branch measurements describe their individual candidates, rather than a
+  combined-head CPU claim. See the [capture CPU investigation](Docs/benchmarks/cpu-capture-scene-2026-10-25.md).
 
 ### 1.5.4 — 2026-10-20 — preset VCA balance and dynamic headroom
 

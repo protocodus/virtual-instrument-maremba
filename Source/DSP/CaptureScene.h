@@ -65,14 +65,7 @@ public:
             return;
         }
         if (left == 0.0f && right == 0.0f && room == 0.0f) return;
-        auto& source = mSource[id];
-        if (!source.active) {
-            source.active = true;
-            mActive[mCount++] = id;
-            mSourcesAdded = true;
-            for (auto& lane : source.buffer) lane.fill(0.0f);
-        }
-        source.receiving = true;
+        auto& source = Receive(id);
         if (source.equalEars && left != right) {
             // Until this contribution both ear inputs and their entire
             // decimator history were identical. Materialize the right state
@@ -81,48 +74,27 @@ public:
             source.buffer[1] = source.buffer[0];
             source.equalEars = false;
         }
-        source.buffer[0][subsample] += left;
-        if (!source.equalEars) source.buffer[1][subsample] += right;
-        source.buffer[2][subsample] += room;
-        mInvalidInput = mInvalidInput || !std::isfinite(source.buffer[0][subsample])
-            || (!source.equalEars && !std::isfinite(source.buffer[1][subsample]))
-            || !std::isfinite(source.buffer[2][subsample]);
+        Accumulate(source, subsample, left, right, room);
     }
     bool HasInvalidInput() const { return mInvalidInput; }
     // Compact sources declare pressure at the Close reference distance. Each
     // ear receives that same emitted pressure before its own propagation/HRTF.
     // Room expects pressure at its own reference distance, so inverse-distance
     // propagation requires this conversion before the Room path gain applies.
-    // Exactly Add(id, subsample, p, p, p * roomReferenceScale), specialized
-    // for its equal ears: the scale is below one, so a finite p gives a finite
-    // Room input, a zero p is the only all-zero contribution, and equal ear
-    // inputs never separate the ear lanes. Called per receiver and substep.
     void AddCompactPressure(int id, int subsample, float pressureAtCloseReference) {
         constexpr float roomReferenceScale = static_cast<float>(CloseCapture::kReferenceDistance
                                                                / RoomCapture::kReferenceDistance);
-        static_assert(roomReferenceScale > 0.0f && roomReferenceScale <= 1.0f,
-                      "a finite compact pressure must give a finite Room input");
-        const float pressure = pressureAtCloseReference;
-        if (!std::isfinite(pressure)) {
+        // Add(id, subsample, p, p, p * scale) with its tests reduced to what
+        // they decide here: p * scale (scale < 1) is finite and zero exactly
+        // when p is, and equal ear inputs never separate the ears.
+        static_assert(roomReferenceScale < 1.0f, "the reduced tests need scale < 1");
+        const float p = pressureAtCloseReference;
+        if (!std::isfinite(p)) {
             mInvalidInput = true;
             return;
         }
-        if (pressure == 0.0f) return;
-        const float room = pressure * roomReferenceScale;
-        auto& source = mSource[id];
-        if (!source.active) {
-            source.active = true;
-            mActive[mCount++] = id;
-            mSourcesAdded = true;
-            for (auto& lane : source.buffer) lane.fill(0.0f);
-        }
-        source.receiving = true;
-        source.buffer[0][subsample] += pressure;
-        if (!source.equalEars) source.buffer[1][subsample] += pressure;
-        source.buffer[2][subsample] += room;
-        mInvalidInput = mInvalidInput || !std::isfinite(source.buffer[0][subsample])
-            || (!source.equalEars && !std::isfinite(source.buffer[1][subsample]))
-            || !std::isfinite(source.buffer[2][subsample]);
+        if (p == 0.0f) return;
+        Accumulate(Receive(id), subsample, p, p, p * roomReferenceScale);
     }
     void Process(float& closeL, float& closeR, float& roomL, float& roomR) {
         // The capture renderers need only discover nonzero emitters, not scan
@@ -165,6 +137,27 @@ public:
     }
 private:
     friend struct CaptureSceneTestAccess;
+    struct Source;
+    // A nonzero contribution: the source is active and receiving this frame.
+    Source& Receive(int id) {
+        auto& source = mSource[id];
+        if (!source.active) {
+            source.active = true;
+            mActive[mCount++] = id;
+            mSourcesAdded = true;
+            for (auto& lane : source.buffer) lane.fill(0.0f);
+        }
+        source.receiving = true;
+        return source;
+    }
+    void Accumulate(Source& source, int subsample, float left, float right, float room) {
+        source.buffer[0][subsample] += left;
+        if (!source.equalEars) source.buffer[1][subsample] += right;
+        source.buffer[2][subsample] += room;
+        mInvalidInput = mInvalidInput || !std::isfinite(source.buffer[0][subsample])
+            || (!source.equalEars && !std::isfinite(source.buffer[1][subsample]))
+            || !std::isfinite(source.buffer[2][subsample]);
+    }
     template<int Factor>
     void DownsampleSources() {
         int nextCount = 0;

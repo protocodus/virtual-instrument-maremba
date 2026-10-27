@@ -120,7 +120,10 @@ public:
 
     void SetSampleRate(double rate) {
         mRate = std::isfinite(rate) ? std::clamp(rate, 8000.0, mMaxRate) : std::min(48000.0, mMaxRate);
-        mSpan = std::min(mStride, static_cast<int>(std::ceil(mHistorySeconds * mRate)) + 3);
+        // The first slot of each source's stride is the guard before its ring
+        // (History). The stride is this span at mMaxRate plus one, so the
+        // clamp never binds; it only states that the guard is never in it.
+        mSpan = std::min(mStride - 1, static_cast<int>(std::ceil(mHistorySeconds * mRate)) + 3);
         mFadeStep = static_cast<float>(1.0 / (.05 * mRate));
         for (auto& microphone : mMicrophone) microphone.SetSampleRate(mRate);
         for (int type = 0; type < 3; ++type) {
@@ -205,8 +208,10 @@ private:
         for (int candidate = 0; candidate < candidates; ++candidate) {
             const int id = sourceIds ? sourceIds[candidate] : candidate;
             if (id < 0 || id >= count) continue;
+            // A queued source is read below; only a new one needs its input.
+            if (mSourceQueued[static_cast<size_t>(id)]) continue;
             const float x = maremba::FlushTiny(RoomExcitation(input[id]));
-            if (x == 0.0f || mSourceQueued[static_cast<size_t>(id)]) continue;
+            if (x == 0.0f) continue;
             if (!mSource[static_cast<size_t>(id)].configured) continue;
             mActiveSource[static_cast<size_t>(mActiveSourceCount++)] = id;
             mSourceQueued[static_cast<size_t>(id)] = true; added = true;
@@ -218,26 +223,13 @@ private:
             auto& source = mSource[static_cast<size_t>(id)];
             const float x = id < count ? maremba::FlushTiny(RoomExcitation(input[id])) : 0.0f;
             if (x != 0.0f) { source.remaining = mSpan + 1; mPristine = false; }
-            float* history = mHistory.data() + static_cast<size_t>(id) * static_cast<size_t>(mStride);
+            float* history = History(id);
             history[mWrite] = x;
-            // While the write position is past this source's longest tap,
-            // no read wraps: the same samples and arithmetic, without the
-            // per-read wrap tests.
-            if (mWrite > source.room[static_cast<size_t>(mActive)].longest) {
-                for (int channel = 0; channel < 2; ++channel)
-                    direct[channel] += Read<false>(history, source.direct[static_cast<size_t>(channel)]);
-                ProcessSource<false>(source, history, mActive, early[0], lateInput[0]);
-            } else {
-                for (int channel = 0; channel < 2; ++channel)
-                    direct[channel] += Read<true>(history, source.direct[static_cast<size_t>(channel)]);
-                ProcessSource<true>(source, history, mActive, early[0], lateInput[0]);
-            }
-            if (mFade < 1.0f) {
-                if (mWrite > source.room[static_cast<size_t>(mNext)].longest)
-                    ProcessSource<false>(source, history, mNext, early[1], lateInput[1]);
-                else
-                    ProcessSource<true>(source, history, mNext, early[1], lateInput[1]);
-            }
+            if (mWrite == mSpan - 1) history[-1] = x;
+            for (int channel = 0; channel < 2; ++channel)
+                direct[channel] += Read(history, source.direct[static_cast<size_t>(channel)]);
+            ProcessSource(source, history, mActive, early[0], lateInput[0]);
+            if (mFade < 1.0f) ProcessSource(source, history, mNext, early[1], lateInput[1]);
             if (--source.remaining > 0) mActiveSource[static_cast<size_t>(retained++)] = id;
             else mSourceQueued[static_cast<size_t>(id)] = false;
         }
@@ -333,7 +325,6 @@ private:
     struct SourceRoom {
         std::array<std::array<Tap,6>,2> image{};
         std::array<Tap,2> late{};
-        int longest=0; // the largest delay of these and the direct taps
     };
     struct Source {
         CapturePoint position{};
@@ -433,32 +424,24 @@ private:
                     =MakeTap(geometry[static_cast<size_t>(wall+1)].seconds,geometry[static_cast<size_t>(wall+1)].gain);
             room.late[static_cast<size_t>(channel)]=MakeTap(LateFeedSeconds(type,source.position,channel),1.0);
         }
-        for(auto& room:source.room) {
-            room.longest=0;
-            for(const auto& tap:source.direct)room.longest=std::max(room.longest,tap.delay);
-            for(const auto& channel:room.image)for(const auto& tap:channel)room.longest=std::max(room.longest,tap.delay);
-            for(const auto& tap:room.late)room.longest=std::max(room.longest,tap.delay);
-        }
     }
-    // Wrap=false requires mWrite > tap.delay, so both reads lie at or after
-    // the start of this source's history row.
-    template<bool Wrap>
+    // Each source's ring is preceded by one guard slot that always holds the
+    // ring's last sample (ProcessPressure writes both), so the older of the
+    // two interpolated samples needs no second wrap: index -1 reads exactly
+    // the value index mSpan - 1 holds.
+    float* History(int id) {
+        return mHistory.data() + static_cast<size_t>(id) * static_cast<size_t>(mStride) + 1;
+    }
     float Read(const float* history,const Tap& tap) const {
-        int a=mWrite-tap.delay;
-        int b=a-1;
-        if constexpr (Wrap) {
-            if(a<0)a+=mSpan;
-            b=a-1;if(b<0)b+=mSpan;
-        }
-        return (history[a]+tap.fraction*(history[b]-history[a]))*tap.gain;
+        int a=mWrite-tap.delay;if(a<0)a+=mSpan;
+        return (history[a]+tap.fraction*(history[a-1]-history[a]))*tap.gain;
     }
-    template<bool Wrap>
     void ProcessSource(Source& source,const float* history,int type,float early[2][6],float* late) {
         auto& paths=source.room[static_cast<size_t>(type)];
         for(int channel=0;channel<2;++channel) {
             for(int wall=0;wall<6;++wall)
-                early[channel][wall]+=Read<Wrap>(history,paths.image[static_cast<size_t>(channel)][static_cast<size_t>(wall)]);
-            late[channel]+=Read<Wrap>(history,paths.late[static_cast<size_t>(channel)]);
+                early[channel][wall]+=Read(history,paths.image[static_cast<size_t>(channel)][static_cast<size_t>(wall)]);
+            late[channel]+=Read(history,paths.late[static_cast<size_t>(channel)]);
         }
     }
     void ProcessTail(int type,const float early[2][6],const float* input,float* out) {
