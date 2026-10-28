@@ -105,7 +105,7 @@ shipping engine.
 ## Downloads
 
 <!-- build-download-begin -->
-**[Download main build 24](https://github.com/protocodus/virtual-instrument-maremba/actions/runs/40446147063/artifacts/12714141650)**, built from [`1e17194f0a0d`](https://github.com/protocodus/virtual-instrument-maremba/commit/1e17194f0a0d213a96799cfa6be6c41dbc70f6a6). It holds the macOS, Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.
+**[Download main build 27](https://github.com/protocodus/virtual-instrument-maremba/actions/runs/40482998123/artifacts/12764012340)**, built from [`e09b6c7f2089`](https://github.com/protocodus/virtual-instrument-maremba/commit/e09b6c7f2089a0364d599495c33e9d08cc1112c6). It holds the macOS, Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.
 <!-- build-download-end -->
 
 ---
@@ -196,6 +196,9 @@ with `-DMAREMBA_ENABLE_SANITIZERS=ON` under Clang, a time-boxed libFuzzer run of
 `Tests/DspFuzz.cpp`). `Tests/contracts.txt` lists the physics and behaviour
 contracts. `EngineFuzzTest --extended` and `ExtremeRangeTest --full` run the
 long matrices.
+
+`Tools/write_preset_midi.py` writes the preset demo phrases in
+`Docs/audio/midi/`; rerun it only to change a phrase on purpose.
 
 `Tools/Demos/` holds the offline research tools, which drive the engine directly
 (they need clang++, and some need ffmpeg). `run_benchmark.py` renders the repertoire, touch and idiom studies
