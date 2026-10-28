@@ -105,7 +105,7 @@ shipping engine.
 ## Downloads
 
 <!-- build-download-begin -->
-**[Download main build 30](https://github.com/protocodus/virtual-instrument-maremba/actions/runs/40661818797/artifacts/12806974092)**, built from [`d2539d6413e1`](https://github.com/protocodus/virtual-instrument-maremba/commit/d2539d6413e149c6fcf259f62cdd1cbd135a502e). It holds the macOS, Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.
+**[Download main build 31](https://github.com/protocodus/virtual-instrument-maremba/actions/runs/40744284672/artifacts/12851035305)**, built from [`0551a27090f2`](https://github.com/protocodus/virtual-instrument-maremba/commit/0551a27090f2d22d6e6676208286ec83a37cb9dd). It holds the macOS, Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.
 <!-- build-download-end -->
 
 ---
