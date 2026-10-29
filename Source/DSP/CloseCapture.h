@@ -74,6 +74,10 @@ public:
         while (mBlockSize < kMaximumBlock && 2*mBlockSize <= available) mBlockSize *= 2;
         mFftSize = 2*mBlockSize;
         mGroupCount = std::max(1, mBlockSize/32);
+        // Each source's partition group, id % mGroupCount, without a
+        // per-frame integer division.
+        for (std::size_t id = 0; id < mSources.size(); ++id)
+            mSources[id].group = static_cast<int>(id) % mGroupCount;
         mKernelLength = static_cast<int>(std::ceil((kCloseHrtfTaps - 1.0
                             + 2.0 * mResampleSupport) * ratio)) + 1;
         mPartitions = (mKernelLength + mBlockSize - 1) / mBlockSize;
@@ -175,7 +179,7 @@ public:
             const int id = mActiveSources[static_cast<std::size_t>(active)];
             auto& source = mSources[static_cast<std::size_t>(id)];
             if (!source.configured || source.remaining == 0) { source.active = false; continue; }
-            const int position = mBlockPosition[id % mGroupCount];
+            const int position = mBlockPosition[source.group];
             const float input[2] = {Flush(id < count && leftInputs ? leftInputs[id] : 0.0f),
                                     Flush(id < count && rightInputs ? rightInputs[id] : 0.0f)};
             for (int channel = 0; channel < 2; ++channel) {
@@ -244,6 +248,7 @@ private:
         int profile = 0;
         bool configured = false, active = false;
         int remaining = 0, tailFrames = 0;
+        int group = 0; // id % mGroupCount, set with the rate
         int integerDelay[2]{};
         float fractional[2][8]{};
         float rangeGain = 1.0f;
@@ -514,8 +519,8 @@ private:
         }
         for (int active = 0; active < mActiveCount; ++active) {
             const int id = mActiveSources[static_cast<std::size_t>(active)];
-            if (id % mGroupCount != group) continue;
             auto& source = mSources[static_cast<std::size_t>(id)];
+            if (source.group != group) continue;
             if (!source.configured || source.remaining == 0) continue;
             for (int channel = 0; channel < 2; ++channel) {
                 SplitBlock block;
