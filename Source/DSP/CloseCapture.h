@@ -9,6 +9,16 @@
 #include <cstddef>
 #include <vector>
 
+// GCC fully unrolls a short constant inner loop and then vectorizes the loop
+// around it across strided groups, which is slower than leaving the inner
+// loop to vectorize along its contiguous elements. Other compilers are left
+// to their own choice.
+#if defined(__GNUC__) && !defined(__clang__)
+#define MAREMBA_KEEP_INNER_LOOP _Pragma("GCC unroll 1")
+#else
+#define MAREMBA_KEEP_INNER_LOOP
+#endif
+
 namespace maremba {
 
 // Two receiver-specific acoustic pressure inputs per source. Modal surface
@@ -401,20 +411,30 @@ private:
             }
             return;
         }
-        for (int first = 0; first < Size; first += Length)
-            for (int j = 0; j < half; ++j) {
-                const int low = first+j, high = first+j+half;
-                const float valueRe = data.re[static_cast<std::size_t>(high)];
-                const float valueIm = data.im[static_cast<std::size_t>(high)];
-                const float oddRe = valueRe*twiddleRe[j]-valueIm*twiddleIm[j];
-                const float oddIm = valueRe*twiddleIm[j]+valueIm*twiddleRe[j];
-                const float evenRe = data.re[static_cast<std::size_t>(low)];
-                const float evenIm = data.im[static_cast<std::size_t>(low)];
-                data.re[static_cast<std::size_t>(low)] = evenRe+oddRe;
-                data.im[static_cast<std::size_t>(low)] = evenIm+oddIm;
-                data.re[static_cast<std::size_t>(high)] = evenRe-oddRe;
-                data.im[static_cast<std::size_t>(high)] = evenIm-oddIm;
-            }
+        const auto butterfly = [&](int first, int j) {
+            const int low = first+j, high = first+j+half;
+            const float valueRe = data.re[static_cast<std::size_t>(high)];
+            const float valueIm = data.im[static_cast<std::size_t>(high)];
+            const float oddRe = valueRe*twiddleRe[j]-valueIm*twiddleIm[j];
+            const float oddIm = valueRe*twiddleIm[j]+valueIm*twiddleRe[j];
+            const float evenRe = data.re[static_cast<std::size_t>(low)];
+            const float evenIm = data.im[static_cast<std::size_t>(low)];
+            data.re[static_cast<std::size_t>(low)] = evenRe+oddRe;
+            data.im[static_cast<std::size_t>(low)] = evenIm+oddIm;
+            data.re[static_cast<std::size_t>(high)] = evenRe-oddRe;
+            data.im[static_cast<std::size_t>(high)] = evenIm-oddIm;
+        };
+        // The same butterflies in the same order either way. Runs of four
+        // and eight vectorize along j only when that loop is kept a loop;
+        // shorter and longer runs are faster as compiled before.
+        if constexpr (half == 4 || half == 8) {
+            for (int first = 0; first < Size; first += Length)
+                MAREMBA_KEEP_INNER_LOOP
+                for (int j = 0; j < half; ++j) butterfly(first, j);
+        } else {
+            for (int first = 0; first < Size; first += Length)
+                for (int j = 0; j < half; ++j) butterfly(first, j);
+        }
         if constexpr (Length < Size) SplitStage<Size, Length*2, Inverse>(data);
     }
 
