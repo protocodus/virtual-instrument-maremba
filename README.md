@@ -32,6 +32,15 @@ shipping engine.
 
 ## Version history
 
+### 1.5.8 — 2026-10-29 — lower CPU, identical sound
+
+- Render the same audio with about 4–6% less CPU time (5.6% fewer
+  instructions) on factory-preset phrases at 48 kHz: more of the Close
+  capture's FFT stages vectorize, its first stage is fused with the input
+  reordering, and its per-frame delay taps and group lookup are cheaper.
+  Every output is bit-identical to 1.5.7 with the same compiler and
+  settings; sound, parameters and saved sessions are unchanged.
+
 ### 1.5.7 — 2026-10-23 — lower CPU, identical sound
 
 - Render the same audio with about 56% less CPU time (24% fewer instructions)

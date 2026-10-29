@@ -9,6 +9,16 @@
 #include <cstddef>
 #include <vector>
 
+// GCC fully unrolls a short constant inner loop and then vectorizes the loop
+// around it across strided groups, which is slower than leaving the inner
+// loop to vectorize along its contiguous elements. Other compilers are left
+// to their own choice.
+#if defined(__GNUC__) && !defined(__clang__)
+#define MAREMBA_KEEP_INNER_LOOP _Pragma("GCC unroll 1")
+#else
+#define MAREMBA_KEEP_INNER_LOOP
+#endif
+
 namespace maremba {
 
 // Two receiver-specific acoustic pressure inputs per source. Modal surface
@@ -74,6 +84,10 @@ public:
         while (mBlockSize < kMaximumBlock && 2*mBlockSize <= available) mBlockSize *= 2;
         mFftSize = 2*mBlockSize;
         mGroupCount = std::max(1, mBlockSize/32);
+        // Each source's partition group, id % mGroupCount, without a
+        // per-frame integer division.
+        for (std::size_t id = 0; id < mSources.size(); ++id)
+            mSources[id].group = static_cast<int>(id) % mGroupCount;
         mKernelLength = static_cast<int>(std::ceil((kCloseHrtfTaps - 1.0
                             + 2.0 * mResampleSupport) * ratio)) + 1;
         mPartitions = (mKernelLength + mBlockSize - 1) / mBlockSize;
@@ -175,7 +189,7 @@ public:
             const int id = mActiveSources[static_cast<std::size_t>(active)];
             auto& source = mSources[static_cast<std::size_t>(id)];
             if (!source.configured || source.remaining == 0) { source.active = false; continue; }
-            const int position = mBlockPosition[id % mGroupCount];
+            const int position = mBlockPosition[source.group];
             const float input[2] = {Flush(id < count && leftInputs ? leftInputs[id] : 0.0f),
                                     Flush(id < count && rightInputs ? rightInputs[id] : 0.0f)};
             for (int channel = 0; channel < 2; ++channel) {
@@ -185,9 +199,17 @@ public:
                 if (at < 0) at += mDelayCapacity;
                 if (at >= mDelayCapacity) at -= mDelayCapacity;
                 float value = 0.0f;
-                for (int tap = 0; tap < 8; ++tap) {
-                    value += line[at] * source.fractional[channel][tap];
-                    if (--at < 0) at = mDelayCapacity - 1;
+                if (at >= 7) {
+                    // All eight taps lie in this row without wrapping: the
+                    // same products, summed in the same order.
+                    const float* tapLine = line + at;
+                    for (int tap = 0; tap < 8; ++tap)
+                        value += tapLine[-tap] * source.fractional[channel][tap];
+                } else {
+                    for (int tap = 0; tap < 8; ++tap) {
+                        value += line[at] * source.fractional[channel][tap];
+                        if (--at < 0) at = mDelayCapacity - 1;
+                    }
                 }
                 source.current[channel][static_cast<std::size_t>(position)] = Flush(static_cast<float>(value));
             }
@@ -236,6 +258,7 @@ private:
         int profile = 0;
         bool configured = false, active = false;
         int remaining = 0, tailFrames = 0;
+        int group = 0; // id % mGroupCount, set with the rate
         int integerDelay[2]{};
         float fractional[2][8]{};
         float rangeGain = 1.0f;
@@ -388,50 +411,68 @@ private:
             }
             return;
         }
-        for (int first = 0; first < Size; first += Length)
-            for (int j = 0; j < half; ++j) {
-                const int low = first+j, high = first+j+half;
-                const float valueRe = data.re[static_cast<std::size_t>(high)];
-                const float valueIm = data.im[static_cast<std::size_t>(high)];
-                const float oddRe = valueRe*twiddleRe[j]-valueIm*twiddleIm[j];
-                const float oddIm = valueRe*twiddleIm[j]+valueIm*twiddleRe[j];
-                const float evenRe = data.re[static_cast<std::size_t>(low)];
-                const float evenIm = data.im[static_cast<std::size_t>(low)];
-                data.re[static_cast<std::size_t>(low)] = evenRe+oddRe;
-                data.im[static_cast<std::size_t>(low)] = evenIm+oddIm;
-                data.re[static_cast<std::size_t>(high)] = evenRe-oddRe;
-                data.im[static_cast<std::size_t>(high)] = evenIm-oddIm;
-            }
+        const auto butterfly = [&](int first, int j) {
+            const int low = first+j, high = first+j+half;
+            const float valueRe = data.re[static_cast<std::size_t>(high)];
+            const float valueIm = data.im[static_cast<std::size_t>(high)];
+            const float oddRe = valueRe*twiddleRe[j]-valueIm*twiddleIm[j];
+            const float oddIm = valueRe*twiddleIm[j]+valueIm*twiddleRe[j];
+            const float evenRe = data.re[static_cast<std::size_t>(low)];
+            const float evenIm = data.im[static_cast<std::size_t>(low)];
+            data.re[static_cast<std::size_t>(low)] = evenRe+oddRe;
+            data.im[static_cast<std::size_t>(low)] = evenIm+oddIm;
+            data.re[static_cast<std::size_t>(high)] = evenRe-oddRe;
+            data.im[static_cast<std::size_t>(high)] = evenIm-oddIm;
+        };
+        // The same butterflies in the same order either way. Runs of four
+        // and eight vectorize along j only when that loop is kept a loop;
+        // shorter and longer runs are faster as compiled before.
+        if constexpr (half == 4 || half == 8) {
+            for (int first = 0; first < Size; first += Length)
+                MAREMBA_KEEP_INNER_LOOP
+                for (int j = 0; j < half; ++j) butterfly(first, j);
+        } else {
+            for (int first = 0; first < Size; first += Length)
+                for (int j = 0; j < half; ++j) butterfly(first, j);
+        }
         if constexpr (Length < Size) SplitStage<Size, Length*2, Inverse>(data);
     }
 
-    // Input: bit-reversed real samples in re. The first stage's twiddle is
-    // exactly (1, -0) and every input imaginary part is +0, so its butterfly
-    // is exactly (a+b, +0) and (a-b, +0) for finite samples.
+    // Input: one real block, its previous and current halves. Bit reversal
+    // places samples k and k+Size/2 (k < Size/2) side by side, at
+    // mReverse[k] and mReverse[k]+1: one first-stage butterfly. That stage's
+    // twiddle is exactly (1, -0) and every input imaginary part is +0, so its
+    // butterfly is exactly (a+b, +0) and (a-b, +0) for finite samples. It is
+    // computed here along the contiguous halves and stored straight to its
+    // bit-reversed place: the same sums as filling first, then the stage.
     template<int Size>
-    void ForwardSplitFixed(SplitBlock& data) const {
-        for (int first = 0; first < Size; first += 2) {
-            const float even = data.re[static_cast<std::size_t>(first)];
-            const float value = data.re[static_cast<std::size_t>(first+1)];
-            data.re[static_cast<std::size_t>(first)] = even+value;
-            data.re[static_cast<std::size_t>(first+1)] = even-value;
-            data.im[static_cast<std::size_t>(first)] = 0.0f;
-            data.im[static_cast<std::size_t>(first+1)] = 0.0f;
+    void ForwardSplitFixed(const float* previous, const float* current, SplitBlock& data) const {
+        constexpr int half = Size/2;
+        float sum[half], difference[half];
+        for (int k = 0; k < half; ++k) {
+            sum[k] = previous[k]+current[k];
+            difference[k] = previous[k]-current[k];
         }
+        for (int k = 0; k < half; ++k) {
+            const int first = mReverse[static_cast<std::size_t>(k)];
+            data.re[static_cast<std::size_t>(first)] = sum[k];
+            data.re[static_cast<std::size_t>(first+1)] = difference[k];
+        }
+        std::fill_n(data.im.data(), Size, 0.0f);
         if constexpr (Size > 2) SplitStage<Size, 4, false>(data);
     }
 
-    void ForwardSplit(SplitBlock& data) const {
+    void ForwardSplit(const float* previous, const float* current, SplitBlock& data) const {
         switch (mFftSize) {
-            case 2: ForwardSplitFixed<2>(data); break;
-            case 4: ForwardSplitFixed<4>(data); break;
-            case 8: ForwardSplitFixed<8>(data); break;
-            case 16: ForwardSplitFixed<16>(data); break;
-            case 32: ForwardSplitFixed<32>(data); break;
-            case 64: ForwardSplitFixed<64>(data); break;
-            case 128: ForwardSplitFixed<128>(data); break;
-            case 256: ForwardSplitFixed<256>(data); break;
-            case 512: ForwardSplitFixed<512>(data); break;
+            case 2: ForwardSplitFixed<2>(previous, current, data); break;
+            case 4: ForwardSplitFixed<4>(previous, current, data); break;
+            case 8: ForwardSplitFixed<8>(previous, current, data); break;
+            case 16: ForwardSplitFixed<16>(previous, current, data); break;
+            case 32: ForwardSplitFixed<32>(previous, current, data); break;
+            case 64: ForwardSplitFixed<64>(previous, current, data); break;
+            case 128: ForwardSplitFixed<128>(previous, current, data); break;
+            case 256: ForwardSplitFixed<256>(previous, current, data); break;
+            case 512: ForwardSplitFixed<512>(previous, current, data); break;
         }
     }
 
@@ -506,20 +547,15 @@ private:
         }
         for (int active = 0; active < mActiveCount; ++active) {
             const int id = mActiveSources[static_cast<std::size_t>(active)];
-            if (id % mGroupCount != group) continue;
             auto& source = mSources[static_cast<std::size_t>(id)];
+            if (source.group != group) continue;
             if (!source.configured || source.remaining == 0) continue;
             for (int channel = 0; channel < 2; ++channel) {
+                // The transform reads the halves in the exact order the FFT's
+                // former swap pass produced; no butterfly is changed.
                 SplitBlock block;
-                for (int i = 0; i < mBlockSize; ++i) {
-                    // Fill directly in the exact order the FFT's former swap
-                    // pass produced. The transform needs no reorder pass for
-                    // these real source inputs; no butterfly is changed.
-                    block.re[static_cast<std::size_t>(mReverse[i])] = source.previous[channel][static_cast<std::size_t>(i)];
-                    block.re[static_cast<std::size_t>(mReverse[i+mBlockSize])] = source.current[channel][static_cast<std::size_t>(i)];
-                }
+                ForwardSplit(source.previous[channel].data(), source.current[channel].data(), block);
                 std::copy_n(source.current[channel].data(), mBlockSize, source.previous[channel].data());
-                ForwardSplit(block);
                 Complex* history = History(id, channel);
                 for (int i = 0; i <= mFftSize/2; ++i) history[mHistoryPosition[group]*mFftSize+i] =
                     {Flush(block.re[static_cast<std::size_t>(i)]*source.rangeGain),
