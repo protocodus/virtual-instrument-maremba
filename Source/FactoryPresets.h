@@ -50,7 +50,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         2, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0000, // velocityToPosition
         0.1000, // velocityToDecay
         0, // tuningScale
         0, // noteOffMode
@@ -100,7 +100,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         0, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0000, // velocityToPosition
         0.0000, // velocityToDecay
         0, // tuningScale
         0, // noteOffMode
@@ -250,7 +250,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         0, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0000, // velocityToPosition
         0.0000, // velocityToDecay
         0, // tuningScale
         1, // noteOffMode
@@ -292,7 +292,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0500, // compAmount
         0.4898, // compAttack
         0.3333, // compRelease
-        0.83835112, // volume
+        0.81185029, // volume
         3, // oversampling
         1, // velocityCurve
         1, // polyphony
@@ -300,7 +300,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         1, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0000, // velocityToPosition
         0.1000, // velocityToDecay
         0, // tuningScale
         0, // noteOffMode
@@ -350,7 +350,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         0, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0000, // velocityToPosition
         0.0000, // velocityToDecay
         0, // tuningScale
         0, // noteOffMode
@@ -450,7 +450,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         1, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0000, // velocityToPosition
         0.0000, // velocityToDecay
         0, // tuningScale
         0, // noteOffMode
@@ -492,7 +492,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0500, // compAmount
         0.1429, // compAttack
         0.1667, // compRelease
-        0.64605695, // volume
+        0.63291560, // volume
         3, // oversampling
         1, // velocityCurve
         1, // polyphony
@@ -500,7 +500,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         1, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0000, // velocityToPosition
         0.0000, // velocityToDecay
         0, // tuningScale
         0, // noteOffMode
@@ -550,7 +550,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         0, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0000, // velocityToPosition
         0.0000, // velocityToDecay
         0, // tuningScale
         0, // noteOffMode
@@ -600,7 +600,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         0, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0000, // velocityToPosition
         0.0000, // velocityToDecay
         5, // tuningScale
         0, // noteOffMode
@@ -650,7 +650,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         1, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0000, // velocityToPosition
         0.0000, // velocityToDecay
         2, // tuningScale
         0, // noteOffMode
@@ -750,7 +750,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         0, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0000, // velocityToPosition
         0.0000, // velocityToDecay
         1, // tuningScale
         0, // noteOffMode
@@ -800,7 +800,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0200, // detune
         2, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0000, // velocityToPosition
         0.1000, // velocityToDecay
         0, // tuningScale
         0, // noteOffMode
@@ -850,7 +850,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0000, // detune
         0, // roomType
         0.1000, // velocityToHardness
-        0.1000, // velocityToPosition
+        0.0000, // velocityToPosition
         0.0000, // velocityToDecay
         4, // tuningScale
         0, // noteOffMode

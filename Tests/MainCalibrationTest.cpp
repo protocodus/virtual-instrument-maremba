@@ -48,24 +48,32 @@ struct FactoryReference {
 // -0.30 dB (its row still holds), and Direct Piezo -0.50 dB, whose pair had
 // reached 2.3 dB of Main guard energy loss against a 2 dB bound (RMS row only;
 // its peak still sits on the ceiling).
+// 1.5.10 set Position VEL to 0% on fourteen bar presets: Dampened Etude's
+// velocity-80 peak rose 1.1 dB and Roll Chorale's 0.2 dB out of their windows
+// (strokes nearer the centre's full fundamental) and were re-pinned; every
+// RMS row holds.
+// 1.5.10 also moved four balafon/padauk peaks out of their windows (Mandinka
+// +0.13, Midnight +0.06, Sambla +0.09, Mayan Dance -1.1 dB) and re-pinned them,
+// and trimmed Roll Chorale -0.56 dB and Mayan Dance -0.36 dB, which centring
+// had lifted above the Rack bank's velocity-100 RMS reference.
 constexpr std::array<FactoryReference, 20> kFactoryReferences {{
     {"Ambient Cathedral Bloom", -23.6085, -7.8603, -7.0603, false},
     {"Concert Grand Rosewood", -24.3075, -8.8900, -8.0900, false},
     {"Direct Piezo Mallet", -23.2096, -1.6494, -0.8494, false},
     {"Hard Acrylic Virtuoso", -23.8474, -2.3296, -1.5296, false},
-    {"Rosewood Dampened Etude", -25.3293, -10.6777, -9.8777, false},
-    {"Rosewood Roll Chorale", -23.7951, -7.7500, -6.9500, false},
+    {"Rosewood Dampened Etude", -25.3293, -9.6500, -8.8500, false},
+    {"Rosewood Roll Chorale", -24.3000, -7.7600, -6.9600, false},
     {"Soft Yarn Nocturne", -25.1317, -10.6321, -10.0321, false},
     {"Chiapas Folk Fiesta", -24.4818, -2.7848, -1.9848, false},
     {"Guatemalan Charleo", -24.7430, -6.2942, -5.4942, false},
-    {"Mayan Dance Padauk", -25.3841, -9.6500, -8.8500, false},
+    {"Mayan Dance Padauk", -25.3841, -11.4700, -10.6700, false},
     {"Ancestral Balafon", -24.5922, -5.3995, -4.5995, false},
     {"Birifor Gyil Buzz", -24.4024, -5.4813, -4.6813, false},
     {"Chopi Timbila Ensemble", -24.0481, -3.8057, -3.0057, false},
     {"Equipentatonic Log Keys", -23.2505, -1.5188, -0.7188, false},
-    {"Mandinka Bala Heptatonic", -24.1002, -3.8925, -3.0925, false},
-    {"Midnight Village Ritual", -24.9438, -8.7486, -7.9486, false},
-    {"Sambla Talking Balafon", -24.0067, -3.7275, -2.9275, false},
+    {"Mandinka Bala Heptatonic", -24.1002, -3.3600, -2.5600, false},
+    {"Midnight Village Ritual", -24.9438, -8.2900, -7.4900, false},
+    {"Sambla Talking Balafon", -24.0067, -3.2400, -2.4400, false},
     {"Kalimba Muted Thumbs", -20.8350, -6.6228, -5.8228, false},
     {"Kalimba Pick Sparkle", -22.7831, -8.7631, -7.9631, false},
     {"Kalimba Thumb Lullaby", -25.3493, -11.5109, -10.7109, false},

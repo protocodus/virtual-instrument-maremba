@@ -41,3 +41,24 @@ Iowa dead strokes. The model's bass dead strokes choke about 8× faster than
 the recordings' and its treble about 1.5× slower, but no pair of the two
 constants moved the register error steadily (grid 0–4 N s/m × 5–20 N), so
 the 5 N and 4 N s/m inferences stand.
+
+## 1.5.10 — forte strokes on centre; cord friction tried
+
+**Position VEL at 0%** on thirteen bar presets is a preset change settled by
+measurement (an A/B set, A 1.5.9 and B the change alone, RMS-matched, was
+sent for review and not committed): with 10% a velocity-127 stroke landed
+0.1 of the bar off centre, where the antisymmetric 4f mode is strongly
+excited, and the ff 4f partial sat 15–30 dB above the Iowa players' at
+G3–C5; at 0% it is 8–12 dB closer (C3 overshoots by 4–9 dB the other way).
+
+Tried and dropped: letting the cords take energy only where a mode moves at
+them, so a fundamental supported at its nodes loses nothing to them. Against
+the Iowa ff fundamentals it moved seven keys closer (C2 3.9 → 4.75 s against
+4.7, F2 3.3 → 3.7 against 3.9, D3 2.3 → 2.4 against 2.6), but the recorded A2
+bar rings unusually short (2.26 s, between F2's 3.7 and C3's 3.0), and
+`Maremba.TubeInSitu` then read A2 at 1.36× its recording against a 1.35× bound.
+The bound stands; the change would need the owner's call.
+
+Looked at and left: the bass 4f and 10f partials ring about twice as long as
+the recordings' (C2–G2), but no support-friction law fitted C2, G2 and C3
+together.

@@ -32,6 +32,17 @@ shipping engine.
 
 ## Version history
 
+### 1.5.10 — 2026-10-30 — forte strokes stay on centre
+
+- Forte strokes land where Position says. Thirteen bar presets no longer move
+  the mallet off centre with velocity (their Position VEL is 0%), so a forte
+  stroke keeps the centre's full fundamental: its two-octave overtone drops
+  8–12 dB at G3–C5, toward the Iowa MIS 2012 concert marimba's centre
+  strokes. Hard Acrylic Virtuoso, Direct Piezo Mallet, Chiapas Folk Fiesta,
+  Equipentatonic Log Keys and the Kalimbas keep it. Rosewood Roll Chorale and
+  Mayan Dance Padauk, 0.6 and 0.4 dB louder on centre, are trimmed back. The
+  engine is unchanged.
+
 ### 1.5.9 — 2026-10-30 — three presets re-levelled
 
 - Three presets are re-levelled after 1.5.8's brighter attacks: Rosewood
