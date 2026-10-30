@@ -276,6 +276,8 @@ private:
         bool rolling = false;
         int hand = 0;
         double next = 0.0;
+        bool otherHand = false;        // the last note-on was the second mallet's
+        double lastStrike = -1.0e18;   // mClock at the last note-on
     };
     std::array<KeyState, 128> mKeys{};
     int mHeldKeys = 0;                 // keys down (a held key can start a roll while silent)

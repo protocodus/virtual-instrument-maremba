@@ -26,14 +26,26 @@ static constexpr int kNumTineModes = 8;
 // shows (Aramaki 2007; Hill 2011: rosewood 0.0036..0.0068, mean 0.0045 up to
 // 2 kHz; Chaigne & Doutaut 1997: padauk a0 + a2 f^2); the low term is support
 // (cord, strap) friction below the lowest bars. T60 = 2.2 / (eta f).
+//
+// The rising term levels off above about 2 kHz. Hill's fit ends at 2.1 kHz
+// (C5's f4); carried on as f^2 it gave 0.015 at 4.5 kHz and 0.038 at 8 kHz,
+// so the bars' upper modes died in 7-30 ms and an attack had nothing above
+// 4 kHz after 30 ms. The Iowa MIS 2012 concert marimba (yarn, cord and rubber
+// at ff, C3-C5, anechoic) rings its 3-6.5 kHz band for a median T60 of 91 ms
+// at 3.75 kHz and 75 ms at 5.5 kHz from 6 to 50 ms after contact: loss
+// factors 0.0064 and 0.0053, about flat, as wood's is. The excess over eta0
+// is held at their mean less rosewood's eta0. Measured on rosewood only;
+// hormigo and vene take the same excess, an assumption.
 // ---------------------------------------------------------------------------
 struct MaterialLoss {
     double eta0, eta2, etaLow, fLow;
 };
 
+static constexpr double kWoodHighLossLimit = 0.0022;
+
 inline double LossFactor(const MaterialLoss& loss, double hz) {
     const double f = std::max(hz, 1.0);
-    const double high = std::min(loss.eta2 * (f * 1.0e-3) * (f * 1.0e-3), 0.25);
+    const double high = std::min(loss.eta2 * (f * 1.0e-3) * (f * 1.0e-3), kWoodHighLossLimit);
     return loss.eta0 + high + loss.etaLow * (loss.fLow / f) * (loss.fLow / f);
 }
 
@@ -259,6 +271,14 @@ inline double ResonatorTuningCents(const ResonatorProfile& r, int noteNumber) {
 // times at 1 m/s of 2.4 / 1.3 / 0.6 / 0.18 ms; rubber and boxwood follow
 // Chaigne & Doutaut's xylophone mallets (Hertz exponent 1.5, 0.65-1.3 ms and
 // 0.17-0.4 ms). Hardness scales the stiffness over about two decades.
+//
+// The core depths are measured: with 3.0 and 1.8 mm a forte yarn or cord head
+// never reached its core (1.3 and 0.8 mm peak compression on C4), and ff
+// attacks lay 20 and 10 dB under the Iowa MIS 2012 concert marimba in the
+// 2-8 kHz bands of their first 15 ms (C3-C6, re the fundamental). 1.0 and
+// 0.6 mm leave a mean error of -1.5 and -1.3 dB there, so a loud yarn or cord
+// stroke gets its core's edge, as players hear it; soft strokes and low
+// Hardness (which deepens the wrap) stay on the yarn.
 // ---------------------------------------------------------------------------
 struct MalletSpec {
     double massKg;
@@ -272,11 +292,11 @@ struct MalletSpec {
 
 inline MalletSpec GetMalletSpec(int type) {
     switch (std::clamp(type, 0, 3)) {
-        case 0:  return {0.030, 2.091e10, 2.8, 3.0e-3, 5.5e7, 1.5, 0.60, 0.050, 0.020, 0.02};
+        case 0:  return {0.030, 2.091e10, 2.8, 1.0e-3, 5.5e7, 1.5, 0.60, 0.050, 0.020, 0.02};
         case 2:  return {0.026, 5.477e7, 1.5, 0.0, 0.0, 1.5, 0.25, 0.030, 0.0, 0.25};
         case 3:  return {0.024, 1.027e9, 1.5, 0.0, 0.0, 1.5, 0.08, 0.012, 0.0, 0.70};
         case 1:
-        default: return {0.028, 1.205e10, 2.5, 1.8e-3, 6.0e7, 1.5, 0.45, 0.040, 0.012, 0.06};
+        default: return {0.028, 1.205e10, 2.5, 0.6e-3, 6.0e7, 1.5, 0.45, 0.040, 0.012, 0.06};
     }
 }
 

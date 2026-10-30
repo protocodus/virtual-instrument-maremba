@@ -38,17 +38,21 @@ struct FactoryReference {
 // Frozen installed-gain/final-bank three-rate measurements; RMS includes natural crest and tails.
 // Retain the existing +/-0.35 dB RMS tolerance and peak-window widths. The
 // rebalanced bank no longer needs the former full-VCA soft-preset exceptions.
+// 1.5.8 re-froze three rows at 44.1/48/96 kHz: the cord and yarn cores and
+// the bars' longer upper partials raised Concert Grand's and Mayan Dance's
+// peaks by 0.7-0.9 dB and Roll Chorale's yarn rolls by 0.9 dB RMS. No VCA
+// was re-trimmed; every peak stays under the -1 dBFS ceiling.
 constexpr std::array<FactoryReference, 20> kFactoryReferences {{
     {"Ambient Cathedral Bloom", -23.6085, -7.8603, -7.0603, false},
-    {"Concert Grand Rosewood", -24.4213, -9.5540, -8.7540, false},
+    {"Concert Grand Rosewood", -24.3075, -8.8900, -8.0900, false},
     {"Direct Piezo Mallet", -22.7290, -1.6494, -0.8494, false},
     {"Hard Acrylic Virtuoso", -23.8474, -2.3296, -1.5296, false},
     {"Rosewood Dampened Etude", -25.3293, -10.6777, -9.8777, false},
-    {"Rosewood Roll Chorale", -23.9408, -8.8700, -8.0700, false},
+    {"Rosewood Roll Chorale", -23.0832, -7.0800, -6.2800, false},
     {"Soft Yarn Nocturne", -25.1317, -10.6321, -10.0321, false},
     {"Chiapas Folk Fiesta", -24.4818, -2.7848, -1.9848, false},
     {"Guatemalan Charleo", -24.7430, -6.2942, -5.4942, false},
-    {"Mayan Dance Padauk", -25.3841, -10.1246, -9.3246, false},
+    {"Mayan Dance Padauk", -25.3841, -9.6500, -8.8500, false},
     {"Ancestral Balafon", -24.5922, -5.3995, -4.5995, false},
     {"Birifor Gyil Buzz", -24.4024, -5.4813, -4.6813, false},
     {"Chopi Timbila Ensemble", -24.0481, -3.8057, -3.0057, false},

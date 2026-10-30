@@ -32,6 +32,24 @@ shipping engine.
 
 ## Version history
 
+### 1.5.8 — 2026-10-30 — brighter wood, harder loud strokes, two-mallet repeats
+
+Measured against the Iowa MIS 2012 concert marimba (anechoic, yarn, cord and
+rubber at ff, C2–C7), which none of this ships:
+
+- The bars' upper overtones ring as wood's do. Above about 2 kHz the loss no
+  longer keeps rising, so partials at 3–6.5 kHz ring about 80 ms (T60) as in
+  the recordings instead of 7–30 ms. Most audible on hard mallets and high
+  notes; Rosewood, Padauk and Balafon.
+- Loud yarn and cord strokes reach the mallet's rubber core, as players hear
+  them: forte attacks now sit within 1.5 dB of the recordings at 2–8 kHz
+  (they were 20 dB dull with yarn, 10 dB with cord). Soft strokes and low
+  Hardness stay on the yarn. Preset peaks rise by up to 0.9 dB on Main
+  (Rosewood Roll Chorale +0.9 dB RMS); no preset was re-trimmed.
+- A key struck again within 167 ms is played hand to hand, as the mod-wheel
+  roll is: every second stroke lands the roll's two-mallet spacing from the
+  first, so quick repeats stop sounding identical. Lone notes are unchanged.
+
 ### 1.5.7 — 2026-10-23 — lower CPU, identical sound
 
 - Render the same audio with about 56% less CPU time (24% fewer instructions)

@@ -46,9 +46,13 @@ constexpr Expectation kExpected[] = {
     // linear Kalimba bridge. Wooden Piezo anchors retain their former values;
     // only the microphones and Kalimba's changed bridge need new anchors.
     // Fixed recording trims and the half-dB tolerance are unchanged.
-    {{{-22.59, -24.92, -10.60}}, {{-30.16, -31.99, -24.46}}},
-    {{{-21.36, -18.20, -12.88}}, {{-30.29, -27.55, -24.43}}},
-    {{{-20.25, -14.94, -15.50}}, {{-29.93, -26.97, -24.96}}},
+    // The wooden models were remeasured for 1.5.8: a loud cord stroke now
+    // reaches its core and the bars' upper partials ring as recorded, so the
+    // chord's attack peaks rise by up to 2.2 dB (Close) and 1.7 dB (Piezo);
+    // every stem stays under its protection ceiling. Kalimba is unchanged.
+    {{{-20.38, -24.64, -8.95}}, {{-29.41, -31.82, -23.27}}},
+    {{{-20.37, -18.27, -12.53}}, {{-29.95, -27.49, -23.70}}},
+    {{{-20.30, -14.95, -13.80}}, {{-29.53, -26.90, -23.78}}},
     {{{-16.17, -16.61, -8.57}}, {{-25.53, -25.42, -20.06}}},
 };
 constexpr double kCalibrationToleranceDb = 0.5;

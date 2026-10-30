@@ -532,6 +532,14 @@ void MarembaEngine::NoteOn(int noteNumber, float velocity) {
     key.velocity = velocity;
     key.rolling = false;
     key.hand = 1;
+    // A key struck again sooner than the slowest roll's stroke interval is
+    // played hand to hand, as a roll is: the second mallet lands the rolls'
+    // two-mallet spacing from the first, which keeps the set position. A
+    // lone or slower note is always the first mallet's.
+    const bool mallets = mParams.model != static_cast<int>(EMarimbaModel::KalimbaArtisan);
+    key.otherHand = mallets && mClock - key.lastStrike < mBaseSampleRate / kRollMinRate && !key.otherHand;
+    key.lastStrike = mClock;
+    const float positionOffset = key.otherHand ? 2.0f * kRollHandOffset : 0.0f;
 
     if (mSwitchPending) {
         // Rate change in progress: start the note right after the switch. A
@@ -544,7 +552,7 @@ void MarembaEngine::NoteOn(int noteNumber, float velocity) {
         mPendingNotes[mPendingCount++] = { noteNumber, velocity, false, false };
         return;
     }
-    TriggerNote(noteNumber, velocity);
+    TriggerNote(noteNumber, velocity, positionOffset);
 }
 
 int MarembaEngine::TriggerNote(int noteNumber, float velocity, float positionOffset) {
