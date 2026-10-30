@@ -22,7 +22,7 @@ shipping engine.
 | 1 | Ambient Cathedral Bloom | [01-ambient-cathedral-bloom.wav](Docs/audio/01-ambient-cathedral-bloom.wav) | 12.0 s | -13.7 dBFS |
 | 2 | Concert Grand Rosewood | [02-concert-grand-rosewood.wav](Docs/audio/02-concert-grand-rosewood.wav) | 12.0 s | -7.3 dBFS |
 | 4 | Hard Acrylic Virtuoso | [04-hard-acrylic-virtuoso.wav](Docs/audio/04-hard-acrylic-virtuoso.wav) | 11.5 s | -4.7 dBFS |
-| 6 | Rosewood Roll Chorale | [06-rosewood-roll-chorale.wav](Docs/audio/06-rosewood-roll-chorale.wav) | 11.4 s | -10.3 dBFS |
+| 6 | Rosewood Roll Chorale | [06-rosewood-roll-chorale.wav](Docs/audio/06-rosewood-roll-chorale.wav) | 11.4 s | -11.0 dBFS |
 | 9 | Guatemalan Charleo | [09-guatemalan-charleo.wav](Docs/audio/09-guatemalan-charleo.wav) | 11.4 s | -2.7 dBFS |
 | 12 | Birifor Gyil Buzz | [12-birifor-gyil-buzz.wav](Docs/audio/12-birifor-gyil-buzz.wav) | 11.8 s | -8.4 dBFS |
 | 13 | Chopi Timbila Ensemble | [13-chopi-timbila-ensemble.wav](Docs/audio/13-chopi-timbila-ensemble.wav) | 11.7 s | -9.9 dBFS |
@@ -130,7 +130,7 @@ rubber at ff, C2–C7), which none of this ships:
 ## Downloads
 
 <!-- build-download-begin -->
-**[Download main build 33](https://github.com/protocodus/virtual-instrument-maremba/actions/runs/41000996114/artifacts/12955385743)**, built from [`d2b8bf664bc5`](https://github.com/protocodus/virtual-instrument-maremba/commit/d2b8bf664bc5e8f1206077dc5e0fb9871b31ac60). It holds the macOS, Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.
+**[Download main build 34](https://github.com/protocodus/virtual-instrument-maremba/actions/runs/41020559881/artifacts/12963805535)**, built from [`2ce3926b934c`](https://github.com/protocodus/virtual-instrument-maremba/commit/2ce3926b934c277bc51cf844dce7f329d9f21500). It holds the macOS, Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.
 <!-- build-download-end -->
 
 ---
