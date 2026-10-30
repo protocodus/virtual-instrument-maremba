@@ -20,12 +20,12 @@ shipping engine.
 | # | Preset | Demo | Length | Peak |
 | --- | --- | --- | --- | --- |
 | 1 | Ambient Cathedral Bloom | [01-ambient-cathedral-bloom.wav](Docs/audio/01-ambient-cathedral-bloom.wav) | 12.0 s | -13.7 dBFS |
-| 2 | Concert Grand Rosewood | [02-concert-grand-rosewood.wav](Docs/audio/02-concert-grand-rosewood.wav) | 12.0 s | -8.1 dBFS |
+| 2 | Concert Grand Rosewood | [02-concert-grand-rosewood.wav](Docs/audio/02-concert-grand-rosewood.wav) | 12.0 s | -7.3 dBFS |
 | 4 | Hard Acrylic Virtuoso | [04-hard-acrylic-virtuoso.wav](Docs/audio/04-hard-acrylic-virtuoso.wav) | 11.5 s | -4.7 dBFS |
-| 6 | Rosewood Roll Chorale | [06-rosewood-roll-chorale.wav](Docs/audio/06-rosewood-roll-chorale.wav) | 11.4 s | -11.9 dBFS |
+| 6 | Rosewood Roll Chorale | [06-rosewood-roll-chorale.wav](Docs/audio/06-rosewood-roll-chorale.wav) | 11.4 s | -10.3 dBFS |
 | 9 | Guatemalan Charleo | [09-guatemalan-charleo.wav](Docs/audio/09-guatemalan-charleo.wav) | 11.4 s | -2.7 dBFS |
-| 12 | Birifor Gyil Buzz | [12-birifor-gyil-buzz.wav](Docs/audio/12-birifor-gyil-buzz.wav) | 11.8 s | -8.6 dBFS |
-| 13 | Chopi Timbila Ensemble | [13-chopi-timbila-ensemble.wav](Docs/audio/13-chopi-timbila-ensemble.wav) | 11.7 s | -10.0 dBFS |
+| 12 | Birifor Gyil Buzz | [12-birifor-gyil-buzz.wav](Docs/audio/12-birifor-gyil-buzz.wav) | 11.8 s | -8.4 dBFS |
+| 13 | Chopi Timbila Ensemble | [13-chopi-timbila-ensemble.wav](Docs/audio/13-chopi-timbila-ensemble.wav) | 11.7 s | -9.9 dBFS |
 | 19 | Kalimba Pick Sparkle | [19-kalimba-pick-sparkle.wav](Docs/audio/19-kalimba-pick-sparkle.wav) | 11.4 s | -8.0 dBFS |
 
 <!-- audio-demos-end -->
@@ -123,7 +123,7 @@ rubber at ff, C2–C7), which none of this ships:
 ## Downloads
 
 <!-- build-download-begin -->
-**[Download main build 32](https://github.com/protocodus/virtual-instrument-maremba/actions/runs/40847009553/artifacts/12893720104)**, built from [`4878ad64fb26`](https://github.com/protocodus/virtual-instrument-maremba/commit/4878ad64fb2644b75cbad304d1dcdea663947b14). It holds the macOS, Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.
+**[Download main build 33](https://github.com/protocodus/virtual-instrument-maremba/actions/runs/41000996114/artifacts/12955385743)**, built from [`d2b8bf664bc5`](https://github.com/protocodus/virtual-instrument-maremba/commit/d2b8bf664bc5e8f1206077dc5e0fb9871b31ac60). It holds the macOS, Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.
 <!-- build-download-end -->
 
 ---
