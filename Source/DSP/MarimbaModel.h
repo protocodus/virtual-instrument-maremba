@@ -207,7 +207,7 @@ inline ResonatorProfile GetResonatorProfile(EMarimbaModel model) {
             // them, growing to more than a half step in the top octave; Yamaha
             // and La Favre set them for the loudest resonance under the bar.
             return {{1.0, 2.97, 4.93}, 45.0, 0.18, 2000.0, 0.027, {0.7, 0.5}, {1.0, 0.45, 0.25},
-                    {1.0, 0.40, 0.22}, 3.0, 8.0, 100.0, 0.0071, 0.14};
+                    {1.0, 0.40, 0.22}, 3.0, 8.0, 100.0, 0.0060, 0.14};
     }
 }
 
