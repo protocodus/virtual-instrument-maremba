@@ -48,7 +48,7 @@ struct FactoryReference {
 // -0.30 dB (its row still holds), and Direct Piezo -0.50 dB, whose pair had
 // reached 2.3 dB of Main guard energy loss against a 2 dB bound (RMS row only;
 // its peak still sits on the ceiling).
-// 1.5.10 set Position VEL to 0% on fourteen bar presets: Dampened Etude's
+// 1.5.10 set Position VEL to 0% on thirteen bar presets: Dampened Etude's
 // velocity-80 peak rose 1.1 dB and Roll Chorale's 0.2 dB out of their windows
 // (strokes nearer the centre's full fundamental) and were re-pinned; every
 // RMS row holds.
