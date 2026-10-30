@@ -32,6 +32,13 @@ shipping engine.
 
 ## Version history
 
+### 1.5.9 — 2026-10-30 — three presets re-levelled
+
+- Three presets are re-levelled after 1.5.8's brighter attacks: Rosewood
+  Roll Chorale is 0.7 dB quieter, back to its 1.5.7 loudness; Equipentatonic
+  Log Keys 0.3 dB quieter; Direct Piezo Mallet 0.5 dB quieter, so its ordinary
+  two-note strokes stay inside the Main output's protection. No sound changes.
+
 ### 1.5.8 — 2026-10-30 — brighter wood, harder loud strokes, two-mallet repeats
 
 Measured against the Iowa MIS 2012 concert marimba (anechoic, yarn, cord and

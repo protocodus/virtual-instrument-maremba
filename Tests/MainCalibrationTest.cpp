@@ -42,13 +42,19 @@ struct FactoryReference {
 // the bars' longer upper partials raised Concert Grand's and Mayan Dance's
 // peaks by 0.7-0.9 dB and Roll Chorale's yarn rolls by 0.9 dB RMS. No VCA
 // was re-trimmed; every peak stays under the -1 dBFS ceiling.
+// 1.5.9 re-trimmed three Volumes against the Rack bank's velocity-100
+// single/pair reference (-22.2 dBFS +/-0.35, Direct Piezo -22.6): Roll Chorale
+// -0.73 dB (back to its 1.5.7 loudness; its row re-pinned), Equipentatonic
+// -0.30 dB (its row still holds), and Direct Piezo -0.50 dB, whose pair had
+// reached 2.3 dB of Main guard energy loss against a 2 dB bound (RMS row only;
+// its peak still sits on the ceiling).
 constexpr std::array<FactoryReference, 20> kFactoryReferences {{
     {"Ambient Cathedral Bloom", -23.6085, -7.8603, -7.0603, false},
     {"Concert Grand Rosewood", -24.3075, -8.8900, -8.0900, false},
-    {"Direct Piezo Mallet", -22.7290, -1.6494, -0.8494, false},
+    {"Direct Piezo Mallet", -23.2096, -1.6494, -0.8494, false},
     {"Hard Acrylic Virtuoso", -23.8474, -2.3296, -1.5296, false},
     {"Rosewood Dampened Etude", -25.3293, -10.6777, -9.8777, false},
-    {"Rosewood Roll Chorale", -23.0832, -7.0800, -6.2800, false},
+    {"Rosewood Roll Chorale", -23.7951, -7.7500, -6.9500, false},
     {"Soft Yarn Nocturne", -25.1317, -10.6321, -10.0321, false},
     {"Chiapas Folk Fiesta", -24.4818, -2.7848, -1.9848, false},
     {"Guatemalan Charleo", -24.7430, -6.2942, -5.4942, false},
