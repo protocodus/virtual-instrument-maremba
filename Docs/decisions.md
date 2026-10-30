@@ -62,3 +62,25 @@ The bound stands; the change would need the owner's call.
 Looked at and left: the bass 4f and 10f partials ring about twice as long as
 the recordings' (C2–G2), but no support-friction law fitted C2, G2 and C3
 together.
+
+## 2026-10-30 — in-situ decays across the keyboard (nothing shipped)
+
+Measured every key C2–C5 of the Iowa MIS 2012 concert marimba (cord, yarn and
+rubber at ff; the three mallets agree within a few per cent per key) against
+Concert Grand Rosewood at velocity 112, each partial band-passed and fitted
+from −3 dB to −30 dB or 10 dB above the noise. Medians of model ÷ recording:
+fundamental 0.86, 4f 1.26, 10f 1.24 (4f 1.5–1.7 at C2–G2).
+
+Tried and dropped: a dashpot for the cords' felt that damps each mode by its
+mean-square motion over the felt (the fundamental, whose nodes the cords sit
+on, barely changes). At 5 N s/m it brought the 4f and 10f medians to 1.01 and
+1.04, but the bar's own C4 4f then rings 0.19 of its fundamental, under the
+0.2 floor `Round4Response` holds from bare-bar measurements (Chaigne &
+Doutaut 1997; Hill 2011: 0.25–0.6). The shipping engine sits at 0.22, so any
+in-situ loss on the bar's own modes large enough to matter crosses it.
+
+Held for the owner: weaker tube coupling (κ 0.0071 → 0.0055) or a lossier
+tube gap (`kTubeGapQ` 0.45 → 0.30) each bring the fundamental median to 1.0.
+Both fail `TubeInSitu` on A2 only (1.48× against a 1.35× bound): the
+recorded A2 rings 2.27 s by that test's own method, between Ab2's 3.18 s and
+Bb2's 3.88 s, so the anchor sits on an unusually short key.
