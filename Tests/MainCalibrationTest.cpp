@@ -28,7 +28,9 @@ using namespace maremba;
 
 // Measured Init anchors with the installed 1.5.5 recording gains and shorter
 // Kalimba lifetime; independent of factory VCA settings. Order follows Model.
-constexpr std::array<double, 4> kInitRmsDb {{-22.0903, -21.8999, -20.9930, -22.2698}};
+// 1.6.0 re-measured them with the synthesized sphere head in Close: the bars
+// +0.11 to +0.25 dB, Kalimba -0.30 dB (CloseHrtf.h's trim keeps their mean).
+constexpr std::array<double, 4> kInitRmsDb {{-21.8421, -21.7794, -20.8799, -22.5710}};
 constexpr double kRmsToleranceDb = .35;
 constexpr double kCeiling = .940002;
 constexpr double kMainCeiling = .8912509381337456; // -1 dBFS, independent of stem ceilings.
@@ -63,27 +65,36 @@ struct FactoryReference {
 // window, re-centred on the three rates' mean with the same 0.6 dB width.
 // 1.5.12 raised Direct Piezo's Volume 0.46 dB and 1.5.13 took it back: the
 // Rack's Main guard bound (2 dB energy loss) holds it at its 1.5.11 level.
+// 1.6.0 replaced Close's measured head responses with a synthesized rigid
+// sphere and re-trimmed eight Volumes against the Rack's velocity-100
+// reference. Every row was re-pinned on the three rates' mean, peak windows
+// re-centred at their former widths: peaks fell 0.1-2.2 dB (the sphere's
+// minimum-phase onsets are less peaky than the recorded ears'), RMS moved
+// +0.08 to -0.75 dB. Equipentatonic's window is wider (1.85 dB): its log
+// keys' single-strike peaks differ by up to 5 dB between 48 and 96 kHz at
+// equal RMS, so its peak spans -3.56 to -2.17 dB across rates; its former
+// row sat near the -1 dBFS ceiling, which compressed that spread.
 constexpr std::array<FactoryReference, 20> kFactoryReferences {{
-    {"Ambient Cathedral Bloom", -23.6085, -7.8603, -7.0603, false},
-    {"Concert Grand Rosewood", -24.3075, -8.8900, -8.0900, false},
-    {"Direct Piezo Mallet", -23.6156, -1.6494, -0.8494, false},
-    {"Hard Acrylic Virtuoso", -24.2774, -2.3296, -1.5296, false},
-    {"Rosewood Dampened Etude", -25.3293, -9.6500, -8.8500, false},
-    {"Rosewood Roll Chorale", -24.3000, -7.7600, -6.9600, false},
-    {"Soft Yarn Nocturne", -25.1317, -10.2555, -9.6555, false},
-    {"Chiapas Folk Fiesta", -24.4818, -2.7848, -1.9848, false},
-    {"Guatemalan Charleo", -24.7430, -6.2942, -5.4942, false},
-    {"Mayan Dance Padauk", -25.3841, -11.4700, -10.6700, false},
-    {"Ancestral Balafon", -24.5922, -5.3995, -4.5995, false},
-    {"Birifor Gyil Buzz", -24.4024, -5.4813, -4.6813, false},
-    {"Chopi Timbila Ensemble", -24.0481, -3.8057, -3.0057, false},
-    {"Equipentatonic Log Keys", -23.2505, -1.5188, -0.7188, false},
-    {"Mandinka Bala Heptatonic", -24.1002, -3.3600, -2.5600, false},
-    {"Midnight Village Ritual", -24.9438, -8.2900, -7.4900, false},
-    {"Sambla Talking Balafon", -24.0067, -3.2400, -2.4400, false},
-    {"Kalimba Muted Thumbs", -20.8350, -6.6228, -5.8228, false},
-    {"Kalimba Pick Sparkle", -22.7831, -8.7631, -7.9631, false},
-    {"Kalimba Thumb Lullaby", -25.3493, -11.5109, -10.7109, false},
+    {"Ambient Cathedral Bloom", -24.0203, -8.5613, -7.7613, false},
+    {"Concert Grand Rosewood", -24.5943, -9.5392, -8.7392, false},
+    {"Direct Piezo Mallet", -23.6736, -1.4388, -0.6388, false},
+    {"Hard Acrylic Virtuoso", -24.5087, -3.4984, -2.6984, false},
+    {"Rosewood Dampened Etude", -25.5681, -11.1106, -10.3106, false},
+    {"Rosewood Roll Chorale", -24.2215, -8.8889, -8.0889, false},
+    {"Soft Yarn Nocturne", -25.2900, -10.9300, -10.3300, false},
+    {"Chiapas Folk Fiesta", -24.7462, -3.6414, -2.8414, false},
+    {"Guatemalan Charleo", -25.1957, -8.4914, -7.6914, false},
+    {"Mayan Dance Padauk", -25.5066, -11.9151, -11.1151, false},
+    {"Ancestral Balafon", -24.7183, -6.4775, -5.6775, false},
+    {"Birifor Gyil Buzz", -24.5593, -6.8194, -6.0194, false},
+    {"Chopi Timbila Ensemble", -24.3288, -5.1557, -4.3557, false},
+    {"Equipentatonic Log Keys", -23.9961, -3.8000, -1.9500, false},
+    {"Mandinka Bala Heptatonic", -24.3632, -4.9644, -4.1644, false},
+    {"Midnight Village Ritual", -25.4276, -9.0605, -8.2605, false},
+    {"Sambla Talking Balafon", -24.1807, -4.8980, -4.0980, false},
+    {"Kalimba Muted Thumbs", -21.4790, -7.2964, -6.4964, false},
+    {"Kalimba Pick Sparkle", -23.1419, -9.3601, -8.5601, false},
+    {"Kalimba Thumb Lullaby", -25.6665, -11.7815, -10.9815, false},
 }};
 constexpr double kSeconds = 5.0;
 // Shared musical reference: Rack Tests/AllPatchRenderTest.cpp, kPhraseNotes.

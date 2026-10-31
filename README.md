@@ -32,6 +32,15 @@ shipping engine.
 
 ## Version history
 
+### 1.6.0 — 2026-10-31 — Close hears a synthesized head, not a recorded one
+
+Close no longer plays measured KU100 dummy-head impulse responses (SADIE II).
+Each source now reaches the ears through a rigid spherical head with the
+scene's ear positions, solved exactly for its own distance and
+diffuse-field equalized, at the same overall level. Every sound Maremba makes
+is now synthesized; nothing recorded or measured is played. The sphere has no
+pinnae, so Close carries no pinna colouration and slightly less side energy.
+
 ### 1.5.13 — 2026-10-31 — Direct Piezo Mallet back at its 1.5.11 Volume
 
 1.5.12's +0.46 dB pushed Direct Piezo Mallet's forte two-note strikes past the
@@ -204,8 +213,9 @@ higher modes provide additional alias suppression for the physical sources.
   sympathetic ringing of unstruck keys, model-specific frame modes and the
   kalimba's shared box with its air resonance and hand-covered sound hole.
 - **Capture** (`CaptureScene.h`, `CloseCapture.h`, `RoomCapture.h`,
-  `PiezoPickup.h`): close capture through measured KU100 head-related responses
-  (SADIE II, see `THIRD_PARTY_NOTICES.md`), a room with geometric early paths and
+  `PiezoPickup.h`): close capture through a synthesized rigid spherical head
+  (`CloseHrtf.h`, the exact series solution for each source at its own range),
+  a room with geometric early paths and
   diffuse fields (Wood, Chamber, Hall), and a strain-reading piezo with its
   mounting and input circuit.
 - **Output** (`AnalogPreamp.h`, `AnalogLimiter.h`, `OutputHeadroom.h`,
@@ -216,6 +226,8 @@ higher modes provide additional alias suppression for the physical sources.
 ## Known gaps
 
 - The plug-in has no sustain pedal and no MPE; the engine has neither.
+- Close's head is a sphere: it has no pinnae, neck or torso, so it gives no
+  elevation or front/back cues beyond the head's own shadow.
 - The render tier checks the screenshot's size and that it is not blank, not
   pixel identity with the committed image: the image is rendered on macOS, and
   fonts differ between platforms.
@@ -279,6 +291,6 @@ purpose, but not sell it or use it commercially. Official Protocodus builds
 carry an additional permission in the same file to use them for any purpose,
 including making music commercially. Commits made before this licence change
 were published under MIT and remain so. The plug-in builds with JUCE (official
-builds use a commercial JUCE 8 Starter licence) and clap-juce-extensions (MIT),
-and the measured head responses are Apache-2.0; see
+builds use a commercial JUCE 8 Starter licence) and clap-juce-extensions (MIT);
+see
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).

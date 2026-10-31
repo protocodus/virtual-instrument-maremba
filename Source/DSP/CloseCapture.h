@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CaptureGeometry.h"
-#include "MeasuredCloseHrtf.h"
+#include "CloseHrtf.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -12,9 +12,9 @@
 namespace maremba {
 
 // Two receiver-specific acoustic pressure inputs per source. Modal surface
-// projection is upstream; these measured head/ear filters, range gain and
-// common propagation are applied once here. The SOFA response is a 1.2 m,
-// diffuse-field-equalized measurement, adapted to the declared scene.
+// projection is upstream; the synthesized head/ear filters (CloseHrtf.h, a
+// rigid sphere solved at each source's range), range gain and common
+// propagation are applied once here.
 //
 // Uniform partitioned convolution sums source spectra before inverse FFTs in
 // staggered groups. Its processing delay is deducted from the propagation line:
@@ -253,7 +253,7 @@ private:
         double maxDelay = 0.0;
         for (int channel = 0; channel < 2; ++channel) {
             // The minimum-phase kernels already carry their own phase/ILD.
-            // This is only the measured *residual* interaural delay.
+            // This is only the *residual* interaural delay.
             const double delay = (flight + (channel ? 0.5 : -0.5) * itd) * mRate
                                - mBlockSize - mResampleDelayFrames;
             if (!(delay >= 3.0 && delay < mDelayCapacity - 5.0)) return false;

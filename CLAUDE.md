@@ -33,12 +33,14 @@ Protocodus portfolio standard kept in the project, not in this repository.
 ## Generated tables
 
 `BarModes.h`, `KalimbaModes.h`, `KalimbaMountShapes.h`, `ModalRadiation.h`'s
-kalimba cache, `OutputPeakKernel.h` and `MeasuredCloseHrtf.h` are generated.
+kalimba cache, `OutputPeakKernel.h` and `CloseHrtf.h` are generated.
 Change them only through their `Tests/generate_*.py` script, and keep each
 registered check passing. Three generators no longer match their shipped
 tables (README, Known gaps): bring a generator back to its table before using
-it to change one. `MeasuredCloseHrtf.h` is derived from SADIE II
-(Apache-2.0); its receipt, `Tests/close-hrtf-generation.json`, must stay consistent.
+it to change one. `CloseHrtf.h` is synthesized from a rigid spherical head
+in the scene's geometry, never from measured responses; its receipt,
+`Tests/close-hrtf-generation.json`, must stay consistent. Every sound is
+synthesized: no recording, sample or measured impulse response ships.
 
 ## Documentation layout
 

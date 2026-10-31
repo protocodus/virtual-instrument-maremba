@@ -1,64 +1,39 @@
 {
-  "dataset": "SADIE II v2-2 D1 KU100",
-  "dataset_doi": "10.5281/zenodo.12092466",
-  "download_url": "https://zenodo.org/records/12092466/files/D1_HRIR_SOFA.zip?download=1",
-  "sofa_sha256": "9af7cb19531e52fb7ae8ec92621e6ab62b1d5fe584b3742be36699a0ddb0ccd4",
-  "sofa_metadata": {
-    "Conventions": "SOFA",
-    "Version": "2.1",
-    "SOFAConventions": "SimpleFreeFieldHRIR",
-    "SOFAConventionsVersion": "1.0",
-    "APIName": "SOFA Toolbox for Matlab/Octave",
-    "APIVersion": "2.2.0",
-    "ApplicationName": "MATLAB",
-    "ApplicationVersion": "2023a",
-    "AuthorContact": "gavin.kearney@york.ac.uk",
-    "Comment": "8802 source positions. KU100 subject. Measurement utlized Genelec 8010 Loudspeakers and 24s overlapped swept sine technique. Reciever microphones were KU100 built in mics via RME Fireface 400 Preamps. Filters were low frequency extended, diffuse field equalized and windowed. (approx.) Linear phase HRIRs.",
-    "DataType": "FIR",
-    "History": "Measurement, Low Frequency Extension, Diffuse Field Equalization, Windowing, Diffuse Field Equalization",
-    "License": "Copyright 2018, University of York, Licensed under the Apache License, Version 2.0 (the \"License\"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.",
-    "Organization": "AudioLab, Department of Electronic Engineering, University of York, United Kingdom.",
-    "References": "https://doi.org/10.3390/app8112029",
-    "RoomType": "free field",
-    "Origin": "Overlapped Exponential Swept Sine Wave Measuremnt",
-    "DateCreated": "2019-08-01 13:21:05",
-    "DateModified": "2024-02-08 11:16:46",
-    "Title": "D1 HRIRs",
-    "DatabaseName": "SADIE II",
-    "ListenerShortName": "D1",
-    "NCProperties": "version=1|netcdflibversion=4.6.1|hdf5libversion=1.8.12",
-    "_NCProperties": "version=2,netcdf=4.8.1,hdf5=1.10.8"
-  },
-  "generator_sha256": "44ae1711d7dbe4af32e4e80e8776486d2d3ad681e18a67c860439126d2390994",
+  "model": "rigid sphere, point source at each source's range (Duda and Martens, JASA 104(5) 1998, eq. 4)",
+  "head_radius_m": 0.09,
+  "speed_of_sound_m_s": 343.0,
+  "diffuse_field_range_m": 1.2,
+  "calibration_gain_db": -3.64,
+  "band_edge_fade_hz": [
+    20000.0,
+    24000.0
+  ],
+  "diffuse_field_directions": 2048,
+  "generator_sha256": "6e23792f30d4a89f6eb3e938dc438a4be55ef3b367863c07e6b61b1e48bdef6d",
   "geometry_sha256": "84c53c1ed620e738ec36e309cbceca00c923b4f87aaf6c27698d7088a6a0e27f",
-  "license_sha256": {
-    "SADIE-II-LICENSE.txt": "49bbe9114e49214df2ccc324cb3ac8d1d1aa1c3a0947f94c286765e86647b32e",
-    "SADIE-II-NOTICE.txt": "61c535d5996ceaf81b45710482cbbdea526b43e5743ec2384c6a06b834b6c9dd"
-  },
   "geometry_dependency_sha256": {
     "CaptureGeometry.h": "84c53c1ed620e738ec36e309cbceca00c923b4f87aaf6c27698d7088a6a0e27f",
     "MarimbaModel.h": "7c548a779f02abd6bc9f9b3493b5eeda5ca63f51b3a1705b4037c2ba273bc0e0",
     "BarModes.h": "0818d691457b6c49a9c8508c809615760fb4fb1a38892b9defcd57a4f918b2ce"
   },
   "generation_environment": {
-    "python": "3.11.0 (v3.11.0:deaf509e8f, Oct 24 2022, 14:43:23) [Clang 13.0.0 (clang-1300.0.29.30)]",
-    "numpy": "1.26.4",
-    "scipy": "1.14.1",
-    "h5py": "3.16.0"
+    "python": "3.13.18 (main, Oct 26 2026, 14:08:19) [Clang 23.1.3 ]",
+    "numpy": "2.5.3",
+    "scipy": "1.18.1"
   },
-  "header_sha256": "08a2421354f35d40ea553f1aa624c2cc40f877cdc3cb5a1ec457c73c53e975bb",
+  "header_sha256": "43bef25ecdefd256ef6e62250ff032c23ca271f346ef20cf2ca187dec86159c9",
   "source_count": 515,
   "profile_count": 203,
   "reference_rate": 48000,
   "taps": 160,
   "fft_size": 8192,
-  "processing": "homomorphic minimum phase at each measured vertex; spherical-triangle linear interpolation of aligned HRIRs; final8tap linear taper; float32; residual interaural excess-phase weighted slope200..2000Hz",
-  "magnitude_error_band": "truncation/float32 against full interpolated aligned HRIR; 100..18000Hz, bins within30dB of each profile ear maximum; not a bound on angular/nearfield approximation",
+  "processing": "exact sphere series per ear over the free field at the head centre; per-ear diffuse-field equalization; raised-cosine fade 20-24 kHz to -60 dB; homomorphic minimum phase; final 8-tap linear taper; float32; residual interaural excess-phase weighted slope 200..2000 Hz",
+  "magnitude_error_band": "truncation/float32 against the full synthesized response; 100..18000 Hz, bins within 30 dB of each profile ear maximum",
   "magnitude_error_db_percentiles_50_95_99_100": [
-    0.0014165500461887017,
-    0.023356252230917265,
-    0.056499780277009234,
-    0.23178775851603964
+    3.6212956087002698e-06,
+    6.114722965479117e-05,
+    0.0001344027087214793,
+    0.0001920247752016429
   ],
   "source_profile_indices": [
     0,
@@ -585,24 +560,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        67.18212111225445,
-        -20.051641061906842
+      "range_m": 1.1666332776738713,
+      "ear_angles_deg": [
+        30.017821935890982,
+        149.98217806410904
       ],
-      "source_measurement_indices": [
-        1654,
-        1653,
-        1675
-      ],
-      "weights": [
-        0.6596320125209412,
-        0.15195772168200913,
-        0.18841026579704964
-      ],
-      "residual_itd_seconds": 0.0005190474758399199,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.048065869314175134,
-      "minimum_retained_energy": 0.9999698847674389,
-      "max_magnitude_error_db": 0.23178775851603964
+      "residual_itd_seconds": 0.0005172515850076555,
+      "max_magnitude_error_db": 0.00017948237718620297
     },
     {
       "profile": 1,
@@ -611,24 +575,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        59.04655858119337,
-        -18.24769826293447
+      "range_m": 1.197602288803494,
+      "ear_angles_deg": [
+        35.46609348924805,
+        144.53390651075196
       ],
-      "source_measurement_indices": [
-        1450,
-        1473,
-        1451
-      ],
-      "weights": [
-        0.09988321847488735,
-        0.04632944304538832,
-        0.8537873384797242
-      ],
-      "residual_itd_seconds": 0.00047327628034291497,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05270669727913788,
-      "minimum_retained_energy": 0.9999622114482039,
-      "max_magnitude_error_db": 0.13459026658073342
+      "residual_itd_seconds": 0.00047706502795718126,
+      "max_magnitude_error_db": 0.00015666131342114055
     },
     {
       "profile": 2,
@@ -637,24 +590,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        65.6856721795701,
-        -21.182451681604405
+      "range_m": 1.1069936948573007,
+      "ear_angles_deg": [
+        31.817914300604333,
+        148.18208569939569
       ],
-      "source_measurement_indices": [
-        1605,
-        1632,
-        1620
-      ],
-      "weights": [
-        0.26000699343083755,
-        0.24905411317286774,
-        0.49093889339629465
-      ],
-      "residual_itd_seconds": 0.0005044413712700779,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.066843764050284,
-      "minimum_retained_energy": 0.999978399254794,
-      "max_magnitude_error_db": 0.10138225841738464
+      "residual_itd_seconds": 0.0005046669698016372,
+      "max_magnitude_error_db": 0.00016939413065908475
     },
     {
       "profile": 3,
@@ -663,24 +605,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        57.15942600705749,
-        -19.169002089554414
+      "range_m": 1.1420542633536344,
+      "ear_angles_deg": [
+        37.47695402630187,
+        142.52304597369815
       ],
-      "source_measurement_indices": [
-        1385,
-        1417,
-        1384
-      ],
-      "weights": [
-        0.7772403358811452,
-        0.16591271126043855,
-        0.05684695285841615
-      ],
-      "residual_itd_seconds": 0.0004554247585948488,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05078219716818383,
-      "minimum_retained_energy": 0.999972472441831,
-      "max_magnitude_error_db": 0.09937000335201793
+      "residual_itd_seconds": 0.00046212049542887875,
+      "max_magnitude_error_db": 0.0001599782505568979
     },
     {
       "profile": 4,
@@ -689,24 +620,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        64.01661519115508,
-        -22.40827760951664
+      "range_m": 1.049307089773149,
+      "ear_angles_deg": [
+        33.793819808890504,
+        146.2061801911095
       ],
-      "source_measurement_indices": [
-        1583,
-        1604,
-        1582
-      ],
-      "weights": [
-        0.3457692497722097,
-        0.01691653105207311,
-        0.6373142191757172
-      ],
-      "residual_itd_seconds": 0.000488788817112529,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06900707742868696,
-      "minimum_retained_energy": 0.9999851657454498,
-      "max_magnitude_error_db": 0.08575290806923316
+      "residual_itd_seconds": 0.0004905444564496767,
+      "max_magnitude_error_db": 0.00015994626103527285
     },
     {
       "profile": 5,
@@ -715,24 +635,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        62.140450557051835,
-        -23.740718513164808
+      "range_m": 0.9935458985801734,
+      "ear_angles_deg": [
+        35.97428936424081,
+        144.0257106357592
       ],
-      "source_measurement_indices": [
-        1516,
-        1517,
-        1550
-      ],
-      "weights": [
-        0.8317787289296225,
-        0.0335737861474692,
-        0.13464748492290832
-      ],
-      "residual_itd_seconds": 0.00047027669862998887,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06650473138204863,
-      "minimum_retained_energy": 0.9999894083850399,
-      "max_magnitude_error_db": 0.09318895056486515
+      "residual_itd_seconds": 0.0004745706230665673,
+      "max_magnitude_error_db": 0.0001576702360918995
     },
     {
       "profile": 6,
@@ -741,24 +650,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        52.78896458705401,
-        -21.189412768255096
+      "range_m": 1.037481330941801,
+      "ear_angles_deg": [
+        42.04933200941662,
+        137.95066799058338
       ],
-      "source_measurement_indices": [
-        1274,
-        1297,
-        1296
-      ],
-      "weights": [
-        0.21664985429988526,
-        0.5081319598097198,
-        0.27521818589039493
-      ],
-      "residual_itd_seconds": 0.00041358970767930834,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06099872542598223,
-      "minimum_retained_energy": 0.9999862321419422,
-      "max_magnitude_error_db": 0.09865029855112743
+      "residual_itd_seconds": 0.0004269794561236034,
+      "max_magnitude_error_db": 0.00016852338202952576
     },
     {
       "profile": 7,
@@ -767,24 +665,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        60.02097273744868,
-        -25.187125330877766
+      "range_m": 0.9399027115072934,
+      "ear_angles_deg": [
+        38.38540858487278,
+        141.61459141512722
       ],
-      "source_measurement_indices": [
-        1471,
-        1494,
-        1472
-      ],
-      "weights": [
-        0.037453585110734676,
-        0.020938821475055894,
-        0.9416075934142095
-      ],
-      "residual_itd_seconds": 0.0004508566972428597,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.050549831268774006,
-      "minimum_retained_energy": 0.9999899573670408,
-      "max_magnitude_error_db": 0.0994304983193957
+      "residual_itd_seconds": 0.00045648440968715334,
+      "max_magnitude_error_db": 0.00016200187159029096
     },
     {
       "profile": 8,
@@ -793,24 +680,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        50.25525652503083,
-        -22.286348660019282
+      "range_m": 0.9888309369579011,
+      "ear_angles_deg": [
+        44.64586851353295,
+        135.35413148646705
       ],
-      "source_measurement_indices": [
-        1230,
-        1253,
-        1231
-      ],
-      "weights": [
-        0.6379199757045908,
-        0.24716667738627698,
-        0.11491334690913224
-      ],
-      "residual_itd_seconds": 0.0003933917893662907,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.04992388223391628,
-      "minimum_retained_energy": 0.9999899034533993,
-      "max_magnitude_error_db": 0.0933163820728332
+      "residual_itd_seconds": 0.0004063632815503469,
+      "max_magnitude_error_db": 0.00017247585014741818
     },
     {
       "profile": 9,
@@ -819,24 +695,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        57.62311395237967,
-        -26.747508028903944
+      "range_m": 0.8887711717618019,
+      "ear_angles_deg": [
+        41.04652899218238,
+        138.95347100781763
       ],
-      "source_measurement_indices": [
-        1417,
-        1384,
-        1401
-      ],
-      "weights": [
-        0.3462892193292467,
-        0.30424890549521494,
-        0.3494618751755384
-      ],
-      "residual_itd_seconds": 0.0004274489493699304,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05041373751879009,
-      "minimum_retained_energy": 0.9999891622356998,
-      "max_magnitude_error_db": 0.1050647354113335
+      "residual_itd_seconds": 0.0004360005060066533,
+      "max_magnitude_error_db": 0.0001670438154222251
     },
     {
       "profile": 10,
@@ -845,24 +710,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        47.45843843618118,
-        -23.432552974368484
+      "range_m": 0.9429947008376697,
+      "ear_angles_deg": [
+        47.466327129400916,
+        132.5336728705991
       ],
-      "source_measurement_indices": [
-        1186,
-        1164,
-        1165
-      ],
-      "weights": [
-        0.46346048142568175,
-        0.32716616614625316,
-        0.20937335242806518
-      ],
-      "residual_itd_seconds": 0.0003640621549355032,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06053598114199771,
-      "minimum_retained_energy": 0.9999913646191596,
-      "max_magnitude_error_db": 0.08518330035254208
+      "residual_itd_seconds": 0.000383475758550012,
+      "max_magnitude_error_db": 0.00017692793696959258
     },
     {
       "profile": 11,
@@ -871,24 +725,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        54.89860637833985,
-        -28.422258297643058
+      "range_m": 0.8403963400956699,
+      "ear_angles_deg": [
+        43.98507675730948,
+        136.01492324269054
       ],
-      "source_measurement_indices": [
-        1318,
-        1340,
-        1339
-      ],
-      "weights": [
-        0.09831339558752887,
-        0.21740263657951514,
-        0.684283967832956
-      ],
-      "residual_itd_seconds": 0.00039862128727802314,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05989074113803738,
-      "minimum_retained_energy": 0.9999889475145607,
-      "max_magnitude_error_db": 0.10470255958085055
+      "residual_itd_seconds": 0.0004127751970756756,
+      "max_magnitude_error_db": 0.00017237595881749193
     },
     {
       "profile": 12,
@@ -897,24 +740,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        51.780608777164396,
-        -30.211460911618886
+      "range_m": 0.7949239052773193,
+      "ear_angles_deg": [
+        47.23942094146566,
+        132.76057905853435
       ],
-      "source_measurement_indices": [
-        1251,
-        1273,
-        1272
-      ],
-      "weights": [
-        0.21889276684912273,
-        0.7412813898138062,
-        0.03982584333707108
-      ],
-      "residual_itd_seconds": 0.00037104786422567464,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05826064007017066,
-      "minimum_retained_energy": 0.9999892331803123,
-      "max_magnitude_error_db": 0.09674081593347303
+      "residual_itd_seconds": 0.000386375211111143,
+      "max_magnitude_error_db": 0.00017634145770071787
     },
     {
       "profile": 13,
@@ -923,24 +755,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        40.94359149042811,
-        -25.836358300897672
+      "range_m": 0.8604818634079413,
+      "ear_angles_deg": [
+        53.8563382128239,
+        126.1436617871761
       ],
-      "source_measurement_indices": [
-        1032,
-        1009,
-        1031
-      ],
-      "weights": [
-        0.8326470826511339,
-        0.058595691403154834,
-        0.10875722594571141
-      ],
-      "residual_itd_seconds": 0.0003068919007087136,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05855345441021091,
-      "minimum_retained_energy": 0.9999944925685277,
-      "max_magnitude_error_db": 0.06541839478299923
+      "residual_itd_seconds": 0.0003298658939617571,
+      "max_magnitude_error_db": 0.00018100263772790877
     },
     {
       "profile": 14,
@@ -949,24 +770,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        48.20033285293848,
-        -32.10089568685996
+      "range_m": 0.7527118954779422,
+      "ear_angles_deg": [
+        50.83866894267466,
+        129.16133105732536
       ],
-      "source_measurement_indices": [
-        1185,
-        1206,
-        1184
-      ],
-      "weights": [
-        0.6036525405197555,
-        0.20773004939952044,
-        0.1886174100807241
-      ],
-      "residual_itd_seconds": 0.000340273219087273,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.057396706892824154,
-      "minimum_retained_energy": 0.9999889903955116,
-      "max_magnitude_error_db": 0.07323775978431195
+      "residual_itd_seconds": 0.00035639786875532733,
+      "max_magnitude_error_db": 0.00018018219640871007
     },
     {
       "profile": 15,
@@ -975,24 +785,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        37.17082475183547,
-        -27.057644569970122
+      "range_m": 0.8243811034326958,
+      "ear_angles_deg": [
+        57.4480522035566,
+        122.55194779644341
       ],
-      "source_measurement_indices": [
-        943,
-        966,
-        944
-      ],
-      "weights": [
-        0.41148321976708574,
-        0.1677051741508285,
-        0.42081160608208584
-      ],
-      "residual_itd_seconds": 0.00027616759401869644,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.0571971904345714,
-      "minimum_retained_energy": 0.9999941605278011,
-      "max_magnitude_error_db": 0.06312826546086578
+      "residual_itd_seconds": 0.000298792894857923,
+      "max_magnitude_error_db": 0.00018018208778718887
     },
     {
       "profile": 16,
@@ -1001,24 +800,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        44.09609522424292,
-        -34.05587013808946
+      "range_m": 0.7142843790416802,
+      "ear_angles_deg": [
+        54.79402231155531,
+        125.20597768844469
       ],
-      "source_measurement_indices": [
-        1097,
-        1118,
-        1096
-      ],
-      "weights": [
-        0.23494379462103757,
-        0.09747889436831021,
-        0.6675773110106522
-      ],
-      "residual_itd_seconds": 0.00030304453216934465,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05595480068456784,
-      "minimum_retained_energy": 0.9999812837512408,
-      "max_magnitude_error_db": 0.09087808471078909
+      "residual_itd_seconds": 0.00032260845274017884,
+      "max_magnitude_error_db": 0.0001811612284554263
     },
     {
       "profile": 17,
@@ -1027,24 +815,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        39.38071108467911,
-        -36.03513001721493
+      "range_m": 0.6799469623915111,
+      "ear_angles_deg": [
+        59.131560163319406,
+        120.86843983668061
       ],
-      "source_measurement_indices": [
-        1007,
-        1008,
-        986
-      ],
-      "weights": [
-        0.07597001088415042,
-        0.3110291331035393,
-        0.6130008560123102
-      ],
-      "residual_itd_seconds": 0.00026585729828416444,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05360628119488744,
-      "minimum_retained_energy": 0.9999792457017972,
-      "max_magnitude_error_db": 0.10873576781078048
+      "residual_itd_seconds": 0.00028467082348169315,
+      "max_magnitude_error_db": 0.00017931191719095982
     },
     {
       "profile": 18,
@@ -1053,24 +830,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        28.504566371874194,
-        -29.39342772419945
+      "range_m": 0.7640527402072432,
+      "ear_angles_deg": [
+        65.43059657073381,
+        114.5694034292662
       ],
-      "source_measurement_indices": [
-        713,
-        734,
-        712
-      ],
-      "weights": [
-        0.12160363913041655,
-        0.5074202252857699,
-        0.37097613558381354
-      ],
-      "residual_itd_seconds": 0.0002063079158485081,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.057160289688394636,
-      "minimum_retained_energy": 0.9999931564622004,
-      "max_magnitude_error_db": 0.06989420104143854
+      "residual_itd_seconds": 0.00022779519446520887,
+      "max_magnitude_error_db": 0.00017186246338482563
     },
     {
       "profile": 19,
@@ -1079,24 +845,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        33.986414530360825,
-        -37.968314372533236
+      "range_m": 0.6501680069421755,
+      "ear_angles_deg": [
+        63.85238191204507,
+        116.14761808795492
       ],
-      "source_measurement_indices": [
-        876,
-        853,
-        875
-      ],
-      "weights": [
-        0.7244929329639346,
-        0.015103860421488775,
-        0.2604032066145767
-      ],
-      "residual_itd_seconds": 0.00022442116644786435,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.026801582393242263,
-      "minimum_retained_energy": 0.9999890550617868,
-      "max_magnitude_error_db": 0.08484754089956288
+      "residual_itd_seconds": 0.00024250382793925297,
+      "max_magnitude_error_db": 0.00017606559982425324
     },
     {
       "profile": 20,
@@ -1105,24 +860,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        23.61354898497866,
-        -30.42790169236524
+      "range_m": 0.740442767698997,
+      "ear_angles_deg": [
+        69.79411111154504,
+        110.20588888845496
       ],
-      "source_measurement_indices": [
-        596,
-        575,
-        597
-      ],
-      "weights": [
-        0.08065436205826597,
-        0.384658233025075,
-        0.5346874049166591
-      ],
-      "residual_itd_seconds": 0.00016919121703563053,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05209313051657415,
-      "minimum_retained_energy": 0.9999944646570604,
-      "max_magnitude_error_db": 0.06700720470281708
+      "residual_itd_seconds": 0.00018809648651447745,
+      "max_magnitude_error_db": 0.0001636623754517534
     },
     {
       "profile": 21,
@@ -1131,24 +875,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        27.894156858947238,
-        -39.75450776879406
+      "range_m": 0.6254891628754108,
+      "ear_angles_deg": [
+        68.91999642451992,
+        111.08000357548008
       ],
-      "source_measurement_indices": [
-        696,
-        711,
-        678
-      ],
-      "weights": [
-        0.45929946311108966,
-        0.48114374173483676,
-        0.05955679515407362
-      ],
-      "residual_itd_seconds": 0.00017798177004345548,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.049014036476635436,
-      "minimum_retained_energy": 0.9999931565756893,
-      "max_magnitude_error_db": 0.06441777327505252
+      "residual_itd_seconds": 0.00019643097826318323,
+      "max_magnitude_error_db": 0.00016750319971858257
     },
     {
       "profile": 22,
@@ -1157,24 +890,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        18.39837297023536,
-        -31.310459636122808
+      "range_m": 0.721604725560958,
+      "ear_angles_deg": [
+        74.356193508013,
+        105.643806491987
       ],
-      "source_measurement_indices": [
-        464,
-        476,
-        443
-      ],
-      "weights": [
-        0.24725703841648675,
-        0.2994951855324839,
-        0.45324777605102945
-      ],
-      "residual_itd_seconds": 0.0001291071190468064,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05440035495890134,
-      "minimum_retained_energy": 0.9999966788790984,
-      "max_magnitude_error_db": 0.05702311666989757
+      "residual_itd_seconds": 0.00014610059244582563,
+      "max_magnitude_error_db": 0.0001522010510531569
     },
     {
       "profile": 23,
@@ -1183,24 +905,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        21.124170699299714,
-        -41.28089700015216
+      "range_m": 0.6062892026978685,
+      "ear_angles_deg": [
+        74.28647820571456,
+        105.71352179428544
       ],
-      "source_measurement_indices": [
-        530,
-        529,
-        551
-      ],
-      "weights": [
-        0.3837245825944178,
-        0.48475344172428675,
-        0.13152197568129556
-      ],
-      "residual_itd_seconds": 0.0001344235508307912,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.017898899674057476,
-      "minimum_retained_energy": 0.9999944471323461,
-      "max_magnitude_error_db": 0.05872328865429764
+      "residual_itd_seconds": 0.00014696057802979375,
+      "max_magnitude_error_db": 0.00015486162250955907
     },
     {
       "profile": 24,
@@ -1209,24 +920,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        13.751311392482917,
-        -42.433529107868644
+      "range_m": 0.5928258487148077,
+      "ear_angles_deg": [
+        79.89556071622339,
+        100.10443928377663
       ],
-      "source_measurement_indices": [
-        323,
-        343,
-        342
-      ],
-      "weights": [
-        0.3697918564510128,
-        0.26507299186538336,
-        0.3651351516836038
-      ],
-      "residual_itd_seconds": 8.92591221617705e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.021878847782022835,
-      "minimum_retained_energy": 0.9999952745735897,
-      "max_magnitude_error_db": 0.07050622483507751
+      "residual_itd_seconds": 9.474112008015013e-05,
+      "max_magnitude_error_db": 0.00013910275627815888
     },
     {
       "profile": 25,
@@ -1235,24 +935,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        7.228249484304104,
-        -32.45355657128946
+      "range_m": 0.6988240177856995,
+      "ear_angles_deg": [
+        83.90528911906281,
+        96.0947108809372
       ],
-      "source_measurement_indices": [
-        185,
-        163,
-        162
-      ],
-      "weights": [
-        0.22216872782918617,
-        0.3150010246530472,
-        0.46283024751776675
-      ],
-      "residual_itd_seconds": 5.262405545464812e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.023917631533913564,
-      "minimum_retained_energy": 0.9999983263735713,
-      "max_magnitude_error_db": 0.05914058348318947
+      "residual_itd_seconds": 5.714277689727433e-05,
+      "max_magnitude_error_db": 0.0001241824442112611
     },
     {
       "profile": 26,
@@ -1261,24 +950,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        5.961999510266749,
-        -43.109229793301246
+      "range_m": 0.5853161273171078,
+      "ear_angles_deg": [
+        85.65110506206956,
+        94.34889493793044
       ],
-      "source_measurement_indices": [
-        140,
-        139,
-        117
-      ],
-      "weights": [
-        0.19539927499935092,
-        0.7654535453959284,
-        0.03914717960472076
-      ],
-      "residual_itd_seconds": 4.1908744613220095e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05261973217585318,
-      "minimum_retained_energy": 0.9999964634536813,
-      "max_magnitude_error_db": 0.07479612495745203
+      "residual_itd_seconds": 4.0832882920474916e-05,
+      "max_magnitude_error_db": 0.00012028228410479416
     },
     {
       "profile": 27,
@@ -1287,24 +965,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        1.4637381703235381,
-        -32.65241765645398
+      "range_m": 0.6950348559427096,
+      "ear_angles_deg": [
+        88.76763129367859,
+        91.23236870632142
       ],
-      "source_measurement_indices": [
-        52,
-        30,
-        31
-      ],
-      "weights": [
-        0.4779048580948438,
-        0.02236509966399904,
-        0.49973004224115714
-      ],
-      "residual_itd_seconds": 1.3674806938290645e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.040078525007148216,
-      "minimum_retained_energy": 0.999997695249665,
-      "max_magnitude_error_db": 0.06641543058433139
+      "residual_itd_seconds": 1.1561906351615953e-05,
+      "max_magnitude_error_db": 0.00010783647098475338
     },
     {
       "profile": 28,
@@ -1313,24 +980,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -1.9523935095178435,
-        -43.24769071657104
+      "range_m": 0.5838106677006132,
+      "ear_angles_deg": [
+        91.4219914455463,
+        88.57800855445372
       ],
-      "source_measurement_indices": [
-        8764,
-        8785,
-        8763
-      ],
-      "weights": [
-        0.18112315222494818,
-        0.04893818049796692,
-        0.7699386672770849
-      ],
-      "residual_itd_seconds": -2.9156248819903344e-06,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.017290847460993915,
-      "minimum_retained_energy": 0.999998363947086,
-      "max_magnitude_error_db": 0.06877080106925679
+      "residual_itd_seconds": -1.3355101864645455e-05,
+      "max_magnitude_error_db": 0.00011139754525081136
     },
     {
       "profile": 29,
@@ -1339,24 +995,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -9.720318420400318,
-        -42.850991105869795
+      "range_m": 0.5881539668626334,
+      "ear_angles_deg": [
+        97.11030879735182,
+        82.88969120264818
       ],
-      "source_measurement_indices": [
-        8610,
-        8609,
-        8587
-      ],
-      "weights": [
-        0.222097093398259,
-        0.032921278756218836,
-        0.7449816278455222
-      ],
-      "residual_itd_seconds": -4.976667795359095e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.02298184254973679,
-      "minimum_retained_energy": 0.9999981074437044,
-      "max_magnitude_error_db": 0.06368360273504141
+      "residual_itd_seconds": -6.67254808593822e-05,
+      "max_magnitude_error_db": 0.00012916440774691989
     },
     {
       "profile": 30,
@@ -1365,24 +1010,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -9.860511235613718,
-        -32.27471039382428
+      "range_m": 0.7022745325648673,
+      "ear_angles_deg": [
+        98.3252091387616,
+        81.6747908612384
       ],
-      "source_measurement_indices": [
-        8610,
-        8588,
-        8589
-      ],
-      "weights": [
-        0.1443606506834843,
-        0.2847903059952378,
-        0.5708490433212778
-      ],
-      "residual_itd_seconds": -6.519350046395005e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.023107950543636558,
-      "minimum_retained_energy": 0.9999955790533702,
-      "max_magnitude_error_db": 0.06960334998832718
+      "residual_itd_seconds": -7.800952023426146e-05,
+      "max_magnitude_error_db": 0.00013062361089540345
     },
     {
       "profile": 31,
@@ -1391,24 +1025,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -17.077591384542053,
-        -41.9770199119327
+      "range_m": 0.5980570680576008,
+      "ear_angles_deg": [
+        102.61011497120647,
+        77.38988502879353
       ],
-      "source_measurement_indices": [
-        8405,
-        8392,
-        8372
-      ],
-      "weights": [
-        0.6426382767510342,
-        0.31205196154874393,
-        0.045309761700221815
-      ],
-      "residual_itd_seconds": -9.629169419333552e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.027734904773611888,
-      "minimum_retained_energy": 0.9999972225239578,
-      "max_magnitude_error_db": 0.0550349561214831
+      "residual_itd_seconds": -0.00011811934140047655,
+      "max_magnitude_error_db": 0.00014583576042015962
     },
     {
       "profile": 32,
@@ -1417,24 +1040,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -15.21295565099276,
-        -31.739372709132688
+      "range_m": 0.7128516058934083,
+      "ear_angles_deg": [
+        102.89495628842421,
+        77.1050437115758
       ],
-      "source_measurement_indices": [
-        8428,
-        8451,
-        8450
-      ],
-      "weights": [
-        0.22170615972134475,
-        0.6718318040908172,
-        0.10646203618783795
-      ],
-      "residual_itd_seconds": -0.0001032662379753968,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.02787109482018003,
-      "minimum_retained_energy": 0.9999938754447079,
-      "max_magnitude_error_db": 0.07699067922923344
+      "residual_itd_seconds": -0.00012061018454748446,
+      "max_magnitude_error_db": 0.00014434554412393936
     },
     {
       "profile": 33,
@@ -1443,24 +1055,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -23.81733199670619,
-        -40.72922678864314
+      "range_m": 0.6130408695072392,
+      "ear_angles_deg": [
+        107.81935941233856,
+        72.18064058766146
       ],
-      "source_measurement_indices": [
-        8240,
-        8218,
-        8219
-      ],
-      "weights": [
-        0.19508010568788745,
-        0.3644270695372629,
-        0.4404928247748496
-      ],
-      "residual_itd_seconds": -0.00014186887407868022,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.034846409500476815,
-      "minimum_retained_energy": 0.9999962976628564,
-      "max_magnitude_error_db": 0.04762806524539115
+      "residual_itd_seconds": -0.00016644222053800395,
+      "max_magnitude_error_db": 0.0001594873747498309
     },
     {
       "profile": 34,
@@ -1469,24 +1070,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -20.24506204613621,
-        -31.023703398974543
+      "range_m": 0.7276006072732348,
+      "ear_angles_deg": [
+        107.24973504190113,
+        72.75026495809888
       ],
-      "source_measurement_indices": [
-        8304,
-        8319,
-        8318
-      ],
-      "weights": [
-        0.26926485032720143,
-        0.5375638373757864,
-        0.19317131229701223
-      ],
-      "residual_itd_seconds": -0.00014085062134119348,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.03159501657554347,
-      "minimum_retained_energy": 0.9999915404840659,
-      "max_magnitude_error_db": 0.08976852212689701
+      "residual_itd_seconds": -0.00016093284842872032,
+      "max_magnitude_error_db": 0.0001564358126181986
     },
     {
       "profile": 35,
@@ -1495,24 +1085,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -29.852812832209327,
-        -39.224381472011785
+      "range_m": 0.6325520658446707,
+      "ear_angles_deg": [
+        112.68180199970827,
+        67.31819800029173
       ],
-      "source_measurement_indices": [
-        8059,
-        8058,
-        8080
-      ],
-      "weights": [
-        0.5952600500820834,
-        0.24403832145324456,
-        0.16070162846467215
-      ],
-      "residual_itd_seconds": -0.00018609232004512517,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.04057685319464331,
-      "minimum_retained_energy": 0.9999951823009696,
-      "max_magnitude_error_db": 0.049733779433712114
+      "residual_itd_seconds": -0.00021107128626801164,
+      "max_magnitude_error_db": 0.00017050474360948747
     },
     {
       "profile": 36,
@@ -1521,24 +1100,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -35.19130744282082,
-        -37.566039150382984
+      "range_m": 0.6560867818234625,
+      "ear_angles_deg": [
+        117.18154804176328,
+        62.81845195823673
       ],
-      "source_measurement_indices": [
-        7915,
-        7894,
-        7916
-      ],
-      "weights": [
-        0.2340012874769051,
-        0.1853316616071774,
-        0.5806670509159176
-      ],
-      "residual_itd_seconds": -0.00022851103030916824,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.04535714123799534,
-      "minimum_retained_energy": 0.999992938323351,
-      "max_magnitude_error_db": 0.05218829165760157
+      "residual_itd_seconds": -0.00025180744934470456,
+      "max_magnitude_error_db": 0.00017669452849360307
     },
     {
       "profile": 37,
@@ -1547,24 +1115,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -29.22940633539556,
-        -29.222861109445017
+      "range_m": 0.7681153591740658,
+      "ear_angles_deg": [
+        115.22407224182902,
+        64.775927758171
       ],
-      "source_measurement_indices": [
-        8082,
-        8061,
-        8060
-      ],
-      "weights": [
-        0.7761686728359612,
-        0.1556741506679456,
-        0.06815717649609308
-      ],
-      "residual_itd_seconds": -0.00021127847977259775,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.037185506134696664,
-      "minimum_retained_energy": 0.9999893370942642,
-      "max_magnitude_error_db": 0.10239351500417589
+      "residual_itd_seconds": -0.00023370403985355405,
+      "max_magnitude_error_db": 0.00017301237616315784
     },
     {
       "profile": 38,
@@ -1573,24 +1130,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -39.86952243809239,
-        -35.84279639122109
+      "range_m": 0.6831028894408143,
+      "ear_angles_deg": [
+        121.30846200453108,
+        58.69153799546892
       ],
-      "source_measurement_indices": [
-        7827,
-        7828,
-        7806
-      ],
-      "weights": [
-        0.05613450529143211,
-        0.08086801658339313,
-        0.8629974781251748
-      ],
-      "residual_itd_seconds": -0.0002694318816230764,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.0461064109544321,
-      "minimum_retained_energy": 0.9999887327958238,
-      "max_magnitude_error_db": 0.0683446737756263
+      "residual_itd_seconds": -0.00028855698874960203,
+      "max_magnitude_error_db": 0.00018006345542297903
     },
     {
       "profile": 39,
@@ -1599,24 +1145,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -33.161865933819655,
-        -28.21893558195559
+      "range_m": 0.7930767579902945,
+      "ear_angles_deg": [
+        118.81564791380796,
+        61.184352086192035
       ],
-      "source_measurement_indices": [
-        7962,
-        7961,
-        7939
-      ],
-      "weights": [
-        0.35639521062834034,
-        0.47905080420081103,
-        0.16455398517084865
-      ],
-      "residual_itd_seconds": -0.0002428938596457357,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.04306059844376419,
-      "minimum_retained_energy": 0.9999903862751687,
-      "max_magnitude_error_db": 0.08460858150318899
+      "residual_itd_seconds": -0.0002658615802999461,
+      "max_magnitude_error_db": 0.0001768293938480504
     },
     {
       "profile": 40,
@@ -1625,24 +1160,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -43.938962633263095,
-        -34.126349357075846
+      "range_m": 0.7129873818770599,
+      "ear_angles_deg": [
+        125.05798832659072,
+        54.94201167340929
       ],
-      "source_measurement_indices": [
-        7741,
-        7719,
-        7718
-      ],
-      "weights": [
-        0.058302970241630094,
-        0.16332140505994777,
-        0.7783756246984221
-      ],
-      "residual_itd_seconds": -0.0003040129140044694,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05201852935337804,
-      "minimum_retained_energy": 0.999987785714592,
-      "max_magnitude_error_db": 0.07273973133068044
+      "residual_itd_seconds": -0.00032132857756257053,
+      "max_magnitude_error_db": 0.00018117204363876055
     },
     {
       "profile": 41,
@@ -1651,24 +1175,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -47.48746687935701,
-        -32.456416662574576
+      "range_m": 0.7453537793366765,
+      "ear_angles_deg": [
+        128.4615890554591,
+        51.53841094454092
       ],
-      "source_measurement_indices": [
-        7631,
-        7652,
-        7653
-      ],
-      "weights": [
-        0.4744569599528409,
-        0.4633145972541815,
-        0.06222844279297755
-      ],
-      "residual_itd_seconds": -0.0003321512764025722,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05382233589232864,
-      "minimum_retained_energy": 0.9999887525290431,
-      "max_magnitude_error_db": 0.07660184714599229
+      "residual_itd_seconds": -0.0003504804482905352,
+      "max_magnitude_error_db": 0.00018074143523276882
     },
     {
       "profile": 42,
@@ -1677,24 +1190,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -39.97155684600466,
-        -26.162976488254067
+      "range_m": 0.850482908632702,
+      "ear_angles_deg": [
+        125.21094711199005,
+        54.78905288800994
       ],
-      "source_measurement_indices": [
-        7829,
-        7807,
-        7808
-      ],
-      "weights": [
-        0.02945967143495998,
-        0.20323774440063425,
-        0.7673025841644059
-      ],
-      "residual_itd_seconds": -0.0003044349265878583,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.048531663631221224,
-      "minimum_retained_energy": 0.9999835566978014,
-      "max_magnitude_error_db": 0.08787221596376966
+      "residual_itd_seconds": -0.0003218578282633676,
+      "max_magnitude_error_db": 0.0001805808817809827
     },
     {
       "profile": 43,
@@ -1703,24 +1205,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -50.5864865101891,
-        -30.861059055926322
+      "range_m": 0.7797910115260172,
+      "ear_angles_deg": [
+        131.54412069042132,
+        48.4558793095787
       ],
-      "source_measurement_indices": [
-        7587,
-        7565,
-        7564
-      ],
-      "weights": [
-        0.4096466704016178,
-        0.42793416734928524,
-        0.16241916224909686
-      ],
-      "residual_itd_seconds": -0.00035883721850164194,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.0540314420792586,
-      "minimum_retained_energy": 0.9999827251142209,
-      "max_magnitude_error_db": 0.1177655613714819
+      "residual_itd_seconds": -0.00037632799498864435,
+      "max_magnitude_error_db": 0.0001783309756525327
     },
     {
       "profile": 44,
@@ -1729,24 +1220,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -42.89897669562873,
-        -25.154119740710172
+      "range_m": 0.8822395902289765,
+      "ear_angles_deg": [
+        128.03587138526257,
+        51.96412861473746
       ],
-      "source_measurement_indices": [
-        7763,
-        7764,
-        7742
-      ],
-      "weights": [
-        0.030798506748006632,
-        0.07145907363845672,
-        0.8977424196135366
-      ],
-      "residual_itd_seconds": -0.00033098291865817645,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.048075917760566536,
-      "minimum_retained_energy": 0.9999772205968626,
-      "max_magnitude_error_db": 0.10455553811348438
+      "residual_itd_seconds": -0.00034597686857834673,
+      "max_magnitude_error_db": 0.0001796827210723609
     },
     {
       "profile": 45,
@@ -1755,24 +1235,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -53.29307374444338,
-        -29.360449567997925
+      "range_m": 0.8158232997408243,
+      "ear_angles_deg": [
+        134.32492568172847,
+        45.67507431827151
       ],
-      "source_measurement_indices": [
-        7499,
-        7522,
-        7521
-      ],
-      "weights": [
-        0.29482534575412567,
-        0.12817009328999887,
-        0.5770045609558755
-      ],
-      "residual_itd_seconds": -0.00038282868770679027,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.055404347596365845,
-      "minimum_retained_energy": 0.999981041739215,
-      "max_magnitude_error_db": 0.13068953711327294
+      "residual_itd_seconds": -0.0003991562618500981,
+      "max_magnitude_error_db": 0.00017504680663452018
     },
     {
       "profile": 46,
@@ -1781,24 +1250,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -45.540812297283466,
-        -24.178889164276047
+      "range_m": 0.9155565537334278,
+      "ear_angles_deg": [
+        130.62708468823885,
+        49.37291531176117
       ],
-      "source_measurement_indices": [
-        7698,
-        7677,
-        7676
-      ],
-      "weights": [
-        0.461826332121498,
-        0.10980729082361633,
-        0.42836637705488567
-      ],
-      "residual_itd_seconds": -0.00035242854360140776,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05956511608720175,
-      "minimum_retained_energy": 0.9999754678676701,
-      "max_magnitude_error_db": 0.10109414021328297
+      "residual_itd_seconds": -0.0003677235438821019,
+      "max_magnitude_error_db": 0.00017826013535832683
     },
     {
       "profile": 47,
@@ -1807,24 +1265,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -55.66718615472829,
-        -27.960375268272887
+      "range_m": 0.853131639597057,
+      "ear_angles_deg": [
+        136.83480742604502,
+        43.165192573955004
       ],
-      "source_measurement_indices": [
-        7456,
-        7455,
-        7477
-      ],
-      "weights": [
-        0.40814181129605553,
-        0.25272224956174444,
-        0.3391359391422001
-      ],
-      "residual_itd_seconds": -0.0004057760145743408,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05568873787183559,
-      "minimum_retained_energy": 0.9999840103207308,
-      "max_magnitude_error_db": 0.10287073523427212
+      "residual_itd_seconds": -0.00041931732861533156,
+      "max_magnitude_error_db": 0.00017072883372393097
     },
     {
       "profile": 48,
@@ -1833,24 +1280,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -57.76576353550071,
-        -26.656944568510664
+      "range_m": 0.891568468579084,
+      "ear_angles_deg": [
+        139.10980977763964,
+        40.890190222360374
       ],
-      "source_measurement_indices": [
-        7401,
-        7434,
-        7418
-      ],
-      "weights": [
-        0.5328082358654278,
-        0.13578625236119535,
-        0.33140551177337685
-      ],
-      "residual_itd_seconds": -0.0004258993314315629,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05526781639488082,
-      "minimum_retained_energy": 0.9999836338719845,
-      "max_magnitude_error_db": 0.09081126706983264
+      "residual_itd_seconds": -0.00043721747668437714,
+      "max_magnitude_error_db": 0.0001668723423824464
     },
     {
       "profile": 49,
@@ -1859,24 +1295,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -50.098739154373476,
-        -22.352292483110958
+      "range_m": 0.9860625499486726,
+      "ear_angles_deg": [
+        135.19503051386388,
+        44.804969486136116
       ],
-      "source_measurement_indices": [
-        7589,
-        7566,
-        7588
-      ],
-      "weights": [
-        0.35325586152596533,
-        0.10056743754086124,
-        0.5461767009331735
-      ],
-      "residual_itd_seconds": -0.0003893937641483809,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06369661456414463,
-      "minimum_retained_energy": 0.999972739629188,
-      "max_magnitude_error_db": 0.09253821524609557
+      "residual_itd_seconds": -0.0004050863934983249,
+      "max_magnitude_error_db": 0.00017270137612462823
     },
     {
       "profile": 50,
@@ -1885,24 +1310,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -59.629376797332945,
-        -25.447478066231504
+      "range_m": 0.9309176842039137,
+      "ear_angles_deg": [
+        141.17517347443666,
+        38.824826525563346
       ],
-      "source_measurement_indices": [
-        7346,
-        7368,
-        7367
-      ],
-      "weights": [
-        0.626872264989166,
-        0.28370521721184816,
-        0.08942251779898572
-      ],
-      "residual_itd_seconds": -0.0004444592863220889,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05626531478284953,
-      "minimum_retained_energy": 0.9999805380448025,
-      "max_magnitude_error_db": 0.1518597298747273
+      "residual_itd_seconds": -0.0004531345470762321,
+      "max_magnitude_error_db": 0.00016242759146416224
     },
     {
       "profile": 51,
@@ -1911,24 +1325,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -52.06630821807282,
-        -21.507908771908298
+      "range_m": 1.0228305248850478,
+      "ear_angles_deg": [
+        137.20604752218793,
+        42.79395247781207
       ],
-      "source_measurement_indices": [
-        7545,
-        7522,
-        7544
-      ],
-      "weights": [
-        0.46568558580558284,
-        0.06792628692357941,
-        0.46638812727083784
-      ],
-      "residual_itd_seconds": -0.00040595430683907946,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06497646812598104,
-      "minimum_retained_energy": 0.9999699205347755,
-      "max_magnitude_error_db": 0.09078973806439761
+      "residual_itd_seconds": -0.000421112607060299,
+      "max_magnitude_error_db": 0.00016968117039208342
     },
     {
       "profile": 52,
@@ -1937,24 +1340,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -61.28706889767816,
-        -24.33064493171798
+      "range_m": 0.9708696194877603,
+      "ear_angles_deg": [
+        143.04824132194196,
+        36.95175867805805
       ],
-      "source_measurement_indices": [
-        7324,
-        7303,
-        7302
-      ],
-      "weights": [
-        0.7162654707501448,
-        0.08952783817636172,
-        0.19420669107349353
-      ],
-      "residual_itd_seconds": -0.0004592377659232639,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06428119279745285,
-      "minimum_retained_energy": 0.9999766520361114,
-      "max_magnitude_error_db": 0.11030039712308615
+      "residual_itd_seconds": -0.000467301319475572,
+      "max_magnitude_error_db": 0.00015911170456311602
     },
     {
       "profile": 53,
@@ -1963,24 +1355,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -62.773086102871886,
-        -23.296855557957322
+      "range_m": 1.0113905411274366,
+      "ear_angles_deg": [
+        144.75612581116948,
+        35.24387418883053
       ],
-      "source_measurement_indices": [
-        7269,
-        7303,
-        7270
-      ],
-      "weights": [
-        0.7725661305533998,
-        0.21820413333471764,
-        0.009229736111882499
-      ],
-      "residual_itd_seconds": -0.0004722766216003992,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06428119279745285,
-      "minimum_retained_energy": 0.9999721519816124,
-      "max_magnitude_error_db": 0.15620144784005333
+      "residual_itd_seconds": -0.0004799555340624894,
+      "max_magnitude_error_db": 0.00015520791941091254
     },
     {
       "profile": 54,
@@ -1989,24 +1370,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -55.48944789347762,
-        -19.959918508496944
+      "range_m": 1.0985383190122149,
+      "ear_angles_deg": [
+        140.76191739570106,
+        39.238082604298924
       ],
-      "source_measurement_indices": [
-        7479,
-        7456,
-        7457
-      ],
-      "weights": [
-        0.5022245137118728,
-        0.3281125790405258,
-        0.16966290724760147
-      ],
-      "residual_itd_seconds": -0.0004369513215148377,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06690182678463362,
-      "minimum_retained_energy": 0.9999628959171417,
-      "max_magnitude_error_db": 0.10672458614405342
+      "residual_itd_seconds": -0.0004487541110446384,
+      "max_magnitude_error_db": 0.00016302283808869087
     },
     {
       "profile": 55,
@@ -2015,24 +1385,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -64.11106076063697,
-        -22.339923097051553
+      "range_m": 1.052352584298751,
+      "ear_angles_deg": [
+        146.31708480651176,
+        33.68291519348824
       ],
-      "source_measurement_indices": [
-        7237,
-        7214,
-        7236
-      ],
-      "weights": [
-        0.35490732281155907,
-        0.11312660637474317,
-        0.5319660708136977
-      ],
-      "residual_itd_seconds": -0.0004854854414060866,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.0641021306425623,
-      "minimum_retained_energy": 0.9999686893593323,
-      "max_magnitude_error_db": 0.2000120804743534
+      "residual_itd_seconds": -0.000491347759262082,
+      "max_magnitude_error_db": 0.00016068836820149802
     },
     {
       "profile": 56,
@@ -2041,24 +1400,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -56.98234698279647,
-        -19.25396153977947
+      "range_m": 1.137204752300199,
+      "ear_angles_deg": [
+        142.33548314314154,
+        37.66451685685846
       ],
-      "source_measurement_indices": [
-        7456,
-        7434,
-        7435
-      ],
-      "weights": [
-        0.018361132458527513,
-        0.21576668745633817,
-        0.7658721800851342
-      ],
-      "residual_itd_seconds": -0.0004497627326332923,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.0672286667671618,
-      "minimum_retained_energy": 0.9999601731004354,
-      "max_magnitude_error_db": 0.11077754465707187
+      "residual_itd_seconds": -0.00046070884051913535,
+      "max_magnitude_error_db": 0.000160107396122088
     },
     {
       "profile": 57,
@@ -2067,24 +1415,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -65.31712436696252,
-        -21.456369265904343
+      "range_m": 1.09351581116538,
+      "ear_angles_deg": [
+        147.74287713942542,
+        32.25712286057459
       ],
-      "source_measurement_indices": [
-        7214,
-        7215,
-        7202
-      ],
-      "weights": [
-        0.5274036026738153,
-        0.12947118549181724,
-        0.3431252118343675
-      ],
-      "residual_itd_seconds": -0.0004963033912173415,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06354561199233523,
-      "minimum_retained_energy": 0.9999663228157397,
-      "max_magnitude_error_db": 0.17270369664516688
+      "residual_itd_seconds": -0.0005015623074680187,
+      "max_magnitude_error_db": 0.00016767972759781973
     },
     {
       "profile": 58,
@@ -2093,24 +1430,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -58.34795631654492,
-        -18.592125843024384
+      "range_m": 1.176178879242786,
+      "ear_angles_deg": [
+        143.78694902464304,
+        36.21305097535697
       ],
-      "source_measurement_indices": [
-        7387,
-        7368,
-        7386
-      ],
-      "weights": [
-        0.8541421130843904,
-        0.07157146311375258,
-        0.07428642380185715
-      ],
-      "residual_itd_seconds": -0.0004605100592391211,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06506166264328775,
-      "minimum_retained_energy": 0.9999560741404104,
-      "max_magnitude_error_db": 0.11526815095396387
+      "residual_itd_seconds": -0.00047155112778704056,
+      "max_magnitude_error_db": 0.00015687906465148503
     },
     {
       "profile": 59,
@@ -2119,24 +1445,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -66.40890096106023,
-        -20.639640610518192
+      "range_m": 1.134786587595148,
+      "ear_angles_deg": [
+        149.0487258636262,
+        30.951274136373815
       ],
-      "source_measurement_indices": [
-        7186,
-        7187,
-        7165
-      ],
-      "weights": [
-        0.4186392644171835,
-        0.18096702336305262,
-        0.40039371221976383
-      ],
-      "residual_itd_seconds": -0.0005070149048163952,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05917591967510954,
-      "minimum_retained_energy": 0.9999628100532159,
-      "max_magnitude_error_db": 0.14063035169822835
+      "residual_itd_seconds": -0.000510748746430133,
+      "max_magnitude_error_db": 0.00017450410571334627
     },
     {
       "profile": 60,
@@ -2145,24 +1460,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -67.40409941515792,
-        -19.881386185470596
+      "range_m": 1.1762143857614478,
+      "ear_angles_deg": [
+        150.2514651435412,
+        29.748534856458814
       ],
-      "source_measurement_indices": [
-        7143,
-        7165,
-        7164
-      ],
-      "weights": [
-        0.3977207608507905,
-        0.28462463538137034,
-        0.31765460376783905
-      ],
-      "residual_itd_seconds": -0.0005162429956046521,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05978720441898721,
-      "minimum_retained_energy": 0.9999594671513484,
-      "max_magnitude_error_db": 0.08629469361310599
+      "residual_itd_seconds": -0.0005191183218305933,
+      "max_magnitude_error_db": 0.00018098579693281194
     },
     {
       "profile": 61,
@@ -2171,24 +1475,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        66.11678561010353,
-        -20.85972365374949
+      "range_m": 1.1233392591067426,
+      "ear_angles_deg": [
+        31.30206910376398,
+        148.69793089623604
       ],
-      "source_measurement_indices": [
-        1631,
-        1654,
-        1632
-      ],
-      "weights": [
-        0.4479967945481316,
-        0.11418873392044503,
-        0.43781447153142344
-      ],
-      "residual_itd_seconds": 0.0005082730787230006,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.04769614052848116,
-      "minimum_retained_energy": 0.999976638686584,
-      "max_magnitude_error_db": 0.12689955545984338
+      "residual_itd_seconds": 0.0005082930238740544,
+      "max_magnitude_error_db": 0.00017292746189814692
     },
     {
       "profile": 62,
@@ -2197,24 +1490,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        57.74057008948817,
-        -18.88837218356073
+      "range_m": 1.1583891440550287,
+      "ear_angles_deg": [
+        36.86004323586683,
+        143.1399567641332
       ],
-      "source_measurement_indices": [
-        1385,
-        1417,
-        1418
-      ],
-      "weights": [
-        0.2570446389710679,
-        0.18531936086591358,
-        0.5576360001630186
-      ],
-      "residual_itd_seconds": 0.00046111247228457154,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.0524367821615293,
-      "minimum_retained_energy": 0.9999693495586242,
-      "max_magnitude_error_db": 0.09680568997025771
+      "residual_itd_seconds": 0.00046674104920270485,
+      "max_magnitude_error_db": 0.00015816145040191976
     },
     {
       "profile": 63,
@@ -2223,24 +1505,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        64.56989689575715,
-        -22.006110660343097
+      "range_m": 1.0675050808797457,
+      "ear_angles_deg": [
+        33.142569325269584,
+        146.8574306747304
       ],
-      "source_measurement_indices": [
-        1583,
-        1604,
-        1582
-      ],
-      "weights": [
-        0.3994223518974081,
-        0.5818024730370304,
-        0.018775175065561554
-      ],
-      "residual_itd_seconds": 0.0004936497307997412,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06900707742868696,
-      "minimum_retained_energy": 0.999982949251697,
-      "max_magnitude_error_db": 0.08336058574039108
+      "residual_itd_seconds": 0.0004952442353672864,
+      "max_magnitude_error_db": 0.0001628908993290238
     },
     {
       "profile": 64,
@@ -2249,24 +1520,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        55.81417090359706,
-        -19.80794079357295
+      "range_m": 1.1066245552328013,
+      "ear_angles_deg": [
+        38.896989650113476,
+        141.10301034988652
       ],
-      "source_measurement_indices": [
-        1362,
-        1363,
-        1341
-      ],
-      "weights": [
-        0.30790343220190025,
-        0.5091069901511415,
-        0.1829895776469584
-      ],
-      "residual_itd_seconds": 0.0004432238540462591,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05386688406581693,
-      "minimum_retained_energy": 0.9999772743909101,
-      "max_magnitude_error_db": 0.10012070587447185
+      "residual_itd_seconds": 0.00045136043702282785,
+      "max_magnitude_error_db": 0.0001622367929684511
     },
     {
       "profile": 65,
@@ -2275,24 +1535,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        62.84844768246242,
-        -23.243611660013215
+      "range_m": 1.0135783749617004,
+      "ear_angles_deg": [
+        35.15653662584694,
+        144.84346337415306
       ],
-      "source_measurement_indices": [
-        1516,
-        1549,
-        1550
-      ],
-      "weights": [
-        0.15341607081359213,
-        0.6120720851850416,
-        0.23451184400136627
-      ],
-      "residual_itd_seconds": 0.0004771299558612017,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06650473138204863,
-      "minimum_retained_energy": 0.999987929650791,
-      "max_magnitude_error_db": 0.09050060434019332
+      "residual_itd_seconds": 0.00048059714303088096,
+      "max_magnitude_error_db": 0.0001557076372286829
     },
     {
       "profile": 66,
@@ -2301,24 +1550,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        60.91848586120045,
-        -24.582297253212737
+      "range_m": 0.9615388207125485,
+      "ear_angles_deg": [
+        37.37115949368122,
+        142.6288405063188
       ],
-      "source_measurement_indices": [
-        1494,
-        1473,
-        1472
-      ],
-      "weights": [
-        0.9211665504779528,
-        0.055860400706731504,
-        0.02297304881531568
-      ],
-      "residual_itd_seconds": 0.000458958532270922,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05270669727913788,
-      "minimum_retained_energy": 0.999989951654073,
-      "max_magnitude_error_db": 0.0977883468486532
+      "residual_itd_seconds": 0.000464156304733919,
+      "max_magnitude_error_db": 0.00016001859368790542
     },
     {
       "profile": 67,
@@ -2327,24 +1565,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        51.37636648934809,
-        -21.807802011909935
+      "range_m": 1.0094368488871044,
+      "ear_angles_deg": [
+        43.50184792875115,
+        136.49815207124888
       ],
-      "source_measurement_indices": [
-        1252,
-        1253,
-        1275
-      ],
-      "weights": [
-        0.5741756501185242,
-        0.06019732863914716,
-        0.3656270212423287
-      ],
-      "residual_itd_seconds": 0.0004014702022679506,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05736295945129592,
-      "minimum_retained_energy": 0.9999886647565324,
-      "max_magnitude_error_db": 0.09561271545422703
+      "residual_itd_seconds": 0.00041549946649314045,
+      "max_magnitude_error_db": 0.0001705150853701755
     },
     {
       "profile": 68,
@@ -2353,24 +1580,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        58.74498226801121,
-        -26.02753603644364
+      "range_m": 0.911570688768349,
+      "ear_angles_deg": [
+        39.810279222349514,
+        140.1897207776505
       ],
-      "source_measurement_indices": [
-        1450,
-        1435,
-        1449
-      ],
-      "weights": [
-        0.4334645604364539,
-        0.3609842230784139,
-        0.20555121648513225
-      ],
-      "residual_itd_seconds": 0.00043885464577011476,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.051180238861241296,
-      "minimum_retained_energy": 0.9999894360239603,
-      "max_magnitude_error_db": 0.10363953660976276
+      "residual_itd_seconds": 0.00044557499763514806,
+      "max_magnitude_error_db": 0.0001643612763242471
     },
     {
       "profile": 69,
@@ -2379,24 +1595,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        48.8190727863773,
-        -22.883453333484074
+      "range_m": 0.9643625570475756,
+      "ear_angles_deg": [
+        46.10013510341646,
+        133.89986489658355
       ],
-      "source_measurement_indices": [
-        1186,
-        1208,
-        1209
-      ],
-      "weights": [
-        0.18360595297002075,
-        0.5338739536823962,
-        0.2825200933475831
-      ],
-      "residual_itd_seconds": 0.0003760212349945763,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.060220673354787695,
-      "minimum_retained_energy": 0.9999910480262447,
-      "max_magnitude_error_db": 0.08907290058099182
+      "residual_itd_seconds": 0.00039462956403123574,
+      "max_magnitude_error_db": 0.00017412844632289936
     },
     {
       "profile": 70,
@@ -2405,24 +1610,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        56.294918641556336,
-        -27.576983135384015
+      "range_m": 0.8640428714915981,
+      "ear_angles_deg": [
+        42.49028477644639,
+        137.50971522355363
       ],
-      "source_measurement_indices": [
-        1362,
-        1383,
-        1361
-      ],
-      "weights": [
-        0.48476196770806723,
-        0.30157297205512473,
-        0.21366506023680795
-      ],
-      "residual_itd_seconds": 0.0004149681542974273,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05072216807403075,
-      "minimum_retained_energy": 0.9999888816029434,
-      "max_magnitude_error_db": 0.1058294600584
+      "residual_itd_seconds": 0.00042466934935978505,
+      "max_magnitude_error_db": 0.00016952648450767796
     },
     {
       "profile": 71,
@@ -2431,24 +1625,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        46.009545204696416,
-        -23.99944130859752
+      "range_m": 0.9219926935518459,
+      "ear_angles_deg": [
+        48.90890080316424,
+        131.09109919683576
       ],
-      "source_measurement_indices": [
-        1142,
-        1165,
-        1143
-      ],
-      "weights": [
-        0.8663457242343375,
-        0.009134581947217604,
-        0.12451969381844488
-      ],
-      "residual_itd_seconds": 0.00035576520911838485,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05528526953942773,
-      "minimum_retained_energy": 0.9999922344387844,
-      "max_magnitude_error_db": 0.0809015885921775
+      "residual_itd_seconds": 0.0003715760187907721,
+      "max_magnitude_error_db": 0.00017745350666531243
     },
     {
       "profile": 72,
@@ -2457,24 +1640,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        53.52296567639017,
-        -29.22831823312877
+      "range_m": 0.8191835785655082,
+      "ear_angles_deg": [
+        45.434957739303215,
+        134.5650422606968
       ],
-      "source_measurement_indices": [
-        1318,
-        1317,
-        1295
-      ],
-      "weights": [
-        0.1546365228445468,
-        0.36489736605849443,
-        0.4804661110969588
-      ],
-      "residual_itd_seconds": 0.00038677729826175464,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06143719334212705,
-      "minimum_retained_energy": 0.9999888092353987,
-      "max_magnitude_error_db": 0.10237307683487988
+      "residual_itd_seconds": 0.00040110288384730765,
+      "max_magnitude_error_db": 0.00017520332724997676
     },
     {
       "profile": 73,
@@ -2483,24 +1655,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        50.36663378607952,
-        -30.978527844278606
+      "range_m": 0.7771263627775182,
+      "ear_angles_deg": [
+        48.678077853645796,
+        131.3219221463542
       ],
-      "source_measurement_indices": [
-        1251,
-        1229,
-        1228
-      ],
-      "weights": [
-        0.36273823725596294,
-        0.45266714229475596,
-        0.18459462044928118
-      ],
-      "residual_itd_seconds": 0.0003567567072538622,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.060660099952279195,
-      "minimum_retained_energy": 0.9999901676265313,
-      "max_magnitude_error_db": 0.08626510881402363
+      "residual_itd_seconds": 0.00037448357438992413,
+      "max_magnitude_error_db": 0.0001779108074223209
     },
     {
       "profile": 74,
@@ -2509,24 +1670,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        39.51923366269542,
-        -26.312130357348195
+      "range_m": 0.8460027314125208,
+      "ear_angles_deg": [
+        55.22132027203017,
+        124.77867972796984
       ],
-      "source_measurement_indices": [
-        987,
-        988,
-        1010
-      ],
-      "weights": [
-        0.2623697582882899,
-        0.2244520875385127,
-        0.5131781541731975
-      ],
-      "residual_itd_seconds": 0.0002944919012336138,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.057645679035806544,
-      "minimum_retained_energy": 0.9999948000843552,
-      "max_magnitude_error_db": 0.06241160376846789
+      "residual_itd_seconds": 0.000318131318095948,
+      "max_magnitude_error_db": 0.0001799999536269949
     },
     {
       "profile": 75,
@@ -2535,24 +1685,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        46.76373456251599,
-        -32.810432622267236
+      "range_m": 0.7381963492112268,
+      "ear_angles_deg": [
+        52.24324573728183,
+        127.75675426271818
       ],
-      "source_measurement_indices": [
-        1141,
-        1163,
-        1162
-      ],
-      "weights": [
-        0.2290551781180226,
-        0.24083123828262037,
-        0.530113583599357
-      ],
-      "residual_itd_seconds": 0.00032781253022408276,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.061284211298757045,
-      "minimum_retained_energy": 0.9999867876413223,
-      "max_magnitude_error_db": 0.06794576534738006
+      "residual_itd_seconds": 0.00034449227171494444,
+      "max_magnitude_error_db": 0.00018078322457774752
     },
     {
       "profile": 76,
@@ -2561,24 +1700,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        35.79448348255829,
-        -27.47212265270992
+      "range_m": 0.8128900832003649,
+      "ear_angles_deg": [
+        58.73977177441633,
+        121.26022822558369
       ],
-      "source_measurement_indices": [
-        900,
-        921,
-        922
-      ],
-      "weights": [
-        0.20100598962459906,
-        0.49431150176088856,
-        0.30468250861451235
-      ],
-      "residual_itd_seconds": 0.0002643595016735619,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05775611055556,
-      "minimum_retained_energy": 0.9999945318477195,
-      "max_magnitude_error_db": 0.06215654957247509
+      "residual_itd_seconds": 0.0002874746221822466,
+      "max_magnitude_error_db": 0.00017858197396493318
     },
     {
       "profile": 77,
@@ -2587,24 +1715,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        42.661771817614735,
-        -34.68749690338515
+      "range_m": 0.7028640462177734,
+      "ear_angles_deg": [
+        56.135836995998,
+        123.86416300400201
       ],
-      "source_measurement_indices": [
-        1053,
-        1074,
-        1052
-      ],
-      "weights": [
-        0.11585132620355104,
-        0.6664545258222891,
-        0.21769414797415987
-      ],
-      "residual_itd_seconds": 0.0002915805217020402,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05764228547319396,
-      "minimum_retained_energy": 0.9999773322378062,
-      "max_magnitude_error_db": 0.10568926119144921
+      "residual_itd_seconds": 0.0003109636256602403,
+      "max_magnitude_error_db": 0.00018151905843679714
     },
     {
       "profile": 78,
@@ -2613,24 +1730,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        37.98574733120921,
-        -36.568071960396026
+      "range_m": 0.6713916831581018,
+      "ear_angles_deg": [
+        60.37568504649598,
+        119.62431495350404
       ],
-      "source_measurement_indices": [
-        963,
-        942,
-        964
-      ],
-      "weights": [
-        0.13112474268308513,
-        0.014003679439384152,
-        0.8548715778775308
-      ],
-      "residual_itd_seconds": 0.00025559065953986026,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.02849090928803437,
-      "minimum_retained_energy": 0.9999827869551249,
-      "max_magnitude_error_db": 0.10112131462768882
+      "residual_itd_seconds": 0.00027363901839306317,
+      "max_magnitude_error_db": 0.0001788290957978363
     },
     {
       "profile": 79,
@@ -2639,24 +1745,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        27.32544137951843,
-        -29.661332253521294
+      "range_m": 0.7577711951074475,
+      "ear_angles_deg": [
+        66.49097206092517,
+        113.50902793907483
       ],
-      "source_measurement_indices": [
-        697,
-        680,
-        679
-      ],
-      "weights": [
-        0.3627469462609529,
-        0.06794333807172157,
-        0.5693097156673257
-      ],
-      "residual_itd_seconds": 0.00019694401737052158,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05460326095948104,
-      "minimum_retained_energy": 0.999992929608799,
-      "max_magnitude_error_db": 0.072341929324984
+      "residual_itd_seconds": 0.00021819713029951586,
+      "max_magnitude_error_db": 0.00016983299407582507
     },
     {
       "profile": 80,
@@ -2665,24 +1760,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        32.68269636611353,
-        -38.384986249947524
+      "range_m": 0.6441821330499663,
+      "ear_angles_deg": [
+        64.95869648282012,
+        115.0413035171799
       ],
-      "source_measurement_indices": [
-        821,
-        839,
-        854
-      ],
-      "weights": [
-        0.11073688332579561,
-        0.31834892047024166,
-        0.5709141962039628
-      ],
-      "residual_itd_seconds": 0.00021357132406215235,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05350747773365913,
-      "minimum_retained_energy": 0.9999904668376189,
-      "max_magnitude_error_db": 0.07961864813294597
+      "residual_itd_seconds": 0.00023250930653754862,
+      "max_magnitude_error_db": 0.0001746248568460149
     },
     {
       "profile": 81,
@@ -2691,24 +1775,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        22.593290986236607,
-        -30.618330777652965
+      "range_m": 0.7362804895526539,
+      "ear_angles_deg": [
+        70.69337630079752,
+        109.30662369920249
       ],
-      "source_measurement_indices": [
-        574,
-        575,
-        553
-      ],
-      "weights": [
-        0.1166046964822156,
-        0.4794159123346228,
-        0.4039793911831616
-      ],
-      "residual_itd_seconds": 0.0001604855650198758,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05209313051657415,
-      "minimum_retained_energy": 0.9999951871254636,
-      "max_magnitude_error_db": 0.06338066134674523
+      "residual_itd_seconds": 0.00017985370011423574,
+      "max_magnitude_error_db": 0.0001621062114274519
     },
     {
       "profile": 82,
@@ -2717,24 +1790,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        26.748032134200578,
-        -40.04588704385577
+      "range_m": 0.6216963511011215,
+      "ear_angles_deg": [
+        69.84627501429198,
+        110.15372498570804
       ],
-      "source_measurement_indices": [
-        645,
-        663,
-        678
-      ],
-      "weights": [
-        0.06594174445447587,
-        0.48925714032482553,
-        0.4448011152206985
-      ],
-      "residual_itd_seconds": 0.00017197129191495142,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.04728286019798215,
-      "minimum_retained_energy": 0.9999933101129886,
-      "max_magnitude_error_db": 0.0616308014810894
+      "residual_itd_seconds": 0.00018793557346989694,
+      "max_magnitude_error_db": 0.00016568488962155555
     },
     {
       "profile": 83,
@@ -2743,24 +1805,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        17.578830543794822,
-        -31.428736306083007
+      "range_m": 0.71916554861767,
+      "ear_angles_deg": [
+        75.06586483243088,
+        104.93413516756912
       ],
-      "source_measurement_indices": [
-        410,
-        426,
-        443
-      ],
-      "weights": [
-        0.186018737637236,
-        0.26954079591271485,
-        0.5444404664500492
-      ],
-      "residual_itd_seconds": 0.00012495583013551247,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05440035495890134,
-      "minimum_retained_energy": 0.9999969163993108,
-      "max_magnitude_error_db": 0.05331568016618235
+      "residual_itd_seconds": 0.00013953135092019468,
+      "max_magnitude_error_db": 0.00015040242604777448
     },
     {
       "profile": 84,
@@ -2769,24 +1820,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        20.212021091935828,
-        -41.451564835809926
+      "range_m": 0.6042417655646125,
+      "ear_angles_deg": [
+        74.99199691191845,
+        105.00800308808157
       ],
-      "source_measurement_indices": [
-        515,
-        497,
-        496
-      ],
-      "weights": [
-        0.2488844929587066,
-        0.3661806584722064,
-        0.38493484856908705
-      ],
-      "residual_itd_seconds": 0.0001287783822054154,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.017892541000488506,
-      "minimum_retained_energy": 0.9999943502914506,
-      "max_magnitude_error_db": 0.06040549932960661
+      "residual_itd_seconds": 0.000140416539462691,
+      "max_magnitude_error_db": 0.00015310845143267152
     },
     {
       "profile": 85,
@@ -2795,24 +1835,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        13.149608908105215,
-        -42.50520216647445
+      "range_m": 0.5920162355132689,
+      "ear_angles_deg": [
+        80.34514838277062,
+        99.65485161722938
       ],
-      "source_measurement_indices": [
-        323,
-        304,
-        305
-      ],
-      "weights": [
-        0.5185084211979385,
-        0.22384216737215917,
-        0.25764941142990233
-      ],
-      "residual_itd_seconds": 8.43127672112064e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.04749350975815102,
-      "minimum_retained_energy": 0.9999953795948814,
-      "max_magnitude_error_db": 0.0714170247971259
+      "residual_itd_seconds": 9.05393966137592e-05,
+      "max_magnitude_error_db": 0.00013692507928547278
     },
     {
       "profile": 86,
@@ -2821,24 +1850,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        6.916805853939258,
-        -32.47105604672578
+      "range_m": 0.6984885820396177,
+      "ear_angles_deg": [
+        84.16864998381972,
+        95.8313500161803
       ],
-      "source_measurement_indices": [
-        140,
-        163,
-        162
-      ],
-      "weights": [
-        0.08591203722560252,
-        0.5337958853819622,
-        0.38029207739243526
-      ],
-      "residual_itd_seconds": 4.972805922001188e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05261973217585318,
-      "minimum_retained_energy": 0.9999982038114953,
-      "max_magnitude_error_db": 0.056825748965588285
+      "residual_itd_seconds": 5.46766990211001e-05,
+      "max_magnitude_error_db": 0.00012424251655795263
     },
     {
       "profile": 87,
@@ -2847,24 +1865,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        5.729972492260656,
-        -43.12108241376287
+      "range_m": 0.5851868183514447,
+      "ear_angles_deg": [
+        85.82089464692748,
+        94.17910535307253
       ],
-      "source_measurement_indices": [
-        140,
-        139,
-        117
-      ],
-      "weights": [
-        0.19424909497481083,
-        0.5276308408910604,
-        0.2781200641341289
-      ],
-      "residual_itd_seconds": 4.0580891120894314e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05261973217585318,
-      "minimum_retained_energy": 0.9999967922638479,
-      "max_magnitude_error_db": 0.0746130778143697
+      "residual_itd_seconds": 3.923962407682019e-05,
+      "max_magnitude_error_db": 0.00012051454990010339
     },
     {
       "profile": 88,
@@ -2873,24 +1880,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        1.4373206163271308,
-        -32.65272153921956
+      "range_m": 0.6950291035036623,
+      "ear_angles_deg": [
+        88.78987583274936,
+        91.21012416725063
       ],
-      "source_measurement_indices": [
-        52,
-        30,
-        31
-      ],
-      "weights": [
-        0.4506794173093997,
-        0.0496497886549215,
-        0.4996707940356788
-      ],
-      "residual_itd_seconds": 1.3425041369406415e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.040078525007148216,
-      "minimum_retained_energy": 0.9999976541162373,
-      "max_magnitude_error_db": 0.06644122840265565
+      "residual_itd_seconds": 1.1353222100053551e-05,
+      "max_magnitude_error_db": 0.0001070470101080954
     },
     {
       "profile": 89,
@@ -2899,24 +1895,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -1.7908789718422087,
-        -43.25032476354169
+      "range_m": 0.5837821362782811,
+      "ear_angles_deg": [
+        91.30431756254109,
+        88.69568243745891
       ],
-      "source_measurement_indices": [
-        8764,
-        8785,
-        8763
-      ],
-      "weights": [
-        0.18090538642496184,
-        0.2149593375948381,
-        0.6041352759802001
-      ],
-      "residual_itd_seconds": -2.0357295981393927e-06,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.017290847460993915,
-      "minimum_retained_energy": 0.9999981094126539,
-      "max_magnitude_error_db": 0.06876098606833289
+      "residual_itd_seconds": -1.2249990991281087e-05,
+      "max_magnitude_error_db": 0.00011003799203828812
     },
     {
       "profile": 90,
@@ -2925,24 +1910,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -9.181523550456207,
-        -42.89571241281969
+      "range_m": 0.587659690933482,
+      "ear_angles_deg": [
+        96.71292414339659,
+        83.28707585660341
       ],
-      "source_measurement_indices": [
-        8610,
-        8609,
-        8587
-      ],
-      "weights": [
-        0.21746355284686242,
-        0.5949212058793044,
-        0.18761524127383328
-      ],
-      "residual_itd_seconds": -4.678000631071032e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.02298184254973679,
-      "minimum_retained_energy": 0.9999981167990218,
-      "max_magnitude_error_db": 0.06416171680974347
+      "residual_itd_seconds": -6.300202749977919e-05,
+      "max_magnitude_error_db": 0.00012791924373897734
     },
     {
       "profile": 91,
@@ -2951,24 +1925,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -9.332392426165121,
-        -32.315037097728656
+      "range_m": 0.7014929320132384,
+      "ear_angles_deg": [
+        97.8769679778107,
+        82.12303202218932
       ],
-      "source_measurement_indices": [
-        8610,
-        8611,
-        8589
-      ],
-      "weights": [
-        0.43667884484409786,
-        0.23928641102741738,
-        0.3240347441284847
-      ],
-      "residual_itd_seconds": -6.086281825765014e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.026425161298323955,
-      "minimum_retained_energy": 0.999995909408551,
-      "max_magnitude_error_db": 0.06871096935157239
+      "residual_itd_seconds": -7.381924023442151e-05,
+      "max_magnitude_error_db": 0.0001298326848952724
     },
     {
       "profile": 92,
@@ -2977,24 +1940,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -16.213159565793163,
-        -42.10555586104882
+      "range_m": 0.5965710019579548,
+      "ear_angles_deg": [
+        101.9553959000201,
+        78.04460409997992
       ],
-      "source_measurement_indices": [
-        8406,
-        8428,
-        8427
-      ],
-      "weights": [
-        0.1931982170567828,
-        0.1056766745829874,
-        0.7011251083602298
-      ],
-      "residual_itd_seconds": -9.073991217953815e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.02776293590288694,
-      "minimum_retained_energy": 0.9999973966212062,
-      "max_magnitude_error_db": 0.05616487972523006
+      "residual_itd_seconds": -0.00011201770489725677,
+      "max_magnitude_error_db": 0.0001441269717181126
     },
     {
       "profile": 93,
@@ -3003,24 +1955,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -14.443731568582367,
-        -31.830553913118422
+      "range_m": 0.7110232150719811,
+      "ear_angles_deg": [
+        102.23476651464765,
+        77.76523348535235
       ],
-      "source_measurement_indices": [
-        8451,
-        8472,
-        8473
-      ],
-      "weights": [
-        0.4349064750795861,
-        0.3453052364555769,
-        0.21978828846483697
-      ],
-      "residual_itd_seconds": -9.675818758372068e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.04573041214588575,
-      "minimum_retained_energy": 0.9999945364504816,
-      "max_magnitude_error_db": 0.07540572513713223
+      "residual_itd_seconds": -0.00011447115965503898,
+      "max_magnitude_error_db": 0.00014224167151586153
     },
     {
       "profile": 94,
@@ -3029,24 +1970,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -22.699528303987176,
-        -40.96693716873393
+      "range_m": 0.610106340781685,
+      "ear_angles_deg": [
+        106.94102997780892,
+        73.05897002219109
       ],
-      "source_measurement_indices": [
-        8240,
-        8241,
-        8263
-      ],
-      "weights": [
-        0.5839313586761127,
-        0.13903267431737035,
-        0.2770359670065171
-      ],
-      "residual_itd_seconds": -0.00013390519191086174,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.034807913834572025,
-      "minimum_retained_energy": 0.9999964726390408,
-      "max_magnitude_error_db": 0.04877858349721957
+      "residual_itd_seconds": -0.00015832646163889833,
+      "max_magnitude_error_db": 0.00015805264185084992
     },
     {
       "profile": 95,
@@ -3055,24 +1985,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -19.271486273175967,
-        -31.178382864780964
+      "range_m": 0.7243517868978001,
+      "ear_angles_deg": [
+        106.40187758985235,
+        73.59812241014767
       ],
-      "source_measurement_indices": [
-        8340,
-        8319,
-        8341
-      ],
-      "weights": [
-        0.22232914309911764,
-        0.2680137762187252,
-        0.5096570806821572
-      ],
-      "residual_itd_seconds": -0.0001335425245478321,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.029214403416040678,
-      "minimum_retained_energy": 0.9999924524410466,
-      "max_magnitude_error_db": 0.08674415994832417
+      "residual_itd_seconds": -0.00015310813047389379,
+      "max_magnitude_error_db": 0.00015452219939622128
     },
     {
       "profile": 96,
@@ -3081,24 +2000,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -28.556320000963048,
-        -39.57986351634791
+      "range_m": 0.627792543755391,
+      "ear_angles_deg": [
+        111.61880158347125,
+        68.38119841652876
       ],
-      "source_measurement_indices": [
-        8102,
-        8103,
-        8081
-      ],
-      "weights": [
-        0.44125276080327386,
-        0.03522283616004739,
-        0.5235244030366788
-      ],
-      "residual_itd_seconds": -0.00017684816401828887,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.038001022843997326,
-      "minimum_retained_energy": 0.9999955377274099,
-      "max_magnitude_error_db": 0.047198968597083696
+      "residual_itd_seconds": -0.0002013629920422276,
+      "max_magnitude_error_db": 0.00016853584182959286
     },
     {
       "profile": 97,
@@ -3107,24 +2015,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -33.78157357839181,
-        -38.03505449234477
+      "range_m": 0.6491994386822404,
+      "ear_angles_deg": [
+        115.97295144929804,
+        64.02704855070198
       ],
-      "source_measurement_indices": [
-        7959,
-        7937,
-        7938
-      ],
-      "weights": [
-        0.24260342226208106,
-        0.03970867115931759,
-        0.7176879065786014
-      ],
-      "residual_itd_seconds": -0.00021673631373281374,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.04181443854400186,
-      "minimum_retained_energy": 0.9999938280512615,
-      "max_magnitude_error_db": 0.04918499433665831
+      "residual_itd_seconds": -0.0002409285289056338,
+      "max_magnitude_error_db": 0.0001763142155499233
     },
     {
       "profile": 98,
@@ -3133,24 +2030,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -27.96376501895745,
-        -29.5177693002037
+      "range_m": 0.7611223381742782,
+      "ear_angles_deg": [
+        114.08236843641396,
+        65.91763156358604
       ],
-      "source_measurement_indices": [
-        8122,
-        8104,
-        8105
-      ],
-      "weights": [
-        0.3639769166576116,
-        0.5394858860092995,
-        0.09653719733308881
-      ],
-      "residual_itd_seconds": -0.00020150724601836613,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.036407318190429624,
-      "minimum_retained_energy": 0.9999891271415714,
-      "max_magnitude_error_db": 0.10746102638198334
+      "residual_itd_seconds": -0.0002233908700765535,
+      "max_magnitude_error_db": 0.00017032305331323485
     },
     {
       "profile": 99,
@@ -3159,24 +2045,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -38.39880552944342,
-        -36.412709226074824
+      "range_m": 0.6738573855675937,
+      "ear_angles_deg": [
+        119.99094137830622,
+        60.00905862169378
       ],
-      "source_measurement_indices": [
-        7849,
-        7850,
-        7828
-      ],
-      "weights": [
-        0.11498368784739607,
-        0.49233444533255644,
-        0.3926818668200476
-      ],
-      "residual_itd_seconds": -0.0002563625958639056,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.046229337464244735,
-      "minimum_retained_energy": 0.9999904222925804,
-      "max_magnitude_error_db": 0.06244720044910425
+      "residual_itd_seconds": -0.00027689652136973786,
+      "max_magnitude_error_db": 0.00017986600963846596
     },
     {
       "profile": 100,
@@ -3185,24 +2060,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -31.803912388302788,
-        -28.580662116829835
+      "range_m": 0.7838702448913992,
+      "ear_angles_deg": [
+        117.56756535953014,
+        62.432434640469864
       ],
-      "source_measurement_indices": [
-        7994,
-        8016,
-        8017
-      ],
-      "weights": [
-        0.3509504635978769,
-        0.3650554612071485,
-        0.28399407519497466
-      ],
-      "residual_itd_seconds": -0.0002330268576226007,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.039864815071635105,
-      "minimum_retained_energy": 0.9999901106402911,
-      "max_magnitude_error_db": 0.09116905890887131
+      "residual_itd_seconds": -0.00025473842950368285,
+      "max_magnitude_error_db": 0.00017545085288468625
     },
     {
       "profile": 101,
@@ -3211,24 +2075,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -42.44603080697608,
-        -34.780237987798
+      "range_m": 0.7012250110541477,
+      "ear_angles_deg": [
+        123.66407476311144,
+        56.33592523688856
       ],
-      "source_measurement_indices": [
-        7763,
-        7762,
-        7740
-      ],
-      "weights": [
-        0.0983605160751378,
-        0.4529255742995567,
-        0.44871390962530544
-      ],
-      "residual_itd_seconds": -0.00029237262859847557,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.051367167322224606,
-      "minimum_retained_energy": 0.9999871792410078,
-      "max_magnitude_error_db": 0.07388949666611441
+      "residual_itd_seconds": -0.00030921972129570427,
+      "max_magnitude_error_db": 0.00018100018460131428
     },
     {
       "profile": 102,
@@ -3237,24 +2090,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -45.999181819402466,
-        -33.176891203180595
+      "range_m": 0.7309598330802297,
+      "ear_angles_deg": [
+        127.0181789271976,
+        52.98182107280242
       ],
-      "source_measurement_indices": [
-        7674,
-        7697,
-        7675
-      ],
-      "weights": [
-        0.5993447211280557,
-        0.0007899724752524415,
-        0.3998653063966919
-      ],
-      "residual_itd_seconds": -0.00032028374927255436,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.0508589344811363,
-      "minimum_retained_energy": 0.9999893966637212,
-      "max_magnitude_error_db": 0.07300233662265389
+      "residual_itd_seconds": -0.00033818972978586924,
+      "max_magnitude_error_db": 0.00018191250239247216
     },
     {
       "profile": 103,
@@ -3263,24 +2105,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -38.512581502289805,
-        -26.637622139368734
+      "range_m": 0.8364073721541111,
+      "ear_angles_deg": [
+        123.82061387615428,
+        56.17938612384573
       ],
-      "source_measurement_indices": [
-        7829,
-        7830,
-        7852
-      ],
-      "weights": [
-        0.3274461987163593,
-        0.1922288293130876,
-        0.48032497197055307
-      ],
-      "residual_itd_seconds": -0.0002914305863326675,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.047109112586086695,
-      "minimum_retained_energy": 0.9999858899344255,
-      "max_magnitude_error_db": 0.07932132476376569
+      "residual_itd_seconds": -0.00030983884554849553,
+      "max_magnitude_error_db": 0.00018038036612224207
     },
     {
       "profile": 104,
@@ -3289,24 +2120,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -49.12070108670067,
-        -31.631805820532097
+      "range_m": 0.7626912306417422,
+      "ear_angles_deg": [
+        130.07293087731054,
+        49.92706912268945
       ],
-      "source_measurement_indices": [
-        7587,
-        7608,
-        7609
-      ],
-      "weights": [
-        0.1185640738538312,
-        0.30792668208166213,
-        0.5735092440645067
-      ],
-      "residual_itd_seconds": -0.0003462691269425116,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.0540314420792586,
-      "minimum_retained_energy": 0.9999865420164754,
-      "max_magnitude_error_db": 0.09621455711914711
+      "residual_itd_seconds": -0.000364062868056285,
+      "max_magnitude_error_db": 0.00017957500828258676
     },
     {
       "profile": 105,
@@ -3315,24 +2135,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -41.42095318309918,
-        -25.672912746986007
+      "range_m": 0.8655849489126299,
+      "ear_angles_deg": [
+        126.60362287881925,
+        53.39637712118076
       ],
-      "source_measurement_indices": [
-        7763,
-        7764,
-        7786
-      ],
-      "weights": [
-        0.13452446710934307,
-        0.2898928786949001,
-        0.5755826541957569
-      ],
-      "residual_itd_seconds": -0.00031720537018324027,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.048075917760566536,
-      "minimum_retained_energy": 0.9999809565509231,
-      "max_magnitude_error_db": 0.0958168129875139
+      "residual_itd_seconds": -0.0003337986602345827,
+      "max_magnitude_error_db": 0.00018069507354688213
     },
     {
       "profile": 106,
@@ -3341,24 +2150,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -51.86096073786368,
-        -30.167045533854786
+      "range_m": 0.795983841627027,
+      "ear_angles_deg": [
+        132.84302024461914,
+        47.15697975538086
       ],
-      "source_measurement_indices": [
-        7565,
-        7542,
-        7543
-      ],
-      "weights": [
-        0.13879156022046815,
-        0.03147311446165356,
-        0.8297353253178783
-      ],
-      "residual_itd_seconds": -0.0003696809596159166,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.0532616184120436,
-      "minimum_retained_energy": 0.9999794994280373,
-      "max_magnitude_error_db": 0.1382243120079474
+      "residual_itd_seconds": -0.00038705290315471495,
+      "max_magnitude_error_db": 0.00017653110409071088
     },
     {
       "profile": 107,
@@ -3367,24 +2165,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -44.05865719368374,
-        -24.733592755471786
+      "range_m": 0.8962722300655143,
+      "ear_angles_deg": [
+        129.16834454497774,
+        50.83165545502228
       ],
-      "source_measurement_indices": [
-        7698,
-        7720,
-        7721
-      ],
-      "weights": [
-        0.058769018770731936,
-        0.905594497092657,
-        0.03563648413661101
-      ],
-      "residual_itd_seconds": -0.00034143368746163393,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06339086653986636,
-      "minimum_retained_energy": 0.9999755308866317,
-      "max_magnitude_error_db": 0.10560986171450584
+      "residual_itd_seconds": -0.0003555296605518601,
+      "max_magnitude_error_db": 0.0001798140907693734
     },
     {
       "profile": 108,
@@ -3393,24 +2180,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -54.2752055306495,
-        -28.79081708580879
+      "range_m": 0.8305419848238818,
+      "ear_angles_deg": [
+        135.35509626824899,
+        44.64490373175104
       ],
-      "source_measurement_indices": [
-        7478,
-        7499,
-        7477
-      ],
-      "weights": [
-        0.24210370360657357,
-        0.7329519447593982,
-        0.0249443516340282
-      ],
-      "residual_itd_seconds": -0.00039247604031453345,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.055404347596365845,
-      "minimum_retained_energy": 0.9999827948060838,
-      "max_magnitude_error_db": 0.11936943321989249
+      "residual_itd_seconds": -0.00040748003747596644,
+      "max_magnitude_error_db": 0.00017291126583439333
     },
     {
       "profile": 109,
@@ -3419,24 +2195,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -56.41728783002294,
-        -27.50160018278439
+      "range_m": 0.8662257553463032,
+      "ear_angles_deg": [
+        137.64183527592476,
+        42.35816472407523
       ],
-      "source_measurement_indices": [
-        7456,
-        7433,
-        7455
-      ],
-      "weights": [
-        0.4998538842420682,
-        0.4269919653811309,
-        0.0731541503768009
-      ],
-      "residual_itd_seconds": -0.00041328669164695305,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05568873787183559,
-      "minimum_retained_energy": 0.9999840808776785,
-      "max_magnitude_error_db": 0.09410898051453127
+      "residual_itd_seconds": -0.0004257131840758548,
+      "max_magnitude_error_db": 0.00016928227979661923
     },
     {
       "profile": 110,
@@ -3445,24 +2210,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -48.63884123374676,
-        -22.957117362807818
+      "range_m": 0.9614347411992809,
+      "ear_angles_deg": [
+        133.71825270180713,
+        46.28174729819286
       ],
-      "source_measurement_indices": [
-        7611,
-        7610,
-        7632
-      ],
-      "weights": [
-        0.27273853868627995,
-        0.36094673870479793,
-        0.36631472260892217
-      ],
-      "residual_itd_seconds": -0.00037755084739788725,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06222364740839296,
-      "minimum_retained_energy": 0.999973848776356,
-      "max_magnitude_error_db": 0.09457203634080777
+      "residual_itd_seconds": -0.0003931540552986628,
+      "max_magnitude_error_db": 0.00017460853839492156
     },
     {
       "profile": 111,
@@ -3471,24 +2225,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -58.325685385605965,
-        -26.298698807762676
+      "range_m": 0.9028309431556404,
+      "ear_angles_deg": [
+        139.72586950674864,
+        40.27413049325137
       ],
-      "source_measurement_indices": [
-        7386,
-        7400,
-        7367
-      ],
-      "weights": [
-        0.7401861564344058,
-        0.1552986266744107,
-        0.10451521689118357
-      ],
-      "residual_itd_seconds": -0.0004313651129452383,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.055845972560754444,
-      "minimum_retained_energy": 0.9999827802308238,
-      "max_magnitude_error_db": 0.12333445753083065
+      "residual_itd_seconds": -0.0004419951695374214,
+      "max_magnitude_error_db": 0.00016575277227229719
     },
     {
       "profile": 112,
@@ -3497,24 +2240,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -50.627502619616955,
-        -22.128660928963846
+      "range_m": 0.9955196539184832,
+      "ear_angles_deg": [
+        135.73312666918173,
+        44.26687333081827
       ],
-      "source_measurement_indices": [
-        7589,
-        7566,
-        7567
-      ],
-      "weights": [
-        0.3610772636481972,
-        0.6169018408061123,
-        0.0220208955456904
-      ],
-      "residual_itd_seconds": -0.00039409764612507504,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06369661456414463,
-      "minimum_retained_energy": 0.9999725305675916,
-      "max_magnitude_error_db": 0.09114459995213721
+      "residual_itd_seconds": -0.0004093986532889319,
+      "max_magnitude_error_db": 0.0001722219262286234
     },
     {
       "profile": 113,
@@ -3523,24 +2255,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -60.02796258054763,
-        -25.182458567860195
+      "range_m": 0.9400655263354508,
+      "ear_angles_deg": [
+        141.62245202714325,
+        38.377547972856746
       ],
-      "source_measurement_indices": [
-        7324,
-        7346,
-        7345
-      ],
-      "weights": [
-        0.027918499007630562,
-        0.9355666712691035,
-        0.03651482972326596
-      ],
-      "residual_itd_seconds": -0.00044866394810214564,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05626531478284953,
-      "minimum_retained_energy": 0.9999794504264984,
-      "max_magnitude_error_db": 0.12373482912188771
+      "residual_itd_seconds": -0.00045654420329225377,
+      "max_magnitude_error_db": 0.00016205427207407038
     },
     {
       "profile": 114,
@@ -3549,24 +2270,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -61.55760752940619,
-        -24.144725495687165
+      "range_m": 0.9778925369982329,
+      "ear_angles_deg": [
+        143.35714624136645,
+        36.642853758633564
       ],
-      "source_measurement_indices": [
-        7324,
-        7303,
-        7302
-      ],
-      "weights": [
-        0.4450405601612854,
-        0.11436686891633033,
-        0.44059257092238424
-      ],
-      "residual_itd_seconds": -0.0004616751065239969,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06428119279745285,
-      "minimum_retained_energy": 0.9999758874320142,
-      "max_magnitude_error_db": 0.11119493295476884
+      "residual_itd_seconds": -0.00046960740226050906,
+      "max_magnitude_error_db": 0.0001579926885620339
     },
     {
       "profile": 115,
@@ -3575,24 +2285,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -54.103611022135254,
-        -20.59857926377529
+      "range_m": 1.0658906989262995,
+      "ear_angles_deg": [
+        139.31357893377427,
+        40.68642106622573
       ],
-      "source_measurement_indices": [
-        7479,
-        7501,
-        7500
-      ],
-      "weights": [
-        0.10148635242559771,
-        0.48528496951655303,
-        0.4132286780578493
-      ],
-      "residual_itd_seconds": -0.00042505022103435955,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06843984645545874,
-      "minimum_retained_energy": 0.9999657730108104,
-      "max_magnitude_error_db": 0.09991553836243451
+      "residual_itd_seconds": -0.000437606377196152,
+      "max_magnitude_error_db": 0.00016533845618499788
     },
     {
       "profile": 116,
@@ -3601,24 +2300,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -62.93772962355489,
-        -23.180431256579663
+      "range_m": 1.0161879604511406,
+      "ear_angles_deg": [
+        144.94702375881357,
+        35.052976241186414
       ],
-      "source_measurement_indices": [
-        7269,
-        7303,
-        7270
-      ],
-      "weights": [
-        0.7570959236225087,
-        0.05992931897967661,
-        0.1829747573978148
-      ],
-      "residual_itd_seconds": -0.00047406567248074424,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06428119279745285,
-      "minimum_retained_energy": 0.9999720744936991,
-      "max_magnitude_error_db": 0.1499869961005791
+      "residual_itd_seconds": -0.0004813573344661204,
+      "max_magnitude_error_db": 0.00015545379785557274
     },
     {
       "profile": 117,
@@ -3627,24 +2315,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -55.62596379134503,
-        -19.89613322885355
+      "range_m": 1.101916745932647,
+      "ear_angles_deg": [
+        140.90523560047654,
+        39.09476439952348
       ],
-      "source_measurement_indices": [
-        7479,
-        7456,
-        7457
-      ],
-      "weights": [
-        0.368096335871248,
-        0.319621603476914,
-        0.312282060651838
-      ],
-      "residual_itd_seconds": -0.0004382091470558413,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06690182678463362,
-      "minimum_retained_energy": 0.9999626381596334,
-      "max_magnitude_error_db": 0.1072066124323569
+      "residual_itd_seconds": -0.0004498501109312911,
+      "max_magnitude_error_db": 0.00016284303763418673
     },
     {
       "profile": 118,
@@ -3653,24 +2330,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -64.18405988693024,
-        -22.287006829684174
+      "range_m": 1.0547234379405175,
+      "ear_angles_deg": [
+        146.40288011784253,
+        33.59711988215748
       ],
-      "source_measurement_indices": [
-        7237,
-        7214,
-        7236
-      ],
-      "weights": [
-        0.36197608578284896,
-        0.18754997933065676,
-        0.4504739348864944
-      ],
-      "residual_itd_seconds": -0.00048597867100104095,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.0641021306425623,
-      "minimum_retained_energy": 0.9999684228458238,
-      "max_magnitude_error_db": 0.2039294028865689
+      "residual_itd_seconds": -0.0004919683966573969,
+      "max_magnitude_error_db": 0.0001615185270313099
     },
     {
       "profile": 119,
@@ -3679,24 +2345,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -57.02183439319475,
-        -19.2350385070519
+      "range_m": 1.1382810998641886,
+      "ear_angles_deg": [
+        142.3772915773036,
+        37.62270842269642
       ],
-      "source_measurement_indices": [
-        7402,
-        7434,
-        7435
-      ],
-      "weights": [
-        0.021584038890655088,
-        0.23160381497027008,
-        0.7468121461390748
-      ],
-      "residual_itd_seconds": -0.00045004468172937985,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.0672286667671618,
-      "minimum_retained_energy": 0.9999599383114713,
-      "max_magnitude_error_db": 0.11094474603271849
+      "residual_itd_seconds": -0.0004610237770216759,
+      "max_magnitude_error_db": 0.00015963314261411833
     },
     {
       "profile": 120,
@@ -3705,24 +2360,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -65.31408884843881,
-        -21.458617784785595
+      "range_m": 1.093406635620897,
+      "ear_angles_deg": [
+        147.73926643801235,
+        32.26073356198766
       ],
-      "source_measurement_indices": [
-        7214,
-        7215,
-        7202
-      ],
-      "weights": [
-        0.5277032974782406,
-        0.13246101353006612,
-        0.3398356889916932
-      ],
-      "residual_itd_seconds": -0.0004962741326639515,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06354561199233523,
-      "minimum_retained_energy": 0.9999662735215997,
-      "max_magnitude_error_db": 0.17286335415807821
+      "residual_itd_seconds": -0.0005015367093074118,
+      "max_magnitude_error_db": 0.00016738279355560192
     },
     {
       "profile": 121,
@@ -3731,24 +2375,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -66.34558275011855,
-        -20.687441493180188
+      "range_m": 1.1322790752002772,
+      "ear_angles_deg": [
+        148.97260176130695,
+        31.02739823869306
       ],
-      "source_measurement_indices": [
-        7186,
-        7187,
-        7165
-      ],
-      "weights": [
-        0.4250100749264992,
-        0.23670490099728905,
-        0.3382850240762117
-      ],
-      "residual_itd_seconds": -0.0005064717070961395,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05917591967510954,
-      "minimum_retained_energy": 0.9999631803306135,
-      "max_magnitude_error_db": 0.14247002185385313
+      "residual_itd_seconds": -0.0005102164486445892,
+      "max_magnitude_error_db": 0.0001738934779485971
     },
     {
       "profile": 122,
@@ -3757,24 +2390,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        68.71927799694811,
-        -18.8595744753659
+      "range_m": 1.2374330205933401,
+      "ear_angles_deg": [
+        28.141223567984078,
+        151.85877643201593
       ],
-      "source_measurement_indices": [
-        1698,
-        1676,
-        1675
-      ],
-      "weights": [
-        0.7127848561233098,
-        0.10573999452923644,
-        0.18147514934745376
-      ],
-      "residual_itd_seconds": 0.0005343112900198775,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.04673635209124329,
-      "minimum_retained_energy": 0.9999591144240744,
-      "max_magnitude_error_db": 0.1641397482000883
+      "residual_itd_seconds": 0.0005301069407001934,
+      "max_magnitude_error_db": 0.00018919776650201545
     },
     {
       "profile": 123,
@@ -3783,24 +2405,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        60.834489940845295,
-        -17.348473513467603
+      "range_m": 1.2576190055941923,
+      "ear_angles_deg": [
+        33.540856946617886,
+        146.45914305338212
       ],
-      "source_measurement_indices": [
-        1474,
-        1473,
-        1495
-      ],
-      "weights": [
-        0.06076372327204367,
-        0.10410191557829093,
-        0.8351343611496653
-      ],
-      "residual_itd_seconds": 0.0004876661284908399,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06740985105163606,
-      "minimum_retained_energy": 0.9999522462455155,
-      "max_magnitude_error_db": 0.1221859752543178
+      "residual_itd_seconds": 0.0004911133742841597,
+      "max_magnitude_error_db": 0.00016505192065181148
     },
     {
       "profile": 124,
@@ -3809,24 +2420,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        67.08287446591291,
-        -20.127553656836078
+      "range_m": 1.1624147134038276,
+      "ear_angles_deg": [
+        30.138032079083036,
+        149.86196792091698
       ],
-      "source_measurement_indices": [
-        1654,
-        1653,
-        1675
-      ],
-      "weights": [
-        0.6494934189968533,
-        0.26481311429622023,
-        0.0856934667069264
-      ],
-      "residual_itd_seconds": 0.0005181249698705729,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.048065869314175134,
-      "minimum_retained_energy": 0.9999707514443612,
-      "max_magnitude_error_db": 0.21698934554662752
+      "residual_itd_seconds": 0.0005164167417605805,
+      "max_magnitude_error_db": 0.00017872868751201353
     },
     {
       "profile": 125,
@@ -3835,24 +2435,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        58.73037361916595,
-        -18.404072098779015
+      "range_m": 1.1877745718699737,
+      "ear_angles_deg": [
+        35.80453433635965,
+        144.19546566364036
       ],
-      "source_measurement_indices": [
-        1450,
-        1436,
-        1451
-      ],
-      "weights": [
-        0.12073251010450292,
-        0.38287018938046957,
-        0.49639730051502745
-      ],
-      "residual_itd_seconds": 0.00047025229235938594,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05203564464318621,
-      "minimum_retained_energy": 0.9999641738254361,
-      "max_magnitude_error_db": 0.12132101931644691
+      "residual_itd_seconds": 0.0004745714183929677,
+      "max_magnitude_error_db": 0.00015661049194294673
     },
     {
       "profile": 126,
@@ -3861,24 +2450,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        65.23671728724538,
-        -21.515887796828256
+      "range_m": 1.090633818364897,
+      "ear_angles_deg": [
+        32.352728200973615,
+        147.64727179902638
       ],
-      "source_measurement_indices": [
-        1604,
-        1605,
-        1620
-      ],
-      "weights": [
-        0.2659229189846946,
-        0.464660922099842,
-        0.26941615891546333
-      ],
-      "residual_itd_seconds": 0.0005001739979786566,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.066843764050284,
-      "minimum_retained_energy": 0.9999804234026323,
-      "max_magnitude_error_db": 0.08849125565690791
+      "residual_itd_seconds": 0.0005008840748559254,
+      "max_magnitude_error_db": 0.00016867875279013254
     },
     {
       "profile": 127,
@@ -3887,24 +2465,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        63.13027440789664,
-        -23.043802176371038
+      "range_m": 1.021881724486613,
+      "ear_angles_deg": [
+        34.82930539365172,
+        145.1706946063483
       ],
-      "source_measurement_indices": [
-        1583,
-        1549,
-        1550
-      ],
-      "weights": [
-        0.12549368550031723,
-        0.7388626083557905,
-        0.13564370614389218
-      ],
-      "residual_itd_seconds": 0.00048015370563433366,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06900707742868696,
-      "minimum_retained_energy": 0.9999876638703802,
-      "max_magnitude_error_db": 0.08913403478480138
+      "residual_itd_seconds": 0.00048299700775339145,
+      "max_magnitude_error_db": 0.00015480318326773163
     },
     {
       "profile": 128,
@@ -3913,24 +2480,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        53.764331145290164,
-        -20.75246622122313
+      "range_m": 1.0583315989633026,
+      "ear_angles_deg": [
+        41.03918437327195,
+        138.96081562672805
       ],
-      "source_measurement_indices": [
-        1318,
-        1297,
-        1319
-      ],
-      "weights": [
-        0.43368589586138445,
-        0.23059292344801885,
-        0.3357211806905967
-      ],
-      "residual_itd_seconds": 0.00042453320073191476,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.052016837594897544,
-      "minimum_retained_energy": 0.9999838422574221,
-      "max_magnitude_error_db": 0.10060999119385704
+      "residual_itd_seconds": 0.00043486963148504644,
+      "max_magnitude_error_db": 0.0001662245630619912
     },
     {
       "profile": 129,
@@ -3939,24 +2495,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        60.71148574735837,
-        -24.72279462474651
+      "range_m": 0.956415013548997,
+      "ear_angles_deg": [
+        37.60596463291608,
+        142.39403536708392
       ],
-      "source_measurement_indices": [
-        1494,
-        1473,
-        1472
-      ],
-      "weights": [
-        0.7128638282354876,
-        0.03714595978048581,
-        0.24999021198402654
-      ],
-      "residual_itd_seconds": 0.00045713643494458623,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05270669727913788,
-      "minimum_retained_energy": 0.9999901318388238,
-      "max_magnitude_error_db": 0.0979790314603266
+      "residual_itd_seconds": 0.00046238837476662745,
+      "max_magnitude_error_db": 0.0001605111501724591
     },
     {
       "profile": 130,
@@ -3965,24 +2510,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        50.83010794985481,
-        -22.042330724543962
+      "range_m": 0.9992232589963781,
+      "ear_angles_deg": [
+        44.06023646431766,
+        135.93976353568235
       ],
-      "source_measurement_indices": [
-        1230,
-        1252,
-        1253
-      ],
-      "weights": [
-        0.1734033397191764,
-        0.4320395785029926,
-        0.39455708177783083
-      ],
-      "residual_itd_seconds": 0.00039832378291307477,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.04992388223391628,
-      "minimum_retained_energy": 0.9999892691645585,
-      "max_magnitude_error_db": 0.09476883726862069
+      "residual_itd_seconds": 0.0004110499499280798,
+      "max_magnitude_error_db": 0.00017210487073158277
     },
     {
       "profile": 131,
@@ -3991,24 +2525,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        57.934109166722806,
-        -26.549698881238236
+      "range_m": 0.8949068002914126,
+      "ear_angles_deg": [
+        40.70536957306527,
+        139.29463042693473
       ],
-      "source_measurement_indices": [
-        1417,
-        1384,
-        1401
-      ],
-      "weights": [
-        0.6842340188632736,
-        0.005732400632018283,
-        0.3100335805047082
-      ],
-      "residual_itd_seconds": 0.0004307802894864724,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05041373751879009,
-      "minimum_retained_energy": 0.9999891593706668,
-      "max_magnitude_error_db": 0.10465375938857815
+      "residual_itd_seconds": 0.00043865373587867094,
+      "max_magnitude_error_db": 0.00016648263989826778
     },
     {
       "profile": 132,
@@ -4017,24 +2540,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        47.555093366739705,
-        -23.394081132049752
+      "range_m": 0.94445810374069,
+      "ear_angles_deg": [
+        47.36964638609518,
+        132.63035361390482
       ],
-      "source_measurement_indices": [
-        1186,
-        1164,
-        1165
-      ],
-      "weights": [
-        0.561320483249351,
-        0.22417729516129525,
-        0.21450222158935375
-      ],
-      "residual_itd_seconds": 0.00036497744173738067,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06053598114199771,
-      "minimum_retained_energy": 0.9999914220018942,
-      "max_magnitude_error_db": 0.08560021376272638
+      "residual_itd_seconds": 0.0003842690107868519,
+      "max_magnitude_error_db": 0.00017681854052010507
     },
     {
       "profile": 133,
@@ -4043,24 +2555,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        54.728993154070636,
-        -28.52307328867816
+      "range_m": 0.8376741863085996,
+      "ear_angles_deg": [
+        44.1650593719033,
+        135.83494062809672
       ],
-      "source_measurement_indices": [
-        1318,
-        1340,
-        1339
-      ],
-      "weights": [
-        0.2625270046643343,
-        0.03311109365287908,
-        0.7043619016827867
-      ],
-      "residual_itd_seconds": 0.00039694296691949755,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05989074113803738,
-      "minimum_retained_energy": 0.9999888047431961,
-      "max_magnitude_error_db": 0.10486208648682269
+      "residual_itd_seconds": 0.00041133349648215075,
+      "max_magnitude_error_db": 0.00017214102102414386
     },
     {
       "profile": 134,
@@ -4069,24 +2570,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        50.992638822562675,
-        -30.642310075328652
+      "range_m": 0.7848109386833173,
+      "ear_angles_deg": [
+        48.04395425664607,
+        131.95604574335394
       ],
-      "source_measurement_indices": [
-        1251,
-        1250,
-        1228
-      ],
-      "weights": [
-        0.8786995534542641,
-        0.11354350023221302,
-        0.007756946313522749
-      ],
-      "residual_itd_seconds": 0.00036190295306602746,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05826064007017066,
-      "minimum_retained_energy": 0.99998988223949,
-      "max_magnitude_error_db": 0.09116045598928439
+      "residual_itd_seconds": 0.0003797398967418976,
+      "max_magnitude_error_db": 0.00017744494372035343
     },
     {
       "profile": 135,
@@ -4095,24 +2585,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        39.79015803584755,
-        -26.22300890825643
+      "range_m": 0.8486733122632606,
+      "ear_angles_deg": [
+        54.96254182070176,
+        125.03745817929826
       ],
-      "source_measurement_indices": [
-        987,
-        1009,
-        1010
-      ],
-      "weights": [
-        0.21722011671131888,
-        0.027386799205261023,
-        0.7553930840834201
-      ],
-      "residual_itd_seconds": 0.0002971047861895541,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.057645679035806544,
-      "minimum_retained_energy": 0.9999944721638309,
-      "max_magnitude_error_db": 0.06442084444468539
+      "residual_itd_seconds": 0.0003203633537842323,
+      "max_magnitude_error_db": 0.00018098123594793928
     },
     {
       "profile": 136,
@@ -4121,24 +2600,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        46.622168817035515,
-        -32.87886822898134
+      "range_m": 0.7368317863411348,
+      "ear_angles_deg": [
+        52.380464951366605,
+        127.6195350486334
       ],
-      "source_measurement_indices": [
-        1141,
-        1163,
-        1162
-      ],
-      "weights": [
-        0.36601605936034304,
-        0.09100816435567807,
-        0.5429757762839789
-      ],
-      "residual_itd_seconds": 0.0003267206015105331,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.061284211298757045,
-      "minimum_retained_energy": 0.9999866526127902,
-      "max_magnitude_error_db": 0.06820784595044853
+      "residual_itd_seconds": 0.00034332342557936703,
+      "max_magnitude_error_db": 0.00018099734858297668
     },
     {
       "profile": 137,
@@ -4147,24 +2615,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        35.23115841927249,
-        -27.636995529124132
+      "range_m": 0.8084193670989165,
+      "ear_angles_deg": [
+        59.265709192071746,
+        120.73429080792825
       ],
-      "source_measurement_indices": [
-        900,
-        921,
-        899
-      ],
-      "weights": [
-        0.4727456223430288,
-        0.2362463968114404,
-        0.29100798084553076
-      ],
-      "residual_itd_seconds": 0.0002600143039708765,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05775611055556,
-      "minimum_retained_energy": 0.9999945286367232,
-      "max_magnitude_error_db": 0.062246582869712394
+      "residual_itd_seconds": 0.00028284563736914053,
+      "max_magnitude_error_db": 0.00017892949664190087
     },
     {
       "profile": 138,
@@ -4173,24 +2630,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        41.53898636948844,
-        -35.16373778872091
+      "range_m": 0.6945468975241978,
+      "ear_angles_deg": [
+        57.17228699055272,
+        122.8277130094473
       ],
-      "source_measurement_indices": [
-        1053,
-        1052,
-        1030
-      ],
-      "weights": [
-        0.025936628318411314,
-        0.5123178552663211,
-        0.4617455164152676
-      ],
-      "residual_itd_seconds": 0.000283478691265394,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05730999033942818,
-      "minimum_retained_energy": 0.9999746063690433,
-      "max_magnitude_error_db": 0.11577732476191693
+      "residual_itd_seconds": 0.0003019108186082898,
+      "max_magnitude_error_db": 0.00018119887650718588
     },
     {
       "profile": 139,
@@ -4199,24 +2645,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        35.621294371281756,
-        -37.41843286444836
+      "range_m": 0.6582938461832137,
+      "ear_angles_deg": [
+        62.44672332098438,
+        117.55327667901564
       ],
-      "source_measurement_indices": [
-        919,
-        920,
-        898
-      ],
-      "weights": [
-        0.21875288350977337,
-        0.4136059673914966,
-        0.3676411490987301
-      ],
-      "residual_itd_seconds": 0.00023459908973254875,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.056100131121557206,
-      "minimum_retained_energy": 0.9999872359964797,
-      "max_magnitude_error_db": 0.08997175116621872
+      "residual_itd_seconds": 0.0002551433367183458,
+      "max_magnitude_error_db": 0.00017658370513726093
     },
     {
       "profile": 140,
@@ -4225,24 +2660,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        24.702748453313404,
-        -30.214989470532135
+      "range_m": 0.7451623505850904,
+      "ear_angles_deg": [
+        68.83010553796655,
+        111.16989446203345
       ],
-      "source_measurement_indices": [
-        596,
-        624,
-        597
-      ],
-      "weights": [
-        0.040465354248857006,
-        0.7011060376563316,
-        0.25842860809481133
-      ],
-      "residual_itd_seconds": 0.0001771856895412154,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.053401640939925464,
-      "minimum_retained_energy": 0.9999939585081299,
-      "max_magnitude_error_db": 0.0710817352266335
+      "residual_itd_seconds": 0.00019691123084820036,
+      "max_magnitude_error_db": 0.00016548573968624058
     },
     {
       "profile": 141,
@@ -4251,24 +2675,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        28.80549201250299,
-        -39.51293972474967
+      "range_m": 0.628681254510971,
+      "ear_angles_deg": [
+        68.17773813231412,
+        111.82226186768588
       ],
-      "source_measurement_indices": [
-        732,
-        711,
-        733
-      ],
-      "weights": [
-        0.434408890728327,
-        0.18322443558637114,
-        0.3823666736853018
-      ],
-      "residual_itd_seconds": 0.00018375046828028322,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05225771833575574,
-      "minimum_retained_energy": 0.9999930964148233,
-      "max_magnitude_error_db": 0.06594003996407699
+      "residual_itd_seconds": 0.00020322348695753952,
+      "max_magnitude_error_db": 0.00016906761790602863
     },
     {
       "profile": 142,
@@ -4277,24 +2690,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        18.794242140480417,
-        -31.251352971155132
+      "range_m": 0.7228310285777555,
+      "ear_angles_deg": [
+        74.01274698036646,
+        105.98725301963356
       ],
-      "source_measurement_indices": [
-        464,
-        476,
-        443
-      ],
-      "weights": [
-        0.23616035231676397,
-        0.6944125263097173,
-        0.0694271213735187
-      ],
-      "residual_itd_seconds": 0.0001320715224419692,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05440035495890134,
-      "minimum_retained_energy": 0.9999965892912349,
-      "max_magnitude_error_db": 0.05681060509071991
+      "residual_itd_seconds": 0.00014927666462779797,
+      "max_magnitude_error_db": 0.00015408049721193917
     },
     {
       "profile": 143,
@@ -4303,24 +2705,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        21.155911014199138,
-        -41.2748121932551
+      "range_m": 0.6063625554564366,
+      "ear_angles_deg": [
+        74.26186089077767,
+        105.73813910922233
       ],
-      "source_measurement_indices": [
-        530,
-        529,
-        551
-      ],
-      "weights": [
-        0.3843607959286581,
-        0.4504831460531197,
-        0.1651560580182222
-      ],
-      "residual_itd_seconds": 0.0001346413802322695,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.017898899674057476,
-      "minimum_retained_energy": 0.9999943239797483,
-      "max_magnitude_error_db": 0.058607735988630394
+      "residual_itd_seconds": 0.0001471887712355979,
+      "max_magnitude_error_db": 0.00015428493202067047
     },
     {
       "profile": 144,
@@ -4329,24 +2720,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        12.587232875065261,
-        -32.03087206159721
+      "range_m": 0.7070453919475024,
+      "ear_angles_deg": [
+        79.35348439187831,
+        100.64651560812169
       ],
-      "source_measurement_indices": [
-        306,
-        273,
-        289
-      ],
-      "weights": [
-        0.28542524464103874,
-        0.3314482186510421,
-        0.383126536707919
-      ],
-      "residual_itd_seconds": 8.660700225506817e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05525780274929409,
-      "minimum_retained_energy": 0.9999976677075912,
-      "max_magnitude_error_db": 0.057732184832125916
+      "residual_itd_seconds": 9.967906450088256e-05,
+      "max_magnitude_error_db": 0.00013796068990482875
     },
     {
       "profile": 145,
@@ -4355,24 +2735,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        12.828728415209536,
-        -42.542072689555575
+      "range_m": 0.5916009700619786,
+      "ear_angles_deg": [
+        80.58449364379572,
+        99.41550635620428
       ],
-      "source_measurement_indices": [
-        304,
-        271,
-        289
-      ],
-      "weights": [
-        0.62674241430029,
-        0.11937340333406668,
-        0.2538841823656433
-      ],
-      "residual_itd_seconds": 8.228353161584377e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.04809431949668629,
-      "minimum_retained_energy": 0.9999955247493776,
-      "max_magnitude_error_db": 0.07160321877249828
+      "residual_itd_seconds": 8.830175889006057e-05,
+      "max_magnitude_error_db": 0.00013613625580628102
     },
     {
       "profile": 146,
@@ -4381,24 +2750,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        4.068110357644798,
-        -43.19216193955472
+      "range_m": 0.5844130807567931,
+      "ear_angles_deg": [
+        87.03526277389112,
+        92.9647372261089
       ],
-      "source_measurement_indices": [
-        96,
-        117,
-        95
-      ],
-      "weights": [
-        0.1868586547690807,
-        0.07007563527189714,
-        0.7430657099590222
-      ],
-      "residual_itd_seconds": 3.1564632241161996e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.015192555285020646,
-      "minimum_retained_energy": 0.9999966856784303,
-      "max_magnitude_error_db": 0.07441674347946103
+      "residual_itd_seconds": 2.7841291818551782e-05,
+      "max_magnitude_error_db": 0.00011687212112486787
     },
     {
       "profile": 147,
@@ -4407,24 +2765,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -0.24461982445056915,
-        -32.66067547175995
+      "range_m": 0.694878577982489,
+      "ear_angles_deg": [
+        90.20594069160704,
+        89.79405930839296
       ],
-      "source_measurement_indices": [
-        7,
-        8,
-        8787
-      ],
-      "weights": [
-        0.501874670782719,
-        0.26057299033709874,
-        0.23755233888018235
-      ],
-      "residual_itd_seconds": 1.8687150088467867e-06,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.04437872410221351,
-      "minimum_retained_energy": 0.9999973817623705,
-      "max_magnitude_error_db": 0.06438708483998803
+      "residual_itd_seconds": -1.932155982960723e-06,
+      "max_magnitude_error_db": 0.0001045366453858411
     },
     {
       "profile": 148,
@@ -4433,24 +2780,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -4.737561914477882,
-        -43.16644126594016
+      "range_m": 0.5846927234289259,
+      "ear_angles_deg": [
+        93.45358772481295,
+        86.54641227518705
       ],
-      "source_measurement_indices": [
-        8697,
-        8720,
-        8719
-      ],
-      "weights": [
-        0.7591162660472928,
-        0.1895697620764336,
-        0.051313971876273574
-      ],
-      "residual_itd_seconds": -1.980202546668406e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.01929601510974104,
-      "minimum_retained_energy": 0.9999984411940447,
-      "max_magnitude_error_db": 0.06723246009808216
+      "residual_itd_seconds": -3.2430341054109365e-05,
+      "max_magnitude_error_db": 0.00011767660864087815
     },
     {
       "profile": 149,
@@ -4459,24 +2795,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -6.555256865490238,
-        -32.4904009611617
+      "range_m": 0.6981182226036002,
+      "ear_angles_deg": [
+        95.52574463479641,
+        84.47425536520359
       ],
-      "source_measurement_indices": [
-        8654,
-        8677,
-        8655
-      ],
-      "weights": [
-        0.4697242737575457,
-        0.43271031385165615,
-        0.0975654123907981
-      ],
-      "residual_itd_seconds": -4.109679852603927e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.02486771805233167,
-      "minimum_retained_energy": 0.999996299726638,
-      "max_magnitude_error_db": 0.06920107468538006
+      "residual_itd_seconds": -5.1814531773277263e-05,
+      "max_magnitude_error_db": 0.00012243775120649532
     },
     {
       "profile": 150,
@@ -4485,24 +2810,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -13.141597772953167,
-        -42.506134108970954
+      "range_m": 0.5920057290262033,
+      "ear_angles_deg": [
+        99.64887264673203,
+        80.35112735326797
       ],
-      "source_measurement_indices": [
-        8491,
-        8511,
-        8510
-      ],
-      "weights": [
-        0.4907368311188799,
-        0.2575533707643776,
-        0.25170979811674243
-      ],
-      "residual_itd_seconds": -7.070194451184717e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.024026733811708383,
-      "minimum_retained_energy": 0.9999975893108272,
-      "max_magnitude_error_db": 0.06009688850730767
+      "residual_itd_seconds": -9.048350577356751e-05,
+      "max_magnitude_error_db": 0.00013773115486737913
     },
     {
       "profile": 151,
@@ -4511,24 +2825,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -20.884840294091024,
-        -41.32646111870385
+      "range_m": 0.6057407046513577,
+      "ear_angles_deg": [
+        105.5280478579252,
+        74.47195214207481
       ],
-      "source_measurement_indices": [
-        8303,
-        8285,
-        8318
-      ],
-      "weights": [
-        0.6209899770785611,
-        0.32720517224804674,
-        0.05180485067339213
-      ],
-      "residual_itd_seconds": -0.0001217412820153558,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.033285374475590025,
-      "minimum_retained_energy": 0.9999960002671004,
-      "max_magnitude_error_db": 0.18523348841279572
+      "residual_itd_seconds": -0.0001452409862165344,
+      "max_magnitude_error_db": 0.0001537014378339558
     },
     {
       "profile": 152,
@@ -4537,24 +2840,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -18.268243777175957,
-        -31.329607902922124
+      "range_m": 0.7212085072384284,
+      "ear_angles_deg": [
+        105.53100302852664,
+        74.46899697147336
       ],
-      "source_measurement_indices": [
-        8359,
-        8374,
-        8341
-      ],
-      "weights": [
-        0.25090158454952866,
-        0.5793081214744346,
-        0.16979029397603684
-      ],
-      "residual_itd_seconds": -0.00012637833904300568,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.0330441346259337,
-      "minimum_retained_energy": 0.9999928692757208,
-      "max_magnitude_error_db": 0.08420595204364131
+      "residual_itd_seconds": -0.00014505697403179263,
+      "max_magnitude_error_db": 0.00015281123662103942
     },
     {
       "profile": 153,
@@ -4563,24 +2855,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -27.79802429989983,
-        -39.77947723567919
+      "range_m": 0.6251616950450369,
+      "ear_angles_deg": [
+        111.0020063007228,
+        68.99799369927722
       ],
-      "source_measurement_indices": [
-        8121,
-        8103,
-        8136
-      ],
-      "weights": [
-        0.46183832628467286,
-        0.3886578982959616,
-        0.1495037754193656
-      ],
-      "residual_itd_seconds": -0.0001713568251627044,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.03874012931986881,
-      "minimum_retained_energy": 0.9999955007416491,
-      "max_magnitude_error_db": 0.05326880625899102
+      "residual_itd_seconds": -0.00019571641190136167,
+      "max_magnitude_error_db": 0.00016624336365727508
     },
     {
       "profile": 154,
@@ -4589,24 +2870,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -23.496456180991,
-        -30.450198729739956
+      "range_m": 0.7399525592159589,
+      "ear_angles_deg": [
+        110.10250216974276,
+        69.89749783025724
       ],
-      "source_measurement_indices": [
-        8241,
-        8220,
-        8242
-      ],
-      "weights": [
-        0.08485527464021304,
-        0.49402952851198506,
-        0.4211151968478018
-      ],
-      "residual_itd_seconds": -0.00016449220885643258,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.034807913834572025,
-      "minimum_retained_energy": 0.9999899118609655,
-      "max_magnitude_error_db": 0.10123005782045916
+      "residual_itd_seconds": -0.0001871497849487468,
+      "max_magnitude_error_db": 0.00016349614406457595
     },
     {
       "profile": 155,
@@ -4615,24 +2885,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -33.80683063685627,
-        -38.02685114154444
+      "range_m": 0.6493182870352466,
+      "ear_angles_deg": [
+        115.99447082005977,
+        64.00552917994023
       ],
-      "source_measurement_indices": [
-        7959,
-        7937,
-        7938
-      ],
-      "weights": [
-        0.21457630186165316,
-        0.06689743700518391,
-        0.7185262611331629
-      ],
-      "residual_itd_seconds": -0.0002169337668873063,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.04181443854400186,
-      "minimum_retained_energy": 0.9999936199815013,
-      "max_magnitude_error_db": 0.04921238636061192
+      "residual_itd_seconds": -0.00024112266473669044,
+      "max_magnitude_error_db": 0.0001756575697622511
     },
     {
       "profile": 156,
@@ -4641,24 +2900,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -28.238798377588573,
-        -29.454844580168555
+      "range_m": 0.762602043663702,
+      "ear_angles_deg": [
+        114.32990884212761,
+        65.6700911578724
       ],
-      "source_measurement_indices": [
-        8082,
-        8104,
-        8105
-      ],
-      "weights": [
-        0.24001686596515234,
-        0.6507196670095773,
-        0.10926346702527048
-      ],
-      "residual_itd_seconds": -0.0002033181867997509,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.037185506134696664,
-      "minimum_retained_energy": 0.9999892936607221,
-      "max_magnitude_error_db": 0.10630677276757859
+      "residual_itd_seconds": -0.00022563029739471245,
+      "max_magnitude_error_db": 0.00017159180483004171
     },
     {
       "profile": 157,
@@ -4667,24 +2915,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -38.96942369394262,
-        -36.194705833659214
+      "range_m": 0.6773563644908743,
+      "ear_angles_deg": [
+        120.49985319706701,
+        59.500146802932996
       ],
-      "source_measurement_indices": [
-        7849,
-        7827,
-        7828
-      ],
-      "weights": [
-        0.03485621458807725,
-        0.05769572579575354,
-        0.9074480596161693
-      ],
-      "residual_itd_seconds": -0.0002613932230030401,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.04600875437752977,
-      "minimum_retained_energy": 0.9999901044014863,
-      "max_magnitude_error_db": 0.06418305422231732
+      "residual_itd_seconds": -0.00028140920558828006,
+      "max_magnitude_error_db": 0.0001794874505601439
     },
     {
       "profile": 158,
@@ -4693,24 +2930,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -43.40690423565445,
-        -34.36264379979422
+      "range_m": 0.7086809104527995,
+      "ear_angles_deg": [
+        124.55871080446911,
+        55.4412891955309
       ],
-      "source_measurement_indices": [
-        7741,
-        7718,
-        7740
-      ],
-      "weights": [
-        0.17717908142830077,
-        0.41131346755271614,
-        0.4115074510189831
-      ],
-      "residual_itd_seconds": -0.00030004978552823245,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05201852935337804,
-      "minimum_retained_energy": 0.9999874791784632,
-      "max_magnitude_error_db": 0.07293406398148615
+      "residual_itd_seconds": -0.00031700236062150346,
+      "max_magnitude_error_db": 0.00018157837193031855
     },
     {
       "profile": 159,
@@ -4719,24 +2945,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -36.35748548972861,
-        -27.304578141576446
+      "range_m": 0.8174911598386349,
+      "ear_angles_deg": [
+        121.78745203076859,
+        58.21254796923141
       ],
-      "source_measurement_indices": [
-        7895,
-        7896,
-        7874
-      ],
-      "weights": [
-        0.46077698052749255,
-        0.18905558134196151,
-        0.35016743813054607
-      ],
-      "residual_itd_seconds": -0.00027201162553688223,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.04376237712411516,
-      "minimum_retained_energy": 0.9999878558208436,
-      "max_magnitude_error_db": 0.06823266519583698
+      "residual_itd_seconds": -0.0002921029314521316,
+      "max_magnitude_error_db": 0.00017948782910524164
     },
     {
       "profile": 160,
@@ -4745,24 +2960,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -47.218743414333424,
-        -32.588675390379336
+      "range_m": 0.7426602943702396,
+      "ear_angles_deg": [
+        128.19923089570852,
+        51.80076910429149
       ],
-      "source_measurement_indices": [
-        7631,
-        7652,
-        7653
-      ],
-      "weights": [
-        0.21259505142289933,
-        0.48830996183795883,
-        0.29909498673914187
-      ],
-      "residual_itd_seconds": -0.0003300186355989736,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05382233589232864,
-      "minimum_retained_energy": 0.9999887983420161,
-      "max_magnitude_error_db": 0.07463099265129856
+      "residual_itd_seconds": -0.00034825461878369317,
+      "max_magnitude_error_db": 0.0001808295146961264
     },
     {
       "profile": 161,
@@ -4771,24 +2975,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -39.791992032937394,
-        -26.222403410110722
+      "range_m": 0.8486915210962833,
+      "ear_angles_deg": [
+        125.03921131069909,
+        54.96078868930092
       ],
-      "source_measurement_indices": [
-        7829,
-        7807,
-        7808
-      ],
-      "weights": [
-        0.21532284310062663,
-        0.029163730215640622,
-        0.7555134266837328
-      ],
-      "residual_itd_seconds": -0.0003026980494942079,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.048531663631221224,
-      "minimum_retained_energy": 0.9999840126917533,
-      "max_magnitude_error_db": 0.08684679936455034
+      "residual_itd_seconds": -0.00032037846338843354,
+      "max_magnitude_error_db": 0.0001807807171142979
     },
     {
       "profile": 162,
@@ -4797,24 +2990,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -50.483875817007664,
-        -30.915966822137
+      "range_m": 0.77854281175579,
+      "ear_angles_deg": [
+        131.44034723009528,
+        48.55965276990473
       ],
-      "source_measurement_indices": [
-        7587,
-        7565,
-        7564
-      ],
-      "weights": [
-        0.5109868707324098,
-        0.31623701905218715,
-        0.17277611021540307
-      ],
-      "residual_itd_seconds": -0.0003580063581488126,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.0540314420792586,
-      "minimum_retained_energy": 0.9999828866844938,
-      "max_magnitude_error_db": 0.11635198136759714
+      "residual_itd_seconds": -0.0003754669423470809,
+      "max_magnitude_error_db": 0.0001783847898060887
     },
     {
       "profile": 163,
@@ -4823,24 +3005,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -53.30857550611768,
-        -29.351562989207427
+      "range_m": 0.8160482965817555,
+      "ear_angles_deg": [
+        134.34109736943216,
+        45.65890263056784
       ],
-      "source_measurement_indices": [
-        7499,
-        7522,
-        7521
-      ],
-      "weights": [
-        0.31044490380485495,
-        0.12995272192017915,
-        0.559602374274966
-      ],
-      "residual_itd_seconds": -0.0003829843329566917,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.055404347596365845,
-      "minimum_retained_energy": 0.999981376553618,
-      "max_magnitude_error_db": 0.13051938452366507
+      "residual_itd_seconds": -0.0003992874927880847,
+      "max_magnitude_error_db": 0.00017499432567014795
     },
     {
       "profile": 164,
@@ -4849,24 +3020,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -45.603412301491225,
-        -24.15503538277685
+      "range_m": 0.9164064014553243,
+      "ear_angles_deg": [
+        130.68897940384548,
+        49.311020596154535
       ],
-      "source_measurement_indices": [
-        7698,
-        7677,
-        7676
-      ],
-      "weights": [
-        0.3989342184320189,
-        0.11298748693314901,
-        0.4880782946348322
-      ],
-      "residual_itd_seconds": -0.0003528846505717296,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05956511608720175,
-      "minimum_retained_energy": 0.9999754182879926,
-      "max_magnitude_error_db": 0.1008771942995638
+      "residual_itd_seconds": -0.0003682381374589628,
+      "max_magnitude_error_db": 0.00017927038039646962
     },
     {
       "profile": 165,
@@ -4875,24 +3035,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -55.765005260117036,
-        -27.90099566346767
+      "range_m": 0.8548009980704679,
+      "ear_angles_deg": [
+        136.93966520448245,
+        43.060334795517576
       ],
-      "source_measurement_indices": [
-        7456,
-        7455,
-        7477
-      ],
-      "weights": [
-        0.4199801423499697,
-        0.340429564988104,
-        0.2395902926619263
-      ],
-      "residual_itd_seconds": -0.0004067479331194822,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05568873787183559,
-      "minimum_retained_energy": 0.9999839853079627,
-      "max_magnitude_error_db": 0.10164324835659365
+      "residual_itd_seconds": -0.00042015092728333605,
+      "max_magnitude_error_db": 0.00017032008576180983
     },
     {
       "profile": 166,
@@ -4901,24 +3050,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -48.0587913305207,
-        -23.192269105861637
+      "range_m": 0.9522167781620324,
+      "ear_angles_deg": [
+        133.1350974678273,
+        46.86490253217271
       ],
-      "source_measurement_indices": [
-        7611,
-        7633,
-        7632
-      ],
-      "weights": [
-        0.05657648006118697,
-        0.18474839167172835,
-        0.7586751282670846
-      ],
-      "residual_itd_seconds": -0.0003729410954020271,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06337988603440105,
-      "minimum_retained_energy": 0.9999745345871465,
-      "max_magnitude_error_db": 0.0948501906855306
+      "residual_itd_seconds": -0.0003884009621797226,
+      "max_magnitude_error_db": 0.0001764976425131294
     },
     {
       "profile": 167,
@@ -4927,24 +3065,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -57.901727286937906,
-        -26.5703589728685
+      "range_m": 0.8942615087253516,
+      "ear_angles_deg": [
+        139.25905259953376,
+        40.74094740046627
       ],
-      "source_measurement_indices": [
-        7401,
-        7434,
-        7418
-      ],
-      "weights": [
-        0.6790007918739952,
-        0.006842939431084397,
-        0.31415626869492047
-      ],
-      "residual_itd_seconds": -0.00042735627410516423,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05526781639488082,
-      "minimum_retained_energy": 0.9999833953772689,
-      "max_magnitude_error_db": 0.09867218190841064
+      "residual_itd_seconds": -0.0004383774576991702,
+      "max_magnitude_error_db": 0.0001663212728871156
     },
     {
       "profile": 168,
@@ -4953,24 +3080,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -50.25380171055624,
-        -22.286962580161187
+      "range_m": 0.9888050862538617,
+      "ear_angles_deg": [
+        135.3526519653176,
+        44.64734803468244
       ],
-      "source_measurement_indices": [
-        7589,
-        7566,
-        7588
-      ],
-      "weights": [
-        0.36199796884460406,
-        0.2586125733717004,
-        0.3793894577836956
-      ],
-      "residual_itd_seconds": -0.0003907612276612039,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06369661456414463,
-      "minimum_retained_energy": 0.9999726812709194,
-      "max_magnitude_error_db": 0.09204678661179563
+      "residual_itd_seconds": -0.00040635141475362625,
+      "max_magnitude_error_db": 0.00017254620424790574
     },
     {
       "profile": 169,
@@ -4979,24 +3095,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -59.77219057335902,
-        -25.352777800381993
+      "range_m": 0.9341637051129632,
+      "ear_angles_deg": [
+        141.33520893313442,
+        38.66479106686556
       ],
-      "source_measurement_indices": [
-        7346,
-        7368,
-        7367
-      ],
-      "weights": [
-        0.7697657923421639,
-        0.15972600600294468,
-        0.07050820165489155
-      ],
-      "residual_itd_seconds": -0.00044598920467578954,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05626531478284953,
-      "minimum_retained_energy": 0.9999802078002077,
-      "max_magnitude_error_db": 0.11455773764737241
+      "residual_itd_seconds": -0.0004543561837488593,
+      "max_magnitude_error_db": 0.000162250862510551
     },
     {
       "profile": 170,
@@ -5005,24 +3110,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -61.428124046304724,
-        -24.23383651674928
+      "range_m": 0.9745125435606449,
+      "ear_angles_deg": [
+        143.20918751672394,
+        36.790812483276056
       ],
-      "source_measurement_indices": [
-        7324,
-        7303,
-        7302
-      ],
-      "weights": [
-        0.5749395610119699,
-        0.10247059704286508,
-        0.322589841945165
-      ],
-      "residual_itd_seconds": -0.00046050777971732334,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06428119279745285,
-      "minimum_retained_energy": 0.9999762595245149,
-      "max_magnitude_error_db": 0.11077394687974725
+      "residual_itd_seconds": -0.00046850391042222334,
+      "max_magnitude_error_db": 0.00015954008412038167
     },
     {
       "profile": 171,
@@ -5031,24 +3125,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -54.01093653781975,
-        -20.640710400400152
+      "range_m": 1.063809692821064,
+      "ear_angles_deg": [
+        139.21715045304882,
+        40.782849546951184
       ],
-      "source_measurement_indices": [
-        7479,
-        7501,
-        7500
-      ],
-      "weights": [
-        0.010709343310007682,
-        0.5704204412422321,
-        0.4188702154477602
-      ],
-      "residual_itd_seconds": -0.00042426097501261896,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06843984645545874,
-      "minimum_retained_energy": 0.9999657841114752,
-      "max_magnitude_error_db": 0.09904585848911789
+      "residual_itd_seconds": -0.000436859199126278,
+      "max_magnitude_error_db": 0.00016652187077225445
     },
     {
       "profile": 172,
@@ -5057,24 +3140,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -62.902076828422295,
-        -23.20567418248621
+      "range_m": 1.0151435754854092,
+      "ear_angles_deg": [
+        144.90565743197348,
+        35.09434256802653
       ],
-      "source_measurement_indices": [
-        7269,
-        7303,
-        7270
-      ],
-      "weights": [
-        0.7604480730461152,
-        0.0942249706203957,
-        0.1453269563334892
-      ],
-      "residual_itd_seconds": -0.0004736780134207109,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06428119279745285,
-      "minimum_retained_energy": 0.9999720750826709,
-      "max_magnitude_error_db": 0.15337538638306203
+      "residual_itd_seconds": -0.00048105375958389893,
+      "max_magnitude_error_db": 0.0001551567779377902
     },
     {
       "profile": 173,
@@ -5083,24 +3155,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -55.62426426375069,
-        -19.896928268043307
+      "range_m": 1.1018744998909913,
+      "ear_angles_deg": [
+        140.90345067777406,
+        39.09654932222596
       ],
-      "source_measurement_indices": [
-        7479,
-        7456,
-        7457
-      ],
-      "weights": [
-        0.3697668510614046,
-        0.3197273553322411,
-        0.31050579360635433
-      ],
-      "residual_itd_seconds": -0.000438193481319479,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06690182678463362,
-      "minimum_retained_energy": 0.9999627176694323,
-      "max_magnitude_error_db": 0.10720044583241084
+      "residual_itd_seconds": -0.0004498364689095778,
+      "max_magnitude_error_db": 0.00016295992108575753
     },
     {
       "profile": 174,
@@ -5109,24 +3170,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -64.21387016482984,
-        -22.265376761082482
+      "range_m": 1.0556958869817346,
+      "ear_angles_deg": [
+        146.43793460797994,
+        33.56206539202007
       ],
-      "source_measurement_indices": [
-        7237,
-        7214,
-        7236
-      ],
-      "weights": [
-        0.36486416638107333,
-        0.21795709587444315,
-        0.4171787377444835
-      ],
-      "residual_itd_seconds": -0.00048618018954529586,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.0641021306425623,
-      "minimum_retained_energy": 0.9999683523656365,
-      "max_magnitude_error_db": 0.20542714792695485
+      "residual_itd_seconds": -0.0004922217736414064,
+      "max_magnitude_error_db": 0.00016153343860671274
     },
     {
       "profile": 175,
@@ -5135,24 +3185,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -65.39348365767377,
-        -21.399766346610786
+      "range_m": 1.0962718911426053,
+      "ear_angles_deg": [
+        147.83374194655326,
+        32.166258053446754
       ],
-      "source_measurement_indices": [
-        7214,
-        7215,
-        7202
-      ],
-      "weights": [
-        0.5198617006004248,
-        0.05423134166477245,
-        0.4259069577348027
-      ],
-      "residual_itd_seconds": -0.0004970396907501266,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06354561199233523,
-      "minimum_retained_energy": 0.9999662565817766,
-      "max_magnitude_error_db": 0.16863887237854502
+      "residual_itd_seconds": -0.0005022060776914118,
+      "max_magnitude_error_db": 0.00016932352054190112
     },
     {
       "profile": 176,
@@ -5161,24 +3200,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -58.42311795436905,
-        -18.555258394779212
+      "range_m": 1.1784333097103918,
+      "ear_angles_deg": [
+        143.8671694625857,
+        36.13283053741429
       ],
-      "source_measurement_indices": [
-        7387,
-        7369,
-        7368
-      ],
-      "weights": [
-        0.8183416616045742,
-        0.04073376353934362,
-        0.14092457485608217
-      ],
-      "residual_itd_seconds": -0.0004611236940707053,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06678766210015248,
-      "minimum_retained_energy": 0.9999559114771053,
-      "max_magnitude_error_db": 0.11550875763704987
+      "residual_itd_seconds": -0.00047214518146649985,
+      "max_magnitude_error_db": 0.00015759089547377455
     },
     {
       "profile": 177,
@@ -5187,24 +3215,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -66.45906915803187,
-        -20.601729334671575
+      "range_m": 1.1367837912010665,
+      "ear_angles_deg": [
+        149.10907440890819,
+        30.89092559109181
       ],
-      "source_measurement_indices": [
-        7186,
-        7187,
-        7165
-      ],
-      "weights": [
-        0.4135886416175141,
-        0.13677939681647627,
-        0.44963196156600965
-      ],
-      "residual_itd_seconds": -0.0005074455386873351,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05917591967510954,
-      "minimum_retained_energy": 0.9999626874986522,
-      "max_magnitude_error_db": 0.13907881376976888
+      "residual_itd_seconds": -0.0005111705104261837,
+      "max_magnitude_error_db": 0.00017544978172937456
     },
     {
       "profile": 178,
@@ -5213,24 +3230,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -59.64182534644611,
-        -17.951127804231813
+      "range_m": 1.216720073114599,
+      "ear_angles_deg": [
+        145.17273074010498,
+        34.82726925989501
       ],
-      "source_measurement_indices": [
-        7347,
-        7369,
-        7368
-      ],
-      "weights": [
-        0.6399009124924059,
-        0.29988503703296193,
-        0.060214050474632186
-      ],
-      "residual_itd_seconds": -0.00047095697728622956,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.06678766210015248,
-      "minimum_retained_energy": 0.999951395056205,
-      "max_magnitude_error_db": 0.11611091906980131
+      "residual_itd_seconds": -0.0004817530498303309,
+      "max_magnitude_error_db": 0.00015966832244447744
     },
     {
       "profile": 179,
@@ -5239,24 +3245,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -67.42054093439911,
-        -19.868750142427903
+      "range_m": 1.1769321729613098,
+      "ear_angles_deg": [
+        150.2714338486243,
+        29.728566151375713
       ],
-      "source_measurement_indices": [
-        7143,
-        7165,
-        7164
-      ],
-      "weights": [
-        0.4139374987578046,
-        0.27009229084038755,
-        0.3159702104018078
-      ],
-      "residual_itd_seconds": -0.0005164045279280484,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05978720441898721,
-      "minimum_retained_energy": 0.999959409726693,
-      "max_magnitude_error_db": 0.08634546797210589
+      "residual_itd_seconds": -0.0005192565378389014,
+      "max_magnitude_error_db": 0.00018064657968256046
     },
     {
       "profile": 180,
@@ -5265,24 +3260,13 @@
         0.135,
         0.025
       ],
-      "azimuth_elevation_deg": [
-        -60.7544622903102,
-        -17.389261360394713
+      "range_m": 1.2547599785072798,
+      "ear_angles_deg": [
+        146.37255587662997,
+        33.627444123370026
       ],
-      "source_measurement_indices": [
-        7347,
-        7325,
-        7326
-      ],
-      "weights": [
-        0.24568234746120107,
-        0.7098254833538733,
-        0.044492169184925705
-      ],
-      "residual_itd_seconds": -0.00047888094407053957,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.07772348115810493,
-      "minimum_retained_energy": 0.9999479905145392,
-      "max_magnitude_error_db": 0.11286249028930234
+      "residual_itd_seconds": -0.000490487526703325,
+      "max_magnitude_error_db": 0.00016633045484648848
     },
     {
       "profile": 181,
@@ -5291,24 +3275,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -68.29188170699987,
-        -19.194072606976533
+      "range_m": 1.2166599182219118,
+      "ear_angles_deg": [
+        151.33423719083038,
+        28.665762809169657
       ],
-      "source_measurement_indices": [
-        7143,
-        7120,
-        7121
-      ],
-      "weights": [
-        0.7001560016370199,
-        0.226075675136409,
-        0.0737683232265711
-      ],
-      "residual_itd_seconds": -0.0005244623698282524,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05978720441898721,
-      "minimum_retained_energy": 0.9999564111830213,
-      "max_magnitude_error_db": 0.08818140940933271
+      "residual_itd_seconds": -0.0005265552945310161,
+      "max_magnitude_error_db": 0.00018659725379089985
     },
     {
       "profile": 182,
@@ -5317,24 +3290,13 @@
         -0.025,
         0.0
       ],
-      "azimuth_elevation_deg": [
-        -69.08880833805655,
-        -18.5684948863146
+      "range_m": 1.2561310436598043,
+      "ear_angles_deg": [
+        152.31399359256636,
+        27.686006407433666
       ],
-      "source_measurement_indices": [
-        7099,
-        7120,
-        7121
-      ],
-      "weights": [
-        0.08818177790233228,
-        0.1426873107634199,
-        0.7691309113342479
-      ],
-      "residual_itd_seconds": -0.000532034167895912,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.059557282646198244,
-      "minimum_retained_energy": 0.9999536954217176,
-      "max_magnitude_error_db": 0.09044179496822957
+      "residual_itd_seconds": -0.0005331620274100087,
+      "max_magnitude_error_db": 0.0001920247752016429
     },
     {
       "profile": 183,
@@ -5343,24 +3305,13 @@
         0.0,
         0.012
       ],
-      "azimuth_elevation_deg": [
-        -0.0,
-        -40.768642192533726
+      "range_m": 0.5941750583792625,
+      "ear_angles_deg": [
+        90.0,
+        90.0
       ],
-      "source_measurement_indices": [
-        7,
-        8785,
-        6
-      ],
-      "weights": [
-        0.4363723843109553,
-        0.0,
-        0.5636276156890446
-      ],
-      "residual_itd_seconds": 6.119218616659684e-06,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.017590528837428003,
-      "minimum_retained_energy": 0.9999982629151771,
-      "max_magnitude_error_db": 0.05300178164755035
+      "residual_itd_seconds": 1.9433165885499688e-23,
+      "max_magnitude_error_db": 0.00010517914057468959
     },
     {
       "profile": 184,
@@ -5369,24 +3320,13 @@
         0.0,
         0.012
       ],
-      "azimuth_elevation_deg": [
-        1.0184843477131498,
-        -40.764165169627674
+      "range_m": 0.5942289121205733,
+      "ear_angles_deg": [
+        89.22861362988905,
+        90.77138637011095
       ],
-      "source_measurement_indices": [
-        52,
-        30,
-        29
-      ],
-      "weights": [
-        0.01709450773863988,
-        0.4197464295599658,
-        0.5631590627013944
-      ],
-      "residual_itd_seconds": 1.2547571286021409e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.0317900144480031,
-      "minimum_retained_energy": 0.9999984070130089,
-      "max_magnitude_error_db": 0.05308852711403174
+      "residual_itd_seconds": 7.24410854075274e-06,
+      "max_magnitude_error_db": 0.00010743478224733035
     },
     {
       "profile": 185,
@@ -5395,24 +3335,13 @@
         0.0,
         0.012
       ],
-      "azimuth_elevation_deg": [
-        -1.0184843477131498,
-        -40.764165169627674
+      "range_m": 0.5942289121205733,
+      "ear_angles_deg": [
+        90.77138637011095,
+        89.22861362988905
       ],
-      "source_measurement_indices": [
-        8764,
-        8785,
-        8786
-      ],
-      "weights": [
-        0.017094507738637528,
-        0.5631590627013942,
-        0.41974642955996827
-      ],
-      "residual_itd_seconds": 3.45436885571689e-07,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.015819882863270893,
-      "minimum_retained_energy": 0.9999986663977911,
-      "max_magnitude_error_db": 0.0482117778705533
+      "residual_itd_seconds": -7.24410854075274e-06,
+      "max_magnitude_error_db": 0.00010743478224733035
     },
     {
       "profile": 186,
@@ -5421,24 +3350,13 @@
         0.0,
         0.012
       ],
-      "azimuth_elevation_deg": [
-        2.0363254547982756,
-        -40.75074320806376
+      "range_m": 0.5943904440685432,
+      "ear_angles_deg": [
+        88.45750679929695,
+        91.54249320070305
       ],
-      "source_measurement_indices": [
-        52,
-        73,
-        51
-      ],
-      "weights": [
-        0.43822897806369104,
-        0.03878178977696325,
-        0.5229892321593458
-      ],
-      "residual_itd_seconds": 1.970127897697743e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.0317900144480031,
-      "minimum_retained_energy": 0.9999982065683377,
-      "max_magnitude_error_db": 0.05235513678006302
+      "residual_itd_seconds": 1.4485178070481005e-05,
+      "max_magnitude_error_db": 0.00011150230112145702
     },
     {
       "profile": 187,
@@ -5447,24 +3365,13 @@
         0.0,
         0.012
       ],
-      "azimuth_elevation_deg": [
-        -2.0363254547982756,
-        -40.75074320806376
+      "range_m": 0.5943904440685432,
+      "ear_angles_deg": [
+        91.54249320070305,
+        88.45750679929695
       ],
-      "source_measurement_indices": [
-        8764,
-        8741,
-        8763
-      ],
-      "weights": [
-        0.4382289780636911,
-        0.038781789776970756,
-        0.5229892321593382
-      ],
-      "residual_itd_seconds": -5.706697212155038e-06,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.017290847460993915,
-      "minimum_retained_energy": 0.9999982907228333,
-      "max_magnitude_error_db": 0.04869989220786558
+      "residual_itd_seconds": -1.4485178070481006e-05,
+      "max_magnitude_error_db": 0.00011150230112145702
     },
     {
       "profile": 188,
@@ -5473,24 +3380,13 @@
         0.0,
         0.012
       ],
-      "azimuth_elevation_deg": [
-        3.052882514792428,
-        -40.72840357628288
+      "range_m": 0.5946595664748024,
+      "ear_angles_deg": [
+        87.68695844041233,
+        92.31304155958769
       ],
-      "source_measurement_indices": [
-        96,
-        73,
-        74
-      ],
-      "weights": [
-        0.04893211708250583,
-        0.559466536175103,
-        0.3916013467423912
-      ],
-      "residual_itd_seconds": 2.4963854872588488e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.01354720593662974,
-      "minimum_retained_energy": 0.9999980777130129,
-      "max_magnitude_error_db": 0.051847029168939504
+      "residual_itd_seconds": 2.1720169931246526e-05,
+      "max_magnitude_error_db": 0.00011373505867258782
     },
     {
       "profile": 189,
@@ -5499,24 +3395,13 @@
         0.0,
         0.012
       ],
-      "azimuth_elevation_deg": [
-        -3.052882514792428,
-        -40.72840357628288
+      "range_m": 0.5946595664748024,
+      "ear_angles_deg": [
+        92.31304155958769,
+        87.68695844041233
       ],
-      "source_measurement_indices": [
-        8720,
-        8742,
-        8741
-      ],
-      "weights": [
-        0.04893211708247823,
-        0.3916013467424188,
-        0.559466536175103
-      ],
-      "residual_itd_seconds": -1.2069699050392106e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.017129016185286516,
-      "minimum_retained_energy": 0.9999987007440521,
-      "max_magnitude_error_db": 0.04842914397070472
+      "residual_itd_seconds": -2.1720169931246533e-05,
+      "max_magnitude_error_db": 0.00011373505867258782
     },
     {
       "profile": 190,
@@ -5525,24 +3410,13 @@
         0.0,
         0.012
       ],
-      "azimuth_elevation_deg": [
-        4.067519566580148,
-        -40.69719154557024
+      "range_m": 0.5950361333566223,
+      "ear_angles_deg": [
+        86.91724627405833,
+        93.08275372594166
       ],
-      "source_measurement_indices": [
-        96,
-        117,
-        95
-      ],
-      "weights": [
-        0.44374952893268654,
-        0.07214241224760733,
-        0.4841080588197061
-      ],
-      "residual_itd_seconds": 3.097369026412456e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.015192555285020646,
-      "minimum_retained_energy": 0.9999977865029941,
-      "max_magnitude_error_db": 0.052166898679879205
+      "residual_itd_seconds": 2.8946043283444666e-05,
+      "max_magnitude_error_db": 0.00011576311645016107
     },
     {
       "profile": 191,
@@ -5551,24 +3425,13 @@
         0.0,
         0.012
       ],
-      "azimuth_elevation_deg": [
-        -4.067519566580148,
-        -40.69719154557024
+      "range_m": 0.5950361333566223,
+      "ear_angles_deg": [
+        93.08275372594166,
+        86.91724627405833
       ],
-      "source_measurement_indices": [
-        8697,
-        8720,
-        8719
-      ],
-      "weights": [
-        0.07214241224758804,
-        0.44374952893268627,
-        0.4841080588197257
-      ],
-      "residual_itd_seconds": -1.8232227143227795e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.01929601510974104,
-      "minimum_retained_energy": 0.9999984614567727,
-      "max_magnitude_error_db": 0.04907273709172471
+      "residual_itd_seconds": -2.8946043283444666e-05,
+      "max_magnitude_error_db": 0.00011576311645016107
     },
     {
       "profile": 192,
@@ -5577,24 +3440,13 @@
         0.0,
         0.012
       ],
-      "azimuth_elevation_deg": [
-        5.07960786001457,
-        -40.657170128050275
+      "range_m": 0.5955199408919907,
+      "ear_angles_deg": [
+        86.14864621221405,
+        93.85135378778597
       ],
-      "source_measurement_indices": [
-        140,
-        118,
-        117
-      ],
-      "weights": [
-        0.07373880160945805,
-        0.3741317036411683,
-        0.5521294947493737
-      ],
-      "residual_itd_seconds": 3.689437012538912e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05261973217585318,
-      "minimum_retained_energy": 0.9999977780124178,
-      "max_magnitude_error_db": 0.0510414804013387
+      "residual_itd_seconds": 3.615975996274871e-05,
+      "max_magnitude_error_db": 0.0001193550453188719
     },
     {
       "profile": 193,
@@ -5603,24 +3455,13 @@
         0.0,
         0.012
       ],
-      "azimuth_elevation_deg": [
-        -5.07960786001457,
-        -40.657170128050275
+      "range_m": 0.5955199408919907,
+      "ear_angles_deg": [
+        93.85135378778597,
+        86.14864621221405
       ],
-      "source_measurement_indices": [
-        8697,
-        8698,
-        8676
-      ],
-      "weights": [
-        0.5521294947493739,
-        0.3741317036411753,
-        0.07373880160945086
-      ],
-      "residual_itd_seconds": -2.4835933285930317e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.01929601510974104,
-      "minimum_retained_energy": 0.999998292316055,
-      "max_magnitude_error_db": 0.04947048182136925
+      "residual_itd_seconds": -3.615975996274871e-05,
+      "max_magnitude_error_db": 0.0001193550453188719
     },
     {
       "profile": 194,
@@ -5629,24 +3470,13 @@
         0.0,
         0.012
       ],
-      "azimuth_elevation_deg": [
-        6.088528154195175,
-        -40.608419714173465
+      "range_m": 0.5961107279692255,
+      "ear_angles_deg": [
+        85.38143177028779,
+        94.61856822971221
       ],
-      "source_measurement_indices": [
-        140,
-        139,
-        161
-      ],
-      "weights": [
-        0.4528879499638654,
-        0.45239818359335127,
-        0.09471386644278343
-      ],
-      "residual_itd_seconds": 4.156826474745126e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.05261973217585318,
-      "minimum_retained_energy": 0.9999977957236905,
-      "max_magnitude_error_db": 0.05041638970828148
+      "residual_itd_seconds": 4.335830871750843e-05,
+      "max_magnitude_error_db": 0.00012111841410275254
     },
     {
       "profile": 195,
@@ -5655,24 +3485,13 @@
         0.0,
         0.012
       ],
-      "azimuth_elevation_deg": [
-        -6.088528154195175,
-        -40.608419714173465
+      "range_m": 0.5961107279692255,
+      "ear_angles_deg": [
+        94.61856822971221,
+        85.38143177028779
       ],
-      "source_measurement_indices": [
-        8653,
-        8675,
-        8676
-      ],
-      "weights": [
-        0.094713866442789,
-        0.4523981835933459,
-        0.4528879499638652
-      ],
-      "residual_itd_seconds": -3.147045584797825e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.01837421956761502,
-      "minimum_retained_energy": 0.9999979070897492,
-      "max_magnitude_error_db": 0.05175459164257052
+      "residual_itd_seconds": -4.335830871750843e-05,
+      "max_magnitude_error_db": 0.00012111841410275254
     },
     {
       "profile": 196,
@@ -5681,24 +3500,13 @@
         0.0,
         0.012
       ],
-      "azimuth_elevation_deg": [
-        7.093672927787108,
-        -40.551037613886635
+      "range_m": 0.5968081768876831,
+      "ear_angles_deg": [
+        84.61587349224054,
+        95.38412650775948
       ],
-      "source_measurement_indices": [
-        183,
-        161,
-        162
-      ],
-      "weights": [
-        0.10030332578495384,
-        0.44090499362521274,
-        0.45879168058983355
-      ],
-      "residual_itd_seconds": 4.9540686287641994e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.01436645304435337,
-      "minimum_retained_energy": 0.9999976895640764,
-      "max_magnitude_error_db": 0.051162265370994636
+      "residual_itd_seconds": 5.053873729222036e-05,
+      "max_magnitude_error_db": 0.0001236909411367823
     },
     {
       "profile": 197,
@@ -5707,24 +3515,13 @@
         0.0,
         0.012
       ],
-      "azimuth_elevation_deg": [
-        -7.093672927787108,
-        -40.551037613886635
+      "range_m": 0.5968081768876831,
+      "ear_angles_deg": [
+        95.38412650775948,
+        84.61587349224054
       ],
-      "source_measurement_indices": [
-        8653,
-        8654,
-        8632
-      ],
-      "weights": [
-        0.5412083194101668,
-        0.3718882433505965,
-        0.0869034372392368
-      ],
-      "residual_itd_seconds": -3.6731194688970726e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.02158230166609125,
-      "minimum_retained_energy": 0.9999979430720005,
-      "max_magnitude_error_db": 0.0498861249687324
+      "residual_itd_seconds": -5.053873729222036e-05,
+      "max_magnitude_error_db": 0.0001236909411367823
     },
     {
       "profile": 198,
@@ -5733,24 +3530,13 @@
         0.0,
         0.012
       ],
-      "azimuth_elevation_deg": [
-        8.094448482272004,
-        -40.48513750673329
+      "range_m": 0.5976119142051972,
+      "ear_angles_deg": [
+        83.85223839152874,
+        96.14776160847127
       ],
-      "source_measurement_indices": [
-        206,
-        183,
-        184
-      ],
-      "weights": [
-        0.087708463240801,
-        0.5344301830899127,
-        0.37786135366928636
-      ],
-      "residual_itd_seconds": 5.530905400401673e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.051484027779691945,
-      "minimum_retained_energy": 0.9999977140924358,
-      "max_magnitude_error_db": 0.05016428436301676
+      "residual_itd_seconds": 5.769816078660403e-05,
+      "max_magnitude_error_db": 0.00012678382987700392
     },
     {
       "profile": 199,
@@ -5759,24 +3545,13 @@
         0.0,
         0.012
       ],
-      "azimuth_elevation_deg": [
-        -8.094448482272004,
-        -40.48513750673329
+      "range_m": 0.5976119142051972,
+      "ear_angles_deg": [
+        96.14776160847127,
+        83.85223839152874
       ],
-      "source_measurement_indices": [
-        8610,
-        8632,
-        8631
-      ],
-      "weights": [
-        0.08770846324077684,
-        0.3778613536693107,
-        0.5344301830899125
-      ],
-      "residual_itd_seconds": -4.304125881116041e-05,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.02158230166609125,
-      "minimum_retained_energy": 0.9999978772155146,
-      "max_magnitude_error_db": 0.04997996703232582
+      "residual_itd_seconds": -5.769816078660404e-05,
+      "max_magnitude_error_db": 0.00012678382987700392
     },
     {
       "profile": 200,
@@ -5785,24 +3560,13 @@
         0.0,
         -0.12
       ],
-      "azimuth_elevation_deg": [
-        -0.0,
-        -49.12759170251173
+      "range_m": 0.6876772498781678,
+      "ear_angles_deg": [
+        90.0,
+        90.0
       ],
-      "source_measurement_indices": [
-        5,
-        8785,
-        6
-      ],
-      "weights": [
-        0.45870583531248543,
-        4.541636460987594e-17,
-        0.5412941646875146
-      ],
-      "residual_itd_seconds": 5.265637602654305e-06,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.017590528837428003,
-      "minimum_retained_energy": 0.9999993290192005,
-      "max_magnitude_error_db": 0.03972295679199947
+      "residual_itd_seconds": 2.908341361084517e-23,
+      "max_magnitude_error_db": 0.00010308344499205014
     },
     {
       "profile": 201,
@@ -5811,24 +3575,13 @@
         0.0,
         -0.025
       ],
-      "azimuth_elevation_deg": [
-        -0.0,
-        -43.36342295838329
+      "range_m": 0.6189709201569974,
+      "ear_angles_deg": [
+        90.0,
+        90.0
       ],
-      "source_measurement_indices": [
-        7,
-        8785,
-        6
-      ],
-      "weights": [
-        0.16916395474513216,
-        0.0,
-        0.8308360452548679
-      ],
-      "residual_itd_seconds": 7.5626608159434036e-06,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.017590528837428003,
-      "minimum_retained_energy": 0.9999974181463903,
-      "max_magnitude_error_db": 0.07381680004725918
+      "residual_itd_seconds": 3.2590606894604984e-23,
+      "max_magnitude_error_db": 0.00010482798061610468
     },
     {
       "profile": 202,
@@ -5837,47 +3590,14 @@
         -0.025,
         -0.03
       ],
-      "azimuth_elevation_deg": [
-        -0.0,
-        -45.33505921860912
+      "range_m": 0.6045866356445535,
+      "ear_angles_deg": [
+        90.0,
+        90.0
       ],
-      "source_measurement_indices": [
-        5,
-        8785,
-        6
-      ],
-      "weights": [
-        0.0373655701014987,
-        2.3686911270673577e-17,
-        0.9626344298985012
-      ],
-      "residual_itd_seconds": 8.214922847480679e-06,
-      "maximum_vertex_excess_phase_fit_rms_radians": 0.017590528837428003,
-      "minimum_retained_energy": 0.9999969481398635,
-      "max_magnitude_error_db": 0.08405144027043218
+      "residual_itd_seconds": -4.916946283214255e-23,
+      "max_magnitude_error_db": 0.00010478465900898691
     }
   ],
-  "limits": "Measured at1.2m, diffuse-field equalized and LF extended. Scene distance/flight adapts that directional response; no individualized/nearfield-perfect/exacthardware/SPL claim. Extra allpass phase discarded, residual ITD retained separately. No second capsule/head filter.",
-  "dependency_refresh_20261015": {
-    "reason": "Only model radiation calibration/metadata changed; compiled head and all source positions are byte-identical to original geometry dependency, and every emitted source equals the original HRTF receipt profile position. No filter regeneration required.",
-    "old_marimba_model_sha256": "715a5c383fa7e1ea43b3899d6e2459d9ef915035b73d644a40d8e89af92e9c5a",
-    "new_marimba_model_sha256": "0f7453df1f6caaba6d4537698e6c176d478a41bea27efa18beae7c60793ffabc",
-    "compiled_geometry_sha256": "61f53b35a7f8fd8378ab702a3cc0805f481603917005adbe4cc91d9d48f997e1",
-    "head_and_all_sources_identical": true,
-    "source_count": 515,
-    "profile_positions_match_existing_receipt": true,
-    "header_sha256_unchanged": true
-  },
-  "relocation_20261016": {
-    "reason": "Moved with the DSP from the Rack repository (Examples/Maremba) to virtual-instrument-maremba. Only the generator's paths changed: Source/DSP, ThirdParty/ licence texts and this receipt under Docs/; the Rack package copy of the licences is now checked by the Rack adapter. No filter regeneration.",
-    "old_generator_sha256": "0de5c85d2a1ae68f77698ed4685cfe363c208877e8330e115107cdd3afc8b02f",
-    "new_generator_sha256": "fd92ae1e5ac35cf2cbe1403fe51c3c757c3c91c4a23b678983b0787f91f2c075",
-    "header_sha256_unchanged": true
-  },
-  "relocation_20261017": {
-    "reason": "This receipt moved from Docs/validation/capture-20260927/ to Tests/, beside its generator, when the obsolete archived evidence was removed. Only the generator's default --receipt path changed. No filter regeneration.",
-    "old_generator_sha256": "fd92ae1e5ac35cf2cbe1403fe51c3c757c3c91c4a23b678983b0787f91f2c075",
-    "new_generator_sha256": "44ae1711d7dbe4af32e4e80e8776486d2d3ad681e18a67c860439126d2390994",
-    "header_sha256_unchanged": true
-  }
+  "limits": "A sphere has no pinnae, neck or torso: no elevation cues beyond the head's own shadow. Ears on the interaural axis as the scene declares them. Extra all-pass phase discarded; the residual ITD is retained separately."
 }

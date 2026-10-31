@@ -19,33 +19,38 @@ factor `0.6 m / source-to-head-centre distance`. It does not add geometric
 ear-to-ear delay again, an arbitrary stereo pan, or artificial crossfeed between
 the already separate receiver fields.
 
-## Measured response and limits
+## Head response and limits
 
-The data is [SADIE II v2-2, D1 KU100](https://doi.org/10.5281/zenodo.12092466),
-with 8,802 measured directions. The selected SOFA file contains 48 kHz,
-256-sample responses measured at 1.2 metres. The file explicitly identifies
-low-frequency extension, diffuse-field equalization and approximate linear
-phase. Consequently, its shared processing delay is not interpreted as a raw
-1.2-metre flight time, and its response is not described as an unequalized
-capsule response. KU100 uses two pressure microphone capsules in artificial
-ears; the model does not add a directional-microphone proximity boost.
-See the [Neumann product description](https://www.neumann.com/en-ee/products/microphones/ku-100).
+Since 1.6.0 the head is synthesized, not measured. Until then it was SADIE II
+v2-2, D1 KU100 (measured dummy-head impulse responses); the 2026-10-31 audit
+that every Protocodus instrument plays only synthesized sound replaced it.
 
-For each enclosing measured direction the generator reconstructs the
-minimum-phase response. It interpolates those phase-aligned impulse responses
-using spherical-triangle weights and retains 160 taps at 48 kHz. A separately
-fitted 200–2,000 Hz interaural excess-phase slope preserves residual ITD; fitting
-the two ears together cancels common processing delay. Additional all-pass
-phase is not retained. The fixed scene has 203 unique profiles shared by its
-515 source identities. No extra invented pinna or capsule filter is applied.
+The listener's head is a rigid sphere of radius 0.09 m, the distance of each
+`CloseEar` from `CloseHeadCentre` in `CaptureGeometry.h`, so the ears lie on
+the interaural axis. For each source the generator evaluates the exact series
+solution for a point source at that source's own distance from a rigid sphere
+(Duda and Martens, "Range dependence of the response of a spherical head
+model", JASA 104(5), 1998, eq. 4), relative to the free field at the head
+centre: near-field level and head-shadow changes follow from the scene rather
+than from a far-field measurement adapted to it.
 
-The measured far-field directional response is adapted to the closer virtual
-scene through its common distance and propagation. This is a generic binaural
-approximation: distance-dependent changes to the measured head diffraction,
-individual ear anatomy, complete finite-distance wavefront scattering and an
-exact hardware replica are not claimed. Extended bars also use a centre-angle
-HRTF after their receiver-specific signed surface projection, rather than an
-HRTF for every surface quadrature point.
+Each ear is divided by its diffuse-field response, the sphere's power average
+over 2,048 evenly spread directions at 1.2 m, so the head shapes direction
+rather than overall tone, and one broadband trim of −3.64 dB keeps the mean
+of MainCalibrationTest's four Init anchors where the measured set had pinned
+them (the factory Volumes then re-trimmed eight Close-heavy patches). Each ear is then
+faded out over 20–24 kHz (a raised cosine to −60 dB: the 48 kHz table
+cannot hold the head above its Nyquist, and a sphere is still loud there, so
+an unfaded edge would ring once the kernels are resampled for a 96 kHz host),
+made minimum phase and truncated to 160 taps at 48 kHz; a separately fitted
+200–2,000 Hz interaural excess-phase slope gives the residual ITD, which
+agrees with Woodworth's formula within the fit band. The 203 unique profiles
+are shared by the 515 source identities.
+
+A sphere has no pinnae, neck or torso: there are no elevation or front/back
+cues beyond the head's own shadow. Extended bars use a centre-angle response
+after their receiver-specific signed surface projection, rather than one for
+every surface quadrature point.
 
 ## Runtime and validation
 
@@ -72,26 +77,14 @@ Reset replay, rate changes, finite-state handling and subnormal inputs.
 The microbenchmark is a component measurement, not an entire-engine realtime
 guarantee; see the accompanying validation receipt for observed misses.
 
-## Reproduction and redistribution
-
-Download the D1 HRIR SOFA archive from the pinned dataset record, extract
-`D1_48K_24bit_256tap_FIR_SOFA.sofa`, then run:
+## Reproduction
 
 ```sh
-python3 Tests/generate_close_hrtf.py --sofa /path/to/D1_48K_24bit_256tap_FIR_SOFA.sofa
+python3 Tests/generate_close_hrtf.py
 ```
 
-Generation requires NumPy, SciPy and h5py; production has none of these
-dependencies. The script checks the source SHA-256, generates the actual C++
-scene positions, records source/dependency hashes, and publishes the generated
-header atomically. The receipt distinguishes finite-tap error from the separate
-angular and near-field modeling approximations.
-
-The data is Apache-2.0 licensed. Redistributed products containing it must
-include [the license](https://github.com/protocodus/reason-rack-extensions/blob/230f07681f56c3797626910a3f8556f68cfcc725/Examples/Maremba/Resources/Private/Licenses/SADIE-II-LICENSE.txt) and
-[the attribution/modification notice](https://github.com/protocodus/reason-rack-extensions/blob/230f07681f56c3797626910a3f8556f68cfcc725/Examples/Maremba/Resources/Private/Licenses/SADIE-II-NOTICE.txt). The source
-SOFA file is not needed at runtime. The generator copies both notices into
-`Resources/Private/Licenses` for the SDK packer. Run
-`python3 Tests/generate_close_hrtf.py --check` to verify frozen hashes and exact
-equality of canonical and packaged notices, without scientific Python packages
-or the original SOFA file.
+Generation needs NumPy and SciPy; production has no such dependency. The
+script compiles the actual C++ scene positions, records geometry hashes and
+publishes the generated header atomically. `python3 Tests/generate_close_hrtf.py
+--check` (the `Maremba.CloseHrtf` test) verifies the frozen hashes without
+scientific Python packages.

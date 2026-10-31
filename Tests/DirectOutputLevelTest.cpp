@@ -50,10 +50,13 @@ constexpr Expectation kExpected[] = {
     // reaches its core and the bars' upper partials ring as recorded, so the
     // chord's attack peaks rise by up to 2.2 dB (Close) and 1.7 dB (Piezo);
     // every stem stays under its protection ceiling. Kalimba is unchanged.
-    {{{-20.38, -24.64, -8.95}}, {{-29.41, -31.82, -23.27}}},
-    {{{-20.37, -18.27, -12.53}}, {{-29.95, -27.49, -23.70}}},
-    {{{-20.30, -14.95, -13.80}}, {{-29.53, -26.90, -23.78}}},
-    {{{-16.17, -16.61, -8.57}}, {{-25.53, -25.42, -20.06}}},
+    // 1.6.0 replaced Close's measured KU100 head with a synthesized sphere:
+    // Close's anchors are remeasured (the rosewood chord's peak 0.6 dB lower,
+    // the rest within 0.35 dB); Room and Piezo do not pass through it.
+    {{{-20.98, -24.64, -8.95}}, {{-29.32, -31.82, -23.27}}},
+    {{{-20.57, -18.27, -12.53}}, {{-29.68, -27.49, -23.70}}},
+    {{{-20.11, -14.95, -13.80}}, {{-29.80, -26.90, -23.78}}},
+    {{{-16.39, -16.61, -8.57}}, {{-25.68, -25.42, -20.06}}},
 };
 constexpr double kCalibrationToleranceDb = 0.5;
 
