@@ -98,4 +98,5 @@ at 3 N s/m, the most `Round4Response`'s bare-bar floor allows (4f median
 it flattened the stroke-to-stroke variation `Engine` holds. The rosewood
 sympathetic bars take the same tube share (Q factor 1.35 instead of 2). An
 A/B pair (A 1.5.10, B 1.5.11, RMS-matched) was sent for review and not
-committed.
+committed. The owner listened and chose B, the candidate (2026-10-31): chosen by
+ear, which confirms the direction the recordings set; it fits no constant.
