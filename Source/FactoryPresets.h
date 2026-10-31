@@ -142,7 +142,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.0500, // compAmount
         0.0204, // compAttack
         0.0833, // compRelease
-        0.79092981, // volume
+        0.77026106, // volume
         3, // oversampling
         1, // velocityCurve
         1, // polyphony

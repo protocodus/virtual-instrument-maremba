@@ -32,6 +32,12 @@ shipping engine.
 
 ## Version history
 
+### 1.5.13 — 2026-10-31 — Direct Piezo Mallet back at its 1.5.11 Volume
+
+1.5.12's +0.46 dB pushed Direct Piezo Mallet's forte two-note strikes past the
+output guard's 2 dB energy-loss bound, so its Volume returns to 1.5.11's. It
+stays about 0.4 dB quieter than before 1.5.11.
+
 ### 1.5.12 — 2026-10-31 — Direct Piezo Mallet re-levelled
 
 Direct Piezo Mallet's Volume rises 0.46 dB, back to the loudness it had before

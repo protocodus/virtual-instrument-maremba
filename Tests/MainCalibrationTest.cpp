@@ -61,12 +61,12 @@ struct FactoryReference {
 // re-pinned as intended sound changes; their peaks stay in their windows.
 // Its longer fundamentals lifted Soft Yarn Nocturne's peak 0.1 dB out of its
 // window, re-centred on the three rates' mean with the same 0.6 dB width.
-// 1.5.12 raised Direct Piezo's Volume 0.46 dB back onto the Rack bank's
-// velocity-100 reference (-22.6 dBFS); its RMS row is re-pinned, its peak holds.
+// 1.5.12 raised Direct Piezo's Volume 0.46 dB and 1.5.13 took it back: the
+// Rack's Main guard bound (2 dB energy loss) holds it at its 1.5.11 level.
 constexpr std::array<FactoryReference, 20> kFactoryReferences {{
     {"Ambient Cathedral Bloom", -23.6085, -7.8603, -7.0603, false},
     {"Concert Grand Rosewood", -24.3075, -8.8900, -8.0900, false},
-    {"Direct Piezo Mallet", -23.1822, -1.6494, -0.8494, false},
+    {"Direct Piezo Mallet", -23.6156, -1.6494, -0.8494, false},
     {"Hard Acrylic Virtuoso", -24.2774, -2.3296, -1.5296, false},
     {"Rosewood Dampened Etude", -25.3293, -9.6500, -8.8500, false},
     {"Rosewood Roll Chorale", -24.3000, -7.7600, -6.9600, false},
