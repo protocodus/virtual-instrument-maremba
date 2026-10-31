@@ -32,6 +32,11 @@ shipping engine.
 
 ## Version history
 
+### 1.5.12 — 2026-10-31 — Direct Piezo Mallet re-levelled
+
+Direct Piezo Mallet's Volume rises 0.46 dB, back to the loudness it had before
+1.5.11's cord damping made its film pickup quieter.
+
 ### 1.5.11 — 2026-10-31 — longer-ringing rosewood, quicker bass overtones
 
 Measured key by key against the Iowa MIS 2012 concert marimba (cord, yarn and
