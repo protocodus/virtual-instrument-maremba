@@ -20,8 +20,8 @@ shipping engine.
 | # | Preset | Demo | Length | Peak |
 | --- | --- | --- | --- | --- |
 | 1 | Ambient Cathedral Bloom | [01-ambient-cathedral-bloom.wav](Docs/audio/01-ambient-cathedral-bloom.wav) | 12.0 s | -13.6 dBFS |
-| 2 | Concert Grand Rosewood | [02-concert-grand-rosewood.wav](Docs/audio/02-concert-grand-rosewood.wav) | 12.0 s | -8.4 dBFS |
-| 4 | Hard Acrylic Virtuoso | [04-hard-acrylic-virtuoso.wav](Docs/audio/04-hard-acrylic-virtuoso.wav) | 11.5 s | -4.7 dBFS |
+| 2 | Concert Grand Rosewood | [02-concert-grand-rosewood.wav](Docs/audio/02-concert-grand-rosewood.wav) | 12.0 s | -8.5 dBFS |
+| 4 | Hard Acrylic Virtuoso | [04-hard-acrylic-virtuoso.wav](Docs/audio/04-hard-acrylic-virtuoso.wav) | 11.5 s | -4.9 dBFS |
 | 6 | Rosewood Roll Chorale | [06-rosewood-roll-chorale.wav](Docs/audio/06-rosewood-roll-chorale.wav) | 11.4 s | -10.2 dBFS |
 | 9 | Guatemalan Charleo | [09-guatemalan-charleo.wav](Docs/audio/09-guatemalan-charleo.wav) | 11.4 s | -5.1 dBFS |
 | 12 | Birifor Gyil Buzz | [12-birifor-gyil-buzz.wav](Docs/audio/12-birifor-gyil-buzz.wav) | 11.8 s | -5.9 dBFS |
@@ -156,7 +156,7 @@ rubber at ff, C2–C7), which none of this ships:
 ## Downloads
 
 <!-- build-download-begin -->
-**[Download main build 38](https://github.com/protocodus/virtual-instrument-maremba/actions/runs/41136292203/artifacts/13017843097)**, built from [`06143932a81c`](https://github.com/protocodus/virtual-instrument-maremba/commit/06143932a81cfc8085f92b0739ed80944dc546ed). It holds the macOS, Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.
+**[Download main build 39](https://github.com/protocodus/virtual-instrument-maremba/actions/runs/41178549143/artifacts/13034494422)**, built from [`5d31636b7813`](https://github.com/protocodus/virtual-instrument-maremba/commit/5d31636b78130fc74643a49c30dab90a6b98a005). It holds the macOS, Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.
 <!-- build-download-end -->
 
 ---
