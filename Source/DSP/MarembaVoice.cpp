@@ -56,6 +56,20 @@ constexpr double kUpperBendingRadiationGain = 0.08;
 constexpr double kTransverseRadiationGain = 0.15;
 constexpr double kStrainUnit = 640.0;       // nominal pickup units at the C4 strain reference, not coulombs
 constexpr double kSupportUnit = 4.0e-3;     // support force per (m/s) at the cords
+// The two cords' felt as one dashpot (N s/m on the mass-normalised shapes).
+// It takes energy from a mode in proportion to the mode's mean-square motion
+// over the felt, so it barely touches the fundamental, whose nodes the cords
+// sit on, and damps the upper bending modes, which move there. Against the
+// Iowa MIS 2012 concert marimba (cord, yarn and rubber at ff, every key
+// C2-C5), the 4f and 10f partials rang a median 1.26x and 1.24x their
+// recorded T60 without it (1.5-1.7x at C2-G2). 5 N s/m would fit them
+// (1.01x, 1.04x) but leaves the bar's own C4 4f at 0.19 of its fundamental,
+// under the 0.2 that bare-bar measurements support (Round4ResponseTest);
+// 3 is the most they allow. Hill's bare-bar fit (LossFactor) cannot carry
+// this: its low term is per frequency, not per mode shape. Measured on the
+// rosewood concert marimba only; the hormigo and vene supports keep their
+// voicing.
+constexpr double kCordDamping = 3.0;
 constexpr double kFrameDriveUnit = 1100.0;  // frame/mesh drive per unit support force
 constexpr double kBrushLevel = 0.18;
 constexpr double kPickupForceUnit = 9.0e-4;  // pickup charge per newton of contact force
@@ -832,6 +846,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         double alpha;   // amplitude decay rate (1/s)
         double modalMass;
         double shapeAtContact;
+        double feltSquare = 0.0;
         // A restrike of the same key keeps its spatial radiation unless the
         // mode moved by more than a stroke's pitch scatter (0.05 %).
         bool project = !(isRestrike && sameRadiationCarving && m < previousModes && mRadiationHz[m] > 0.0
@@ -864,6 +879,10 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         } else {
             alpha = kPiD * fm * LossFactor(material, fm);
             modalMass = std::max(key.massFraction[m] * key.massKg, 1.0e-4);
+            feltSquare = FootprintMeanSquare([&key, m](double x) { return BarShape(key, m, x); },
+                                             supportPoint, 0.05);
+            if (model == EMarimbaModel::ImperialRosewood)
+                alpha += kCordDamping * feltSquare / (2.0 * modalMass);
             shapeAtContact = FootprintAverage([&key, m](double x) { return BarShape(key, m, x); },
                                               spatialPosition, footprint);
             // Under a muffling hand.
@@ -928,8 +947,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
             // displacement state and scaled like velocity; the felt passes
             // little above a few kHz.
             const double cord = 1.0 / (1.0 + (fm / 3000.0) * (fm / 3000.0));
-            const double felt = std::sqrt(FootprintMeanSquare([&key, m](double x) { return BarShape(key, m, x); },
-                                                              supportPoint, 0.05));
+            const double felt = std::sqrt(feltSquare);
             mSupportGain[m] = kSupportUnit * omegaSeconds * mode.toDisplacement * cord * felt;
         }
         // The fixed electrode reads the same carved Timoshenko mode, including

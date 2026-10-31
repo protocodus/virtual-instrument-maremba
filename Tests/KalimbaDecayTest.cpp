@@ -135,15 +135,17 @@ void heldBodyDamping() {
     // Frozen from the unmodified physical voice at commit 26debb941face41a,
     // with the fixed-seed middle-Decay fixture above. The bars' partials above
     // about 2 kHz were re-frozen in 1.5.8, when wood's rising loss levelled off
-    // there (LossFactor); the fundamentals and every rendered value are as
-    // frozen. Modal data covers three
+    // there (LossFactor). Rosewood's row was re-frozen in 1.5.11, when its
+    // tube coupling eased and the cords' felt began damping the modes that move
+    // over it (MarembaVoice kCordDamping); the other rows are as frozen. Modal
+    // data covers three
     // partials; rendered data comes from fitting actual free-motion samples.
     struct Before { double modal[3]; double rendered; };
     constexpr Before before[4][3] {
         {
-            {{2.17820204922239, .482146705839344, .141601595067597}, 1.58546530337724},
-            {{1.31305643499282, .231957268988989, .0952913711876526}, 1.07953469783532},
-            {{.512468170215102, .124200906765345, .0643348012183555}, .497574432125066},
+            {{2.1411272647912, .431780833164559, .133046315398242}, 1.69928352119578},
+            {{1.29739461367855, .213728287349052, .088694861958017}, 1.12608876126057},
+            {{.508718200624443, .113010324075376, .0588646480841927}, .498149613697371},
         },
         {
             {{1.74943881707308, .430665840788638, .153789954892504}, 1.0517091051653},

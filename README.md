@@ -32,6 +32,21 @@ shipping engine.
 
 ## Version history
 
+### 1.5.11 — 2026-10-31 — longer-ringing rosewood, quicker bass overtones
+
+Measured key by key against the Iowa MIS 2012 concert marimba (cord, yarn and
+rubber at ff, every key C2–C5), on the rosewood marimba only:
+
+- The fundamental rings longer. Each tube takes less of its bar's energy, so a
+  note's sustain moves from a median 0.87 to 0.96 of the recordings'. The
+  sympathetic bars ring longer with it.
+- The cords now damp each bar mode by how much it moves over their felt. The
+  fundamental, whose nodes the cords sit on, keeps its ring; the two-octave
+  and higher overtones die sooner (median 1.33 → 1.15 and 1.24 → 1.08 of the
+  recordings' decay), so low notes lose their lingering overtone hum.
+- Direct Piezo Mallet and Hard Acrylic Virtuoso, which carry those overtones
+  most, sit about 0.4 dB quieter.
+
 ### 1.5.10 — 2026-10-30 — forte strokes stay on centre
 
 - Forte strokes land where Position says. Thirteen bar presets no longer move

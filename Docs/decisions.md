@@ -84,3 +84,18 @@ tube gap (`kTubeGapQ` 0.45 → 0.30) each bring the fundamental median to 1.0.
 Both fail `TubeInSitu` on A2 only (1.48× against a 1.35× bound): the
 recorded A2 rings 2.27 s by that test's own method, between Ab2's 3.18 s and
 Bb2's 3.88 s, so the anchor sits on an unusually short key.
+
+## 1.5.11 — the in-situ decays, shipped
+
+The owner chose (2026-10-31) to re-anchor `TubeInSitu` on each key's
+three-key mean of the MIS 2012 cord ff recordings, by that test's own
+envelope method (A2 3.11 s, C3 2.92, F#3 2.29, A3 2.08, C4 1.55), instead of
+the single recorded A2. That licensed the tube coupling 0.0071 → 0.0060
+(fundamental median 0.87 → 0.96 of the recordings; the lossier-gap
+alternative fit equally and was not taken). The cords' felt damping ships
+at 3 N s/m, the most `Round4Response`'s bare-bar floor allows (4f median
+1.33 → 1.15, 10f 1.24 → 1.08), on the rosewood marimba only: on the balafon
+it flattened the stroke-to-stroke variation `Engine` holds. The rosewood
+sympathetic bars take the same tube share (Q factor 1.35 instead of 2). An
+A/B pair (A 1.5.10, B 1.5.11, RMS-matched) was sent for review and not
+committed.

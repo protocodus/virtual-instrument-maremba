@@ -206,8 +206,12 @@ inline ResonatorProfile GetResonatorProfile(EMarimbaModel model) {
             // sits slightly above its bar - "slightly above", Stevens tunes
             // them, growing to more than a half step in the top octave; Yamaha
             // and La Favre set them for the loudest resonance under the bar.
+            // Coupling 0.0060 (was 0.0071): against the Iowa MIS 2012 keys
+            // C2-C5 (cord ff) the fundamental rang a median 0.87x the
+            // recordings' at 0.0071 and 0.96x at 0.0060, where Hill's C2 keeps
+            // 0.75 of its bare decay (Round6ResponseTest's upper bound).
             return {{1.0, 2.97, 4.93}, 45.0, 0.18, 2000.0, 0.027, {0.7, 0.5}, {1.0, 0.45, 0.25},
-                    {1.0, 0.40, 0.22}, 3.0, 8.0, 100.0, 0.0071, 0.14};
+                    {1.0, 0.40, 0.22}, 3.0, 8.0, 100.0, 0.0060, 0.14};
     }
 }
 

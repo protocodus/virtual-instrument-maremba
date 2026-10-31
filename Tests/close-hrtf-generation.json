@@ -37,7 +37,7 @@
   },
   "geometry_dependency_sha256": {
     "CaptureGeometry.h": "84c53c1ed620e738ec36e309cbceca00c923b4f87aaf6c27698d7088a6a0e27f",
-    "MarimbaModel.h": "0f7453df1f6caaba6d4537698e6c176d478a41bea27efa18beae7c60793ffabc",
+    "MarimbaModel.h": "7c548a779f02abd6bc9f9b3493b5eeda5ca63f51b3a1705b4037c2ba273bc0e0",
     "BarModes.h": "0818d691457b6c49a9c8508c809615760fb4fb1a38892b9defcd57a4f918b2ce"
   },
   "generation_environment": {

@@ -56,14 +56,19 @@ struct FactoryReference {
 // +0.13, Midnight +0.06, Sambla +0.09, Mayan Dance -1.1 dB) and re-pinned them,
 // and trimmed Roll Chorale -0.56 dB and Mayan Dance -0.36 dB, which centring
 // had lifted above the Rack bank's velocity-100 RMS reference.
+// 1.5.11 damped the rosewood bars' upper modes at the cords: Direct Piezo
+// (whose film reads them) fell 0.41 dB and Hard Acrylic 0.43 dB in RMS, both
+// re-pinned as intended sound changes; their peaks stay in their windows.
+// Its longer fundamentals lifted Soft Yarn Nocturne's peak 0.1 dB out of its
+// window, re-centred on the three rates' mean with the same 0.6 dB width.
 constexpr std::array<FactoryReference, 20> kFactoryReferences {{
     {"Ambient Cathedral Bloom", -23.6085, -7.8603, -7.0603, false},
     {"Concert Grand Rosewood", -24.3075, -8.8900, -8.0900, false},
-    {"Direct Piezo Mallet", -23.2096, -1.6494, -0.8494, false},
-    {"Hard Acrylic Virtuoso", -23.8474, -2.3296, -1.5296, false},
+    {"Direct Piezo Mallet", -23.6156, -1.6494, -0.8494, false},
+    {"Hard Acrylic Virtuoso", -24.2774, -2.3296, -1.5296, false},
     {"Rosewood Dampened Etude", -25.3293, -9.6500, -8.8500, false},
     {"Rosewood Roll Chorale", -24.3000, -7.7600, -6.9600, false},
-    {"Soft Yarn Nocturne", -25.1317, -10.6321, -10.0321, false},
+    {"Soft Yarn Nocturne", -25.1317, -10.2555, -9.6555, false},
     {"Chiapas Folk Fiesta", -24.4818, -2.7848, -1.9848, false},
     {"Guatemalan Charleo", -24.7430, -6.2942, -5.4942, false},
     {"Mayan Dance Padauk", -25.3841, -11.4700, -10.6700, false},

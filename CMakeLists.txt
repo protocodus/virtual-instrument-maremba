@@ -25,7 +25,7 @@ endif()
 
 # The DSP version is the product version (Rack devices take X.Y.Z from it).
 # C is required too: JUCE's macOS AU and Standalone wrappers compile C sources.
-project(Maremba VERSION 1.5.10 LANGUAGES C CXX)
+project(Maremba VERSION 1.5.11 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

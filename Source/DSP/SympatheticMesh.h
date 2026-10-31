@@ -70,8 +70,12 @@ public:
             const double cents = (note - 69) * 100.0 + tuneOffsetCents + TuningOffsetCents(tuningScale, note)
                                + (keyDetuneCents ? keyDetuneCents[note] : 0.0f);
             const double f = 440.0 * std::exp2(cents / 1200.0);
-            // Q = 1 / eta; a bar's tube halves its fundamental's Q.
-            const double eta = mTine ? TineFundamentalLossFactor(f) : 2.0 * LossFactor(loss, f);
+            // Q = 1 / eta; a bar's resonator takes about half its
+            // fundamental's Q (Hill's C2 keeps 0.54 of its bare decay). The
+            // concert marimba's tubes take less: the Iowa MIS 2012 keys ring
+            // 0.71-0.85 of the bare bars' decay through C2-C4, so 1 / 0.74.
+            const double tube = model == EMarimbaModel::ImperialRosewood ? 1.35 : 2.0;
+            const double eta = mTine ? TineFundamentalLossFactor(f) : tube * LossFactor(loss, f);
             const double q = 1.0 / std::max(eta, 1.0e-4);
             const double r = std::exp(-kPiD * f / (q * mSampleRate));
             const double w = std::min(kTwoPiD * f / mSampleRate, 0.98 * kPiD);
