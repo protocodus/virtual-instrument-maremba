@@ -167,7 +167,7 @@ rubber at ff, C2–C7), which none of this ships:
 ## Downloads
 
 <!-- build-download-begin -->
-**[Download main build 39](https://github.com/protocodus/virtual-instrument-maremba/actions/runs/41178549143/artifacts/13034494422)**, built from [`5d31636b7813`](https://github.com/protocodus/virtual-instrument-maremba/commit/5d31636b78130fc74643a49c30dab90a6b98a005). It holds the macOS, Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.
+**[Download main build 41](https://github.com/protocodus/virtual-instrument-maremba/actions/runs/41183145080/artifacts/13036594891)**, built from [`682fa55c64d6`](https://github.com/protocodus/virtual-instrument-maremba/commit/682fa55c64d66b0c4ea4070c7a4eb6e5b223bc67). It holds the macOS, Windows and Linux packages, `SHA256SUMS` and `BUILD.txt`.
 <!-- build-download-end -->
 
 ---
