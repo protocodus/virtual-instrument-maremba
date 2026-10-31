@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Contracts for the calibration tools (SDK-free; numpy and scipy, ffmpeg optional).
 
-- Tools/Demos/fit_modal_reference.py: its synthetic self-test, a fit of the
-  MusyngKite C4 reference (f0 near 262 Hz, partials near 4.0 and 9.9 x f0) and
-  a null comparison of that fit with itself.
+- Tools/Demos/fit_modal_reference.py: its synthetic self-test, a fit of a
+  synthesized marimba-like C4 strike (f0 near 262 Hz, partials near 4.0 and
+  9.9 x f0, a tube bloom) and a null comparison of that fit with itself.
 - Tools/Demos/build_listening_test.py: BS.1770 loudness calibration, and demo pages
   in both modes: the number of embedded clips, loudness matching, labels only
   in sealed form, ABX truth, seeded determinism and the WAV fallback.
@@ -30,6 +30,7 @@ FIT = DEMOS / "fit_modal_reference.py"
 BUILD = DEMOS / "build_listening_test.py"
 sys.path.insert(0, str(DEMOS))
 import build_listening_test as blt  # noqa: E402
+import fit_modal_reference as fmr  # noqa: E402
 
 # The demo: trials C4 and C5 with two candidates each, G4 with one.
 DEMO_CANDIDATES = (2, 2, 1)
@@ -67,8 +68,14 @@ class ModalFit(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tmp = tempfile.TemporaryDirectory()
-        cls.json_path = Path(cls.tmp.name) / "MusyngKite_C4.json"
-        run(FIT, DEMOS / "Reference" / "MusyngKite_C4.wav", "--json", cls.json_path)
+        # A synthesized strike, not a recording: the repository ships none.
+        wav = Path(cls.tmp.name) / "strike_C4.wav"
+        case = {"note": "C4", "cents": 0.0, "ratios": (1.0, 4.0, 9.9), "t60": (1.2, 0.35, 0.15),
+                "levels_db": (0.0, -9.0, -17.0), "bloom": (0.9, 0.04)}
+        x, *_ = fmr.synthesize_case(case, 48000, seed=60)
+        fmr.write_wav(wav, x[:, None], 48000, "pcm16", dither_seed=7)
+        cls.json_path = Path(cls.tmp.name) / "strike_C4.json"
+        run(FIT, wav, "--json", cls.json_path)
         results = json.loads(cls.json_path.read_text())
         assert isinstance(results, list) and len(results) == 1
         cls.c4 = results[0]
@@ -82,7 +89,7 @@ class ModalFit(unittest.TestCase):
         self.assertIn("self-test: passed (0 failures)", output)
         self.assertNotIn("FAIL", output)
 
-    def test_musyngkite_c4_fundamental_and_partials(self):
+    def test_synthesized_c4_fundamental_and_partials(self):
         r = self.c4
         self.assertEqual((r["note"]["name"], r["note"]["midi"], r["note"]["source"]), ("C4", 60, "file name"))
         self.assertAlmostEqual(r["f0_hz"], 262.0, delta=262.0 * 0.015)

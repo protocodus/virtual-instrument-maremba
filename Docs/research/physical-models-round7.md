@@ -18,7 +18,7 @@ struck with cord, yarn and rubber mallets at pp, mf and ff, one note per key,
 24-bit 96 kHz, 1.5 m. The recordings were measured outside this repository and
 none of them is in it or in the product; the fitted numbers are named below and
 in `THIRD_PARTY_NOTICES.md`. They are cleaner references than the bundled
-soundfont notes in `Demos/Reference/` (MP3-decoded, looped, unknown mallets),
+soundfont notes in `Demos/Reference/` (removed 2026-10-31; MP3-decoded, looped, unknown mallets),
 which were compared as well.
 
 ## Rosewood

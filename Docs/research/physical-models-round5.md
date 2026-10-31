@@ -24,7 +24,7 @@ the Scale choices (two measured keyboards, per-key scatter). Where the two
 disagree, the sixth pass describes the engine.
 
 No recording of a real instrument was made or used for this pass apart from the
-repository's MP3-derived soundfont notes (`Demos/Reference`). The numbers below
+repository's MP3-derived soundfont notes (`Demos/Reference`, removed 2026-10-31). The numbers below
 compare the model with published measurements and with those notes; they are
 not a listening test.
 

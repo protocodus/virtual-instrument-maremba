@@ -26,7 +26,7 @@ list the sources and what each one supports.
 fundamental was 23–33 dB below the bar's own radiation in the Close microphone,
 so tubes, boxes and gourds were practically inaudible. Raising Coupling only
 damped the bar and made notes quieter. In the repository's recorded marimba
-references (`Demos/Reference`), the fundamental rises 8–13 dB and peaks 50–160 ms
+references (`Demos/Reference`, removed 2026-10-31), the fundamental rises 8–13 dB and peaks 50–160 ms
 after the stroke (C3 160 ms, C4 80 ms, G4 50 ms), while the 4:1 and 10:1 partials
 peak at once. The model's fundamental peaked immediately.
 

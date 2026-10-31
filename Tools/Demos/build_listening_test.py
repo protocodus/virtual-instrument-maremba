@@ -36,6 +36,7 @@ for _variable in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS", 
     os.environ.setdefault(_variable, "1")
 
 import argparse  # noqa: E402
+import atexit  # noqa: E402
 import base64  # noqa: E402
 import datetime  # noqa: E402
 import hashlib  # noqa: E402
@@ -59,10 +60,7 @@ VERSION = "1.0.0"
 DEMOS_DIR = Path(__file__).resolve().parent
 PEAK_CEILING_DB = -1.0
 FADE_S = 0.05
-DEMO_NOTICE = ("Demo audio: Musyng Kite marimba notes (soundfont by Cose/Sarcyan, CC BY-SA 3.0) and FluidR3 GM "
-               "marimba notes (Frank Wen, CC BY 3.0), as rendered to MP3 by gleitz/midi-js-soundfonts and decoded "
-               "to WAV. The variants, anchors and level changes are adaptations of the Musyng Kite notes under "
-               "CC BY-SA 3.0. See THIRD_PARTY_NOTICES.md in the Maremba repository.")
+DEMO_NOTICE = ("Demo audio: synthesized modal strikes (fit_modal_reference.synthesize_case), not recordings.")
 
 
 # ─────────────────────────────── loudness (BS.1770) ───────────────────────────────
@@ -219,18 +217,32 @@ def trials_from_cli(groups):
     return trials
 
 
+# Two synthesized marimba-like strikes per note stand in for recordings, so the
+# demo needs no sample set: "a" rings like a tuned rosewood bar under its tube,
+# "b" is drier and brighter (the stand-in for a second instrument).
+DEMO_VOICES = {
+    "a": {"ratios": (1.0, 4.0, 9.9), "t60": (1.2, 0.35, 0.15), "levels_db": (0.0, -9.0, -17.0), "bloom": (0.9, 0.04)},
+    "b": {"ratios": (1.0, 3.98, 9.7), "t60": (0.8, 0.30, 0.12), "levels_db": (0.0, -5.0, -11.0)},
+}
+
+
 def demo_trials():
-    ref = DEMOS_DIR / "Reference"
+    ref = Path(tempfile.mkdtemp(prefix="maremba-demo-"))
+    atexit.register(shutil.rmtree, ref, True)
+    for index, (note, voice) in enumerate([(n, v) for n in ("C4", "C5", "G4") for v in DEMO_VOICES]):
+        case = {"note": note, "cents": 0.0, **DEMO_VOICES[voice]}
+        x, *_ = fmr.synthesize_case(case, 48000, seed=2000 + index, seconds=2.0)
+        fmr.write_wav(ref / f"demo-{voice}-{note}.wav", x[:, None], 48000, "pcm16", dither_seed=7)
     variant = {"cents": 15, "lowpass_hz": 2500}
     trials = []
     for note, other in (("C4", True), ("C5", True), ("G4", False)):
-        candidates = [{"file": str(ref / f"MusyngKite_{note}.wav"), "label": "variant: +15 cents, 2.5 kHz low-pass",
+        candidates = [{"file": str(ref / f"demo-a-{note}.wav"), "label": "variant: +15 cents, 2.5 kHz low-pass",
                        "transform": variant}]
         if other:
-            candidates.insert(0, {"file": str(ref / f"FluidR3_{note}.wav"), "label": "FluidR3 GM sample"})
+            candidates.insert(0, {"file": str(ref / f"demo-b-{note}.wav"), "label": "drier, brighter strike"})
         trials.append({"title": note, "metadata": {"note": note},
-                       "reference": clip_spec({"file": str(ref / f"MusyngKite_{note}.wav"),
-                                               "label": "Musyng Kite sample"}, ref),
+                       "reference": clip_spec({"file": str(ref / f"demo-a-{note}.wav"),
+                                               "label": "rosewood-like strike"}, ref),
                        "candidates": [clip_spec(c, ref) for c in candidates]})
     return trials
 
@@ -682,7 +694,7 @@ def main(argv=None):
     source.add_argument("--trials", metavar="JSON", help="trial list (see above)")
     source.add_argument("--trial", nargs="+", action="append", metavar="[LABEL=]WAV",
                         help="one trial: reference then candidates; repeat for more trials")
-    source.add_argument("--demo", action="store_true", help="example page from Tools/Demos/Reference plus filtered variants")
+    source.add_argument("--demo", action="store_true", help="example page from synthesized strikes plus filtered variants")
     parser.add_argument("--mode", choices=("mushra", "abx"), default="mushra")
     parser.add_argument("--seed", type=int, default=1, help="randomisation seed (default 1)")
     parser.add_argument("--out", default="listening_test.html", help="output HTML (a .report.json is written beside it)")
@@ -698,7 +710,7 @@ def main(argv=None):
 
     notice = None
     if args.demo:
-        trials, title, notice = demo_trials(), "Demo: two marimba sample sets and a variant", DEMO_NOTICE
+        trials, title, notice = demo_trials(), "Demo: two synthesized strikes and a variant", DEMO_NOTICE
         if args.duration is None:
             args.duration = 2.0
     elif args.trials:

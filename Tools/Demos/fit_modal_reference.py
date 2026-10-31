@@ -9,7 +9,7 @@ the level re the fundamental 20 ms and 100 ms after the onset; plus the
 fundamental's bloom (heterodyne envelope peak), an attack centroid and a noise
 floor. See Docs/research/calibration.md for recording practice and parameter mapping.
 
-  python3 Tools/Demos/fit_modal_reference.py Tools/Demos/Reference/MusyngKite_C4.wav --markdown
+  python3 Tools/Demos/fit_modal_reference.py strike_C4.wav --markdown
   python3 Tools/Demos/fit_modal_reference.py take.wav --note C4 --json take.json
   python3 Tools/Demos/fit_modal_reference.py ref.wav --compare model.wav --markdown
   python3 Tools/Demos/fit_modal_reference.py ref.json --compare-json model.json

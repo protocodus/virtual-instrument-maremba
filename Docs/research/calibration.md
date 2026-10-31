@@ -124,7 +124,7 @@ bridge, each mode in proportion to its bridge motion (`KalimbaModes.h`).
 python3 Instrument/Tools/Demos/build_listening_test.py --trials trials.json --mode mushra --seed 11 --out mushra.html
 python3 Instrument/Tools/Demos/build_listening_test.py --trials trials.json --mode abx --abx-repeats 10 --out abx.html
 python3 Instrument/Tools/Demos/build_listening_test.py --trial rec_C4.wav maremba=render_C4.wav --out quick.html
-python3 Instrument/Tools/Demos/build_listening_test.py --demo --out demo.html   # Demos/Reference + filtered variants
+python3 Instrument/Tools/Demos/build_listening_test.py --demo --out demo.html   # synthesized strikes + filtered variants
 ```
 
 A trial has a reference, one or more candidates and a label for each that listeners
@@ -146,10 +146,12 @@ settings, supervise the session. Plan 10–16 ABX repeats per pair (16 trials ne
 correct for p ≈ 0.04). In MUSHRA, drop listeners who rate the hidden reference below
 90 in more than 15 % of trials (BS.1534).
 
-## 6. What the bundled references show
+## 6. What the former bundled references showed
 
-`Instrument/Tools/Demos/Reference` holds MP3-decoded General MIDI samples, which exercise the tools but
-are poor calibration targets. They end in digital silence at 0.6–1.9 s, their codec
+Until 2026-10-31, `Instrument/Tools/Demos/Reference` held MP3-decoded General MIDI
+samples. They were removed with every other recording in the repository; the
+measurements below are kept as research. They exercised the tools but were poor
+calibration targets. They end in digital silence at 0.6–1.9 s, their codec
 floor sits 56–72 dB below the peak, and FluidR3's 4:1 partial decays exactly with its
 fundamental (T60 ratio 1.00), the signature of a looped sample under a soundfont
 envelope. The MusyngKite marimba still behaves like a real instrument:
