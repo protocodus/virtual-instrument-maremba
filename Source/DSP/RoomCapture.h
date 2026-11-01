@@ -159,6 +159,7 @@ public:
                 / (volume * kappa) * std::exp(-kappa * 2.0 * MeanFlightSeconds(type));
             room.tailGain = static_cast<float>(std::sqrt(diffuseEnergy / kernelEnergy));
         }
+        mMinDelay = kBlockFrames;
         for (auto& source : mSource) if (source.configured) ConfigureSource(source);
         Reset();
     }
@@ -174,6 +175,7 @@ public:
         for (int type = 0; type < 3; ++type) ResetRoom(type, resetMotion);
         for (auto& microphone : mMicrophone) microphone.Reset();
         mWrite = 0; mActive = mNext = mWanted; mFade = 1.0f; mPristine = true;
+        mBlockPos = 0;
     }
 
     // Sorted IDs can narrow input discovery to known emitters. Existing image
@@ -197,7 +199,6 @@ private:
         if (mFade >= 1.0f && mWanted != mActive) {
             mNext = mWanted; ResetRoom(mNext, false); mFade = 0.0f;
         }
-        float direct[2] = {}, early[2][2][6] = {}, lateInput[2][2] = {};
         // Scan the contiguous excitation buffer, not515 large path structs.
         // Keep source IDs sorted so summation order remains exactly unchanged.
         bool added = false;
@@ -218,34 +219,24 @@ private:
             auto& source = mSource[static_cast<size_t>(id)];
             const float x = id < count ? maremba::FlushTiny(RoomExcitation(input[id])) : 0.0f;
             if (x != 0.0f) { source.remaining = mSpan + 1; mPristine = false; }
-            float* history = mHistory.data() + static_cast<size_t>(id) * static_cast<size_t>(mStride);
-            history[mWrite] = x;
-            // While the write position is past this source's longest tap,
-            // no read wraps: the same samples and arithmetic, without the
-            // per-read wrap tests.
-            if (mWrite > source.room[static_cast<size_t>(mActive)].longest) {
-                for (int channel = 0; channel < 2; ++channel)
-                    direct[channel] += Read<false>(history, source.direct[static_cast<size_t>(channel)]);
-                ProcessSource<false>(source, history, mActive, early[0], lateInput[0]);
-            } else {
-                for (int channel = 0; channel < 2; ++channel)
-                    direct[channel] += Read<true>(history, source.direct[static_cast<size_t>(channel)]);
-                ProcessSource<true>(source, history, mActive, early[0], lateInput[0]);
-            }
-            if (mFade < 1.0f) {
-                if (mWrite > source.room[static_cast<size_t>(mNext)].longest)
-                    ProcessSource<false>(source, history, mNext, early[1], lateInput[1]);
-                else
-                    ProcessSource<true>(source, history, mNext, early[1], lateInput[1]);
-            }
+            mHistory[static_cast<size_t>(id) * static_cast<size_t>(mStride) + static_cast<size_t>(mWrite)] = x;
             if (--source.remaining > 0) mActiveSource[static_cast<size_t>(retained++)] = id;
             else mSourceQueued[static_cast<size_t>(id)] = false;
         }
         mActiveSourceCount = retained;
+        if (mBlockPos == 0) {
+            mBlockWrite = mWrite;
+            mBlockLength = mMinDelay;
+            mSumsValid.fill(false);
+            SumDirect();
+        }
+        const auto& sums = RoomSums(mActive);
+        const float* direct = mDirectSum[static_cast<size_t>(mBlockPos)];
         float wet[2][2]{};
-        ProcessTail(mActive, early[0], lateInput[0], wet[0]);
+        ProcessTail(mActive, sums.early[static_cast<size_t>(mBlockPos)], sums.late[static_cast<size_t>(mBlockPos)], wet[0]);
         if (mFade < 1.0f) {
-            ProcessTail(mNext, early[1], lateInput[1], wet[1]);
+            const auto& next = RoomSums(mNext);
+            ProcessTail(mNext, next.early[static_cast<size_t>(mBlockPos)], next.late[static_cast<size_t>(mBlockPos)], wet[1]);
             for (int channel = 0; channel < 2; ++channel)
                 wet[0][channel] += mFade * (wet[1][channel] - wet[0][channel]);
             mFade = std::min(1.0f, mFade + mFadeStep);
@@ -253,6 +244,7 @@ private:
         }
         left = direct[0] + wet[0][0]; right = direct[1] + wet[0][1];
         if (++mWrite == mSpan) mWrite = 0;
+        if (++mBlockPos == mBlockLength) mBlockPos = 0;
     }
 
 public:
@@ -330,10 +322,11 @@ private:
         }
     };
     struct Tap { int delay=1; float fraction=0.0f,gain=0.0f; };
+    // A block never exceeds the shortest tap, so this only caps its length.
+    static constexpr int kBlockFrames=32;
     struct SourceRoom {
         std::array<std::array<Tap,6>,2> image{};
         std::array<Tap,2> late{};
-        int longest=0; // the largest delay of these and the direct taps
     };
     struct Source {
         CapturePoint position{};
@@ -433,33 +426,76 @@ private:
                     =MakeTap(geometry[static_cast<size_t>(wall+1)].seconds,geometry[static_cast<size_t>(wall+1)].gain);
             room.late[static_cast<size_t>(channel)]=MakeTap(LateFeedSeconds(type,source.position,channel),1.0);
         }
-        for(auto& room:source.room) {
-            room.longest=0;
-            for(const auto& tap:source.direct)room.longest=std::max(room.longest,tap.delay);
-            for(const auto& channel:room.image)for(const auto& tap:channel)room.longest=std::max(room.longest,tap.delay);
-            for(const auto& tap:room.late)room.longest=std::max(room.longest,tap.delay);
+        const auto shortest=[&](const Tap& tap){mMinDelay=std::min(mMinDelay,tap.delay);};
+        for(const auto& tap:source.direct)shortest(tap);
+        for(const auto& room:source.room){
+            for(const auto& channel:room.image)for(const auto& tap:channel)shortest(tap);
+            for(const auto& tap:room.late)shortest(tap);
+        }
+        mBlockPos=0;
+    }
+    // Every tap is at least mMinDelay frames long, so a block of that many
+    // frames reads only history written before the block began: its tap sums
+    // are formed at the block's first frame, source by source, in the same
+    // sorted source order and with the same arithmetic as frame by frame. A
+    // source that joins inside the block has an all-zero history until then.
+    void AccumulateTap(const float* history, const Tap& tap, int from, float* out, size_t stride) const {
+        int a = mBlockWrite + from - tap.delay;
+        if (a < 0) a += mSpan;
+        const int frames = mBlockLength - from;
+        out += static_cast<size_t>(from) * stride;
+        if (a >= 1 && a + frames <= mSpan) {
+            const float* h = history + a;
+            for (int k = 0; k < frames; ++k)
+                out[static_cast<size_t>(k) * stride] += (h[k] + tap.fraction * (h[k - 1] - h[k])) * tap.gain;
+            return;
+        }
+        for (int k = 0; k < frames; ++k) {
+            int b = a - 1;
+            if (b < 0) b += mSpan;
+            out[static_cast<size_t>(k) * stride] += (history[a] + tap.fraction * (history[b] - history[a])) * tap.gain;
+            if (++a == mSpan) a = 0;
         }
     }
-    // Wrap=false requires mWrite > tap.delay, so both reads lie at or after
-    // the start of this source's history row.
-    template<bool Wrap>
-    float Read(const float* history,const Tap& tap) const {
-        int a=mWrite-tap.delay;
-        int b=a-1;
-        if constexpr (Wrap) {
-            if(a<0)a+=mSpan;
-            b=a-1;if(b<0)b+=mSpan;
-        }
-        return (history[a]+tap.fraction*(history[b]-history[a]))*tap.gain;
+    const float* SourceHistory(int id) const {
+        return mHistory.data() + static_cast<size_t>(id) * static_cast<size_t>(mStride);
     }
-    template<bool Wrap>
-    void ProcessSource(Source& source,const float* history,int type,float early[2][6],float* late) {
-        auto& paths=source.room[static_cast<size_t>(type)];
-        for(int channel=0;channel<2;++channel) {
-            for(int wall=0;wall<6;++wall)
-                early[channel][wall]+=Read<Wrap>(history,paths.image[static_cast<size_t>(channel)][static_cast<size_t>(wall)]);
-            late[channel]+=Read<Wrap>(history,paths.late[static_cast<size_t>(channel)]);
+    void SumDirect() {
+        for (int k = 0; k < mBlockLength; ++k) mDirectSum[static_cast<size_t>(k)][0] = mDirectSum[static_cast<size_t>(k)][1] = 0.0f;
+        for (int index = 0; index < mActiveSourceCount; ++index) {
+            const int id = mActiveSource[static_cast<size_t>(index)];
+            const auto& source = mSource[static_cast<size_t>(id)];
+            for (int channel = 0; channel < 2; ++channel)
+                AccumulateTap(SourceHistory(id), source.direct[static_cast<size_t>(channel)], 0,
+                              &mDirectSum[0][static_cast<size_t>(channel)], 2);
         }
+    }
+    struct BlockSums {
+        float early[kBlockFrames][2][6];
+        float late[kBlockFrames][2];
+    };
+    // Formed on first use in a block, from the current frame on: a room
+    // selected or faded in mid-block starts its sums where it starts reading.
+    const BlockSums& RoomSums(int type) {
+        auto& sums = mRoomSums[static_cast<size_t>(type)];
+        if (mSumsValid[static_cast<size_t>(type)]) return sums;
+        mSumsValid[static_cast<size_t>(type)] = true;
+        for (int k = mBlockPos; k < mBlockLength; ++k) {
+            for (auto& channel : sums.early[k]) std::fill(std::begin(channel), std::end(channel), 0.0f);
+            sums.late[k][0] = sums.late[k][1] = 0.0f;
+        }
+        for (int index = 0; index < mActiveSourceCount; ++index) {
+            const int id = mActiveSource[static_cast<size_t>(index)];
+            const auto& paths = mSource[static_cast<size_t>(id)].room[static_cast<size_t>(type)];
+            const float* history = SourceHistory(id);
+            for (int channel = 0; channel < 2; ++channel) {
+                for (int wall = 0; wall < 6; ++wall)
+                    AccumulateTap(history, paths.image[static_cast<size_t>(channel)][static_cast<size_t>(wall)], mBlockPos,
+                                  &sums.early[0][channel][wall], 12);
+                AccumulateTap(history, paths.late[static_cast<size_t>(channel)], mBlockPos, &sums.late[0][channel], 2);
+            }
+        }
+        return sums;
     }
     void ProcessTail(int type,const float early[2][6],const float* input,float* out) {
         auto& room=mRoom[static_cast<size_t>(type)];
@@ -500,5 +536,9 @@ private:
     int mWanted=0,mActive=0,mNext=0;
     float mFade=1.0f,mFadeStep=1.0f;
     bool mPristine=true;
+    int mMinDelay=kBlockFrames,mBlockPos=0,mBlockWrite=0,mBlockLength=1;
+    float mDirectSum[kBlockFrames][2]{};
+    std::array<BlockSums,3> mRoomSums{};
+    std::array<bool,3> mSumsValid{};
 };
 } // namespace maremba
