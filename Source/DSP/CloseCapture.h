@@ -493,21 +493,23 @@ private:
             int start = mFlightPosition - mBlockSize - source.integerDelay[channel] + 3;
             if (start < 0) start += mDelayCapacity;
             std::array<float, kMaximumBlock> value;
-            if (start >= 7 && start + mBlockSize <= mDelayCapacity) {
-                const float* x = line + start;
-                std::fill_n(value.data(), mBlockSize, 0.0f);
-                for (int tap = 0; tap < 8; ++tap)
-                    for (int i = 0; i < mBlockSize; ++i) value[static_cast<std::size_t>(i)] += x[i - tap] * fractional[tap];
-            } else {
-                for (int i = 0; i < mBlockSize; ++i) {
-                    int at = start + i;
-                    if (at >= mDelayCapacity) at -= mDelayCapacity;
-                    float sum = 0.0f;
+            std::fill_n(value.data(), mBlockSize, 0.0f);
+            for (int i = 0; i < mBlockSize;) {
+                int at = start + i;
+                if (at >= mDelayCapacity) at -= mDelayCapacity;
+                if (at >= 7) {
+                    // A run of frames whose eight taps all lie before the wrap.
+                    const int end = i + std::min(mBlockSize - i, mDelayCapacity - at);
+                    const float* x = line + (at - i);
+                    for (int tap = 0; tap < 8; ++tap)
+                        for (int k = i; k < end; ++k) value[static_cast<std::size_t>(k)] += x[k - tap] * fractional[tap];
+                    i = end;
+                } else {
+                    float& sum = value[static_cast<std::size_t>(i++)];
                     for (int tap = 0; tap < 8; ++tap) {
                         sum += line[at] * fractional[tap];
                         if (--at < 0) at = mDelayCapacity - 1;
                     }
-                    value[static_cast<std::size_t>(i)] = sum;
                 }
             }
             for (int i = 0; i < mBlockSize; ++i)
