@@ -84,11 +84,22 @@ public:
         source.buffer[0][subsample] += left;
         if (!source.equalEars) source.buffer[1][subsample] += right;
         source.buffer[2][subsample] += room;
-        mInvalidInput = mInvalidInput || !std::isfinite(source.buffer[0][subsample])
-            || (!source.equalEars && !std::isfinite(source.buffer[1][subsample]))
-            || !std::isfinite(source.buffer[2][subsample]);
     }
-    bool HasInvalidInput() const { return mInvalidInput; }
+    // A sum that overflows stays non-finite through every later addition, so
+    // checking the frame's accumulated buffers once, after its last Add,
+    // flags exactly the frames a check after each addition did.
+    bool HasInvalidInput() const {
+        if (mInvalidInput) return true;
+        for (int n = 0; n < mCount; ++n) {
+            const auto& source = mSource[mActive[n]];
+            for (int lane = 0; lane < 3; ++lane) {
+                if (lane == 1 && source.equalEars) continue;
+                for (int s = 0; s < mFactor; ++s)
+                    if (!std::isfinite(source.buffer[lane][s])) return true;
+            }
+        }
+        return false;
+    }
     // Compact sources declare pressure at the Close reference distance. Each
     // ear receives that same emitted pressure before its own propagation/HRTF.
     // Room expects pressure at its own reference distance, so inverse-distance
@@ -120,9 +131,6 @@ public:
         source.buffer[0][subsample] += pressure;
         if (!source.equalEars) source.buffer[1][subsample] += pressure;
         source.buffer[2][subsample] += room;
-        mInvalidInput = mInvalidInput || !std::isfinite(source.buffer[0][subsample])
-            || (!source.equalEars && !std::isfinite(source.buffer[1][subsample]))
-            || !std::isfinite(source.buffer[2][subsample]);
     }
     void Process(float& closeL, float& closeR, float& roomL, float& roomR) {
         // The capture renderers need only discover nonzero emitters, not scan
