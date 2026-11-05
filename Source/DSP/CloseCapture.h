@@ -347,8 +347,11 @@ private:
     template<int Size, int Length, bool Inverse>
     void SplitStage(SplitBlock& data) const {
         constexpr int half = Length/2;
-        const float* twiddleRe = mStageTwiddle.re.data() + (half-1);
-        const float* twiddleIm = (Inverse ? mInverseTwiddleIm.data() : mStageTwiddle.im.data()) + (half-1);
+        // Local copies: the compiler cannot otherwise rule out `data` being
+        // the twiddle table, and versions every span's loop on that check.
+        std::array<float, half> twiddleRe, twiddleIm;
+        std::copy_n(mStageTwiddle.re.data() + (half-1), half, twiddleRe.data());
+        std::copy_n((Inverse ? mInverseTwiddleIm.data() : mStageTwiddle.im.data()) + (half-1), half, twiddleIm.data());
         if constexpr (Length == Size) {
             if constexpr (Inverse) {
                 for (int j = 0; j < half; ++j) {
