@@ -32,6 +32,13 @@ shipping engine.
 
 ## Version history
 
+### 1.6.1 — 2026-11-05 — The same sound for about 13% less CPU
+
+Five engine optimizations in the Close and Room microphone paths. The
+output is bit-identical to 1.6.0 and nothing changes for a session; the
+eight preset demos render 4–18% faster on a development machine
+([measurement](Docs/benchmarks/cpu-optimization-2026-11-05.md)).
+
 ### 1.6.0 — 2026-10-31 — Close hears a synthesized head, not a recorded one
 
 Close no longer plays measured KU100 dummy-head impulse responses (SADIE II).
