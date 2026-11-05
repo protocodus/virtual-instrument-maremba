@@ -230,19 +230,17 @@ private:
             mSumsValid.fill(false);
             SumDirect();
         }
-        const auto& sums = RoomSums(mActive);
-        const float* direct = mDirectSum[static_cast<size_t>(mBlockPos)];
+        const size_t k = static_cast<size_t>(mBlockPos);
         float wet[2][2]{};
-        ProcessTail(mActive, sums.early[static_cast<size_t>(mBlockPos)], sums.late[static_cast<size_t>(mBlockPos)], wet[0]);
+        ProcessTail(mActive, RoomSums(mActive), k, wet[0]);
         if (mFade < 1.0f) {
-            const auto& next = RoomSums(mNext);
-            ProcessTail(mNext, next.early[static_cast<size_t>(mBlockPos)], next.late[static_cast<size_t>(mBlockPos)], wet[1]);
+            ProcessTail(mNext, RoomSums(mNext), k, wet[1]);
             for (int channel = 0; channel < 2; ++channel)
                 wet[0][channel] += mFade * (wet[1][channel] - wet[0][channel]);
             mFade = std::min(1.0f, mFade + mFadeStep);
             if (mFade >= 1.0f) mActive = mNext;
         }
-        left = direct[0] + wet[0][0]; right = direct[1] + wet[0][1];
+        left = mDirectSum[0][k] + wet[0][0]; right = mDirectSum[1][k] + wet[0][1];
         if (++mWrite == mSpan) mWrite = 0;
         if (++mBlockPos == mBlockLength) mBlockPos = 0;
     }
@@ -439,21 +437,23 @@ private:
     // are formed at the block's first frame, source by source, in the same
     // sorted source order and with the same arithmetic as frame by frame. A
     // source that joins inside the block has an all-zero history until then.
-    void AccumulateTap(const float* history, const Tap& tap, int from, float* out, size_t stride) const {
+    // `out` holds one sum per block frame, contiguous so the common case
+    // vectorizes across frames.
+    void AccumulateTap(const float* history, const Tap& tap, int from, float* out) const {
         int a = mBlockWrite + from - tap.delay;
         if (a < 0) a += mSpan;
         const int frames = mBlockLength - from;
-        out += static_cast<size_t>(from) * stride;
+        out += from;
         if (a >= 1 && a + frames <= mSpan) {
             const float* h = history + a;
             for (int k = 0; k < frames; ++k)
-                out[static_cast<size_t>(k) * stride] += (h[k] + tap.fraction * (h[k - 1] - h[k])) * tap.gain;
+                out[k] += (h[k] + tap.fraction * (h[k - 1] - h[k])) * tap.gain;
             return;
         }
         for (int k = 0; k < frames; ++k) {
             int b = a - 1;
             if (b < 0) b += mSpan;
-            out[static_cast<size_t>(k) * stride] += (history[a] + tap.fraction * (history[b] - history[a])) * tap.gain;
+            out[k] += (history[a] + tap.fraction * (history[b] - history[a])) * tap.gain;
             if (++a == mSpan) a = 0;
         }
     }
@@ -461,18 +461,18 @@ private:
         return mHistory.data() + static_cast<size_t>(id) * static_cast<size_t>(mStride);
     }
     void SumDirect() {
-        for (int k = 0; k < mBlockLength; ++k) mDirectSum[static_cast<size_t>(k)][0] = mDirectSum[static_cast<size_t>(k)][1] = 0.0f;
+        for (auto& channel : mDirectSum) std::fill_n(channel, mBlockLength, 0.0f);
         for (int index = 0; index < mActiveSourceCount; ++index) {
             const int id = mActiveSource[static_cast<size_t>(index)];
             const auto& source = mSource[static_cast<size_t>(id)];
             for (int channel = 0; channel < 2; ++channel)
                 AccumulateTap(SourceHistory(id), source.direct[static_cast<size_t>(channel)], 0,
-                              &mDirectSum[0][static_cast<size_t>(channel)], 2);
+                              mDirectSum[static_cast<size_t>(channel)]);
         }
     }
     struct BlockSums {
-        float early[kBlockFrames][2][6];
-        float late[kBlockFrames][2];
+        float early[2][6][kBlockFrames];
+        float late[2][kBlockFrames];
     };
     // Formed on first use in a block, from the current frame on: a room
     // selected or faded in mid-block starts its sums where it starts reading.
@@ -480,9 +480,9 @@ private:
         auto& sums = mRoomSums[static_cast<size_t>(type)];
         if (mSumsValid[static_cast<size_t>(type)]) return sums;
         mSumsValid[static_cast<size_t>(type)] = true;
-        for (int k = mBlockPos; k < mBlockLength; ++k) {
-            for (auto& channel : sums.early[k]) std::fill(std::begin(channel), std::end(channel), 0.0f);
-            sums.late[k][0] = sums.late[k][1] = 0.0f;
+        for (int channel = 0; channel < 2; ++channel) {
+            for (auto& wall : sums.early[channel]) std::fill(wall + mBlockPos, wall + mBlockLength, 0.0f);
+            std::fill(sums.late[channel] + mBlockPos, sums.late[channel] + mBlockLength, 0.0f);
         }
         for (int index = 0; index < mActiveSourceCount; ++index) {
             const int id = mActiveSource[static_cast<size_t>(index)];
@@ -491,23 +491,24 @@ private:
             for (int channel = 0; channel < 2; ++channel) {
                 for (int wall = 0; wall < 6; ++wall)
                     AccumulateTap(history, paths.image[static_cast<size_t>(channel)][static_cast<size_t>(wall)], mBlockPos,
-                                  &sums.early[0][channel][wall], 12);
-                AccumulateTap(history, paths.late[static_cast<size_t>(channel)], mBlockPos, &sums.late[0][channel], 2);
+                                  sums.early[channel][wall]);
+                AccumulateTap(history, paths.late[static_cast<size_t>(channel)], mBlockPos, sums.late[channel]);
             }
         }
         return sums;
     }
-    void ProcessTail(int type,const float early[2][6],const float* input,float* out) {
+    // Renders block frame k of the room's sums.
+    void ProcessTail(int type,const BlockSums& sums,size_t k,float* out) {
         auto& room=mRoom[static_cast<size_t>(type)];
         float firstL=0,firstR=0,secondL=0,secondR=0;
-        room.tail[0].Process(input[0],firstL,firstR);
-        room.tail[1].Process(input[1],secondL,secondR,
+        room.tail[0].Process(sums.late[0][k],firstL,firstR);
+        room.tail[1].Process(sums.late[1][k],secondL,secondR,
                              room.tail[0].ScatteringCoefficients());
         float reflected[2]={};
         for(int channel=0;channel<2;++channel) for(int wall=0;wall<6;++wall){
             const size_t i=static_cast<size_t>(channel*6+wall);
             const float filtered=room.filter[static_cast<size_t>(channel)][static_cast<size_t>(wall)].Process(
-                early[channel][wall],room.wall[static_cast<size_t>(wall)]);
+                sums.early[channel][wall][k],room.wall[static_cast<size_t>(wall)]);
             reflected[channel]+=room.scatter[i].Process(filtered,room.scatterMemory.data()+room.scatterOffset[i]);
         }
         constexpr float fieldReadout=.7071067811865475f;
@@ -537,7 +538,7 @@ private:
     float mFade=1.0f,mFadeStep=1.0f;
     bool mPristine=true;
     int mMinDelay=kBlockFrames,mBlockPos=0,mBlockWrite=0,mBlockLength=1;
-    float mDirectSum[kBlockFrames][2]{};
+    float mDirectSum[2][kBlockFrames]{};
     std::array<BlockSums,3> mRoomSums{};
     std::array<bool,3> mSumsValid{};
 };
