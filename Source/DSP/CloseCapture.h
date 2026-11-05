@@ -30,7 +30,10 @@ public:
     void Allocate(double maxHostRate, int maxSources = 520) {
         mMaximumRate = std::max(8000.0, maxHostRate);
         mMaximumSources = std::max(1, maxSources);
-        mDelayCapacity = static_cast<int>(std::ceil(kMaximumFlightSeconds * mMaximumRate)) + 16;
+        mFlightLimit = static_cast<int>(std::ceil(kMaximumFlightSeconds * mMaximumRate)) + 16;
+        // One extra block of line keeps a whole partition's input readable
+        // when RenderPartition runs the fractional delays for it at once.
+        mDelayCapacity = mFlightLimit + kMaximumBlock;
         mKernelCapacity = static_cast<int>(std::ceil((kCloseHrtfTaps + 16.0) * mMaximumRate
                                                      / kCloseHrtfReferenceRate)) + 32;
         // Partitions have twice as many FFT bins as time samples; permit the
@@ -176,26 +179,10 @@ public:
             auto& source = mSources[static_cast<std::size_t>(id)];
             if (!source.configured || source.remaining == 0) { source.active = false; continue; }
             const int position = mBlockPosition[id % mGroupCount];
-            const float input[2] = {Flush(id < count && leftInputs ? leftInputs[id] : 0.0f),
-                                    Flush(id < count && rightInputs ? rightInputs[id] : 0.0f)};
-            for (int channel = 0; channel < 2; ++channel) {
-                float* line = Flight(id, channel);
-                line[mFlightPosition] = input[channel];
-                int at = mFlightPosition - source.integerDelay[channel] + 3;
-                if (at < 0) at += mDelayCapacity;
-                if (at >= mDelayCapacity) at -= mDelayCapacity;
-                float value = 0.0f;
-                if (at >= 7) {
-                    // The common case: all eight taps lie before the wrap.
-                    for (int tap = 0; tap < 8; ++tap) value += line[at - tap] * source.fractional[channel][tap];
-                } else {
-                    for (int tap = 0; tap < 8; ++tap) {
-                        value += line[at] * source.fractional[channel][tap];
-                        if (--at < 0) at = mDelayCapacity - 1;
-                    }
-                }
-                source.current[channel][static_cast<std::size_t>(position)] = Flush(static_cast<float>(value));
-            }
+            // The fractional delay into `current` runs once per partition,
+            // in RenderPartition, the only reader of `current`.
+            Flight(id, 0)[mFlightPosition] = Flush(id < count && leftInputs ? leftInputs[id] : 0.0f);
+            Flight(id, 1)[mFlightPosition] = Flush(id < count && rightInputs ? rightInputs[id] : 0.0f);
             // Keep a completed last block in the convolution until its next
             // boundary. Every source then has entirely zero overlap/history.
             if (source.remaining > 1 || position == mBlockSize - 1) --source.remaining;
@@ -261,7 +248,7 @@ private:
             // This is only the *residual* interaural delay.
             const double delay = (flight + (channel ? 0.5 : -0.5) * itd) * mRate
                                - mBlockSize - mResampleDelayFrames;
-            if (!(delay >= 3.0 && delay < mDelayCapacity - 5.0)) return false;
+            if (!(delay >= 3.0 && delay < mFlightLimit - 5.0)) return false;
             const int integer = static_cast<int>(std::floor(delay));
             const double fraction = delay - integer;
             source.integerDelay[channel] = integer;
@@ -493,6 +480,41 @@ private:
         }
     }
 
+    // The block just completed through each ear's 8-tap fractional delay.
+    // Every output sums its taps from 0.0f in tap order, exactly as one
+    // frame at a time would; across frames the sums are independent and
+    // vectorize. A source is cleared, line included, when it activates, so
+    // frames before its activation read zeros and give +0, as they did.
+    void DelayBlock(int id, Source& source) {
+        for (int channel = 0; channel < 2; ++channel) {
+            const float* line = Flight(id, channel);
+            const float* fractional = source.fractional[channel];
+            // Frame i of the block was written at mFlightPosition-mBlockSize+i.
+            int start = mFlightPosition - mBlockSize - source.integerDelay[channel] + 3;
+            if (start < 0) start += mDelayCapacity;
+            std::array<float, kMaximumBlock> value;
+            if (start >= 7 && start + mBlockSize <= mDelayCapacity) {
+                const float* x = line + start;
+                std::fill_n(value.data(), mBlockSize, 0.0f);
+                for (int tap = 0; tap < 8; ++tap)
+                    for (int i = 0; i < mBlockSize; ++i) value[static_cast<std::size_t>(i)] += x[i - tap] * fractional[tap];
+            } else {
+                for (int i = 0; i < mBlockSize; ++i) {
+                    int at = start + i;
+                    if (at >= mDelayCapacity) at -= mDelayCapacity;
+                    float sum = 0.0f;
+                    for (int tap = 0; tap < 8; ++tap) {
+                        sum += line[at] * fractional[tap];
+                        if (--at < 0) at = mDelayCapacity - 1;
+                    }
+                    value[static_cast<std::size_t>(i)] = sum;
+                }
+            }
+            for (int i = 0; i < mBlockSize; ++i)
+                source.current[channel][static_cast<std::size_t>(i)] = Flush(value[static_cast<std::size_t>(i)]);
+        }
+    }
+
     // Independent groups start their partitions at different native frames.
     // Their outputs are summed in time; each still has exactly one block of
     // algorithmic delay. This prevents every source FFT landing in a single
@@ -514,6 +536,7 @@ private:
             if (id % mGroupCount != group) continue;
             auto& source = mSources[static_cast<std::size_t>(id)];
             if (!source.configured || source.remaining == 0) continue;
+            DelayBlock(id, source);
             for (int channel = 0; channel < 2; ++channel) {
                 SplitBlock block;
                 for (int i = 0; i < mBlockSize; ++i) {
@@ -568,7 +591,7 @@ private:
 
     double mMaximumRate = 0.0, mRate = 0.0;
     double mResampleCutoff = 1.0, mResampleSupport = 8.0, mResampleDelayFrames = 8.0;
-    int mMaximumSources = 0, mDelayCapacity = 0, mKernelCapacity = 0, mSpectrumCapacity = 0;
+    int mMaximumSources = 0, mFlightLimit = 0, mDelayCapacity = 0, mKernelCapacity = 0, mSpectrumCapacity = 0;
     int mBlockSize = 32, mFftSize = 64, mKernelLength = 0, mPartitions = 0;
     int mFlightPosition = 0, mGroupCount = 1;
     std::array<int, kMaximumGroups> mBlockPosition{}, mHistoryPosition{};
