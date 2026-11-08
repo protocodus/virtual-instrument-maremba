@@ -63,20 +63,21 @@ struct StrikeCharacter {
 
 inline StrikeCharacter GenerateStrikeCharacter(FastPRNG& prng, float variance) {
     const double amount = std::isfinite(variance) ? std::clamp(variance, 0.0f, 100.0f) * 0.01 : 0.0;
-    // Widen contact duration (the head's stiffness), release shape (its loss),
-    // partial balance (where it lands) and speed from the first movement of
-    // the control. This smooth concave curve gives low settings useful
-    // expression while retaining the natural floor and maximum spread.
+    // Widen partial balance (where the striker lands) and speed from the
+    // first movement of the control, within the established force bounds.
     const double expressive = amount * (2.0 - amount);
+    // Contact duration and release shape vary more at ordinary settings.
+    // Applying the same curve again keeps the natural floor and maximum.
+    const double attack = expressive * (2.0 - expressive);
     StrikeCharacter strike;
     // Fixed draw count at note-on, independent of amount and sample rate. The
     // engine's strike PRNG survives voice reuse/silence; explicit Reset reseeds it.
-    strike.stiffnessScale = 1.0 + prng.NextGaussianDouble() * (0.03 + 0.35 * expressive);
+    strike.stiffnessScale = 1.0 + prng.NextGaussianDouble() * (0.03 + 0.35 * attack);
     strike.velocityScale = 1.0 + prng.NextGaussianDouble() * (0.004 + 0.08 * expressive);
     // At Variance 0 a player still lands within about half a millimetre.
     strike.positionOffset = prng.NextGaussianDouble() * (0.0012 + 0.07 * expressive);
     strike.lateralOffset = prng.NextGaussianDouble() * (0.25 + 0.30 * expressive);
-    strike.hysteresisScale = 1.0 + prng.NextGaussianDouble() * (0.02 + 0.15 * expressive);
+    strike.hysteresisScale = 1.0 + prng.NextGaussianDouble() * (0.02 + 0.15 * attack);
     return strike;
 }
 

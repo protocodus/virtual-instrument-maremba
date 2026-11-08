@@ -50,7 +50,7 @@ inline const double* TuningPitchClassCents(int scale) {
     static constexpr double kBala[12] = {0.0, 85.7, 171.4, 257.1, 342.9, 514.3, 600.0, 685.7, 771.4, 857.1, 942.9, 1028.6};
     static constexpr double kTimbila[12] = {0.0, 78.8, 157.5, 241.2, 324.8, 498.0, 576.8, 655.6, 745.0, 834.4, 930.7, 1026.9};
     static constexpr double kFive[12] = {0.0, 120.0, 240.0, 360.0, 480.0, 600.0, 660.0, 720.0, 840.0, 960.0, 1020.0, 1080.0};
-    static constexpr double kSambla[12] = {0.0, 100.0, 200.0, 295.0, 400.0, 550.0, 625.0, 700.0, 800.0, 900.0, 1000.0, 1100.0};
+    static constexpr double kSambla[12] = {0.0, 98.3, 196.7, 295.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1000.0, 1100.0};
     // Gyil keys 6-10 (C4..A4) re key 6, and Valimba keys 11-17 (C4..B4) re key 11.
     static constexpr double kGyil[12] = {0.0, 106.5, 213.1, 338.5, 464.0, 541.0, 618.0, 695.0, 817.5, 940.0, 1019.7, 1099.4};
     static constexpr double kValimba[12] = {0.0, 86.3, 172.7, 264.4, 356.2, 498.0, 572.6, 647.1, 715.7, 784.3, 899.8, 1015.4};
@@ -88,6 +88,7 @@ inline bool IsDegreeKey(int scale, int noteNumber) {
 // note `firstNote`; the keys follow one another on the scale's degree keys.
 struct MeasuredKeys {
     int firstNote;
+    int lastNote;
     int count;
     const double* cents;
 };
@@ -105,8 +106,8 @@ inline const MeasuredKeys* MeasuredKeyboard(int scale) {
     static constexpr double kValimbaCents[21] = {
         0.0, 227.8, 407.8, 570.9, 719.9, 937.6, 1088.3, 1272.8, 1445.5, 1629.1, 1770.9,
         1919.9, 2057.1, 2288.3, 2440.1, 2627.8, 2786.3, 2970.9, 3119.9, 3305.9, 3399.5};
-    static constexpr MeasuredKeys kGyil{48, 14, kGyilCents};
-    static constexpr MeasuredKeys kValimba{48, 21, kValimbaCents};
+    static constexpr MeasuredKeys kGyil{48, 79, 14, kGyilCents};
+    static constexpr MeasuredKeys kValimba{48, 83, 21, kValimbaCents};
     if (scale == static_cast<int>(ETuningScale::Gyil)) return &kGyil;
     if (scale == static_cast<int>(ETuningScale::Valimba)) return &kValimba;
     return nullptr;
@@ -115,9 +116,7 @@ inline const MeasuredKeys* MeasuredKeyboard(int scale) {
 // Offset from equal temperament of a measured keyboard's degree key; beyond
 // the measured range the nearest measured octave repeats exactly.
 inline double MeasuredOffsetCents(int scale, const MeasuredKeys& keys, int note) {
-    int last = keys.firstNote, index = 0;
-    for (int n = keys.firstNote; index + 1 < keys.count; ++n)
-        if (IsDegreeKey(scale, n + 1)) { last = n + 1; ++index; }
+    const int last = keys.lastNote;
     // Whole octaves in or out leave the offset as it is.
     while (note > last) note -= 12;
     while (note < keys.firstNote) note += 12;

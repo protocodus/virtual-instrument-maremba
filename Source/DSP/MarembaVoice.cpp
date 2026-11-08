@@ -101,8 +101,8 @@ inline MembraneVoicing GetMembraneVoicing(EMarimbaModel model, int noteNumber) {
             // balafon (a three-octave instrument reaches about C6) is meant to
             // sound dull and carries no membrane (Voisin 1993).
             const int count = noteNumber >= 84 ? 0 : ((noteNumber * 7) % 5) < 2 ? 2 : 3;
-            return {count, {1150.0, 1550.0, 2050.0}, {0.22, 0.30, 0.40}, {0.25, 0.12, 0.35},
-                    {3.4, 2.9, 2.5}, {2.4, 2.0, 1.6}, 2.5, 8.0, 20.0, 0.0006, 0.015, 1.0, 0.35, 0.15};
+            return {count, {1150.0, 1550.0, 2050.0}, {0.22, 0.26, 0.31}, {0.25, 0.12, 0.35},
+                    {3.4, 3.1, 2.85}, {2.4, 2.0, 1.6}, 2.5, 8.0, 20.0, 0.0006, 0.015, 1.0, 0.35, 0.15};
         }
         case EMarimbaModel::MayanPadauk:
             return {1, {720.0, 0.0, 0.0}, {0.88, 0.0, 0.0}, {0.06, 0.0, 0.0},
@@ -543,14 +543,16 @@ void MarembaVoice::TuneOnResonator() {
     // 1. The bar-like mode on pitch.
     const auto barLike = [&](double omegaBar) {
         const Complex lb(barLoss, omegaBar);
+        const Complex sum = 0.5 * (lb + tube);
+        const Complex half = 0.5 * (lb - tube);
+        const Complex half2 = half * half;
         Complex mode = lb;
         constexpr int kSteps = 12;
         for (int step = 1; step <= kSteps; ++step) {
             const double k = kappa * step / kSteps;
-            const Complex half = 0.5 * (lb - tube);
-            const Complex root = std::sqrt(half * half - k * k);
-            const Complex a = 0.5 * (lb + tube) + root, b = 0.5 * (lb + tube) - root;
-            mode = std::abs(a - mode) <= std::abs(b - mode) ? a : b;
+            const Complex root = std::sqrt(half2 - k * k);
+            const Complex a = sum + root, b = sum - root;
+            mode = std::norm(a - mode) <= std::norm(b - mode) ? a : b;
         }
         return mode.imag();
     };
@@ -676,6 +678,8 @@ void MarembaVoice::StartMallet(double velocity, double /*positionOffset*/) {
     mMalletSetup.compliance = mContactCompliance;
     mMalletSetup.dt = mDt;
     for (int m = 0; m < mNumModes; ++m) mModes[m].idle = false;
+    for (int n = 0; n < mNumTorsionModes; ++n) mTorsion[n].idle = false;
+    mLateral.idle = false;
     mContact.Start(mMalletSetup, ContactDisplacement());
 }
 
@@ -881,8 +885,10 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
             modalMass = std::max(key.massFraction[m] * key.massKg, 1.0e-4);
             feltSquare = FootprintMeanSquare([&key, m](double x) { return BarShape(key, m, x); },
                                              supportPoint, 0.05);
-            if (model == EMarimbaModel::ImperialRosewood)
-                alpha += kCordDamping * feltSquare / (2.0 * modalMass);
+            if (model == EMarimbaModel::ImperialRosewood) {
+                const double bassCord = 1.0 + 0.55 * std::clamp((48.0 - midi) / 12.0, 0.0, 1.0);
+                alpha += kCordDamping * bassCord * feltSquare / (2.0 * modalMass);
+            }
             shapeAtContact = FootprintAverage([&key, m](double x) { return BarShape(key, m, x); },
                                               spatialPosition, footprint);
             // Under a muffling hand.
@@ -979,6 +985,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
             if (frequency >= ModeLimit(fs)) break;
             ModeState& mode = mTorsion[n];
             if (n >= previousTorsion) mode.y1 = mode.y2 = 0.0;
+            mode.idle = false;
             // Wood loses more in shear than in bending.
             const double alpha = 1.67 * kPiD * frequency * LossFactor(material, frequency);
             const double t60 = std::min(6.907755 * decayScale / alpha, kMaxT60Seconds);
@@ -1008,6 +1015,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         if (lateralHz < ModeLimit(fs)) {
             mHasLateral = true;
             if (!isRestrike) mLateral.y1 = mLateral.y2 = 0.0;
+            mLateral.idle = false;
             const double alpha = 1.3 * kPiD * lateralHz * LossFactor(material, lateralHz);
             const double t60 = std::min(6.907755 * decayScale / alpha, kMaxT60Seconds);
             mLateral.omega = kTwoPiD * lateralHz / fs;
@@ -1106,7 +1114,10 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         mClickGain = mMallet.click * (shaft && !mTine ? 0.4 : 1.0);
         if (mDeadStroke) {
             if (mTine) mFingerPending = true;              // the fingertip stays on the tine
-            else mContact.Hold(kDeadHoldForce, kDeadGrip); // the head stays pressed into the bar
+            else {
+                const double deadScale = std::clamp(std::pow(f0 / 261.625565, 0.45), 0.45, 2.0);
+                mContact.Hold(kDeadHoldForce * deadScale, kDeadGrip * deadScale); // the head stays pressed into the bar
+            }
         }
         mFingerDelay = 0;
         // A glancing or loose stroke bounces back onto the bar (a held one cannot).
@@ -1412,7 +1423,7 @@ void MarembaVoice::SetBuzz(float amount, float tension) {
     // at their bottoms than the treble ones; their charleos sit a little
     // tighter so the buzz stays even across the keyboard.
     const double register_ = mModel == EMarimbaModel::MayanPadauk
-        ? std::clamp(261.625565 / mF0, 0.25, 3.0) : 1.0;
+        ? std::clamp(261.625565 / mF0, 0.25, 1.25) : 1.0;
     // Buzz loosens the membranes toward their free travel; a charleo (one
     // large gut membrane) less steeply than the small silk mirlitons. Both
     // keep growing up to the top of the range.
@@ -1599,6 +1610,7 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
             const double y = free + mode.force * impulse;
             mode.y2 = mode.y1;
             mode.y1 = y;
+            mode.idle = false;
             // Both coordinates describe the same post-force oscillator state.
             // Reading the new displacement with the old, free quadrature would
             // give the spatial field a rate-dependent phase error during contact.
@@ -1654,16 +1666,19 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
 
     for (int n = 0; n < mNumTorsionModes; ++n) {
         ModeState& mode = mTorsion[n];
-        const double y = mode.c * mode.y1 - mode.s * mode.y2 + mTorsionDrive[n] * impulse;
+        if (mode.idle && impulse == 0.0) continue;
+        const double y = (mode.idle ? 0.0 : mode.c * mode.y1 - mode.s * mode.y2) + mTorsionDrive[n] * impulse;
         mode.y2 = mode.y1;
         mode.y1 = y;
+        mode.idle = false;
         barClose += y * mTorsionClose[n];
         barFar += y * mTorsionFar[n];
     }
-    if (mHasLateral) {
-        const double y = mLateral.c * mLateral.y1 - mLateral.s * mLateral.y2 + mLateralDrive * impulse;
+    if (mHasLateral && (!mLateral.idle || impulse != 0.0)) {
+        const double y = (mLateral.idle ? 0.0 : mLateral.c * mLateral.y1 - mLateral.s * mLateral.y2) + mLateralDrive * impulse;
         mLateral.y2 = mLateral.y1;
         mLateral.y1 = y;
+        mLateral.idle = false;
         barClose += y * mLateralRadiation;
         barFar += y * mLateralRadiation * 0.5;
     }
@@ -1823,21 +1838,19 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
 
     // 8. Mechanical outputs: support force into the frame (bars) or the
     // signed bridge reaction into the board (tines).
+    double buzzerImpact = 0.0;
     if (mTine) {
         bridge += knockBridge - mPreloadOffset;
         mPreloadOffset *= mPreloadBleed;
-        mBridgeSample = bridge;
-        mMechanicalSample = static_cast<float>(bridge * 0.02);
+        // Kalimba buzzers ride on the board that the bridge drives; their
+        // landing impulse also knocks the shared board and pickup.
+        buzz += kBuzzerRadiation * mBuzzer.Process(bridge * kBuzzerDrive, handPole, buzzerImpact);
+        buzzerImpact *= kBuzzerRadiation;
+        mBridgeSample = bridge + buzzerImpact * 0.08;
+        mMechanicalSample = static_cast<float>(mBridgeSample * 0.02);
     } else {
         mBridgeSample = 0.0;
         mMechanicalSample = static_cast<float>(support * kFrameDriveUnit + brushAir * 0.5 + knockFrame);
-    }
-
-    // Kalimba buzzers ride on the board that the bridge drives.
-    double buzzerImpact = 0.0;
-    if (mTine) {
-        buzz += kBuzzerRadiation * mBuzzer.Process(bridge * kBuzzerDrive, handPole, buzzerImpact);
-        buzzerImpact *= kBuzzerRadiation;
     }
 
     // 9. Microphones and the attached contact transducer.
@@ -1909,17 +1922,33 @@ void MarembaVoice::UpdateEnvelope() {
     double energy = 0.0;
     const bool driven = mContact.Active() || mReleaseSample < mReleaseSamples || mFingerOn
                      || mHandPulseSample < mHandPulseSamples;
+    const double tubeEnergy = FlushedModeEnergy(mTube);
+    double upperCavityEnergy = 0.0;
+    for (auto& mode : mUpperCavity) upperCavityEnergy += FlushedModeEnergy(mode);
     for (int m = 0; m < mNumModes; ++m) {
         const double e = FlushedModeEnergy(mModes[m]);
+        bool cavityCoupled = false;
+        for (int i = 0; i < mNumCavityModes; ++i) {
+            if (mCavityBarIndex[i][0] == m) {
+                const double cavE = i == 0 ? tubeEnergy : upperCavityEnergy;
+                if (cavE >= kFlushEnergy || e >= kFlushEnergy) cavityCoupled = true;
+            }
+        }
         // A decayed mode is skipped until the next strike wakes it.
-        mModes[m].idle = !driven && e < kFlushEnergy && mNumCavityModes == 0;
+        mModes[m].idle = !driven && e < kFlushEnergy && !cavityCoupled;
         energy += e;
     }
-    for (int n = 0; n < mNumTorsionModes; ++n) energy += FlushedModeEnergy(mTorsion[n]);
-    if (mHasLateral) energy += FlushedModeEnergy(mLateral);
-    const double tubeEnergy = FlushedModeEnergy(mTube);
-    energy += tubeEnergy;
-    for (auto& mode : mUpperCavity) energy += FlushedModeEnergy(mode);
+    for (int n = 0; n < mNumTorsionModes; ++n) {
+        const double e = FlushedModeEnergy(mTorsion[n]);
+        mTorsion[n].idle = !driven && e < kFlushEnergy;
+        energy += e;
+    }
+    if (mHasLateral) {
+        const double e = FlushedModeEnergy(mLateral);
+        mLateral.idle = !driven && e < kFlushEnergy;
+        energy += e;
+    }
+    energy += tubeEnergy + upperCavityEnergy;
     if (mShaftActive) {
         double knock = 0.0;
         for (auto& mode : mShaftModes) knock += FlushedModeEnergy(mode);

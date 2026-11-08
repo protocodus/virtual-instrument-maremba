@@ -92,36 +92,26 @@ def fem_roots(elements_per_free_span):
 
 
 def check_radiation_cache(rows, write):
-    """Reuse the existing quadrature abscissae; never modify any bar shape."""
+    """Verify the 64-point Gauss-Legendre quadrature rule in ModalRadiation.h."""
     path = ROOT/'Source/DSP/ModalRadiation.h'
     text = path.read_text()
-    begin = text.index('static constexpr ModalRadiationNode kModalRadiationNodes[32] = {')
-    end = text.index('\n};',begin)
+    begin = text.index('static constexpr ModalRadiationNode kModalRadiationNodes[kRadiationNodes] = {')
+    end = text.index('\n};', begin)
     lines = text[begin:end].splitlines()
+    nodes, weights = np.polynomial.legendre.leggauss(64)
+    expected_x = 0.5 * (nodes + 1.0)
+    expected_w = 0.5 * weights
     count = 0
     for index, line in enumerate(lines):
         if not line.startswith('    {'):
             continue
-        x = float(line.split('{',1)[1].split(',')[0])
-        expected = []
-        for k, _, scale, _, segment in rows:
-            k, scale = float(k), float(scale)
-            ep, em, c, s = map(float, segment)
-            u, z = 1-x, k*(1-x)
-            hyperbolic = ep*math.exp(k*(u-1))+em*math.exp(-z)
-            circular = c*math.cos(z)+s*math.sin(z)
-            expected.append(scale*(hyperbolic+circular))
-        if write:
-            lines[index+2] = '     {'+', '.join(format(value,'.17g') for value in expected)+'}},'
-        else:
-            actual = [float(value) for value in re.search(r'\{(.*?)\}',lines[index+2]).group(1).split(',')]
-            assert len(actual) == 8
-            assert max(abs(a-b) for a,b in zip(actual,expected)) < 1.e-12, 'Radiation cache disagrees with derived tine shapes'
+        x_str, w_str = line.split('{', 1)[1].split('}', 1)[0].split(',')[:2]
+        x, w = float(x_str), float(w_str)
+        assert abs(x - expected_x[count]) < 1.e-15, f'Node {count} x mismatch'
+        assert abs(w - expected_w[count]) < 1.e-15, f'Node {count} weight mismatch'
         count += 1
-    assert count == 32
-    if write:
-        path.write_text(text[:begin]+'\n'.join(lines)+text[end:])
-    print('Radiation tine cache: all32 quadrature points agree with derived geometry.')
+    assert count == 64
+    print('Radiation quadrature table: all 64 Gauss-Legendre points agree.')
 
 
 def main():
