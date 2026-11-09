@@ -103,9 +103,11 @@ struct ReachRule {
     // Set when what the parameter changes runs on state the playing before
     // it leaves (free-running voices beating in the phase their old tuning
     // left, a slow LFO's phase, a glide starting wherever its voice is): the
-    // reason probe 1 need not sound like T, so it is not compared with T.
-    // On an Exempt rule: what the long play exercises and the probes do not,
-    // so R and T differ by that history alone (see reach).
+    // reason probe 1 need not sound like T, so it is not compared with T,
+    // and a later probe whose run without its change already sounds as the
+    // value it sets need not move. On an Exempt rule: what the long play
+    // exercises and the probes do not, so R and T differ by that history
+    // alone (see reach).
     std::string history;
 };
 
@@ -509,7 +511,9 @@ inline int Run(const std::function<std::unique_ptr<Device>()>& make, const Optio
 //           both, and an instrument that remembers its playing (a hand
 //           position on the neck, a string retuned while it rings) need not
 //           sound like either; the run without the change still shows
-//           whether it took.
+//           whether it took, unless the named history had already brought
+//           the instrument to the value the change sets (a probe's bend
+//           ends at the centre a Pitch Bend parameter returns to).
 //
 // "Audibly" is a mean 1/12-octave band-level difference of at least 0.5 dB
 // (about one level JND) over the cells within 60 dB of the loudest, or a
@@ -873,6 +877,20 @@ inline std::string Check(const std::function<std::unique_ptr<Device>()>& make, c
         std::snprintf(text, sizeof text, "; probe %d moved %.2f dB (%.0f dB)", k + 1, moved, movedDifference);
         report += text;
         if (!Audible(moved, movedDifference)) {
+            // A declared history can bring the instrument back to the value
+            // change k sets before the change comes (each probe's bend ends
+            // at the centre a Pitch Bend parameter rests at): the run without
+            // it then already sounds as that value does. Undeclared, the same
+            // sign is a value lost a while after it was set, and fails.
+            if (k > 0 && !rule.history.empty()) {
+                const Audio& value = k == 1 ? *unchanged : atTarget;
+                const Levels v = analyse(value, at);
+                if (!Audible(Distance(w, v, w, v), DifferenceDb(without, at, value, at, kProbeSeconds))) {
+                    std::snprintf(text, sizeof text, "; probe %d already sounds as change %d leaves it: ", k + 1, k + 1);
+                    report += text + rule.history;
+                    continue;
+                }
+            }
             std::snprintf(text, sizeof text, ": probe %d sounds as it would without change %d", k + 1, k + 1);
             return report + text;
         }
