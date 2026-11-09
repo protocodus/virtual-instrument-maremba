@@ -64,6 +64,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
         0.1000, // velocityToVariance
+        0, // quality
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -114,6 +115,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
         0.1000, // velocityToVariance
+        0, // quality
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -164,6 +166,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
         0.1000, // velocityToVariance
+        0, // quality
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -214,6 +217,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
         0.1000, // velocityToVariance
+        0, // quality
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -264,6 +268,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
         0.1000, // velocityToVariance
+        0, // quality
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -314,6 +319,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
         0.1000, // velocityToVariance
+        0, // quality
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -364,6 +370,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
         0.1000, // velocityToVariance
+        0, // quality
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -414,6 +421,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
         0.1000, // velocityToVariance
+        0, // quality
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -464,6 +472,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
         0.1000, // velocityToVariance
+        0, // quality
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -514,6 +523,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
         0.1000, // velocityToVariance
+        0, // quality
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -564,6 +574,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
         0.1000, // velocityToVariance
+        0, // quality
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -614,6 +625,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
         0.1000, // velocityToVariance
+        0, // quality
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -664,6 +676,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
         0.1000, // velocityToVariance
+        0, // quality
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -714,6 +727,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
         0.1000, // velocityToVariance
+        0, // quality
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -764,6 +778,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
         0.1000, // velocityToVariance
+        0, // quality
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -814,6 +829,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
         0.1000, // velocityToVariance
+        0, // quality
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -864,6 +880,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
         0.1000, // velocityToVariance
+        0, // quality
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -914,6 +931,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
         0.1000, // velocityToVariance
+        0, // quality
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -964,6 +982,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
         0.1000, // velocityToVariance
+        0, // quality
         0.0, // modWheel
         0.5, // pitchBend
     }} },
@@ -1014,6 +1033,7 @@ inline constexpr std::array<FactoryPreset, 20> kFactoryPresets {{
         0.1000, // velocityToTension
         0.1000, // velocityToArtifacts
         0.1000, // velocityToVariance
+        0, // quality
         0.0, // modWheel
         0.5, // pitchBend
     }} },

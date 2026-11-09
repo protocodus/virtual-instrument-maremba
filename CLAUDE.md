@@ -19,7 +19,7 @@ Protocodus portfolio standard kept in the project, not in this repository.
   `version_number` takes the same `X.Y.Z` plus its own stage suffix.
 - `Source/DSP/` is JUCE-free and C++17 (the Rack toolchain). No allocation,
   file I/O, locks or exceptions on the audio thread.
-- Front ends share `Source/DSP/MarembaControls.h` (the 48 controls, in Rack
+- Front ends share `Source/DSP/MarembaControls.h` (the 49 controls, in Rack
   property order, and their engine mapping). Plug-in parameter IDs are those
   property names; `PLUGIN_MANUFACTURER_CODE Mrmb` / `PLUGIN_CODE Mrb1`,
   `BUNDLE_ID` and the CLAP id `cz.protocodus.maremba` never change: hosts

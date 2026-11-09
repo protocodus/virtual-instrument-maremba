@@ -32,15 +32,16 @@ shipping engine.
 
 ## Version history
 
-### 1.6.4 — 2026-11-09 — Saved Quality settings open as saved
+### 1.6.4 — 2026-11-09 — Quality starts again at 1x
 
-Quality stores the values every published version saved again: 2x, 4x and
-8x as 0, 1 and 2, native 1x as 3. A change earlier the same day had
-renumbered them 1x first, so songs, patches and sessions saved before it
-opened at the wrong rate (a 1x song at 8x). The plug-in's Quality menu now
-lists 1x, 2x, 4x, 8x in that order without changing what it stores. No build
-with the renumbering was published; anything saved with an unpublished 1.6.2
-or 1.6.3 build opens one Quality step higher (8x wraps to 1x).
+Quality is a new control: it lists 1x, 2x, 4x and 8x in that order and
+defaults to 1x. It replaces Oversampling, whose saved values meant different
+rates in different builds (a change earlier the same day had renumbered them
+1x first). Songs, patches and plug-in sessions saved before 1.6.4 have no
+Quality, so they open at 1x whatever rate they were saved with; choose 2x, 4x
+or 8x again where you want it. Every factory preset plays at 1x. The plug-in's
+Quality parameter is `quality`; the old `oversampling` and `nativeRate`
+parameters are gone, so host automation recorded on them no longer plays.
 
 ### 1.6.3 — 2026-11-09 — A lighter sympathetic halo
 
@@ -223,7 +224,7 @@ rubber at ff, C2–C7), which none of this ships:
 
 ## How it works
 
-Every front end stores the same 48 controls (`Source/DSP/MarembaControls.h`)
+Every front end stores the same 49 controls (`Source/DSP/MarembaControls.h`)
 and maps them to the engine the same way; the plug-in and the demo renderer
 play MIDI through `Source/DSP/MarembaPlayer.h`. `MarembaEngine`
 (`Source/DSP/MarembaEngine.h`) takes physical, already

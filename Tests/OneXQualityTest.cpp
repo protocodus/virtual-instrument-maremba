@@ -90,7 +90,8 @@ void ExactBypass() {
 void QualityPolicy(double rate) {
     Require(std::abs(kMainPeakCeiling - kExpectedMainCeiling) < 1e-7,
             "product Main ceiling is not -1 dBFS");
-    Require(EngineParameters{}.oversampling == 3 && kControlDefaults[kOversampling] == 3,
+    Require(EngineParameters{}.oversampling == 3
+            && EngineParametersFromControls(kControlDefaults).oversampling == 3,
             "native rate is not the engine/control default");
     for (int model = 0; model < 4; ++model) {
         for (int quality = 0; quality < 4; ++quality) {

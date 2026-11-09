@@ -102,9 +102,9 @@ public:
         if (either(kDecay, [&](const std::vector<float>& v, EControl k) { return value(v, k) < 0.5f; })
             || either(kNoteOffMode, stepIs(2)))
             limits.soundsWhileHeld = false;
-        // An Oversampling change rebuilds the engine at the new rate: ringing
+        // A Quality change rebuilds the engine at the new rate: ringing
         // voices fade out and are killed (MarembaEngine::ApplyFactorSwitch).
-        if (step(c.values, kOversampling) != step(c.base, kOversampling)) limits.soundsWhileHeld = false;
+        if (step(c.values, kQuality) != step(c.base, kQuality)) limits.soundsWhileHeld = false;
         // Volume at zero mutes the main output.
         if (value(c.values, kVolume) == 0.0f) limits.soundsWhileHeld = false;
         // Ring lets keys ring freely after note-off, so no silence is due;
@@ -128,9 +128,9 @@ private:
 int main(int argc, char** argv) {
     const MarembaDevice inventory;
     const auto parameters = inventory.Parameters();
-    const auto quality = std::find_if(parameters.begin(), parameters.end(), [](const Parameter& p) { return p.name == "oversampling"; });
-    if (quality == parameters.end() || quality->steps != 4 || quality->defaultValue != 1.f) {
-        std::fprintf(stderr, "error: matrix must expose four Quality states with native 1x as default index 3\n");
+    const auto quality = std::find_if(parameters.begin(), parameters.end(), [](const Parameter& p) { return p.name == "quality"; });
+    if (quality == parameters.end() || quality->steps != 4 || quality->defaultValue != 0.f) {
+        std::fprintf(stderr, "error: matrix must expose four Quality states with 1x as default index 0\n");
         return 1;
     }
     // --quality-only, Maremba's own flag, keeps the Quality cases; the rest of
@@ -140,7 +140,7 @@ int main(int argc, char** argv) {
     std::vector<char*> args(argv, argv + argc);
     const auto qualityOnly = std::find_if(args.begin() + 1, args.end(), [](const char* arg) { return std::string(arg) == "--quality-only"; });
     if (qualityOnly != args.end()) {
-        options.select = [](std::size_t, const protocodus::matrix::Case& c) { return c.label.rfind("oversampling=", 0) == 0; };
+        options.select = [](std::size_t, const protocodus::matrix::Case& c) { return c.label.rfind("quality=", 0) == 0; };
         args.erase(qualityOnly);
     }
     return protocodus::matrix::Main(static_cast<int>(args.size()), args.data(), [] { return std::make_unique<MarembaDevice>(); }, options);

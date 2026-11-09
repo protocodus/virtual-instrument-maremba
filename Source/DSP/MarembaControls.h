@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
 
 namespace maremba {
 
@@ -63,6 +64,7 @@ enum EControl {
     kVelocityToTension,
     kVelocityToArtifacts,
     kVelocityToVariance,
+    kQuality,
     kModWheel,
     kPitchBend,
     kControlCount
@@ -115,6 +117,7 @@ inline constexpr std::array<const char*, kControlCount> kControlNames {
     "velocityToTension",
     "velocityToArtifacts",
     "velocityToVariance",
+    "quality",
     "modWheel",
     "pitchBend"
 };
@@ -145,7 +148,7 @@ inline constexpr std::array<double, kControlCount> kControlDefaults {
     0.1837, // compAttack
     0.2083, // compRelease
     0.85,   // volume: nominal level reference
-    3.0,    // oversampling (1x; saved 2x/4x/8x indices remain 0/1/2)
+    3.0,    // oversampling: retained legacy default, ignored by audio
     1.0,    // velocityCurve (Linear)
     1.0,    // polyphony (16)
     0.50,   // masterTune
@@ -166,6 +169,7 @@ inline constexpr std::array<double, kControlCount> kControlDefaults {
     0.0,    // velocityToTension
     0.0,    // velocityToArtifacts
     0.0,    // velocityToVariance: older patches retain fixed strike variance
+    0.0,    // quality (1x)
     0.0,    // modWheel
     0.50    // pitchBend
 };
@@ -252,7 +256,12 @@ inline EngineParameters EngineParametersFromControls(const ControlValues& values
     p.compRelease = 20.0f + unit(kCompRelease) * 480.0f;
 
     p.volume = modulated(kVolume, modulation.volume);
-    p.oversampling = StepIndex(number(kOversampling), 4);
+    // Quality replaced Oversampling in 1.6.4 so that every saved setting,
+    // whose step index meant different rates in different releases, opens
+    // at 1x. Oversampling stays stored for old songs and is ignored.
+    // Quality lists 1x, 2x, 4x, 8x; the engine's codes are 3, 0, 1, 2.
+    constexpr std::array<int, 4> kEngineQuality { 3, 0, 1, 2 };
+    p.oversampling = kEngineQuality[static_cast<std::size_t>(StepIndex(number(kQuality), 4))];
     p.velocityCurve = StepIndex(number(kVelocityCurve), 4);
     p.polyphony = StepIndex(number(kPolyphony), 3);
     // Master Tune (+/-100 cents) plus the host's own tuning offset.

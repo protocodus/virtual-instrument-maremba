@@ -49,7 +49,6 @@ MarembaAudioProcessor::MarembaAudioProcessor()
     for (int control = 0; control < maremba::kControlCount; ++control)
         if (IsParameter(control))
             fValues[static_cast<std::size_t>(control)] = fParameters.getRawParameterValue(kControlNames[static_cast<std::size_t>(control)]);
-    fNativeRate = fParameters.getRawParameterValue(kNativeRateParameterId);
     // A new instance opens on the first factory preset, which the editor's
     // preset menu shows; a restored session replaces it.
     setCurrentProgram(0);
@@ -57,25 +56,23 @@ MarembaAudioProcessor::MarembaAudioProcessor()
 
 // Parameter IDs are the Rack property names, and a parameter's raw value is
 // the Rack property value: 0..1 for a knob, the step index for a choice.
-// Quality is composed from the original 2x/4x/8x parameter and an appended
-// native-rate switch, preserving old host automation at normalized 0/.5/1.
+// Quality replaced the oversampling parameter and the nativeRate switch in
+// 1.6.4. A session saved before has no Quality value, so it opens at 1x.
 juce::AudioProcessorValueTreeState::ParameterLayout MarembaAudioProcessor::createLayout() {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
     for (int control = 0; control < maremba::kControlCount; ++control) {
         if (!IsParameter(control)) continue;
         const auto index = static_cast<std::size_t>(control);
         const auto& display = kControlDisplay[index];
-        const juce::ParameterID id { kControlNames[index], 1 };
+        // AU hosts order parameters by version hint: an appended one needs a
+        // hint above every earlier release's (nativeRate's was 2).
+        const juce::ParameterID id { kControlNames[index], control == maremba::kQuality ? 3 : 1 };
         const auto initial = maremba::kControlDefaults[index];
         if (display.style == EControlStyle::Choice) {
             juce::StringArray choices;
-            for (const char* choice : display.choices) {
-                if (choice == nullptr) continue;
-                if (control == maremba::kOversampling && choices.size() == 3) break;
-                choices.add(choice);
-            }
-            layout.add(std::make_unique<juce::AudioParameterChoice>(
-                id, display.label, choices, control == maremba::kOversampling ? 0 : static_cast<int>(initial)));
+            for (const char* choice : display.choices)
+                if (choice != nullptr) choices.add(choice);
+            layout.add(std::make_unique<juce::AudioParameterChoice>(id, display.label, choices, static_cast<int>(initial)));
         } else {
             layout.add(std::make_unique<juce::AudioParameterFloat>(
                 id, display.label, juce::NormalisableRange<float>(0.0f, 1.0f), static_cast<float>(initial),
@@ -84,21 +81,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout MarembaAudioProcessor::creat
                     .withValueFromStringFunction([control](const juce::String& text) { return KnobValue(control, text); })));
         }
     }
-    // Keep every legacy parameter's position and version hint unchanged.
-    layout.add(std::make_unique<juce::AudioParameterBool>(
-        juce::ParameterID { kNativeRateParameterId, 2 }, "Native Rate (1x)", true));
     return layout;
 }
 
 maremba::ControlValues MarembaAudioProcessor::currentControls() const {
-    // UI/preset writers set the legacy choice before disabling native mode.
-    // Observe that flag first so a newly observed false cannot pair with an
-    // older dormant legacy value during the transition out of 1x.
-    const bool nativeRate = fNativeRate->load() >= 0.5f;
     maremba::ControlValues values = maremba::kControlDefaults;
     for (std::size_t control = 0; control < values.size(); ++control)
         if (fValues[control] != nullptr) values[control] = fValues[control]->load();
-    if (nativeRate) values[maremba::kOversampling] = 3;
     return values;
 }
 
@@ -159,13 +148,9 @@ void MarembaAudioProcessor::setCurrentProgram(int index) {
     for (int control = 0; control < maremba::kControlCount; ++control) {
         if (!IsParameter(control)) continue;
         auto* parameter = fParameters.getParameter(kControlNames[static_cast<std::size_t>(control)]);
-        // A Rack/native preset's raw 3 is not a fourth legacy host choice.
-        const auto value = control == maremba::kOversampling && values[maremba::kOversampling] == 3
-            ? 0.0f : static_cast<float>(values[static_cast<std::size_t>(control)]);
+        const auto value = static_cast<float>(values[static_cast<std::size_t>(control)]);
         parameter->setValueNotifyingHost(parameter->convertTo0to1(value));
     }
-    fParameters.getParameter(kNativeRateParameterId)->setValueNotifyingHost(
-        values[maremba::kOversampling] == 3 ? 1.0f : 0.0f);
 }
 
 const juce::String MarembaAudioProcessor::getProgramName(int index) {
@@ -183,20 +168,17 @@ void MarembaAudioProcessor::setStateInformation(const void* data, int sizeInByte
     const auto xml = getXmlFromBinary(data, sizeInBytes);
     if (xml == nullptr || !xml->hasTagName(fParameters.state.getType())) return;
     auto state = juce::ValueTree::fromXml(*xml);
-    auto legacyQuality = state.getChildWithProperty("id", "oversampling");
-    auto nativeRate = state.getChildWithProperty("id", kNativeRateParameterId);
-    const bool storedNative = legacyQuality.isValid()
-        && static_cast<float>(legacyQuality.getProperty("value", 0.0f)) >= 2.5f;
-    if (!nativeRate.isValid()) {
-        // Released three-choice states must opt out of the new-instance 1x
-        // default, including raw 0 when no parameter-change callback occurs.
-        // Also migrate raw 3 from the interim four-choice development state.
-        nativeRate = juce::ValueTree("PARAM");
-        nativeRate.setProperty("id", kNativeRateParameterId, nullptr);
-        nativeRate.setProperty("value", storedNative ? 1.0f : 0.0f, nullptr);
-        state.addChild(nativeRate, -1, nullptr);
+    // As in Reason, a parameter the session did not save opens at its
+    // default; replaceState alone would keep this instance's current value.
+    // Sessions saved before 1.6.4 have no Quality, so they open at 1x.
+    for (auto* parameter : getParameters()) {
+        auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(parameter);
+        if (ranged == nullptr || state.getChildWithProperty("id", ranged->paramID).isValid()) continue;
+        juce::ValueTree child("PARAM");
+        child.setProperty("id", ranged->paramID, nullptr);
+        child.setProperty("value", ranged->convertFrom0to1(ranged->getDefaultValue()), nullptr);
+        state.appendChild(child, nullptr);
     }
-    if (storedNative) legacyQuality.setProperty("value", 0.0f, nullptr);
     fCurrentProgram = juce::jlimit(0, getNumPrograms() - 1, static_cast<int>(state.getProperty(kProgramProperty, 0)));
     fParameters.replaceState(state);
 }

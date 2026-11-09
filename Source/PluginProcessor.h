@@ -10,10 +10,6 @@
 
 class MarembaAudioProcessor final : public juce::AudioProcessor {
 public:
-    // Appended plug-in-only mode switch. The legacy oversampling parameter
-    // keeps its original three choices and host-normalized automation values.
-    static constexpr const char* kNativeRateParameterId = "nativeRate";
-
     MarembaAudioProcessor();
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
@@ -55,7 +51,6 @@ private:
 
     juce::AudioProcessorValueTreeState fParameters;
     std::array<std::atomic<float>*, maremba::kControlCount> fValues {};
-    std::atomic<float>* fNativeRate = nullptr;
     maremba::MarembaPlayer fPlayer;
     int fCurrentProgram = 0;
 

@@ -23,8 +23,6 @@ private:
         std::unique_ptr<juce::ComboBox> choice;
         std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> knobAttachment;
         std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> choiceAttachment;
-        std::unique_ptr<juce::ParameterAttachment> legacyQualityAttachment;
-        std::unique_ptr<juce::ParameterAttachment> nativeRateAttachment;
     };
     struct Section {
         juce::String title;

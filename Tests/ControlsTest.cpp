@@ -45,10 +45,17 @@ int main() {
     Check(Finite(p), "defaults map to finite parameters");
     Check(p.model == 0 && p.malletType == 1 && p.velocityCurve == 1 && p.polyphony == 1
           && p.oversampling == 3 && EngineParameters{}.oversampling == 3, "default switches include native quality");
+    // Quality lists 1x, 2x, 4x, 8x; the engine codes them 3, 0, 1, 2. The
+    // legacy Oversampling control, stored for old songs, changes nothing.
+    constexpr int kEngineQuality[] = { 3, 0, 1, 2 };
     for (int quality = 0; quality < 4; ++quality) {
-        auto controls = defaults;
-        controls[kOversampling] = quality;
-        Check(EngineParametersFromControls(controls).oversampling == quality, "every stored quality index survives mapping");
+        for (int legacy = 0; legacy < 4; ++legacy) {
+            auto controls = defaults;
+            controls[kQuality] = quality;
+            controls[kOversampling] = legacy;
+            Check(EngineParametersFromControls(controls).oversampling == kEngineQuality[quality],
+                  "Quality alone sets the rate");
+        }
     }
     Check(p.volume == 0.85f && p.tuneCents == 0.0f && PitchBendCentsFromControls(defaults) == 0.0f,
           "nominal Volume, centred Master Tune and Pitch Bend");
