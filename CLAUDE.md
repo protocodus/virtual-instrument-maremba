@@ -157,7 +157,7 @@ needs an invented number, the answer is still that none of them ships.
 
 ## Testing
 
-Tests follow the portfolio testing standard (U1–U10); the `portfolio-testing`
+Tests follow the portfolio testing standard (U1–U13); the `portfolio-testing`
 skill has the procedures. These hold in every session:
 
 - Every CTest test is `<Name>.<Suite>` with exactly one tier label: `unit`,
@@ -172,6 +172,14 @@ skill has the procedures. These hold in every session:
   figures, never Reason or DAW CPU.
 - A fixed fuzz crash's input goes in `Tests/Fixtures/fuzz/`, which
   `<Name>.DspFuzzReplay` replays in the `unit` tier.
+- No parameter goes stale: `<Name>.ParameterReach` (U11) proves every change,
+  from the editor or the host, reaches held and new notes after long play.
+  Declare a parameter `NewNotes` or `Exempt` only where the design says so,
+  with the reason beside it; a reach failure is a bug, not an exemption.
+- At the default settings, which start at the lowest oversampling (U13), no
+  block of a demo or the stress phrase may take more than 10% of one core on
+  the CI runner (U12, `<Name>.CpuBudget`). A product above it carries its
+  measured `cpuCeiling` and only ever lowers it.
 - A DSP change is done when the suites it touches, the `unit`, `audio` and
   `perf` tiers and `<Name>DSPCxx17` pass.
 

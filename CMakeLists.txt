@@ -329,6 +329,9 @@ if(BUILD_TESTING)
     # stays bounded; main-build.yml runs the full matrix in shards.
     add_test(NAME Maremba.ParameterMatrix COMMAND MarembaParameterMatrix --rotation --jobs 4 --shard 0/16)
     set_tests_properties(Maremba.ParameterMatrix PROPERTIES LABELS fuzz TIMEOUT 3600)
+    # U11: every control reaches held and new notes after long play.
+    add_test(NAME Maremba.ParameterReach COMMAND MarembaParameterMatrix --reach --jobs 4)
+    set_tests_properties(Maremba.ParameterReach PROPERTIES LABELS unit TIMEOUT 1800)
 
     find_package(Python3 COMPONENTS Interpreter)
     if(Python3_Interpreter_FOUND)
