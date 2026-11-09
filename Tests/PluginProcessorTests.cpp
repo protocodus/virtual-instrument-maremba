@@ -205,21 +205,25 @@ void TestCompositeQualityEditor() {
     MarembaAudioProcessor processor;
     const std::unique_ptr<juce::AudioProcessorEditor> editor(processor.createEditor());
     auto* combo = dynamic_cast<juce::ComboBox*>(editor->findChildWithID("quality"));
-    Expect(combo && combo->getNumItems() == 4 && combo->getSelectedItemIndex() == 3,
-           "the editor presents four effective Quality choices with native selected");
+    // The menu lists Quality by factor while its item IDs stay the stored
+    // index plus one (2x/4x/8x = 0/1/2, native 1x = 3).
+    Expect(combo && combo->getNumItems() == 4 && combo->getSelectedId() == 4
+           && combo->getItemText(0).startsWith("1x") && combo->getItemText(1).startsWith("2x")
+           && combo->getItemText(2).startsWith("4x") && combo->getItemText(3).startsWith("8x"),
+           "the editor lists four effective Quality choices 1x first with native selected");
     if (!combo) return;
     for (int choice : {1, 2, 0, 3, 2, 3}) {
-        combo->setSelectedItemIndex(choice, juce::sendNotificationSync);
+        combo->setSelectedId(choice + 1, juce::sendNotificationSync);
         Expect(processor.currentControls()[maremba::kOversampling] == choice
-               && combo->getSelectedItemIndex() == choice,
+               && combo->getSelectedId() == choice + 1,
                "composite Quality writes the effective legacy/native selection");
     }
     processor.parameters().getParameter("oversampling")->setValueNotifyingHost(.5f);
-    Expect(combo->getSelectedItemIndex() == 3, "dormant legacy automation leaves native UI selected");
+    Expect(combo->getSelectedId() == 4, "dormant legacy automation leaves native UI selected");
     processor.parameters().getParameter(MarembaAudioProcessor::kNativeRateParameterId)->setValueNotifyingHost(0);
-    Expect(combo->getSelectedItemIndex() == 1, "host mode automation updates the composite Quality UI");
+    Expect(combo->getSelectedId() == 2, "host mode automation updates the composite Quality UI");
     processor.setCurrentProgram(1);
-    Expect(combo->getSelectedItemIndex() == 3, "factory selection restores native in the composite UI");
+    Expect(combo->getSelectedId() == 4, "factory selection restores native in the composite UI");
 }
 
 void TestStateRoundTrip() {

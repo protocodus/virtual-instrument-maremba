@@ -32,6 +32,16 @@ shipping engine.
 
 ## Version history
 
+### 1.6.4 — 2026-11-09 — Saved Quality settings open as saved
+
+Quality stores the values every published version saved again: 2x, 4x and
+8x as 0, 1 and 2, native 1x as 3. A change earlier the same day had
+renumbered them 1x first, so songs, patches and sessions saved before it
+opened at the wrong rate (a 1x song at 8x). The plug-in's Quality menu now
+lists 1x, 2x, 4x, 8x in that order without changing what it stores. No build
+with the renumbering was published; anything saved with an unpublished 1.6.2
+or 1.6.3 build opens one Quality step higher (8x wraps to 1x).
+
 ### 1.6.3 — 2026-11-09 — A lighter sympathetic halo
 
 The halo's 61 bars now radiate from one point per octave, at its F, instead

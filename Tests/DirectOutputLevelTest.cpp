@@ -53,9 +53,14 @@ constexpr Expectation kExpected[] = {
     // 1.6.0 replaced Close's measured KU100 head with a synthesized sphere:
     // Close's anchors are remeasured (the rosewood chord's peak 0.6 dB lower,
     // the rest within 0.35 dB); Room and Piezo do not pass through it.
+    // 1.6.3 radiates the halo per octave, chosen by ear (Docs/decisions.md):
+    // Padauk's and Balafon's Close and Room anchors are remeasured (Padauk's
+    // Room chord 0.67 dB higher, Balafon's Close note 0.65 lower, the rest
+    // within 0.55 dB). Rosewood moves under 0.01 dB; Piezo and Kalimba's
+    // tines do not pass through the halo's sources.
     {{{-20.98, -24.64, -8.95}}, {{-29.32, -31.82, -23.27}}},
-    {{{-20.57, -18.27, -12.53}}, {{-29.68, -27.49, -23.70}}},
-    {{{-20.11, -14.95, -13.80}}, {{-29.80, -26.90, -23.78}}},
+    {{{-20.66, -17.60, -12.53}}, {{-29.55, -27.64, -23.70}}},
+    {{{-19.84, -14.89, -13.80}}, {{-30.43, -26.35, -23.78}}},
     {{{-16.39, -16.61, -8.57}}, {{-25.68, -25.42, -20.06}}},
 };
 constexpr double kCalibrationToleranceDb = 0.5;

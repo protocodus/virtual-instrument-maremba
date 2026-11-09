@@ -54,7 +54,7 @@ struct EngineParameters {
     float compRelease = 120.0f;     // initial limiter recovery, ms, 20..500
 
     float volume = 0.85f;           // 0..1; nominal level at .85, before MainVolumeGain
-    int oversampling = 0;           // 0: 1x (default), 1: 2x, 2: 4x, 3: 8x
+    int oversampling = 3;           // saved indices: 0: 2x, 1: 4x, 2: 8x, 3: 1x (default); never reorder
     int velocityCurve = 1;          // 0: Soft (sqrt), 1: Linear, 2: Hard (v^1.55), 3: Sigmoid (smoothstep)
     int polyphony = 1;              // 0: 8, 1: 16, 2: 24 voices
     float tuneCents = 0.0f;         // static tuning offset in cents: device Master Tune knob (+/-100) + Reason global master tune (+/-100)
@@ -166,8 +166,12 @@ private:
     };
 
     static EngineParameters Sanitize(const EngineParameters& params);
+    // Rack songs and patches store the Quality step index, and Reason cannot
+    // migrate a saved value: the first releases stored 2x/4x/8x as 0/1/2 and
+    // native 1x was appended as 3. Front ends may list 1x first; the index
+    // meanings stay.
     static int FactorFor(int oversampling) {
-        return oversampling == 1 ? 2 : oversampling == 2 ? 4 : oversampling == 3 ? 8 : 1;
+        return oversampling == 3 ? 1 : oversampling == 1 ? 4 : oversampling == 2 ? 8 : 2;
     }
     static int VoiceLimitFor(int polyphony) { return polyphony == 0 ? 8 : polyphony == 1 ? 16 : 24; }
     static uint32_t VoiceSeed(int slot);

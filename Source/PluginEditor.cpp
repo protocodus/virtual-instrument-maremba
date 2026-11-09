@@ -79,8 +79,11 @@ MarembaAudioProcessorEditor::MarembaAudioProcessorEditor(MarembaAudioProcessor& 
                 if (id == kOversampling) {
                     auto* combo = control.choice.get();
                     combo->setComponentID("quality");
-                    for (const char* item : kControlDisplay[index].choices)
-                        if (item != nullptr) combo->addItem(item, combo->getNumItems() + 1);
+                    // Item IDs are the stored Quality index plus one. Stored
+                    // indices keep 2x/4x/8x at 0/1/2 and native 1x at 3, but
+                    // the menu lists them by factor, 1x first.
+                    for (const int quality : { 3, 0, 1, 2 })
+                        combo->addItem(kControlDisplay[index].choices[static_cast<std::size_t>(quality)], quality + 1);
                     auto* legacyParameter = state.getParameter(kControlNames[index]);
                     auto* nativeParameter = state.getParameter(MarembaAudioProcessor::kNativeRateParameterId);
                     const auto refreshQuality = [combo, legacyParameter, nativeParameter](float) {
@@ -90,7 +93,7 @@ MarembaAudioProcessorEditor::MarembaAudioProcessorEditor(MarembaAudioProcessor& 
                         const bool native = nativeParameter->getValue() >= 0.5f;
                         const int quality = native ? 3 : static_cast<int>(
                             legacyParameter->convertFrom0to1(legacyParameter->getValue()));
-                        combo->setSelectedItemIndex(quality, juce::dontSendNotification);
+                        combo->setSelectedId(quality + 1, juce::dontSendNotification);
                     };
                     control.legacyQualityAttachment = std::make_unique<juce::ParameterAttachment>(
                         *legacyParameter, refreshQuality);
@@ -99,7 +102,7 @@ MarembaAudioProcessorEditor::MarembaAudioProcessorEditor(MarembaAudioProcessor& 
                     auto* legacy = control.legacyQualityAttachment.get();
                     auto* native = control.nativeRateAttachment.get();
                     combo->onChange = [combo, legacy, native] {
-                        const int quality = combo->getSelectedItemIndex();
+                        const int quality = combo->getSelectedId() - 1;
                         if (quality < 0) return;
                         if (quality < 3) legacy->setValueAsCompleteGesture(static_cast<float>(quality));
                         // Set the legacy choice first, then leave native mode.

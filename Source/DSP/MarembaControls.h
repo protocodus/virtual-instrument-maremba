@@ -145,7 +145,7 @@ inline constexpr std::array<double, kControlCount> kControlDefaults {
     0.1837, // compAttack
     0.2083, // compRelease
     0.85,   // volume: nominal level reference
-    0.0,    // oversampling (0: 1x, 1: 2x, 2: 4x, 3: 8x)
+    3.0,    // oversampling (1x; saved 2x/4x/8x indices remain 0/1/2)
     1.0,    // velocityCurve (Linear)
     1.0,    // polyphony (16)
     0.50,   // masterTune
