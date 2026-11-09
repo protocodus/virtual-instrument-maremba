@@ -10,9 +10,9 @@
   ],
   "diffuse_field_directions": 2048,
   "generator_sha256": "6e23792f30d4a89f6eb3e938dc438a4be55ef3b367863c07e6b61b1e48bdef6d",
-  "geometry_sha256": "84c53c1ed620e738ec36e309cbceca00c923b4f87aaf6c27698d7088a6a0e27f",
+  "geometry_sha256": "ab10710bac484249247a3a8ce76303e06369bd828e115a7465469441f21d16f8",
   "geometry_dependency_sha256": {
-    "CaptureGeometry.h": "84c53c1ed620e738ec36e309cbceca00c923b4f87aaf6c27698d7088a6a0e27f",
+    "CaptureGeometry.h": "ab10710bac484249247a3a8ce76303e06369bd828e115a7465469441f21d16f8",
     "MarimbaModel.h": "7c548a779f02abd6bc9f9b3493b5eeda5ca63f51b3a1705b4037c2ba273bc0e0",
     "BarModes.h": "0818d691457b6c49a9c8508c809615760fb4fb1a38892b9defcd57a4f918b2ce"
   },
@@ -21,7 +21,7 @@
     "numpy": "2.5.3",
     "scipy": "1.18.1"
   },
-  "header_sha256": "43bef25ecdefd256ef6e62250ff032c23ca271f346ef20cf2ca187dec86159c9",
+  "header_sha256": "e24fd1504dc949b5373a80f1899252941d45c046db106998105b8d3eca06a72d",
   "source_count": 515,
   "profile_count": 203,
   "reference_rate": 48000,

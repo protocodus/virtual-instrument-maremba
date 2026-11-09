@@ -100,3 +100,37 @@ sympathetic bars take the same tube share (Q factor 1.35 instead of 2). An
 A/B pair (A 1.5.10, B 1.5.11, RMS-matched) was sent for review and not
 committed. The owner listened and chose B, the candidate (2026-10-31): chosen by
 ear, which confirms the direction the recordings set; it fits no constant.
+
+## 1.6.3 — the halo radiates per octave
+
+What was decided: where each of the 61 sympathetic bars radiates from. Each
+capture source runs its own binaural Close convolution and Room taps, so with
+one source per bar a single note kept about 62 sources running: a held bar note
+took about a quarter of a 64-frame Reason batch in a Reason-like build on a
+development machine. The letters, the same in both sets, change only the
+halo's radiation point; the struck bar, its resonator, the frame and the
+halo's own resonators are identical:
+
+- **A**, the shipping 1.6.2 engine: each bar from its own key (61 sources).
+- **B**: one point per octave and keyboard row, the lower row's F and the
+  upper row's F#; C7 its own (11 sources).
+- **C**: one point per octave, its F; C7 its own (6 sources).
+
+Both sets played one phrase written for the test (forte C3, G4 and E5 two
+seconds apart, then a C3-G3-E4 chord left to ring, 8.8 s) through the Rack
+adapter's patch-demo renderer at 48 kHz, seed 20261017, 256-frame blocks.
+The first set used Concert Grand Rosewood and Ambient Cathedral Bloom; B and C
+matched A's whole-file RMS within 0.003 dB without trims and nulled against it
+at -41 to -48 dB. That set left out the Padauk and Balafon models, whose halo
+is far more present, so a second set followed on Mandinka Bala Heptatonic,
+Ancestral Balafon and Chiapas Folk Fiesta, trimmed to A's RMS (at most
++0.107 dB): C nulled at -17.6, -22.2 and -25.7 dB, and B was no closer.
+
+The owner chose C on 2026-11-09, after reading the first set's key, so the
+choice was not blind, and answered that C still sounds right on the second
+set. What it licensed: `HaloSourceNote` in `Source/DSP/CaptureGeometry.h`,
+and `PhysicalResponse`'s Rosewood halo floor at -40 dB instead of -38 (C4 at
+full Sympathetic measures -39.3 dB, against -37.7 with per-bar sources). It is
+a CPU approximation, not a measured acoustic fact: a real halo radiates from
+every bar. At full Sympathetic on C4 the halo's own level moves by -1.6 dB on
+rosewood, +2.7 dB on padauk and -4.3 dB on balafon; Kalimba is unchanged.

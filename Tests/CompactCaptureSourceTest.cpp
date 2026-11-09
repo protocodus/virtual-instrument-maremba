@@ -84,8 +84,14 @@ void productionCalibration() {
             auto check=[&](int id,float value){for(int lane=0;lane<3;++lane){const float want=lane==2?value*.6f:value;const float actual=CaptureSceneTestAccess::Input(scene,id,lane,sub);maxError=std::max(maxError,std::abs(double(actual)-want));require(std::abs(actual-want)<2e-6f*std::max(1.f,std::abs(want)),"production compact-source calibration or reference units differ");}signal+=value*value;};
             check(kCaptureFrameSource,expected[0]);
             check(kCaptureBoardSource,expected[1]);check(kCaptureHoleSource,expected[2]);
-            for(int key=0;key<mesh.ReceiverCount();++key)if(mesh.ReceiverNote(key)!=60)
-                check(CaptureSourceIndex(static_cast<EMarimbaModel>(model),mesh.ReceiverNote(key)),.35f*mesh.GetReceiverPressure(key,1));
+            // Receivers sharing an octave's source sum there, in key order.
+            // The struck key's own source also carries its voice: skip it.
+            const int struck=CaptureSourceIndex(static_cast<EMarimbaModel>(model),60);
+            std::array<float,kCaptureSourceCount> halo{};std::array<bool,kCaptureSourceCount> fed{};
+            for(int key=0;key<mesh.ReceiverCount();++key){
+                const int id=CaptureSourceIndex(static_cast<EMarimbaModel>(model),HaloSourceNote(mesh.ReceiverNote(key),mesh.IsTine()));
+                if(id!=struck){halo[id]+=.35f*mesh.GetReceiverPressure(key,1);fed[id]=true;}}
+            for(int id=0;id<kCaptureSourceCount;++id)if(fed[id])check(id,halo[id]);
         }
     }
     require(signal>1e-5,"production compact-source oracle is silent");

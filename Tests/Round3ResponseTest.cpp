@@ -130,8 +130,9 @@ Halo haloResponse(int model, int note, int quality) {
                     const float receiver = mesh.GetReceiverPressure(key, 1);
                     // Deliberately use the generic API and independent legacy
                     // pair-sum calibration; this checks production's compact
-                    // source API and actual per-receiver geometry together.
-                    scene->Add(maremba::CaptureSourceIndex(static_cast<maremba::EMarimbaModel>(model), mesh.ReceiverNote(key)),
+                    // source API and the halo's per-octave geometry together.
+                    scene->Add(maremba::CaptureSourceIndex(static_cast<maremba::EMarimbaModel>(model),
+                                                           maremba::HaloSourceNote(mesh.ReceiverNote(key), mesh.IsTine())),
                                sub, .35f * receiver, .35f * receiver, .21f * receiver);
                 }
             }

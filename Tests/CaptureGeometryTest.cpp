@@ -71,5 +71,19 @@ int main() {
         std::printf("model=%d ear-field correlation=%.9f\n",model,correlation);
     }
     assert(CloseEar(0).x < CloseEar(1).x);
+    // The halo radiates each octave from its F, C7 from its own key, and
+    // never moves a tine or a note off the five-octave rack.
+    bool zone[128]{};
+    for (int note = 36; note <= 96; ++note) {
+        const int source = HaloSourceNote(note, false);
+        assert(source == (note == 96 ? 96 : note - (note - 36) % 12 + 5));
+        zone[source] = true;
+        assert(HaloSourceNote(note, true) == note);
+        ++checks;
+    }
+    int zones = 0;
+    for (bool used : zone) zones += used;
+    assert(zones == 6);
+    assert(HaloSourceNote(35, false) == 35 && HaloSourceNote(97, false) == 97);
     std::printf("CaptureGeometryTest: %d geometry and physical-state checks passed\n", checks);
 }

@@ -32,6 +32,20 @@ shipping engine.
 
 ## Version history
 
+### 1.6.3 — 2026-11-09 — A lighter sympathetic halo
+
+The halo's 61 bars now radiate from one point per octave, at its F, instead
+of each from its own key; C7 and Kalimba's tines keep their own. In a
+Reason-like build on a development machine a held bar note costs 107 µs
+instead of about 380 (7% of a 64-frame batch instead of 26%), and an
+eight-note strike that took up to 1.49 ms, over the 1.45 ms batch, takes
+under 0.95 ms. The halo sounds slightly different: least on the rosewood
+patches, most on Balafon and Padauk, where it is more present. The owner chose
+this by ear ([decisions](Docs/decisions.md#163--the-halo-radiates-per-octave)).
+Falling silent also no longer clears the electrical pickup's alignment lines
+for every source, with bit-identical output.
+[Benchmark](Docs/benchmarks/halo-zones-2026-11-09.md).
+
 ### 1.6.2 — 2026-11-09 — No dropout when the instrument falls silent
 
 Up to 1.6.1, the batch in which the last tail died away cleared every
@@ -226,8 +240,9 @@ higher modes provide additional alias suppression for the physical sources.
   the bar through an energy-preserving junction; slack mirliton and charleo
   membranes, and kalimba board buzzers that lift off above their preload.
 - **Shared body** (`SympatheticMesh.h`, `FrameBody.h`, `KalimbaBody.h`):
-  sympathetic ringing of unstruck keys, model-specific frame modes and the
-  kalimba's shared box with its air resonance and hand-covered sound hole.
+  sympathetic ringing of unstruck keys, radiated from one point per octave
+  (`HaloSourceNote`), model-specific frame modes and the kalimba's shared box
+  with its air resonance and hand-covered sound hole.
 - **Capture** (`CaptureScene.h`, `CloseCapture.h`, `RoomCapture.h`,
   `PiezoPickup.h`): close capture through a synthesized rigid spherical head
   (`CloseHrtf.h`, the exact series solution for each source at its own range),
@@ -244,6 +259,10 @@ higher modes provide additional alias suppression for the physical sources.
 - The plug-in has no sustain pedal and no MPE; the engine has neither.
 - Close's head is a sphere: it has no pinnae, neck or torso, so it gives no
   elevation or front/back cues beyond the head's own shadow.
+- The sympathetic halo radiates each octave from one point, its F, not each
+  bar from its own key. It is an approximation for CPU, chosen by ear: at
+  full Sympathetic it moves the halo's own level on C4 by -1.6 dB on rosewood,
+  +2.7 dB on padauk and -4.3 dB on balafon.
 - The render tier checks the screenshot's size and that it is not blank, not
   pixel identity with the committed image: the image is rendered on macOS, and
   fonts differ between platforms.

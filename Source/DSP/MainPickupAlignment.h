@@ -51,8 +51,10 @@ public:
         Reset();
     }
 
+    // Only an active source's flight line is read, and Add clears it when
+    // the source activates. Sweeping every source's line (about 1 MB) took
+    // a ringing batch's whole cost each time the instrument fell idle.
     void Reset() {
-        std::fill(mFlight.begin(), mFlight.end(), 0.0f);
         for (auto& source : mSources) {
             source.decimator.Reset();
             source.buffer.fill(0.0f);

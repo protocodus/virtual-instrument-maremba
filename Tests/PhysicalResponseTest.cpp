@@ -249,8 +249,12 @@ int main(int argc, char** argv) {
             if (model == 0 && (fields[f] == &maremba::EngineParameters::bodyBloom
                            || fields[f] == &maremba::EngineParameters::sympathetic)) {
                 // Accepted Rosewood retains a quiet frame/neighbor response
-                // under the bar even at the full control setting.
-                check(contribution > -38 && contribution < -28,
+                // under the bar even at the full control setting. Since 1.6.3
+                // the halo radiates per octave (HaloSourceNote, chosen by ear):
+                // C4's halo then measures -39.3 dB where per-bar sources gave
+                // -37.7, so its quietest bound is -40. The frame keeps -38.
+                const double quietest = fields[f] == &maremba::EngineParameters::sympathetic ? -40 : -38;
+                check(contribution > quietest && contribution < -28,
                       "Rosewood shared radiation masks the bar or loses its response");
             }
             if (model == 1 && fields[f] == &maremba::EngineParameters::bodyBloom) {

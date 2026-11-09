@@ -812,7 +812,8 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
     std::array<float, SympatheticMesh::kNumResonators> receiverPressure;
     for (int key = 0; key < mSympathetic.ReceiverCount(); ++key)
         receiverSources[static_cast<std::size_t>(key)] = CaptureSourceIndex(
-            static_cast<EMarimbaModel>(mParams.model), mSympathetic.ReceiverNote(key));
+            static_cast<EMarimbaModel>(mParams.model),
+            HaloSourceNote(mSympathetic.ReceiverNote(key), mSympathetic.IsTine()));
     struct ActiveRoute {
         int slot, note, source;
         bool tine, mesh;

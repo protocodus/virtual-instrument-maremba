@@ -3,7 +3,7 @@
 // of radius 0.09 m with the scene's ears, each source at its own range,
 // diffuse-field equalized per ear, trimmed -3.64 dB. No recorded or measured response is used.
 // Minimum-phase per ear; 160 taps; residual interaural delay separate.
-// CaptureGeometry SHA256: 84c53c1ed620e738ec36e309cbceca00c923b4f87aaf6c27698d7088a6a0e27f
+// CaptureGeometry SHA256: ab10710bac484249247a3a8ce76303e06369bd828e115a7465469441f21d16f8
 #pragma once
 #include <cstdint>
 namespace maremba {

@@ -69,6 +69,19 @@ inline CapturePoint CaptureSourcePosition(EMarimbaModel model, int midiNote) {
     return {centres[note-36] - .5*span, natural ? -.025 : .135, natural ? 0.0 : .025};
 }
 
+// The note whose capture source a sympathetic receiver radiates from. Each
+// source runs its own binaural Close convolution and Room taps, so with one
+// source per bar a single note kept all 61 halo bars' scenes running and cost
+// about as much as sixteen. The halo is quiet and diffuse: radiating each
+// octave from its F nulls at -41 to -48 dB against per-bar sources (Concert
+// Grand Rosewood, Ambient Cathedral Bloom), and the owner chose it by ear over
+// per-bar sources and
+// per-octave-and-row points (Docs/decisions.md, 2026-11-09). C7, alone in its
+// octave, keeps its own. Kalimba's 17 tines keep theirs.
+inline int HaloSourceNote(int note, bool tine) {
+    if (tine || note < 36 || note >= 96) return note;
+    return 36 + 12 * ((note - 36) / 12) + 5;
+}
 inline int CaptureSourceIndex(EMarimbaModel model, int note) {
     return std::clamp(static_cast<int>(model), 0, 3) * kCaptureNotesPerModel + std::clamp(note, 0, 127);
 }
