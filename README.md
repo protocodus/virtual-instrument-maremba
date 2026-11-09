@@ -32,6 +32,15 @@ shipping engine.
 
 ## Version history
 
+### 1.6.2 — 2026-11-09 — No dropout when the instrument falls silent
+
+Up to 1.6.1, the batch in which the last tail died away cleared every
+capture buffer at once: 2.0–3.1 ms on a development machine, against the
+1.45 ms of a 64-frame batch at 44.1 kHz. In Reason that is one dropout a few
+seconds after every phrase, on every model. Going idle now clears only the
+sources that sounded, and the output is bit-identical to 1.6.1
+([measurement](Docs/benchmarks/idle-flush-2026-11-09.md)).
+
 ### 1.6.1 — 2026-11-05 — The same sound for about 13% less CPU
 
 Five engine optimizations in the Close and Room microphone paths. The

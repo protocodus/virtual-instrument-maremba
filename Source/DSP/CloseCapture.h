@@ -120,14 +120,15 @@ public:
         return source.configured;
     }
 
+    // A silent source's line, history and partition blocks are never read,
+    // and Process clears them (ClearSource) before the source sounds again.
+    // Reset therefore only retires every source: sweeping all 515 sources'
+    // buffers (megabytes) took longer than a whole Reason batch each time the
+    // instrument fell idle.
     void Reset() {
-        std::fill(mFlight.begin(), mFlight.end(), 0.0f);
-        std::fill(mHistory.begin(), mHistory.end(), Complex{});
         for (auto& source : mSources) {
             source.remaining = 0;
             source.active = false;
-            source.previous = {};
-            source.current = {};
         }
         mOutput = {};
         mActiveCount = 0;

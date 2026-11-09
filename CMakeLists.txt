@@ -25,7 +25,7 @@ endif()
 
 # The DSP version is the product version (Rack devices take X.Y.Z from it).
 # C is required too: JUCE's macOS AU and Standalone wrappers compile C sources.
-project(Maremba VERSION 1.6.1 LANGUAGES C CXX)
+project(Maremba VERSION 1.6.2 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -273,6 +273,12 @@ if(BUILD_TESTING)
             # --full are the long opt-in matrices.
             add_test(NAME Maremba.${suite} COMMAND Maremba${suite}Tests --compact)
             set_tests_properties(Maremba.${suite} PROPERTIES LABELS fuzz TIMEOUT 1800)
+        elseif(suite STREQUAL "IdleFlushCost")
+            # Timed (perf tier): Release builds without sanitizers only.
+            if(CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT MAREMBA_ENABLE_SANITIZERS AND NOT MAREMBA_BUILD_FUZZER)
+                add_test(NAME Maremba.${suite} COMMAND Maremba${suite}Tests)
+                set_tests_properties(Maremba.${suite} PROPERTIES LABELS perf RUN_SERIAL TRUE TIMEOUT 600)
+            endif()
         elseif(suite STREQUAL "HardHitOutput")
             add_test(NAME Maremba.${suite} COMMAND Maremba${suite}Tests)
             # Match the matrix's bounded shared-machine/sanitizer hang guard.

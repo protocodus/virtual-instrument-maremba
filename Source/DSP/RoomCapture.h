@@ -169,7 +169,13 @@ public:
         if (mPristine) { mActive = mNext = mWanted; mFade = 1.0f; }
     }
     void Reset(bool resetMotion = true) {
-        std::fill(mHistory.begin(), mHistory.end(), 0.0f);
+        // Only a source still in the active list can hold history: one that
+        // left it wrote zeros over its whole span first. Clearing just those
+        // rows keeps an idle flush from sweeping every source's history.
+        for (int index = 0; index < mActiveSourceCount; ++index) {
+            const size_t row = static_cast<size_t>(mActiveSource[static_cast<size_t>(index)]) * static_cast<size_t>(mStride);
+            std::fill_n(mHistory.begin() + static_cast<std::ptrdiff_t>(row), mStride, 0.0f);
+        }
         for (auto& source : mSource) source.remaining = 0;
         mActiveSourceCount = 0; mSourceQueued.fill(false);
         for (int type = 0; type < 3; ++type) ResetRoom(type, resetMotion);
