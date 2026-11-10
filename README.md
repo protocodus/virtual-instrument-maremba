@@ -293,6 +293,11 @@ higher modes provide additional alias suppression for the physical sources.
   bar from its own key. It is an approximation for CPU, chosen by ear: at
   full Sympathetic it moves the halo's own level on C4 by -1.6 dB on rosewood,
   +2.7 dB on padauk and -4.3 dB on balafon.
+- `Maremba.IdleFlushCost` fails on 1.6.5. The batch that falls idle costs
+  what it did (about 118 µs natively on a development machine), but a ringing
+  batch is now about a quarter cheaper, and the test allows the idle batch
+  twice a ringing one
+  ([measurement](Docs/benchmarks/vector-kernels-2026-11-10.md#marembaidleflushcost-fails)).
 - 1.6.5's vector kernels use GCC and Clang vector extensions. The Windows
   plug-in is built with MSVC, which has none, and runs the scalar loops: the
   same sound without that saving. Its CPU figures come from a Reason-like

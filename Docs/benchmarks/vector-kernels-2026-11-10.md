@@ -143,6 +143,25 @@ none of 1.6.5's changes touch it.
 
 These are development-machine figures, not Reason or DAW CPU.
 
+## Maremba.IdleFlushCost fails
+
+`Maremba.IdleFlushCost` (perf tier) requires the batch that falls idle to
+cost no more than twice a ringing batch. It fails on 1.6.5, six runs of six
+on this machine, and not from load. The same test built against 1.6.4 and
+against 1.6.5 (GCC 13.3 `-O3`), run alternately six times:
+
+| | Ringing batch, median | Batch that falls idle | Ratio |
+| --- | ---: | ---: | ---: |
+| 1.6.4 | 71–73 µs (one run 90) | 118–134 µs | 1.4–1.8 |
+| 1.6.5 | 53–65 µs | 118–191 µs | 2.0–3.6 |
+
+The idle batch did not get slower: its best run is 118 µs in both. The
+ringing batch of the test's single held key got about a quarter cheaper, so
+the same flush is now more than twice it. 1.6.3 met the same thing when the
+halo became cheaper and answered by making the flush cheaper. That has not
+been done here; the limit was not changed. The idle batch is 8% of a
+64-frame batch at 44.1 kHz (1451 µs).
+
 ## Where the Reason-like build spends the rest
 
 From a profile of the chord workload after these changes.
