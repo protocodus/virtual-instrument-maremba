@@ -4,6 +4,7 @@
 #include "CaptureGeometry.h"
 #include "RoomMicrophone.h"
 #include "EarlyReflectionScatter.h"
+#include "SimdLanes.h"
 #include <array>
 #include <algorithm>
 #include <cmath>
@@ -445,15 +446,33 @@ private:
     // source that joins inside the block has an all-zero history until then.
     // `out` holds one sum per block frame, contiguous so the common case
     // vectorizes across frames.
+    // One tap's block onto its sum, read from a run of history that does not
+    // wrap: h[-1] is the frame before the run. With Lanes, four frames a
+    // vector, each lane the scalar expression (Maremba.SimdKernel).
+    template<bool Lanes = MAREMBA_SIMD != 0>
+    static void InterpolateTap(const float* h, float fraction, float gain, int frames, float* out) {
+        int k = 0;
+#if MAREMBA_SIMD
+        if constexpr (Lanes) {
+            const Float4 fractions = SplatFloat4(fraction), gains = SplatFloat4(gain);
+            for (; k + 4 <= frames; k += 4) {
+                const Float4 now = LoadFloat4(h + k), before = LoadFloat4(h + k - 1);
+                Float4 sum = LoadFloat4(out + k);
+                sum += (now + fractions * (before - now)) * gains;
+                StoreFloat4(out + k, sum);
+            }
+        }
+#endif
+        for (; k < frames; ++k)
+            out[k] += (h[k] + fraction * (h[k - 1] - h[k])) * gain;
+    }
     void AccumulateTap(const float* history, const Tap& tap, int from, float* out) const {
         int a = mBlockWrite + from - tap.delay;
         if (a < 0) a += mSpan;
         const int frames = mBlockLength - from;
         out += from;
         if (a >= 1 && a + frames <= mSpan) {
-            const float* h = history + a;
-            for (int k = 0; k < frames; ++k)
-                out[k] += (h[k] + tap.fraction * (h[k - 1] - h[k])) * tap.gain;
+            InterpolateTap(history + a, tap.fraction, tap.gain, frames, out);
             return;
         }
         for (int k = 0; k < frames; ++k) {
