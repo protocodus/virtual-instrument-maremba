@@ -143,27 +143,47 @@ none of 1.6.5's changes touch it.
 
 These are development-machine figures, not Reason or DAW CPU.
 
-## Maremba.IdleFlushCost fails on the development machine
+## Falling idle
 
 `Maremba.IdleFlushCost` (perf tier) requires the batch that falls idle to
-cost no more than twice a ringing batch. On 1.6.5 it fails on this machine,
-six runs of six under load and again with the machine nearly idle, while the
-CI runner's perf tier passed on the same commit (its figures were not read).
-The test has lost its margin; it does not fail everywhere. The same test
-built against 1.6.4 and against 1.6.5 (GCC 13.3 `-O3`), run alternately six
-times on this machine:
+cost no more than twice a ringing batch. The kernels above made the ringing
+batch of the test's single held key about a quarter cheaper and left the
+idle batch as it was, so the test failed on this machine (four runs of five
+with the machine idle) while the CI runner's perf tier still passed. The
+limit was not changed. The idle flush was: of its roughly 105 µs, about half
+went on clearing the two rooms that had not run, cold.
+
+- The Room capture now clears, when it falls idle, only a room a frame has
+  run through since that room's last reset. Outside a room change that is
+  one room of three. An explicit `Reset` still resets all three and their
+  scattering motion.
+- It clears the frames-remaining count only of the sources still in its
+  active list. A source that left the list had counted down to zero.
+
+The same test (GCC 13.3 `-O3`, 44.1 kHz, 64-frame batches of 1451 µs) on
+this machine, idle:
 
 | | Ringing batch, median | Batch that falls idle | Ratio |
 | --- | ---: | ---: | ---: |
 | 1.6.4 | 71–73 µs (one run 90) | 118–134 µs | 1.4–1.8 |
-| 1.6.5 | 53–65 µs | 118–191 µs | 2.0–3.6 |
+| 1.6.5 with the full sweep, five runs | 53–64 µs | 121–134 µs | 1.9–2.5 |
+| 1.6.5, ten runs | 53–68 µs | 72–96 µs | 1.2–1.6 |
 
-The idle batch did not get slower: its best run is 118 µs in both. The
-ringing batch of the test's single held key got about a quarter cheaper, so
-the same flush is now more than twice it. 1.6.3 met the same thing when the
-halo became cheaper and answered by making the flush cheaper. That has not
-been done here; the limit was not changed. The idle batch is 8% of a
-64-frame batch at 44.1 kHz (1451 µs).
+Six earlier runs of the last row, made while a build was finishing on the
+same machine, all passed but reached 103 µs and a ratio of 1.95: the test
+needs a quiet machine, as every perf test does.
+
+Both changes are graded **exact**. Built from the tree before and after
+them, `Tools/CpuEquivalenceRender.cpp` and
+`Tools/CpuSparseRestrikeEquivalence.cpp` give the two SHA-256 values under
+Sound, and a 206 MB stream written for this change is byte-identical: three
+rates, the room changed while idle, while sounding, during a room fade and
+twice in one idle period, an explicit `Reset`, and eighteen idle flushes
+between new strikes. `Maremba.RoomMotion` gained the case the flush could
+get wrong: a room left by a room change, then the flush, then each room in
+turn against a capture whose three rooms were all cleared. Clearing only the
+room still running fails it, and never marking a room as run fails the
+suite's silent-room check.
 
 ## Where the Reason-like build spends the rest
 

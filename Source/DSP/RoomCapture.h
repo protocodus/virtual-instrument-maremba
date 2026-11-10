@@ -171,16 +171,22 @@ public:
         if (mPristine) { mActive = mNext = mWanted; mFade = 1.0f; }
     }
     void Reset(bool resetMotion = true) {
-        // Only a source still in the active list can hold history: one that
-        // left it wrote zeros over its whole span first. Clearing just those
-        // rows keeps an idle flush from sweeping every source's history.
+        // Only a source still in the active list can hold history or frames
+        // remaining: one that left it wrote zeros over its whole span first
+        // and counted down to zero. Clearing just those keeps an idle flush
+        // from sweeping every source.
         for (int index = 0; index < mActiveSourceCount; ++index) {
-            const size_t row = static_cast<size_t>(mActiveSource[static_cast<size_t>(index)]) * static_cast<size_t>(mStride);
-            std::fill_n(mHistory.begin() + static_cast<std::ptrdiff_t>(row), mStride, 0.0f);
+            const size_t id = static_cast<size_t>(mActiveSource[static_cast<size_t>(index)]);
+            std::fill_n(mHistory.begin() + static_cast<std::ptrdiff_t>(id * static_cast<size_t>(mStride)), mStride, 0.0f);
+            mSource[id].remaining = 0;
         }
-        for (auto& source : mSource) source.remaining = 0;
         mActiveSourceCount = 0; mSourceQueued.fill(false);
-        for (int type = 0; type < 3; ++type) ResetRoom(type, resetMotion);
+        // A room no frame has run through since its last reset is still
+        // clear, and only one room runs outside a room change. Sweeping the
+        // other two cold took longer than a ringing batch each time the
+        // instrument fell idle.
+        for (int type = 0; type < 3; ++type)
+            if (resetMotion || mRoomRan[static_cast<size_t>(type)]) ResetRoom(type, resetMotion);
         for (auto& microphone : mMicrophone) microphone.Reset();
         mWrite = 0; mActive = mNext = mWanted; mFade = 1.0f; mPristine = true;
         mBlockPos = 0;
@@ -526,6 +532,7 @@ private:
     // Renders block frame k of the room's sums.
     void ProcessTail(int type,const BlockSums& sums,size_t k,float* out) {
         auto& room=mRoom[static_cast<size_t>(type)];
+        mRoomRan[static_cast<size_t>(type)]=true;
         float firstL=0,firstR=0,secondL=0,secondR=0;
         room.tail[0].Process(sums.late[0][k],firstL,firstR);
         room.tail[1].Process(sums.late[1][k],secondL,secondR,
@@ -549,6 +556,7 @@ private:
         if(!room.scatterMemory.empty())for(size_t i=0;i<room.scatter.size();++i)
             room.scatter[i].Reset(room.scatterMemory.data()+room.scatterOffset[i]);
         for(auto& channel:room.filter)for(auto& filter:channel)filter.state.fill(0.0);
+        mRoomRan[static_cast<size_t>(type)]=false;
     }
 
     std::vector<float> mHistory;
@@ -557,6 +565,7 @@ private:
     std::array<bool,kMaxSources> mSourceQueued{};
     int mActiveSourceCount=0;
     std::array<Room,3> mRoom;
+    std::array<bool,3> mRoomRan{}; // a frame has run through the room since its last ResetRoom
     std::array<RoomPressureMicrophone,2> mMicrophone;
     double mMaxRate=192000.0,mRate=48000.0,mHistorySeconds=.08;
     int mCapacity=0,mStride=0,mSpan=0,mWrite=0;

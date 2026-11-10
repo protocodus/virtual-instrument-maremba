@@ -27,6 +27,9 @@ struct RoomCaptureTestAccess {
     static void EarlyOnly(RoomCapture& capture) {
         for (auto& room : capture.mRoom) room.tailGain = 0.0f;
     }
+    static void ClearEveryRoom(RoomCapture& capture) {
+        for (int type = 0; type < 3; ++type) capture.ResetRoom(type, false);
+    }
 };
 }
 
@@ -227,6 +230,25 @@ void linearityAndTailReset() {
         require(difference(retained, initial) > 0, "tail reset rewinds the room's elapsed-time motion");
         sounding.Reset();
         require(impulse(sounding, 1.0) == initial, "full reset does not rewind room motion and audio");
+        // A room left by a room change keeps its tail and no longer runs.
+        // The idle flush clears only rooms that ran since their last reset,
+        // which has to leave what clearing all three leaves.
+        RoomCapture changed = *prototype, swept = *prototype;
+        const int other = (type + 1) % 3, third = (type + 2) % 3;
+        for (RoomCapture* room : {&changed, &swept}) {
+            for (int i = 0; i < elapsed; ++i) {
+                if (i == elapsed / 4) room->SetType(other);
+                const float hit = i == 0 || i == elapsed / 2 ? 1.0f : 0.0f;
+                float l, r; room->Process(&hit, 1, l, r);
+            }
+        }
+        RoomCaptureTestAccess::ClearEveryRoom(swept);
+        changed.Reset(false); swept.Reset(false);
+        for (int next : {type, other, third}) {
+            changed.SetType(next); swept.SetType(next);
+            require(impulse(changed, 1.0) == impulse(swept, 1.0), "idle flush leaves a tail in a room it did not clear");
+            changed.Reset(false); swept.Reset(false);
+        }
         sounding.Reset(false); silence(sounding, static_cast<int>(rate));
         sounding.FlushTiny();
         require(sounding.HasNoSubnormalState(), "motion/reset leaves subnormal room state");
