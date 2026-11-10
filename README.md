@@ -32,6 +32,23 @@ shipping engine.
 
 ## Version history
 
+### 1.6.5 — 2026-11-10 — The same sound for less CPU, most of it in Reason
+
+Reason's toolchain does not vectorize loops by itself, so the Close and Room
+microphone loops that earlier versions laid out for the compiler to vectorize
+ran there one float at a time. Those loops and the sympathetic receivers are
+now written as explicit two- and four-lane vector kernels, the halo sums
+each octave's receivers in one pass, and the per-sample `abs`, `isfinite` and
+`sqrt` no longer become library calls in Reason's build. The output is
+bit-identical to 1.6.4 and nothing changes for a session. In a Reason-like
+build on a development machine an eight-note chord takes 24–30% fewer
+instructions across the eight demo presets at 1x and 26% fewer at 4x, and
+its mean 64-frame batch is about 30% shorter. A native build takes 2–13%
+fewer on the bar instruments and 3.5% more on Kalimba, whose tines each have
+their own halo source. The batch in which a chord is struck is no shorter:
+it is note-on work, which these changes do not touch
+([benchmark](Docs/benchmarks/vector-kernels-2026-11-10.md)).
+
 ### 1.6.4 — 2026-11-09 — Quality starts again at 1x
 
 Quality is a new control: it lists 1x, 2x, 4x and 8x in that order and
@@ -276,6 +293,11 @@ higher modes provide additional alias suppression for the physical sources.
   bar from its own key. It is an approximation for CPU, chosen by ear: at
   full Sympathetic it moves the halo's own level on C4 by -1.6 dB on rosewood,
   +2.7 dB on padauk and -4.3 dB on balafon.
+- 1.6.5's vector kernels use GCC and Clang vector extensions. The Windows
+  plug-in is built with MSVC, which has none, and runs the scalar loops: the
+  same sound without that saving. Its CPU figures come from a Reason-like
+  Clang build on a development machine, not from Reason's own toolchain,
+  where the cost of the library calls it removed has not been measured.
 - The render tier checks the screenshot's size and that it is not blank, not
   pixel identity with the committed image: the image is rendered on macOS, and
   fonts differ between platforms.
