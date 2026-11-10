@@ -78,7 +78,8 @@ void haloRuns(int factor) {
     auto calls = std::make_unique<CaptureScene>();
     runs->Allocate(48000.0); calls->Allocate(48000.0);
     Random random{0xa11ceu + static_cast<std::uint32_t>(factor)};
-    // An octave's source, which a struck F shares, and a lone receiver's.
+    // An octave's source, which a struck F shares, and one that takes a lone
+    // receiver or seven: whole vectors of products, a scalar tail, or both.
     const std::array<int, 2> sources{{CaptureSourceIndex(EMarimbaModel::ImperialRosewood, 65),
                                       CaptureSourceIndex(EMarimbaModel::ImperialRosewood, 96)}};
     const auto both = [&](auto&& act) { act(*runs); act(*calls); };
@@ -94,7 +95,7 @@ void haloRuns(int factor) {
             }
             for (int source : sources) {
                 std::array<float, 12> pressure{};
-                const int count = source == sources[0] ? 12 : 1;
+                const int count = source == sources[0] ? 12 : frame % 2 == 0 ? 1 : 7;
                 // All zero (the source must stay asleep), then zeros of both
                 // signs and vanishing terms among ordinary ones.
                 if (phase >= 100 && phase < 1200) for (int k = 0; k < count; ++k) {

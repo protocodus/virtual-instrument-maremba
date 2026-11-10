@@ -150,7 +150,25 @@ public:
         float right = source.active ? source.buffer[1][subsample] : 0.0f;
         float room = source.active ? source.buffer[2][subsample] : 0.0f;
         bool any = false;
-        for (int k = 0; k < count; ++k) {
+        int k = 0;
+#if MAREMBA_SIMD
+        // The products four to a vector; the sums still take one term at a
+        // time, in order.
+        const Float4 scales = SplatFloat4(scale), roomScales = SplatFloat4(roomReferenceScale);
+        Int4 nonzero{};
+        for (; k + 4 <= count; k += 4) {
+            const Float4 term = scales * LoadFloat4(pressure + k);
+            const Float4 roomTerm = term * roomScales;
+            nonzero |= term != SplatFloat4(0.0f);
+            for (int lane = 0; lane < 4; ++lane) {
+                left += term[lane];
+                right += term[lane];
+                room += roomTerm[lane];
+            }
+        }
+        any = (nonzero[0] | nonzero[1] | nonzero[2] | nonzero[3]) != 0;
+#endif
+        for (; k < count; ++k) {
             // Separate statements, as in AddCompactPressure: a compiler that
             // contracts within an expression must not fuse these products
             // into the sums.
