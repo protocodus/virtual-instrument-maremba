@@ -132,6 +132,46 @@ public:
         if (!source.equalEars) source.buffer[1][subsample] += pressure;
         source.buffer[2][subsample] += room;
     }
+    // A run of compact pressures for one source and substep: exactly
+    // AddCompactPressure(id, subsample, scale * pressure[k]) for each k in
+    // order, without a call, a lookup and three memory updates per term. Each
+    // lane takes the same additions in the same order, except that zero and
+    // non-finite terms are added, not skipped. A lane starts its frame at +0
+    // and no sum of floats that began there is -0, so a zero term leaves it
+    // as it was; a non-finite term leaves it non-finite, which
+    // HasInvalidInput reports as the skipped term's flag did. As before, only
+    // a nonzero term wakes the source. The halo calls this once per octave.
+    void AddCompactPressures(int id, int subsample, const float* pressure, int count, float scale) {
+        constexpr float roomReferenceScale = static_cast<float>(CloseCapture::kReferenceDistance
+                                                               / RoomCapture::kReferenceDistance);
+        auto& source = mSource[id];
+        float left = source.active ? source.buffer[0][subsample] : 0.0f;
+        float right = source.active ? source.buffer[1][subsample] : 0.0f;
+        float room = source.active ? source.buffer[2][subsample] : 0.0f;
+        bool any = false;
+        for (int k = 0; k < count; ++k) {
+            // Separate statements, as in AddCompactPressure: a compiler that
+            // contracts within an expression must not fuse these products
+            // into the sums.
+            const float term = scale * pressure[k];
+            const float roomTerm = term * roomReferenceScale;
+            any = any || term != 0.0f;
+            left += term;
+            right += term;
+            room += roomTerm;
+        }
+        if (!any) return;
+        if (!source.active) {
+            source.active = true;
+            mActive[mCount++] = id;
+            mSourcesAdded = true;
+            for (auto& lane : source.buffer) lane.fill(0.0f);
+        }
+        source.receiving = true;
+        source.buffer[0][subsample] = left;
+        if (!source.equalEars) source.buffer[1][subsample] = right;
+        source.buffer[2][subsample] = room;
+    }
     void Process(float& closeL, float& closeR, float& roomL, float& roomR) {
         // The capture renderers need only discover nonzero emitters, not scan
         // all 515 persistent slots. Sorting new IDs preserves their previous

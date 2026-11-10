@@ -808,12 +808,29 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
     // Receiver identities do not change inside a batch, including a pending
     // rate switch. Resolve their physical source slots once, not at every
     // oversampled step of each receiver.
-    std::array<int, 128> receiverSources{};
+    // Neighbouring receivers that radiate from one source (an octave of
+    // bars) form a run, which the capture scene sums in one call.
+    struct ReceiverRun { int source, first, count; };
+    std::array<ReceiverRun, SympatheticMesh::kNumResonators> receiverRuns;
+    int receiverRunCount = 0;
     std::array<float, SympatheticMesh::kNumResonators> receiverPressure;
-    for (int key = 0; key < mSympathetic.ReceiverCount(); ++key)
-        receiverSources[static_cast<std::size_t>(key)] = CaptureSourceIndex(
+    for (int key = 0; key < mSympathetic.ReceiverCount(); ++key) {
+        const int source = CaptureSourceIndex(
             static_cast<EMarimbaModel>(mParams.model),
             HaloSourceNote(mSympathetic.ReceiverNote(key), mSympathetic.IsTine()));
+        if (receiverRunCount > 0 && receiverRuns[static_cast<std::size_t>(receiverRunCount - 1)].source == source)
+            ++receiverRuns[static_cast<std::size_t>(receiverRunCount - 1)].count;
+        else receiverRuns[static_cast<std::size_t>(receiverRunCount++)] = {source, key, 1};
+    }
+    // Legacy receiver pan gains summed to 1 and the Close halo scale was .7:
+    // a receiver's equal-ear reference pressure is .7/2 of its signal.
+    // Geometry now determines each ear's actual level.
+    const auto addReceivers = [&](int subsample) {
+        for (int run = 0; run < receiverRunCount; ++run) {
+            const ReceiverRun& r = receiverRuns[static_cast<std::size_t>(run)];
+            mMicMixer.AddCompactPressures(r.source, subsample, receiverPressure.data() + r.first, r.count, .35f);
+        }
+    };
     struct ActiveRoute {
         int slot, note, source;
         bool tine, mesh;
@@ -960,23 +977,12 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
             // Inter-Bar Sympathetic Resonance Halo ("Singing Rack")
             if (meshOn) {
                 mSympathetic.AdvanceAndRead(mSympatheticGain, receiverPressure.data());
-                for (int key = 0; key < mSympathetic.ReceiverCount(); ++key) {
-                    const float sound = receiverPressure[static_cast<std::size_t>(key)];
-                    // Legacy receiver pan gains summed to 1 and the Close
-                    // halo scale was .7: its equal-ear reference pressure is
-                    // .7/2. Geometry now determines each ear's actual level.
-                    mMicMixer.AddCompactPressure(receiverSources[static_cast<std::size_t>(key)],
-                                                s, .35f * sound);
-                }
+                addReceivers(s);
                 if (mMeshDamping) mSympathetic.Damp(mMeshDampPole);
             }
             if (mMeshVelocityRunning) {
                 mVelocitySympathetic.AdvanceAndRead(meshHeadroom, receiverPressure.data());
-                for (int key = 0; key < mVelocitySympathetic.ReceiverCount(); ++key) {
-                    const float sound = receiverPressure[static_cast<std::size_t>(key)];
-                    mMicMixer.AddCompactPressure(receiverSources[static_cast<std::size_t>(key)],
-                                                s, .35f * sound);
-                }
+                addReceivers(s);
                 if (mMeshDamping) mVelocitySympathetic.Damp(mMeshDampPole);
             }
 
