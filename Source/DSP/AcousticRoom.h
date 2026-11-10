@@ -28,14 +28,14 @@ struct NetworkVoicing {
 // times; at other rates they are the same times, rounded.
 constexpr double kVoicingRate = 44100.0;
 
-// Silence decaying states before they become subnormal (and expensive). Plain
-// comparisons: the Rack Extension toolchain builds with -fno-builtin, where
-// std::abs is a library call.
-inline float FlushTiny(float x) { return (x < 1.0e-20f && x > -1.0e-20f) ? 0.0f : x; }
+// Silence decaying states before they become subnormal (and expensive).
+// FastAbs, not std::abs: the Rack Extension toolchain builds with
+// -fno-builtin, where std::abs is a library call.
+inline float FlushTiny(float x) { return FastAbs(x) < 1.0e-20f ? 0.0f : x; }
 
 // Excitation outside any audio range (or not a number) is ignored, so every
 // feedback state stays finite for any input.
-inline float RoomExcitation(float x) { return (x <= 1.0e5f && x >= -1.0e5f) ? x : 0.0f; }
+inline float RoomExcitation(float x) { return FastAbs(x) <= 1.0e5f ? x : 0.0f; }
 
 // Second-order Butterworth low-pass defined in Hz (bilinear, prewarped): the
 // air and surface loss that band-limits a room, so its response is the same
@@ -181,7 +181,7 @@ public:
     double ExactDelay() const { return mExactDelay; }
     float Coefficient() const { return mCoefficient; }
     double MaximumGroupDelay() const {
-        const double magnitude = std::abs(static_cast<double>(mCoefficient));
+        const double magnitude = FastAbs(static_cast<double>(mCoefficient));
         return mExactDelay * (1.0 + magnitude) / (1.0 - magnitude);
     }
 private:
@@ -435,7 +435,7 @@ private:
             g2 = t2 / (high(w2) * low(w2));
             const double s1 = t3 / (g2 * low(w3)), s2 = t4 / (g2 * low(w4));
             const double det = w3 * w4 * (s1 - s2);
-            if (!(std::abs(det) > 0.0)) { a2 = b2 = 0.0; continue; }
+            if (!(FastAbs(det) > 0.0)) { a2 = b2 = 0.0; continue; }
             b2 = std::max(0.0, (w3 * (s2 - 1.0) - w4 * (s1 - 1.0)) / det);
             a2 = std::clamp((s1 * w3 * (s2 - 1.0) - s2 * w4 * (s1 - 1.0)) / det, 0.0, b2);
         }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "DspMath.h"
 #include <algorithm>
 #include <cmath>
 
@@ -94,7 +95,7 @@ public:
     bool InContact() const { return mInContact; }
     double Force() const { return mForce; }
     double Velocity() const { return mVelocity; }
-    bool IsFinite() const { return std::isfinite(mPosition) && std::isfinite(mVelocity) && std::isfinite(mForce); }
+    bool IsFinite() const { return FastIsFinite(mPosition) && FastIsFinite(mVelocity) && FastIsFinite(mForce); }
     void Stop() { mActive = false; mInContact = false; mForce = 0.0; }
 
     // One sample. freeDisplacement: the bar surface at the contact point this
@@ -139,7 +140,7 @@ public:
                         if (!(next > lo && next < hi)) next = 0.5 * (lo + hi);
                     }
                 }
-                const bool done = std::abs(next - d) <= 1.0e-12 * free;
+                const bool done = FastAbs(next - d) <= 1.0e-12 * free;
                 d = next;
                 if (done || hi - lo <= 1.0e-14 * free) break;
             }
@@ -189,8 +190,8 @@ private:
 
     // d^p: the rubber, wood and core laws (1.5) and cord (2.5) by square roots.
     static double Power(double d, double p) {
-        if (p == 1.5) return d * std::sqrt(d);
-        if (p == 2.5) return d * d * std::sqrt(d);
+        if (p == 1.5) return d * FastSqrt(d);
+        if (p == 2.5) return d * d * FastSqrt(d);
         return std::pow(d, p);
     }
 

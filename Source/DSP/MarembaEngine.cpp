@@ -81,11 +81,11 @@ constexpr uint32_t kRollSeed = 0x2468ACE1u;
 // victim.
 inline double StealEnergy(const MarembaVoice& voice) {
     const double e = voice.GetLoudness();
-    return std::isfinite(e) ? e : 0.0;
+    return FastIsFinite(e) ? e : 0.0;
 }
 
 inline float FiniteClamp(float value, float lo, float hi, float fallback) {
-    if (!std::isfinite(value)) return fallback;
+    if (!FastIsFinite(value)) return fallback;
     return std::clamp(value, lo, hi);
 }
 } // namespace
@@ -95,7 +95,7 @@ uint32_t MarembaEngine::VoiceSeed(int slot) {
 }
 
 MarembaEngine::MarembaEngine(double sampleRate)
-    : mBaseSampleRate((std::isfinite(sampleRate) && sampleRate > 8000.0) ? sampleRate : 44100.0)
+    : mBaseSampleRate((FastIsFinite(sampleRate) && sampleRate > 8000.0) ? sampleRate : 44100.0)
     , mPrng(kEngineSeed)
 {
     for (int note = 0; note < 128; ++note) mTineSide[static_cast<std::size_t>(note)] = KalimbaTineSide(note);
@@ -344,7 +344,7 @@ void MarembaEngine::SnapLiveControls() {
 void MarembaEngine::SmoothLiveControls() {
     const auto smooth = [this](float& value, float target) {
         value += mVolumeAlpha * (target - value);
-        if (std::abs(target - value) < 1.0e-5f) value = target;
+        if (FastAbs(target - value) < 1.0e-5f) value = target;
     };
     smooth(mBodyGain, mParams.bodyBloom);
     smooth(mSympatheticGain, mParams.sympathetic);
@@ -357,7 +357,7 @@ void MarembaEngine::SmoothLiveControls() {
     // The nonlinear input-gain taper needs a gentler sweep than a linear
     // capture fader. Ten milliseconds keeps live changes free of sharp edges.
     mDrive += mDriveAlpha * (mParams.preampDrive - mDrive);
-    if (std::abs(mParams.preampDrive - mDrive) < 1.0e-5f) mDrive = mParams.preampDrive;
+    if (FastAbs(mParams.preampDrive - mDrive) < 1.0e-5f) mDrive = mParams.preampDrive;
     const std::array<float, 3> stemTrim = StemTrimsFor(mParams.model);
     for (std::size_t stem = 0; stem < stemTrim.size(); ++stem) smooth(mStemTrim[stem], stemTrim[stem]);
     // Finish the audible fade before clearing a bypassed branch. Re-enabling
@@ -845,7 +845,7 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         const float coverTarget = kalimba ? mParams.modWheel : 0.0f;
         if (mCover != coverTarget) {
             mCover += coverAlpha * (coverTarget - mCover);
-            if (std::abs(coverTarget - mCover) < 1.0e-4f) mCover = coverTarget;
+            if (FastAbs(coverTarget - mCover) < 1.0e-4f) mCover = coverTarget;
             mKalimbaBody.SetCover(mCover);
         }
         const bool meshOn = mMeshRunning;
@@ -1046,7 +1046,7 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         // its queued state. Preserve the existing +60 dB/non-finite fail-safe
         // on the unprotected frame as well as on the final output buffers.
         bool validFrame = true;
-        for (float value : frame) validFrame = validFrame && std::abs(value) <= kMaxOutputLevel;
+        for (float value : frame) validFrame = validFrame && FastAbs(value) <= kMaxOutputLevel;
         if (!validFrame) {
             Reset();
             zeroFrames(0);
@@ -1065,8 +1065,8 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
         // Silence detection: no voice and every tail below -180 dBFS for longer
         // than the longest room echo gap -> flush all tails and go idle.
         if (!anyVoice && !mSwitchPending) {
-            float peak = std::max(std::abs(mainL), std::abs(mainR));
-            for (float value : capture) peak = std::max(peak, std::abs(value));
+            float peak = std::max(FastAbs(mainL), FastAbs(mainR));
+            for (float value : capture) peak = std::max(peak, FastAbs(value));
             mQuietFrames = (peak < kSilenceLevel) ? mQuietFrames + 1 : 0;
             if (mQuietFrames >= mQuietFramesNeeded) {
                 // Clear inaudible audio, retaining the room's slow scattering
@@ -1108,7 +1108,7 @@ void MarembaEngine::RenderBatch(float* outMainL, float* outMainR,
 
     // Output guard (last resort; voices and mesh have their own guards): never
     // hand non-finite or runaway samples to the host. NaN fails the comparison.
-    auto sane = [](float x) { return std::abs(x) <= kMaxOutputLevel; };
+    auto sane = [](float x) { return FastAbs(x) <= kMaxOutputLevel; };
     bool ok = true;
     for (int f = 0; f < frameCount && ok; ++f) {
         ok = sane(outMainL[f]) && sane(outMainR[f]);

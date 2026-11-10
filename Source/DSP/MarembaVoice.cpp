@@ -196,7 +196,7 @@ constexpr double kMaxThumbTravel = 0.008;
 // sin and cos of an angle, by their series below 0.01 rad (a bar-air
 // rotation per sample; exact to double precision there), else by libm.
 inline void SinCosSmall(double a, double& s, double& c) {
-    if (std::abs(a) < 0.01) {
+    if (FastAbs(a) < 0.01) {
         const double a2 = a * a;
         s = a * (1.0 - a2 / 6.0 * (1.0 - a2 / 20.0 * (1.0 - a2 / 42.0)));
         c = 1.0 - a2 / 2.0 * (1.0 - a2 / 12.0 * (1.0 - a2 / 30.0));
@@ -559,20 +559,20 @@ void MarembaVoice::TuneOnResonator() {
     // Secant on the bar's own frequency (the plain fixed-point step first).
     double omegaBar = target, error = barLike(omegaBar) - target;
     double previous = omegaBar, previousError = error;
-    for (int iteration = 0; iteration < 24 && std::abs(error) >= 1.0e-9 * target; ++iteration) {
+    for (int iteration = 0; iteration < 24 && FastAbs(error) >= 1.0e-9 * target; ++iteration) {
         const double slope = iteration > 0 ? (error - previousError) / (omegaBar - previous) : 1.0;
         // Far steeper than the branch itself (0.3-2): the last two iterates
         // straddle the jump of a bass key's bar-like mode, so there is no root.
         if (slope > 5.0) break;
         previous = omegaBar;
         previousError = error;
-        omegaBar -= std::isfinite(slope) && slope > 0.1 ? error / slope : error;
+        omegaBar -= FastIsFinite(slope) && slope > 0.1 ? error / slope : error;
         error = barLike(omegaBar) - target;
     }
     // A tube within the coupling of its bar's pitch (bass keys) makes the
     // bar-like mode jump across the note: no root. The heard line is still
     // continuous there, so step 2 starts from the untuned bar.
-    if (!std::isfinite(omegaBar) || std::abs(error) > 1.0e-4 * target) omegaBar = target;
+    if (!FastIsFinite(omegaBar) || FastAbs(error) > 1.0e-4 * target) omegaBar = target;
 
     // 2. The merged line as heard, refined on the same branch.
     const Complex readBar = mRadiationGain[0] * Complex(mRadiation[0].close.real, mRadiation[0].close.imag);
@@ -626,14 +626,14 @@ void MarembaVoice::TuneOnResonator() {
     };
     double x0 = omegaBar, e0 = heard(x0) - target;
     double x1 = x0 - e0, e1 = heard(x1) - target;
-    for (int iteration = 0; iteration < 8 && std::abs(e1) > 1.0e-5 * target; ++iteration) {   // 0.02 cent
+    for (int iteration = 0; iteration < 8 && FastAbs(e1) > 1.0e-5 * target; ++iteration) {   // 0.02 cent
         const double slope = (e1 - e0) / (x1 - x0);
         if (!(slope > 0.2 && slope < 5.0)) break;   // left the branch
         const double x2 = x1 - e1 / slope;
         x0 = x1; e0 = e1;
         x1 = x2; e1 = heard(x1) - target;
     }
-    if (std::isfinite(x1) && std::abs(e1) < std::abs(e0) && std::abs(x1 - omegaBar) < 0.02 * target) omegaBar = x1;
+    if (FastIsFinite(x1) && FastAbs(e1) < FastAbs(e0) && FastAbs(x1 - omegaBar) < 0.02 * target) omegaBar = x1;
 
     const double omega = std::clamp(omegaBar / fs, 1.0e-6, kMaxOmega);
     bar.omega = omega;
@@ -854,11 +854,11 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         // A restrike of the same key keeps its spatial radiation unless the
         // mode moved by more than a stroke's pitch scatter (0.05 %).
         bool project = !(isRestrike && sameRadiationCarving && m < previousModes && mRadiationHz[m] > 0.0
-                         && std::abs(fm / mRadiationHz[m] - 1.0) < 5.0e-4);
+                         && FastAbs(fm / mRadiationHz[m] - 1.0) < 5.0e-4);
         // A fresh strike of a key played before takes the engine's copy.
         RadiationCacheEntry* const cache = options.radiationCache;
         const bool cacheValid = cache && cache->model == static_cast<int>(model) && cache->carving == options.carving;
-        if (project && cacheValid && cache->hz[m] > 0.0 && std::abs(fm / cache->hz[m] - 1.0) < 5.0e-4) {
+        if (project && cacheValid && cache->hz[m] > 0.0 && FastAbs(fm / cache->hz[m] - 1.0) < 5.0e-4) {
             mRadiation[m] = cache->readout[m];
             mEarRadiation[m] = cache->ears[m];
             mRadiationHz[m] = cache->hz[m];
@@ -1063,7 +1063,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
             compliance += mode.force * mDt / std::max(1.0 - mode.c + mode.s, 1.0e-18)
                         * mode.contact * mode.toDisplacement;
         }
-        const double retained = std::abs(mThumbResidual * ContactDisplacement());
+        const double retained = FastAbs(mThumbResidual * ContactDisplacement());
         if (retained > kMaxThumbTravel) mThumbResidual *= kMaxThumbTravel / retained;
         // Retain the velocity law in the extended bass, then include the
         // strike variation and any residual motion in the absolute bound.
@@ -1170,7 +1170,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
         const double mouth = std::clamp(1.2 * key.widthM / std::max(key.lengthM, 1.0e-3), 0.08, 0.4);
         double overlap[kNumPitchedModes]{};
         for (int m = 0; m < mNumModes; ++m) {
-            overlap[m] = m % 2 ? 0.0 : std::abs(FootprintAverage([&key, m](double x) { return BarShape(key, m, x); },
+            overlap[m] = m % 2 ? 0.0 : FastAbs(FootprintAverage([&key, m](double x) { return BarShape(key, m, x); },
                                                                  0.5, mouth));
         }
         // Only the lowest air mode: the tube's or box's upper resonances sit
@@ -1202,7 +1202,7 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
             int bar = 0;
             double best = 1.0e30;
             for (int m = 0; m < mNumModes; m += 2) {
-                const double distance = std::abs(std::log(frequency / (f0 * key.ratio[m])));
+                const double distance = FastAbs(std::log(frequency / (f0 * key.ratio[m])));
                 if (distance < best) { best = distance; bar = m; }
             }
             mCavityBarIndex[i][0] = mCavityBarIndex[i][1] = bar;
@@ -1329,9 +1329,9 @@ void MarembaVoice::Trigger(int noteNumber, float velocity, EMarimbaModel model,
     // A bar's knock radiates like the bar and its air, reaches the pickup and
     // shakes the frame like the bar's own swing; a tine's knock is a blow to
     // the bridge, which the box radiates and the pickup reads.
-    mCollisionOutput = mTine ? kTineCollisionBridge * std::abs(mBridgeGain[0])
-        : kCollisionLevel * (std::abs(mRadiationGain[0]) + (mNumCavityModes > 0 ? 0.5 * std::abs(mCavityReadout[0]) : 0.0));
-    mCollisionPickup = mTine ? 0.0 : kCollisionLevel * std::abs(mStrainGain[0]);
+    mCollisionOutput = mTine ? kTineCollisionBridge * FastAbs(mBridgeGain[0])
+        : kCollisionLevel * (FastAbs(mRadiationGain[0]) + (mNumCavityModes > 0 ? 0.5 * FastAbs(mCavityReadout[0]) : 0.0));
+    mCollisionPickup = mTine ? 0.0 : kCollisionLevel * FastAbs(mStrainGain[0]);
     mCollisionFrame = mTine ? 0.0 : kCollisionLevel * kFrameDriveUnit * kSupportUnit * kTwoPiD * f0
                                     * mModes[0].toDisplacement;
     const double collisionDuration = std::max(1.0, std::min((mTine ? 0.00012 : 0.00025) * art.collisionPulseScale, 0.18 / f0) * fs);
@@ -1588,7 +1588,7 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
         bool settled = true;
         for (int i = 0; i < mNumCavityModes; ++i) {
             mCavityAngle[i] += mResReadoutStep * (mCavityAngleTarget[i] - mCavityAngle[i]);
-            if (std::abs(mCavityAngleTarget[i] - mCavityAngle[i]) < 1.0e-12) mCavityAngle[i] = mCavityAngleTarget[i];
+            if (FastAbs(mCavityAngleTarget[i] - mCavityAngle[i]) < 1.0e-12) mCavityAngle[i] = mCavityAngleTarget[i];
             else settled = false;
             SinCosSmall(mCavityAngle[i], mCavitySin[i], mCavityCos[i]);
         }
@@ -1703,13 +1703,13 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
     {
         const double rate = (force - mPreviousForce) * mSampleRate;
         mPreviousForce = force;
-        const double drive = mClickGain * std::abs(rate) * 5.0e-7;
+        const double drive = mClickGain * FastAbs(rate) * 5.0e-7;
         const double input = drive > 0.0 ? mLocalPrng.NextBipolar() * mNoiseScale * drive : 0.0;
         const double y = mClackBpC * mClackBpY1 - mClackBpS * mClackBpY2 + mClackBpB * input;
         mClackBpY2 = mClackBpY1;
         mClackBpY1 = y;
         clickSound = y;
-        if (drive == 0.0 && std::abs(mClackBpY1) + std::abs(mClackBpY2) < 1.0e-12) mClackBpY1 = mClackBpY2 = 0.0;
+        if (drive == 0.0 && FastAbs(mClackBpY1) + FastAbs(mClackBpY2) < 1.0e-12) mClackBpY1 = mClackBpY2 = 0.0;
     }
 
     // 6. Buzzing membranes driven by the local resonator pressure. Their slap
@@ -1737,7 +1737,7 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
         if (slapTotal > 0.0) {
             const double air = ModeEnergy(mTube) + ModeEnergy(mUpperCavity[0]) + ModeEnergy(mUpperCavity[1]);
             if (air > 1.0e-30) {
-                const double scale = std::sqrt(std::max(0.0, 1.0 - mMembraneDrain * slapTotal / air));
+                const double scale = FastSqrt(std::max(0.0, 1.0 - mMembraneDrain * slapTotal / air));
                 for (auto* mode : {&mTube, &mUpperCavity[0], &mUpperCavity[1]}) {
                     mode->y1 *= scale;
                     mode->y2 *= scale;
@@ -1752,12 +1752,12 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
             buzz = y;
         }
         // Each slap also rattles the membrane edge: a short broadband burst.
-        mSlapNoise = std::max(mSlapNoise * mSlapNoisePole, std::sqrt(std::max(slapTotal, 0.0)));
+        mSlapNoise = std::max(mSlapNoise * mSlapNoisePole, FastSqrt(std::max(slapTotal, 0.0)));
     } else {
         mSlapNoise *= mSlapNoisePole;
     }
     double slapSound = 0.0;
-    if (mSlapNoise > 1.0e-9 || std::abs(mSlapY1) + std::abs(mSlapY2) > 1.0e-12) {
+    if (mSlapNoise > 1.0e-9 || FastAbs(mSlapY1) + FastAbs(mSlapY2) > 1.0e-12) {
         const double input = mLocalPrng.NextBipolar() * mNoiseScale * mSlapNoise * mSlapNoiseGain;
         const double y = mSlapC * mSlapY1 - mSlapS * mSlapY2 + mSlapB * input;
         mSlapY2 = mSlapY1;
@@ -1788,23 +1788,23 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
             // clearance can knock.
             const bool settled = ++mCollisionClock >= mCollisionCalibrationSample;
             if (!exciting && settled) {
-                const double swing = std::sqrt(std::max(0.0, ModeEnergy(mode0)));
+                const double swing = FastSqrt(std::max(0.0, ModeEnergy(mode0)));
                 mCollisionGap = std::max(1.0e-12, swing * mCollisionGapFactor);
                 mCollisionImpulseLimit = swing * 0.4;
                 mCollisionCalibrated = true;
                 // A swing already past the clearance is not a new approach.
-                mCollisionSide = std::abs(mode0.y1) > mCollisionGap ? (mode0.y1 < 0.0 ? -1 : 1) : 0;
+                mCollisionSide = FastAbs(mode0.y1) > mCollisionGap ? (mode0.y1 < 0.0 ? -1 : 1) : 0;
             }
         }
         const double motion = mode0.y1;
-        const double magnitude = std::abs(motion);
+        const double magnitude = FastAbs(motion);
         const int side = motion < 0.0 ? -1 : 1;
         if (magnitude < 0.7 * mCollisionGap) mCollisionSide = 0;
         if (mCollisionEnvelope > 1.0e-8 && magnitude > mCollisionGap && side != mCollisionSide
             && mCollisionSample >= mCollisionSamplesTotal) {
-            const double approach = std::max(0.0, magnitude - std::abs(mCollisionPrevious)) * mode0.invSin;
-            const double ringBound = std::sqrt(2.0 * (ModeEnergy(mCollisionModes[0]) + ModeEnergy(mCollisionModes[1])));
-            const double barBound = std::sqrt(std::max(0.0, ModeEnergy(mode0))) * mCollisionAmplitudeRatio;
+            const double approach = std::max(0.0, magnitude - FastAbs(mCollisionPrevious)) * mode0.invSin;
+            const double ringBound = FastSqrt(2.0 * (ModeEnergy(mCollisionModes[0]) + ModeEnergy(mCollisionModes[1])));
+            const double barBound = FastSqrt(std::max(0.0, ModeEnergy(mode0))) * mCollisionAmplitudeRatio;
             const double available = std::max(0.0, barBound - ringBound) / 1.45;
             mCollisionImpulse = side * std::min(available,
                 std::min(approach, mCollisionImpulseLimit) * mCollisionEnvelope * 4.0);
@@ -1856,7 +1856,7 @@ bool MarembaVoice::ProcessSample(float& outClose, float& outFar, float& outPiezo
     // 9. Microphones and the attached contact transducer.
     if (mResReadoutGain != 1.0) {
         mResReadoutGain += mResReadoutStep * (1.0 - mResReadoutGain);
-        if (std::abs(mResReadoutGain - 1.0) < 1.0e-12) mResReadoutGain = 1.0;
+        if (FastAbs(mResReadoutGain - 1.0) < 1.0e-12) mResReadoutGain = 1.0;
     }
     // Radiate the coupled cavity directly, without an added harmonic layer.
     const double air = airSum * mResReadoutGain;
@@ -1969,16 +1969,16 @@ void MarembaVoice::UpdateEnvelope() {
 
     bool membranesFinite = mBuzzer.IsFinite();
     for (int i = 0; i < mNumMembranes; ++i) membranesFinite = membranesFinite && mMembranes[i].IsFinite();
-    if (!std::isfinite(energy) || energy > kMaxVoiceEnergy || !std::isfinite(mClackBpY1)
+    if (!FastIsFinite(energy) || energy > kMaxVoiceEnergy || !FastIsFinite(mClackBpY1)
         || !membranesFinite || !mContact.IsFinite()) {
         FastKill();
         return;
     }
     mEnergy = energy;
 
-    if (IsStriking() || std::abs(mClackBpY1) + std::abs(mSlapY1) > 1.0e-10) return;
+    if (IsStriking() || FastAbs(mClackBpY1) + FastAbs(mSlapY1) > 1.0e-10) return;
     // The board is still settling (below 1 uN the rest is some -150 dB).
-    if (std::abs(mPreloadOffset) > 1.0e-6) return;
+    if (FastAbs(mPreloadOffset) > 1.0e-6) return;
 
     // -120 dB and nothing left to excite the bar: free the voice (state flushed)
     if (energy < kSilenceEnergy) FastKill();

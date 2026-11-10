@@ -205,7 +205,7 @@ public:
     // 0 = holes open, 1 = covered. Coefficients re-express ringing states.
     void SetCover(double cover) {
         mCover = std::clamp(cover, 0.0, 1.0);
-        if (std::abs(mCover - mAppliedCover) < 1.0e-4) return;
+        if (FastAbs(mCover - mAppliedCover) < 1.0e-4) return;
         mAppliedCover = mCover;
         for (int k = 0; k < kKalimbaBodyModes; ++k) {
             const auto& spec = kKalimbaBody[k];
@@ -305,13 +305,13 @@ public:
     void FlushTiny() {
         for (auto& mode : mPhysicalPlate) mode.FlushTiny();
         for (auto& mode : mModes) {
-            if (std::abs(mode.y1) + std::abs(mode.y2) < 1.0e-15) mode.y1 = mode.y2 = 0.0;
-            if (std::abs(mode.z1) + std::abs(mode.z2) < 1.0e-15) mode.z1 = mode.z2 = 0.0;
+            if (FastAbs(mode.y1) + FastAbs(mode.y2) < 1.0e-15) mode.y1 = mode.y2 = 0.0;
+            if (FastAbs(mode.z1) + FastAbs(mode.z2) < 1.0e-15) mode.z1 = mode.z2 = 0.0;
         }
         for (auto& dc : mDc)
-            if (std::abs(dc.in) + std::abs(dc.out) < 1.0e-15) dc = DcBlocker{};
-        if (std::abs(mDirect) < 1.0e-15) mDirect = 0.0;
-        if (std::abs(mSideDirect) < 1.0e-15) mSideDirect = 0.0;
+            if (FastAbs(dc.in) + FastAbs(dc.out) < 1.0e-15) dc = DcBlocker{};
+        if (FastAbs(mDirect) < 1.0e-15) mDirect = 0.0;
+        if (FastAbs(mSideDirect) < 1.0e-15) mSideDirect = 0.0;
     }
 
     bool HasNoSubnormalState() const {

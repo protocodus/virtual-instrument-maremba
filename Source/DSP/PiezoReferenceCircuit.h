@@ -71,8 +71,8 @@ public:
         for (double value : {patch.lengthM, patch.widthM, parts.feedbackCapacitance,
             parts.feedbackResistance, parts.cableCapacitance, parts.inputCapacitance,
             parts.openLoopGain, parts.gainBandwidthHz, parts.slewVoltsPerSecond, parts.outputRailVolts})
-            if (!std::isfinite(value)) return false;
-        if (!std::isfinite(fs) || fs < 8000. || fs > 1536000.
+            if (!FastIsFinite(value)) return false;
+        if (!FastIsFinite(fs) || fs < 8000. || fs > 1536000.
             || !(patch.lengthM > 0) || !(patch.widthM > 0)
             || !(parts.feedbackCapacitance > 0) || !(parts.feedbackResistance > 0)
             || !(parts.cableCapacitance >= 0) || !(parts.inputCapacitance >= 0)
@@ -90,7 +90,7 @@ public:
         const double trace = -(a00 + a11);
         const double det = (g * wp + gf * wu) / c;
         const double discriminant = trace * trace - 4. * det;
-        if (!(discriminant > 0) || !std::isfinite(discriminant)) return false;
+        if (!(discriminant > 0) || !FastIsFinite(discriminant)) return false;
         const double fast = .5 * (trace + std::sqrt(discriminant));
         const double slow = det / fast; // avoids cancellation in the slow pole
         const double es = std::exp(-slow / fs), ef = std::exp(-fast / fs);
@@ -108,7 +108,7 @@ public:
         mC = c; mCf = cf; mDtG = g / fs; mDtGf = gf / fs;
         mSlewStep = parts.slewVoltsPerSecond / fs;
         mRail = parts.outputRailVolts;
-        return std::isfinite(mB0) && std::isfinite(mB1);
+        return FastIsFinite(mB0) && FastIsFinite(mB1);
     }
 
     double ProcessCharge(double chargeCoulombs) {
@@ -130,7 +130,7 @@ public:
     void Reset() { mNode = mOutput = mCharge = 0.; }
     double StateEnergy() const { return mNode * mNode + mOutput * mOutput; }
     void FlushTiny() {
-        if (std::abs(mNode) < 1.e-18 && std::abs(mOutput) < 1.e-18 && std::abs(mCharge) < 1.e-27) Reset();
+        if (FastAbs(mNode) < 1.e-18 && FastAbs(mOutput) < 1.e-18 && FastAbs(mCharge) < 1.e-27) Reset();
     }
     bool HasNoSubnormalState() const {
         return std::fpclassify(mNode) != FP_SUBNORMAL && std::fpclassify(mOutput) != FP_SUBNORMAL

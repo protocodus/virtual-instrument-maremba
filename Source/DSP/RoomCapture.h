@@ -1,5 +1,6 @@
 #pragma once
 
+#include "DspMath.h"
 #include "AcousticRoom.h"
 #include "CaptureGeometry.h"
 #include "RoomMicrophone.h"
@@ -61,7 +62,7 @@ public:
     // ringing from another model. No memory is resized by Process/Reset/rate
     // changes or room selection. The declared source catalog sizes the history.
     void Allocate(double maxRate, int maxSources = kMaxSources) {
-        mMaxRate = std::isfinite(maxRate) ? std::max(8000.0, maxRate) : 192000.0;
+        mMaxRate = FastIsFinite(maxRate) ? std::max(8000.0, maxRate) : 192000.0;
         mCapacity = std::clamp(maxSources, 1, kMaxSources);
         mHistorySeconds = .001;
         for (int type = 0; type < 3; ++type) {
@@ -98,8 +99,8 @@ public:
     // a position outside the allocated acoustic envelope rather than clipping
     // its propagation delay. The engine configures the entire catalog once.
     bool AddSource(int id, CapturePoint position) {
-        if (id < 0 || id >= mCapacity || !std::isfinite(position.x)
-                || !std::isfinite(position.y) || !std::isfinite(position.z)) return false;
+        if (id < 0 || id >= mCapacity || !FastIsFinite(position.x)
+                || !FastIsFinite(position.y) || !FastIsFinite(position.z)) return false;
         for (int type = 0; type < 3; ++type) {
             const auto room = RoomDefinition(type);
             if (position.x+room.origin.x <= 0.0 || position.x+room.origin.x >= room.dimensions.x
@@ -120,7 +121,7 @@ public:
     }
 
     void SetSampleRate(double rate) {
-        mRate = std::isfinite(rate) ? std::clamp(rate, 8000.0, mMaxRate) : std::min(48000.0, mMaxRate);
+        mRate = FastIsFinite(rate) ? std::clamp(rate, 8000.0, mMaxRate) : std::min(48000.0, mMaxRate);
         mSpan = std::min(mStride, static_cast<int>(std::ceil(mHistorySeconds * mRate)) + 3);
         mFadeStep = static_cast<float>(1.0 / (.05 * mRate));
         for (auto& microphone : mMicrophone) microphone.SetSampleRate(mRate);
@@ -290,7 +291,7 @@ public:
         for (auto& room : mRoom) for (auto& tail : room.tail) tail.FlushStates();
         for (auto& room : mRoom)
             for (auto& channel : room.filter) for (auto& filter : channel)
-                for (double& state : filter.state) if (std::abs(state) < 1.e-24) state=0.0;
+                for (double& state : filter.state) if (FastAbs(state) < 1.e-24) state=0.0;
     }
     // Diagnostic only: scans allocated history. Private FDN filter states are
     // flushed every Process frame; its public delay storage is checked here.
@@ -320,7 +321,7 @@ private:
             for (size_t i=0;i<state.size();++i) {
                 const double next=c.shelf[i].b0*y+state[i];
                 state[i]=c.shelf[i].b1*y-c.shelf[i].a1*next;
-                if (std::abs(state[i])<1.e-24) state[i]=0.0;
+                if (FastAbs(state[i])<1.e-24) state[i]=0.0;
                 y=next;
             }
             return static_cast<float>(y);

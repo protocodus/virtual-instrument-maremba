@@ -13,6 +13,29 @@ constexpr double kReferenceRate = 88200.0;
 constexpr double kPiD = 3.14159265358979323846;
 constexpr double kTwoPiD = 2.0 * kPiD;
 
+// std::abs, std::isfinite and std::sqrt compile to one instruction natively,
+// but Reason's toolchain builds with -fno-builtin, where they are calls into
+// its library (std::sqrt a software routine): in every flush guard, validity
+// check and energy bound that runs per sample. The __builtin_ forms stay
+// instructions there, and are what the std:: ones already compile to here,
+// so the values are the same. Use these in whatever runs per sample, per
+// block or per control tick.
+#if defined(__clang__) || defined(__GNUC__)
+inline float FastAbs(float x) { return __builtin_fabsf(x); }
+inline double FastAbs(double x) { return __builtin_fabs(x); }
+inline bool FastIsFinite(float x) { return __builtin_isfinite(x); }
+inline bool FastIsFinite(double x) { return __builtin_isfinite(x); }
+inline float FastSqrt(float x) { return __builtin_sqrtf(x); }
+inline double FastSqrt(double x) { return __builtin_sqrt(x); }
+#else
+inline float FastAbs(float x) { return std::abs(x); }
+inline double FastAbs(double x) { return std::abs(x); }
+inline bool FastIsFinite(float x) { return std::isfinite(x); }
+inline bool FastIsFinite(double x) { return std::isfinite(x); }
+inline float FastSqrt(float x) { return std::sqrt(x); }
+inline double FastSqrt(double x) { return std::sqrt(x); }
+#endif
+
 // Per-sample decay multiplier (y *= pole) voiced at the reference rate,
 // converted to fs with the same time constant.
 inline double PoleAtRate(double poleAtRef, double fs) {

@@ -170,10 +170,10 @@ public:
     // Control rate: zero decayed states; clear any unstable one.
     void FlushTiny() {
         for (int i = 0; i < kNumResonators; ++i) {
-            if (std::abs(mInput1[i]) < 1.0e-15) mInput1[i] = 0.0;
-            if (std::abs(mInput2[i]) < 1.0e-15) mInput2[i] = 0.0;
-            if (std::abs(mDrive[i]) < 1.0e-15) mDrive[i] = 0.0;
-            const double mag = std::abs(mY1[i]) + std::abs(mY2[i]);
+            if (FastAbs(mInput1[i]) < 1.0e-15) mInput1[i] = 0.0;
+            if (FastAbs(mInput2[i]) < 1.0e-15) mInput2[i] = 0.0;
+            if (FastAbs(mDrive[i]) < 1.0e-15) mDrive[i] = 0.0;
+            const double mag = FastAbs(mY1[i]) + FastAbs(mY2[i]);
             if (mag < 1.0e-15 || !(mag <= kMaxState)) mY1[i] = mY2[i] = 0.0;
         }
     }

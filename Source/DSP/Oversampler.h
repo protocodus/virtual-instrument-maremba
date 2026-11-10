@@ -1,5 +1,6 @@
 #pragma once
 
+#include "DspMath.h"
 #include <cstdint>
 #include <cmath>
 
@@ -29,8 +30,8 @@ struct HalfbandAllpass {
     }
 
     inline void FlushTiny() {
-        if (std::abs(x1) < kDecimatorTinyState) x1 = 0.0f;
-        if (std::abs(y1) < kDecimatorTinyState) y1 = 0.0f;
+        if (FastAbs(x1) < kDecimatorTinyState) x1 = 0.0f;
+        if (FastAbs(y1) < kDecimatorTinyState) y1 = 0.0f;
     }
 
     inline bool HasNoSubnormalState() const {
@@ -57,7 +58,7 @@ public:
     void FlushTiny() {
         mAp0.FlushTiny();
         mAp1.FlushTiny();
-        if (std::abs(mZ1) < kDecimatorTinyState) mZ1 = 0.0f;
+        if (FastAbs(mZ1) < kDecimatorTinyState) mZ1 = 0.0f;
     }
 
     bool HasNoSubnormalState() const {

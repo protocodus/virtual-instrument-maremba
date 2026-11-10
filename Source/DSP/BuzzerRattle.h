@@ -1,5 +1,6 @@
 #pragma once
 
+#include "DspMath.h"
 #include <algorithm>
 #include <cmath>
 
@@ -64,8 +65,8 @@ public:
             && mRing[1].y1 == 0.0 && mRing[1].y2 == 0.0;
     }
     bool IsFinite() const {
-        return std::isfinite(mHeight) && std::isfinite(mVelocity)
-            && std::isfinite(mRing[0].y1) && std::isfinite(mRing[1].y1);
+        return FastIsFinite(mHeight) && FastIsFinite(mVelocity)
+            && FastIsFinite(mRing[0].y1) && FastIsFinite(mRing[1].y1);
     }
     bool HasNoSubnormalState() const {
         for (double value : {mHeight, mVelocity, mRing[0].y1, mRing[0].y2, mRing[1].y1, mRing[1].y2})
@@ -80,7 +81,7 @@ public:
     }
     void FlushTiny() {
         for (auto& ring : mRing)
-            if (std::abs(ring.y1) + std::abs(ring.y2) < 1.0e-15) ring.y1 = ring.y2 = 0.0;
+            if (FastAbs(ring.y1) + FastAbs(ring.y2) < 1.0e-15) ring.y1 = ring.y2 = 0.0;
     }
 
     // boardDrive: the board's normalized velocity-like motion. Returns the
@@ -140,7 +141,7 @@ private:
             }
             double contactTime = 0.0;
             if (mHeight > 0.0) {
-                const double speed = std::sqrt(std::max(0.0, mVelocity * mVelocity - 2.0 * acceleration * mHeight));
+                const double speed = FastSqrt(std::max(0.0, mVelocity * mVelocity - 2.0 * acceleration * mHeight));
                 // Rationalized first downward root; no cancellation when a
                 // descending buzzer starts close to the board.
                 contactTime = 2.0 * mHeight / (speed - mVelocity);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "DspMath.h"
 #include "CaptureGeometry.h"
 #include "CloseCapture.h"
 #include "RoomCapture.h"
@@ -60,7 +61,7 @@ public:
     void Add(int id, int subsample, float left, float right, float room) {
         // Capture modules defensively sanitize their public inputs. Do not let
         // that conceal a failed physical emitter from the engine's fail-safe.
-        if (!std::isfinite(left) || !std::isfinite(right) || !std::isfinite(room)) {
+        if (!FastIsFinite(left) || !FastIsFinite(right) || !FastIsFinite(room)) {
             mInvalidInput = true;
             return;
         }
@@ -95,7 +96,7 @@ public:
             for (int lane = 0; lane < 3; ++lane) {
                 if (lane == 1 && source.equalEars) continue;
                 for (int s = 0; s < mFactor; ++s)
-                    if (!std::isfinite(source.buffer[lane][s])) return true;
+                    if (!FastIsFinite(source.buffer[lane][s])) return true;
             }
         }
         return false;
@@ -114,7 +115,7 @@ public:
         static_assert(roomReferenceScale > 0.0f && roomReferenceScale <= 1.0f,
                       "a finite compact pressure must give a finite Room input");
         const float pressure = pressureAtCloseReference;
-        if (!std::isfinite(pressure)) {
+        if (!FastIsFinite(pressure)) {
             mInvalidInput = true;
             return;
         }

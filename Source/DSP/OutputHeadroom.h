@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include "DspMath.h"
 #include "OutputPeakKernel.h"
 
 namespace maremba {
@@ -70,9 +71,9 @@ public:
     void Process(std::array<float, 7>& frame, float mainCeiling = kCeiling) {
         std::array<double, 4> peaks{};
         for (int channel = 0; channel < 7; ++channel) {
-            double peak = std::abs(frame[channel]);
+            double peak = FastAbs(frame[channel]);
             const double a = mPrevious2[channel], b = mPrevious1[channel], c = frame[channel];
-            if (std::abs(b) > 1.0e-12 && std::abs(b) >= std::abs(a) && std::abs(b) >= std::abs(c)) {
+            if (FastAbs(b) > 1.0e-12 && FastAbs(b) >= FastAbs(a) && FastAbs(b) >= FastAbs(c)) {
                 // A sinusoid obeys a+c=2*b*cos(w). Its amplitude follows from
                 // the centre sample and the quadrature difference c-a. Using
                 // that estimate at a local peak prevents gain from following
@@ -83,7 +84,7 @@ public:
                 const double denominator = 1.0 - cosw * cosw;
                 if (denominator > 1.0e-12) {
                     const double amplitudeSquared = b*b + (c-a)*(c-a) / (4.0 * denominator);
-                    peak = std::max(peak, std::sqrt(std::min(2.0*b*b, amplitudeSquared)));
+                    peak = std::max(peak, FastSqrt(std::min(2.0*b*b, amplitudeSquared)));
                 }
             }
             mPrevious2[channel] = b;
@@ -93,7 +94,7 @@ public:
             // The L1 bound makes this skip exact: a history containing only
             // small samples cannot reconstruct above the detector ceiling.
             const float ceiling = channel < 2 ? mainCeiling : kCeiling;
-            if (std::abs(c) > ceiling / output_peak::kMaximumL1)
+            if (FastAbs(c) > ceiling / output_peak::kMaximumL1)
                 mFirHotFrames[channel] = output_peak::kTaps;
             if (mFirHotFrames[channel] > 0) {
                 --mFirHotFrames[channel];
@@ -102,7 +103,7 @@ public:
                     double interpolated = 0.0;
                     for (int tap = 0; tap < output_peak::kTaps; ++tap)
                         interpolated += samples[tap] * phase[tap];
-                    peak = std::max(peak, std::abs(interpolated));
+                    peak = std::max(peak, FastAbs(interpolated));
                 }
             }
             peaks[channel / 2] = std::max(peaks[channel / 2], peak);

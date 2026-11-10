@@ -1,5 +1,6 @@
 #pragma once
 
+#include "DspMath.h"
 #include "CaptureGeometry.h"
 #include "Oversampler.h"
 #include <algorithm>
@@ -26,7 +27,7 @@ public:
 
     // Control-rate only; no allocation on rate/quality changes.
     void SetSampleRate(double hostRate) {
-        if (mFlight.empty() || !std::isfinite(hostRate)) return;
+        if (mFlight.empty() || !FastIsFinite(hostRate)) return;
         const double rate = std::clamp(hostRate, 8000.0, mMaximumRate);
         if (rate == mRate) return;
         mRate = rate;
@@ -39,7 +40,7 @@ public:
             double sum = 0.0;
             for (int tap = 0; tap < kTaps; ++tap) {
                 const double delta = tap - kCentre - fraction;
-                const double sinc = std::abs(delta) < 1.0e-12 ? 1.0
+                const double sinc = FastAbs(delta) < 1.0e-12 ? 1.0
                                   : std::sin(kPiD * delta) / (kPiD * delta);
                 source.coefficient[tap] = static_cast<float>(sinc * (.5 + .5 * std::cos(kPiD * delta / (kTaps / 2.0))));
                 sum += source.coefficient[tap];
@@ -147,7 +148,7 @@ private:
         int integerDelay = 0, tailFrames = 0, remaining = 0;
         bool active = false, receiving = false;
     };
-    static float Flush(float value) { return std::abs(value) < 1.0e-30f ? 0.0f : value; }
+    static float Flush(float value) { return FastAbs(value) < 1.0e-30f ? 0.0f : value; }
     float* Flight(int id) { return mFlight.data() + static_cast<std::size_t>(id) * mCapacity; }
     std::array<Source, kCaptureSourceCount> mSources;
     std::array<int, kCaptureSourceCount> mActive{};

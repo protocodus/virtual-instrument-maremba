@@ -40,7 +40,7 @@ public:
 
     RoomPressureMicrophone() { SetSampleRate(48000.); }
     void SetSampleRate(double rate) {
-        mRate = std::isfinite(rate) ? std::max(8000.,rate) : 48000.;
+        mRate = FastIsFinite(rate) ? std::max(8000.,rate) : 48000.;
         // Factor the physical cubic into its vent pole and mechanical pair.
         const double L=kDiaphragmAcousticMass+kSlitAcousticMass;
         const double rc=kVentResistance*kCavityCompliance;

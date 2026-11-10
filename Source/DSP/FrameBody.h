@@ -21,13 +21,13 @@ public:
 
     void FlushTiny() {
         for (auto& mode : mModes) {
-            if (std::abs(mode.y1) + std::abs(mode.y2) < 1.0e-15)
+            if (FastAbs(mode.y1) + FastAbs(mode.y2) < 1.0e-15)
                 mode.y1 = mode.y2 = 0.0;
         }
-        if (std::abs(mInput1) < 1.0e-15) mInput1 = 0.0;
-        if (std::abs(mInput2) < 1.0e-15) mInput2 = 0.0;
-        if (std::abs(mHpInPrev) < 1.0e-15) mHpInPrev = 0.0;
-        if (std::abs(mHpOutPrev) < 1.0e-15) mHpOutPrev = 0.0;
+        if (FastAbs(mInput1) < 1.0e-15) mInput1 = 0.0;
+        if (FastAbs(mInput2) < 1.0e-15) mInput2 = 0.0;
+        if (FastAbs(mHpInPrev) < 1.0e-15) mHpInPrev = 0.0;
+        if (FastAbs(mHpOutPrev) < 1.0e-15) mHpOutPrev = 0.0;
     }
 
     bool HasNoSubnormalState() const {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "DspMath.h"
 #include <algorithm>
 #include <cmath>
 
@@ -90,8 +91,8 @@ public:
     void Reset() { mX = mV = mLinearX = mLinearV = mAcceleration = 0.0; }
     bool IsResting() const { return mX == 0.0 && mV == 0.0 && mLinearX == 0.0 && mLinearV == 0.0; }
     bool IsFinite() const {
-        return std::isfinite(mX) && std::isfinite(mV) && std::isfinite(mAcceleration)
-            && std::isfinite(mLinearX) && std::isfinite(mLinearV);
+        return FastIsFinite(mX) && FastIsFinite(mV) && FastIsFinite(mAcceleration)
+            && FastIsFinite(mLinearX) && FastIsFinite(mLinearV);
     }
     bool HasNoSubnormalState() const {
         for (double value : {mX, mV, mLinearX, mLinearV})
@@ -149,7 +150,7 @@ public:
                     DiscreteGradient(x, oldX, gradient, slope);
                     const double step = (x - oldX + k * gradient - target) / (1.0 + k * slope);
                     x -= step;
-                    if (std::abs(step) <= 1.0e-15 * (1.0 + std::abs(x))) break;
+                    if (FastAbs(step) <= 1.0e-15 * (1.0 + FastAbs(x))) break;
                 }
             }
         }
@@ -188,7 +189,7 @@ private:
     // are the limit when both points coincide.
     void DiscreteGradient(double x, double old, double& gradient, double& slope) const {
         const double dx = x - old;
-        if (std::abs(dx) > 1.0e-9 * (1.0 + std::abs(x))) {
+        if (FastAbs(dx) > 1.0e-9 * (1.0 + FastAbs(x))) {
             gradient = (Potential(x) - Potential(old)) / dx;
             slope = (Force(x) - gradient) / dx;
         } else {
@@ -245,7 +246,7 @@ private:
         // extreme impulses; a fixed cap keeps realtime work bounded.
         for (int iteration = 0; iteration < 48; ++iteration) {
             const double correction = residual / (1.0 + k * slope);
-            if (std::abs(correction) <= 2.0e-15 * std::max({mGapOut, mGapIn, std::abs(x)})) break;
+            if (FastAbs(correction) <= 2.0e-15 * std::max({mGapOut, mGapIn, FastAbs(x)})) break;
             if (residual > 0.0) hi = x; else lo = x;
             const double next = x - correction;
             x = next > lo && next < hi ? next : lo + 0.5 * (hi - lo);

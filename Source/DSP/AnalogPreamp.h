@@ -40,7 +40,7 @@ public:
     // times a pole close to 1 rounds back to itself). Zero them first.
     void FlushTiny() {
         for (float* x : { &mDcBlockInL, &mDcBlockOutL, &mDcBlockInR, &mDcBlockOutR, &mTiltLowL, &mTiltLowR, &mPreviousDriveL, &mPreviousDriveR }) {
-            if (std::abs(*x) < kTinyState) *x = 0.0f;
+            if (FastAbs(*x) < kTinyState) *x = 0.0f;
         }
     }
 
@@ -69,7 +69,7 @@ public:
         bool bypass = true;
     };
     static DriveCoefficients PrepareDrive(float drive) {
-        drive = std::isfinite(drive) ? std::clamp(drive, 0.0f, 1.0f) : 0.1f;
+        drive = FastIsFinite(drive) ? std::clamp(drive, 0.0f, 1.0f) : 0.1f;
         const float cleanGain = 1.0f + 0.12f * std::min(drive, 0.1f);
         if (drive <= 0.1f) return {1.0f, 1.0f, cleanGain, 0.0f, true};
         const float travel = (drive - 0.1f) / 0.9f;

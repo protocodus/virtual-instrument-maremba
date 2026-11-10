@@ -1,4 +1,5 @@
 #pragma once
+#include "DspMath.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -32,7 +33,7 @@ public:
             float* line=memory+mOffset[i];
             const float y=kGain[i]*x+line[mWrite[i]];
             const float state=x-kGain[i]*y;
-            line[mWrite[i]]=(state<1.e-20f&&state>-1.e-20f)?0.f:state;
+            line[mWrite[i]]=FastAbs(state)<1.e-20f?0.f:state;
             if(++mWrite[i]==mDelay[i])mWrite[i]=0;
             x=y;
         }

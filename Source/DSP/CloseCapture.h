@@ -1,5 +1,6 @@
 #pragma once
 
+#include "DspMath.h"
 #include "CaptureGeometry.h"
 #include "CloseHrtf.h"
 #include "SimdLanes.h"
@@ -59,7 +60,7 @@ public:
     // oversampling changes do not change the Close convolution's native rate.
     void SetSampleRate(double hostRate) {
         if (mSources.empty()) return;
-        if (!std::isfinite(hostRate)) return;
+        if (!FastIsFinite(hostRate)) return;
         const double rate = std::clamp(hostRate, 8000.0, mMaximumRate);
         if (rate == mRate) return;
         mRate = rate;
@@ -76,7 +77,7 @@ public:
             const double flight = CaptureDistance(CaptureSourcePosition(id), CloseHeadCentre())
                                 / kCaptureSpeedOfSound;
             const double itd = kCloseHrtfProfiles[kCloseHrtfSourceProfile[id]].residualItdSeconds;
-            minimumFlight = std::min(minimumFlight, flight - 0.5*std::abs(itd));
+            minimumFlight = std::min(minimumFlight, flight - 0.5*FastAbs(itd));
         }
         const double available = minimumFlight*rate - mResampleDelayFrames - 3.0;
         mBlockSize = 1;
@@ -116,8 +117,8 @@ public:
     // receiver is not supported by this fixed-scene renderer.
     bool AddSource(int id, CapturePoint position, int profileIndex) {
         if (id < 0 || id >= mMaximumSources || mRate <= 0.0 || profileIndex < 0
-            || profileIndex >= kCloseHrtfProfileCount || !std::isfinite(position.x)
-            || !std::isfinite(position.y) || !std::isfinite(position.z)) return false;
+            || profileIndex >= kCloseHrtfProfileCount || !FastIsFinite(position.x)
+            || !FastIsFinite(position.y) || !FastIsFinite(position.z)) return false;
         auto& source = mSources[static_cast<std::size_t>(id)];
         source.position = position;
         source.profile = profileIndex;
@@ -169,7 +170,7 @@ public:
             if (rawL == 0.0f && rawR == 0.0f) continue;
             auto& source = mSources[static_cast<std::size_t>(id)];
             if (!source.configured) continue;
-            if (!std::isfinite(rawL) || !std::isfinite(rawR)) {
+            if (!FastIsFinite(rawL) || !FastIsFinite(rawR)) {
                 Reset(); left = right = 0.0f; return;
             }
             if (Flush(rawL) == 0.0f && Flush(rawR) == 0.0f) continue;
@@ -209,7 +210,7 @@ public:
     // There are no recursive microphone states to sweep at control rate.
     void FlushTiny() {}
     bool HasNoSubnormalState() const {
-        const auto okay = [](float value) { return std::isfinite(value) && std::fpclassify(value) != FP_SUBNORMAL; };
+        const auto okay = [](float value) { return FastIsFinite(value) && std::fpclassify(value) != FP_SUBNORMAL; };
         for (float value : mFlight) if (!okay(value)) return false;
         for (float value : mHistory) if (!okay(value)) return false;
         for (const auto& source : mSources)
@@ -241,8 +242,8 @@ private:
         std::array<std::array<float, kMaximumBlock>, 2> previous{}, current{};
     };
 
-    static float Flush(float value) { return std::abs(value) < 1e-30f ? 0.0f : value; }
-    static double Sinc(double x) { return std::abs(x) < 1e-12 ? 1.0 : std::sin(kPi*x)/(kPi*x); }
+    static float Flush(float value) { return FastAbs(value) < 1e-30f ? 0.0f : value; }
+    static double Sinc(double x) { return FastAbs(x) < 1e-12 ? 1.0 : std::sin(kPi*x)/(kPi*x); }
 
     bool ConfigureFlight(Source& source) {
         const double distance = CaptureDistance(source.position, CloseHeadCentre());

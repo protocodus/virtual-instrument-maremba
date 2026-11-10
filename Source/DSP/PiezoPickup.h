@@ -42,7 +42,7 @@ public:
     // Components must be positive and finite. Configure is control-rate and
     // preserves stored charge; the owner resets on instrument/rate changes.
     void Configure(double sampleRate, const Components& parts) {
-        const double fs = std::isfinite(sampleRate) && sampleRate >= 8000.0
+        const double fs = FastIsFinite(sampleRate) && sampleRate >= 8000.0
             ? std::min(sampleRate, 1536000.0) : kReferenceRate;
         const double capacitance = parts.sensorCapacitance + parts.cableCapacitance
                                  + parts.inputCapacitance;
@@ -76,8 +76,8 @@ public:
              + mLpInput * mLpInput + mLpOutput * mLpOutput;
     }
     void FlushTiny() {
-        if (std::abs(mHpInput) < 1.0e-15 && std::abs(mHpOutput) < 1.0e-15
-            && std::abs(mLpInput) < 1.0e-15 && std::abs(mLpOutput) < 1.0e-15) Reset();
+        if (FastAbs(mHpInput) < 1.0e-15 && FastAbs(mHpOutput) < 1.0e-15
+            && FastAbs(mLpInput) < 1.0e-15 && FastAbs(mLpOutput) < 1.0e-15) Reset();
     }
     bool HasNoSubnormalState() const {
         return std::fpclassify(mHpInput) != FP_SUBNORMAL
@@ -103,7 +103,7 @@ public:
     // Control rate, allocation-free. Preserve state on an ordinary restrike;
     // Reset when a voice is reused for a different bar or its rate changes.
     void Configure(double sampleRate, EMarimbaModel model) {
-        const double fs = std::isfinite(sampleRate) && sampleRate >= 8000.0
+        const double fs = FastIsFinite(sampleRate) && sampleRate >= 8000.0
             ? std::min(sampleRate, 1536000.0) : kReferenceRate;
         // Repeated strikes commonly reuse the same sensor/circuit. Configure
         // only writes coefficients, so an identical configuration cannot
@@ -301,7 +301,7 @@ public:
         mPatch.FlushTiny();
         mCircuit.FlushTiny();
         mChargeAmp.FlushTiny();
-        if (std::abs(mLpInput) < 1.0e-15 && std::abs(mLpOutput) < 1.0e-15) {
+        if (FastAbs(mLpInput) < 1.0e-15 && FastAbs(mLpOutput) < 1.0e-15) {
             mLpInput = mLpOutput = 0.0;
         }
     }
@@ -334,7 +334,7 @@ private:
         void Reset() { z1 = z2 = 0.0; }
         double StateEnergy() const { return z1 * z1 + z2 * z2; }
         void FlushTiny() {
-            if (std::abs(z1) < 1.0e-15 && std::abs(z2) < 1.0e-15) Reset();
+            if (FastAbs(z1) < 1.0e-15 && FastAbs(z2) < 1.0e-15) Reset();
         }
         bool HasNoSubnormalState() const {
             return std::fpclassify(z1) != FP_SUBNORMAL && std::fpclassify(z2) != FP_SUBNORMAL;

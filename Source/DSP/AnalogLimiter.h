@@ -30,7 +30,7 @@ public:
     }
 
     void SetSampleRate(double sampleRate) {
-        mSampleRate = std::isfinite(sampleRate) && sampleRate > 8000.0
+        mSampleRate = FastIsFinite(sampleRate) && sampleRate > 8000.0
             ? sampleRate : kReferenceRate;
         mEngagementStep = static_cast<float>(1.0 / (0.002 * mSampleRate));
         mParameterAlpha = Alpha(5.0);
@@ -95,9 +95,9 @@ public:
         mThreshold += mParameterAlpha * (mThresholdTarget - mThreshold);
         // The makeup follows this value, and at high internal rates the float
         // smoother stalls up to ~3e-4 short of its target: land it exactly.
-        if (std::abs(mThresholdTarget - mThreshold) < 1.0e-3f * mThresholdTarget)
+        if (FastAbs(mThresholdTarget - mThreshold) < 1.0e-3f * mThresholdTarget)
             mThreshold = mThresholdTarget;
-        const float peak = std::max(std::abs(inL), std::abs(inR));
+        const float peak = std::max(FastAbs(inL), FastAbs(inR));
         // Bound control voltage well beyond the engine's valid signal range;
         // even a finite input near FLT_MAX must not poison capacitor state.
         const float normalizedPeak = std::min(peak / mThreshold, 1.0e6f);
@@ -131,13 +131,13 @@ public:
 
     bool HasNoSubnormalState() const {
         for (float x : {mControl, mReservoir, mThreshold, mEngagement})
-            if (!std::isfinite(x) || std::fpclassify(x) == FP_SUBNORMAL) return false;
+            if (!FastIsFinite(x) || std::fpclassify(x) == FP_SUBNORMAL) return false;
         return true;
     }
 
 private:
     static float FiniteRange(float x, float low, float high, float fallback) {
-        return std::isfinite(x) ? std::max(low, std::min(high, x)) : fallback;
+        return FastIsFinite(x) ? std::max(low, std::min(high, x)) : fallback;
     }
 
     static float RectifiedOverdrive(float x) {
