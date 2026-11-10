@@ -2,6 +2,7 @@
 
 #include "CaptureGeometry.h"
 #include "CloseHrtf.h"
+#include "SimdLanes.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -19,7 +20,12 @@ namespace maremba {
 // Uniform partitioned convolution sums source spectra before inverse FFTs in
 // staggered groups. Its processing delay is deducted from the propagation line:
 // it is not another hidden device latency. All storage is reserved by Allocate.
-class CloseCapture {
+//
+// Lanes selects the four-float kernels of SimdLanes.h for the butterflies, the
+// fractional delays and the spectrum sums; without it the same loops run one
+// float at a time, which is the reference Maremba.SimdKernel compares with.
+template<bool Lanes>
+class CloseCaptureKernel {
 public:
     static constexpr double kReferenceDistance = 0.6;
     static constexpr double kMaximumFlightSeconds = 0.01;
@@ -42,8 +48,8 @@ public:
         mSources.resize(static_cast<std::size_t>(mMaximumSources));
         mActiveSources.resize(static_cast<std::size_t>(mMaximumSources));
         mFlight.assign(static_cast<std::size_t>(mMaximumSources) * 2 * mDelayCapacity, 0.0f);
-        mHistory.assign(static_cast<std::size_t>(mMaximumSources) * 2 * mSpectrumCapacity, {});
-        mFilters.assign(static_cast<std::size_t>(kCloseHrtfProfileCount) * 2 * mSpectrumCapacity, {});
+        mHistory.assign(static_cast<std::size_t>(mMaximumSources) * 2 * 2 * mSpectrumCapacity, 0.0f);
+        mFilters.assign(static_cast<std::size_t>(kCloseHrtfProfileCount) * 2 * 2 * mSpectrumCapacity, 0.0f);
         mKernelScratch.resize(static_cast<std::size_t>(mKernelCapacity));
         mRate = 0.0;
         Reset();
@@ -205,7 +211,7 @@ public:
     bool HasNoSubnormalState() const {
         const auto okay = [](float value) { return std::isfinite(value) && std::fpclassify(value) != FP_SUBNORMAL; };
         for (float value : mFlight) if (!okay(value)) return false;
-        for (const auto& value : mHistory) if (!okay(value.real()) || !okay(value.imag())) return false;
+        for (float value : mHistory) if (!okay(value)) return false;
         for (const auto& source : mSources)
             for (int channel = 0; channel < 2; ++channel)
                 for (int i = 0; i < kMaximumBlock; ++i)
@@ -274,18 +280,21 @@ private:
         source.current = {}; source.previous = {};
         for (int channel = 0; channel < 2; ++channel) {
             std::fill(Flight(id, channel), Flight(id, channel) + mDelayCapacity, 0.0f);
-            std::fill(History(id, channel), History(id, channel) + mSpectrumCapacity, Complex{});
+            std::fill(History(id, channel), History(id, channel) + 2*mSpectrumCapacity, 0.0f);
         }
     }
 
     float* Flight(int source, int channel) {
         return mFlight.data() + (static_cast<std::size_t>(source)*2 + channel)*mDelayCapacity;
     }
-    Complex* History(int source, int channel) {
-        return mHistory.data() + (static_cast<std::size_t>(source)*2 + channel)*mSpectrumCapacity;
+    // One ear's spectra, a partition after another: each partition is
+    // mFftSize real parts followed by mFftSize imaginary parts (bins
+    // 0..mFftSize/2 are used), so the spectrum sums read whole lanes.
+    float* History(int source, int channel) {
+        return mHistory.data() + (static_cast<std::size_t>(source)*2 + channel)*2*mSpectrumCapacity;
     }
-    const Complex* Filter(int profile, int channel) const {
-        return mFilters.data() + (static_cast<std::size_t>(profile)*2 + channel)*mSpectrumCapacity;
+    const float* Filter(int profile, int channel) const {
+        return mFilters.data() + (static_cast<std::size_t>(profile)*2 + channel)*2*mSpectrumCapacity;
     }
 
     template<int Size, int Length, bool Inverse>
@@ -348,6 +357,54 @@ private:
     template<int Size, int Length, bool Inverse>
     void SplitStage(SplitBlock& data) const {
         constexpr int half = Length/2;
+#if MAREMBA_SIMD
+        if constexpr (Lanes && half >= 4) {
+            // Four butterflies a vector, each lane evaluating the expressions
+            // of the loops below. The vectors are loaded before any store, so
+            // the twiddle table needs no local copy here.
+            const float* const twiddleRe = mStageTwiddle.re.data() + (half-1);
+            const float* const twiddleIm = (Inverse ? mInverseTwiddleIm.data() : mStageTwiddle.im.data()) + (half-1);
+            float* const re = data.re.data();
+            float* const im = data.im.data();
+            if constexpr (Length == Size) {
+                for (int j = 0; j < half; j += 4) {
+                    const Float4 valueRe = LoadFloat4(re+j+half), valueIm = LoadFloat4(im+j+half);
+                    const Float4 rotateRe = LoadFloat4(twiddleRe+j), rotateIm = LoadFloat4(twiddleIm+j);
+                    const Float4 oddRe = valueRe*rotateRe-valueIm*rotateIm;
+                    const Float4 evenRe = LoadFloat4(re+j);
+                    if constexpr (Inverse) {
+                        StoreFloat4(re+j+half, evenRe-oddRe);
+                    } else {
+                        const Float4 oddIm = valueRe*rotateIm+valueIm*rotateRe;
+                        const Float4 evenIm = LoadFloat4(im+j);
+                        StoreFloat4(re+j, evenRe+oddRe);
+                        StoreFloat4(im+j, evenIm+oddIm);
+                        // Bin Size/2, the one upper output a forward transform keeps.
+                        if (j == 0) {
+                            re[half] = evenRe[0]-oddRe[0];
+                            im[half] = evenIm[0]-oddIm[0];
+                        }
+                    }
+                }
+            } else {
+                for (int first = 0; first < Size; first += Length)
+                    for (int j = 0; j < half; j += 4) {
+                        const int low = first+j, high = first+j+half;
+                        const Float4 valueRe = LoadFloat4(re+high), valueIm = LoadFloat4(im+high);
+                        const Float4 rotateRe = LoadFloat4(twiddleRe+j), rotateIm = LoadFloat4(twiddleIm+j);
+                        const Float4 oddRe = valueRe*rotateRe-valueIm*rotateIm;
+                        const Float4 oddIm = valueRe*rotateIm+valueIm*rotateRe;
+                        const Float4 evenRe = LoadFloat4(re+low), evenIm = LoadFloat4(im+low);
+                        StoreFloat4(re+low, evenRe+oddRe);
+                        StoreFloat4(im+low, evenIm+oddIm);
+                        StoreFloat4(re+high, evenRe-oddRe);
+                        StoreFloat4(im+high, evenIm-oddIm);
+                    }
+                SplitStage<Size, Length*2, Inverse>(data);
+            }
+            return;
+        }
+#endif
         // Local copies: the compiler cannot otherwise rule out `data` being
         // the twiddle table, and versions every span's loop on that check.
         std::array<float, half> twiddleRe, twiddleIm;
@@ -455,7 +512,7 @@ private:
     }
 
     void BuildFilters() {
-        std::fill(mFilters.begin(), mFilters.end(), Complex{});
+        std::fill(mFilters.begin(), mFilters.end(), 0.0f);
         const double ratio = mRate / kCloseHrtfReferenceRate;
         for (int profile = 0; profile < kCloseHrtfProfileCount; ++profile) for (int channel = 0; channel < 2; ++channel) {
             const auto& original = kCloseHrtfProfiles[profile].impulse[channel];
@@ -471,7 +528,7 @@ private:
                 }
                 mKernelScratch[static_cast<std::size_t>(sample)] = Flush(static_cast<float>(value/ratio));
             }
-            Complex* filter = mFilters.data() + (static_cast<std::size_t>(profile)*2 + channel)*mSpectrumCapacity;
+            float* filter = mFilters.data() + (static_cast<std::size_t>(profile)*2 + channel)*2*mSpectrumCapacity;
             for (int part = 0; part < mPartitions; ++part) {
                 std::array<Complex, kMaximumFft> block{};
                 for (int i = 0; i < mBlockSize; ++i) {
@@ -479,7 +536,10 @@ private:
                     if (sample < mKernelLength) block[static_cast<std::size_t>(i)] = mKernelScratch[static_cast<std::size_t>(sample)];
                 }
                 Fft(block, false);
-                std::copy_n(block.data(), mFftSize, filter + part*mFftSize);
+                for (int i = 0; i < mFftSize; ++i) {
+                    filter[part*2*mFftSize+i] = block[static_cast<std::size_t>(i)].real();
+                    filter[part*2*mFftSize+mFftSize+i] = block[static_cast<std::size_t>(i)].imag();
+                }
             }
         }
     }
@@ -498,6 +558,10 @@ private:
             if (start < 0) start += mDelayCapacity;
             std::array<float, kMaximumBlock> value;
             std::fill_n(value.data(), mBlockSize, 0.0f);
+#if MAREMBA_SIMD
+            Float4 taps[8];
+            if constexpr (Lanes) for (int tap = 0; tap < 8; ++tap) taps[tap] = SplatFloat4(fractional[tap]);
+#endif
             for (int i = 0; i < mBlockSize;) {
                 int at = start + i;
                 if (at >= mDelayCapacity) at -= mDelayCapacity;
@@ -505,6 +569,13 @@ private:
                     // A run of frames whose eight taps all lie before the wrap.
                     const int end = i + std::min(mBlockSize - i, mDelayCapacity - at);
                     const float* x = line + (at - i);
+#if MAREMBA_SIMD
+                    if constexpr (Lanes) for (; i + 4 <= end; i += 4) {
+                        Float4 sum = LoadFloat4(value.data() + i);
+                        for (int tap = 0; tap < 8; ++tap) sum += LoadFloat4(x + i - tap) * taps[tap];
+                        StoreFloat4(value.data() + i, sum);
+                    }
+#endif
                     for (int tap = 0; tap < 8; ++tap)
                         for (int k = i; k < end; ++k) value[static_cast<std::size_t>(k)] += x[k - tap] * fractional[tap];
                     i = end;
@@ -516,8 +587,48 @@ private:
                     }
                 }
             }
-            for (int i = 0; i < mBlockSize; ++i)
+            int i = 0;
+#if MAREMBA_SIMD
+            if constexpr (Lanes) for (; i + 4 <= mBlockSize; i += 4)
+                StoreFloat4(source.current[channel].data()+i, FlushFloat4(LoadFloat4(value.data()+i), 1e-30f));
+#endif
+            for (; i < mBlockSize; ++i)
                 source.current[channel][static_cast<std::size_t>(i)] = Flush(value[static_cast<std::size_t>(i)]);
+        }
+    }
+
+    // out[i] = Flush(in[i]*factor), or Flush(in[i]/factor).
+    template<bool Divide>
+    static void ScaleFlush(float* out, const float* in, float factor, int count) {
+        int i = 0;
+#if MAREMBA_SIMD
+        if constexpr (Lanes) {
+            const Float4 lanes = SplatFloat4(factor);
+            for (; i + 4 <= count; i += 4) {
+                const Float4 value = LoadFloat4(in+i);
+                StoreFloat4(out+i, FlushFloat4(Divide ? value/lanes : value*lanes, 1e-30f));
+            }
+        }
+#endif
+        for (; i < count; ++i) out[i] = Flush(Divide ? in[i]/factor : in[i]*factor);
+    }
+
+    // sum += x*h for `count` bins on split lanes: each bin receives exactly
+    // the complex product and += of the interleaved form.
+    static void AccumulateSpectrum(float* sumRe, float* sumIm, const float* xRe, const float* xIm,
+                                   const float* hRe, const float* hIm, int count) {
+        int i = 0;
+#if MAREMBA_SIMD
+        if constexpr (Lanes) for (; i + 4 <= count; i += 4) {
+            const Float4 xr = LoadFloat4(xRe+i), xi = LoadFloat4(xIm+i);
+            const Float4 hr = LoadFloat4(hRe+i), hi = LoadFloat4(hIm+i);
+            StoreFloat4(sumRe+i, LoadFloat4(sumRe+i) + (xr*hr-xi*hi));
+            StoreFloat4(sumIm+i, LoadFloat4(sumIm+i) + (xr*hi+xi*hr));
+        }
+#endif
+        for (; i < count; ++i) {
+            sumRe[i] += xRe[i]*hRe[i]-xIm[i]*hIm[i];
+            sumIm[i] += xRe[i]*hIm[i]+xIm[i]*hRe[i];
         }
     }
 
@@ -554,21 +665,19 @@ private:
                 }
                 std::copy_n(source.current[channel].data(), mBlockSize, source.previous[channel].data());
                 ForwardSplit(block);
-                Complex* history = History(id, channel);
-                for (int i = 0; i <= mFftSize/2; ++i) history[mHistoryPosition[group]*mFftSize+i] =
-                    {Flush(block.re[static_cast<std::size_t>(i)]*source.rangeGain),
-                     Flush(block.im[static_cast<std::size_t>(i)]*source.rangeGain)};
-                const Complex* filter = Filter(source.profile, channel);
+                const int bins = mFftSize/2+1;
+                float* history = History(id, channel);
+                float* newest = history+mHistoryPosition[group]*2*mFftSize;
+                ScaleFlush<false>(newest, block.re.data(), source.rangeGain, bins);
+                ScaleFlush<false>(newest+mFftSize, block.im.data(), source.rangeGain, bins);
+                const float* filter = Filter(source.profile, channel);
                 float* sumRe = sum[static_cast<std::size_t>(channel)].re.data();
                 float* sumIm = sum[static_cast<std::size_t>(channel)].im.data();
                 int previous = mHistoryPosition[group];
                 for (int part = 0; part < mPartitions; ++part) {
-                    const Complex* h = filter+part*mFftSize;
-                    const Complex* x = history+previous*mFftSize;
-                    for (int i = 0; i <= mFftSize/2; ++i) {
-                        sumRe[i] += x[i].real()*h[i].real()-x[i].imag()*h[i].imag();
-                        sumIm[i] += x[i].real()*h[i].imag()+x[i].imag()*h[i].real();
-                    }
+                    const float* h = filter+part*2*mFftSize;
+                    const float* x = history+previous*2*mFftSize;
+                    AccumulateSpectrum(sumRe, sumIm, x, x+mFftSize, h, h+mFftSize, bins);
                     if (--previous < 0) previous = mPartitions-1;
                 }
             }
@@ -589,9 +698,7 @@ private:
             }
             InverseSplit(block);
             // std::complex<float> /= float divides each part by the float.
-            for (int i = 0; i < mBlockSize; ++i)
-                mOutput[group][channel][static_cast<std::size_t>(i)] =
-                    Flush(block.re[static_cast<std::size_t>(i+mBlockSize)] / scale);
+            ScaleFlush<true>(mOutput[group][channel].data(), block.re.data()+mBlockSize, scale, mBlockSize);
         }
     }
 
@@ -604,13 +711,14 @@ private:
     int mActiveCount = 0;
     std::vector<Source> mSources;
     std::vector<int> mActiveSources;
-    std::vector<float> mFlight, mKernelScratch;
-    std::vector<Complex> mHistory, mFilters;
+    std::vector<float> mFlight, mKernelScratch, mHistory, mFilters;
     std::array<Complex, kMaximumBlock> mTwiddle{};
     std::array<int, kMaximumFft> mReverse{};
     SplitBlock mStageTwiddle{};
     std::array<float, kMaximumFft> mInverseTwiddleIm{};
     std::array<std::array<std::array<float, kMaximumBlock>, 2>, kMaximumGroups> mOutput{};
 };
+
+using CloseCapture = CloseCaptureKernel<MAREMBA_SIMD != 0>;
 
 } // namespace maremba
