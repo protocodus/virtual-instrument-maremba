@@ -39,9 +39,11 @@ defaults to 1x. It replaces Oversampling, whose saved values meant different
 rates in different builds (a change earlier the same day had renumbered them
 1x first). Songs, patches and plug-in sessions saved before 1.6.4 have no
 Quality, so they open at 1x whatever rate they were saved with; choose 2x, 4x
-or 8x again where you want it. Every factory preset plays at 1x. The plug-in's
-Quality parameter is `quality`; the old `oversampling` and `nativeRate`
-parameters are gone, so host automation recorded on them no longer plays.
+or 8x again where you want it. Every factory preset plays at 1x. A Quality
+change fades the sound out and restarts the engine, so Quality is a setting
+and cannot be automated. The plug-in's Quality parameter is `quality`; the old
+`oversampling` and `nativeRate` parameters are gone, so host automation
+recorded on them no longer plays.
 
 ### 1.6.3 — 2026-11-09 — A lighter sympathetic halo
 

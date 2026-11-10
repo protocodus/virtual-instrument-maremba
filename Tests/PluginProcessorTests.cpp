@@ -141,6 +141,10 @@ void TestQualityChoices() {
            && quality->choices[3].startsWith("8x") && quality->getIndex() == 0,
            "Quality lists 1x, 2x, 4x, 8x and defaults to 1x");
     if (!quality) return;
+    // A Quality change restarts the engine, so Quality is a setting; every
+    // other parameter changes the sound at once and stays automatable.
+    for (auto* parameter : processor.getParameters())
+        Expect(parameter->isAutomatable() == (parameter != quality), "only Quality is not automatable");
     // The engine's own codes: 3 is 1x, then 0, 1, 2 are 2x, 4x, 8x.
     for (const auto& [choice, engine] : { std::array<int, 2> { 0, 3 }, std::array<int, 2> { 1, 0 },
                                           std::array<int, 2> { 2, 1 }, std::array<int, 2> { 3, 2 } }) {

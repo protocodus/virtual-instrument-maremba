@@ -72,7 +72,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout MarembaAudioProcessor::creat
             juce::StringArray choices;
             for (const char* choice : display.choices)
                 if (choice != nullptr) choices.add(choice);
-            layout.add(std::make_unique<juce::AudioParameterChoice>(id, display.label, choices, static_cast<int>(initial)));
+            // A Quality change fades the sound out and restarts the engine, so
+            // it is a setting, never automated, as on the Rack device.
+            layout.add(std::make_unique<juce::AudioParameterChoice>(
+                id, display.label, choices, static_cast<int>(initial),
+                juce::AudioParameterChoiceAttributes().withAutomatable(control != maremba::kQuality)));
         } else {
             layout.add(std::make_unique<juce::AudioParameterFloat>(
                 id, display.label, juce::NormalisableRange<float>(0.0f, 1.0f), static_cast<float>(initial),
