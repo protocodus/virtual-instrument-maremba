@@ -143,12 +143,15 @@ none of 1.6.5's changes touch it.
 
 These are development-machine figures, not Reason or DAW CPU.
 
-## Maremba.IdleFlushCost fails
+## Maremba.IdleFlushCost fails on the development machine
 
 `Maremba.IdleFlushCost` (perf tier) requires the batch that falls idle to
-cost no more than twice a ringing batch. It fails on 1.6.5, six runs of six
-on this machine, and not from load. The same test built against 1.6.4 and
-against 1.6.5 (GCC 13.3 `-O3`), run alternately six times:
+cost no more than twice a ringing batch. On 1.6.5 it fails on this machine,
+six runs of six under load and again with the machine nearly idle, while the
+CI runner's perf tier passed on the same commit (its figures were not read).
+The test has lost its margin; it does not fail everywhere. The same test
+built against 1.6.4 and against 1.6.5 (GCC 13.3 `-O3`), run alternately six
+times on this machine:
 
 | | Ringing batch, median | Batch that falls idle | Ratio |
 | --- | ---: | ---: | ---: |
