@@ -27,6 +27,7 @@ RoomLevelTaperTest         # squared engine Room control, smooth automation and 
 MainVolumeTest            # 85% nominal, upper boost reserve, smooth automation and direct isolation
 CompactCaptureSourceTest   # one emitted pressure with explicit Close/Room reference conversion
 CaptureSceneEqualityTest   # exact lazy/eager ear decimation, transitions, isolation and lifecycle
+SimdKernelTest             # vector kernels bit-identical to their scalar loops: receivers, halo runs, Close, Room taps
 HeadroomTest               # smooth overload protection, quiet unity, aligned capture latency
 IdleFlushCostTest          # perf tier: falling idle costs no more than a ringing batch
 HardHitOutputTest          # every hard striker, velocity 127, extreme notes and repeated 24-note chords
