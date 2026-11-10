@@ -40,6 +40,10 @@ inline Float4 FlushFloat4(Float4 x, float limit) {
 inline Double2 LoadDouble2(const double* p) { return *reinterpret_cast<const Double2*>(p); }
 inline void StoreDouble2(double* p, Double2 v) { *reinterpret_cast<Double2*>(p) = v; }
 inline Double2 SplatDouble2(double x) { return Double2{x, x}; }
+// The first (or last) two floats of each vector, a's then b's: a pair of
+// floats moves as one double lane, which needs no shuffle builtin.
+inline Float4 LowPairs(Float4 a, Float4 b) { return (Float4)Double2{((Double2)a)[0], ((Double2)b)[0]}; }
+inline Float4 HighPairs(Float4 a, Float4 b) { return (Float4)Double2{((Double2)a)[1], ((Double2)b)[1]}; }
 #endif
 
 } // namespace maremba

@@ -83,6 +83,8 @@ public:
         mBlockSize = 1;
         while (mBlockSize < kMaximumBlock && 2*mBlockSize <= available) mBlockSize *= 2;
         mFftSize = 2*mBlockSize;
+        // A power of two, as the block is: a source's group is id & (count-1),
+        // with no division per source and frame.
         mGroupCount = std::max(1, mBlockSize/32);
         mKernelLength = static_cast<int>(std::ceil((kCloseHrtfTaps - 1.0
                             + 2.0 * mResampleSupport) * ratio)) + 1;
@@ -186,7 +188,7 @@ public:
             const int id = mActiveSources[static_cast<std::size_t>(active)];
             auto& source = mSources[static_cast<std::size_t>(id)];
             if (!source.configured || source.remaining == 0) { source.active = false; continue; }
-            const int position = mBlockPosition[id % mGroupCount];
+            const int position = mBlockPosition[id & (mGroupCount-1)];
             // The fractional delay into `current` runs once per partition,
             // in RenderPartition, the only reader of `current`.
             Flight(id, 0)[mFlightPosition] = Flush(id < count && leftInputs ? leftInputs[id] : 0.0f);
@@ -359,6 +361,33 @@ private:
     void SplitStage(SplitBlock& data) const {
         constexpr int half = Length/2;
 #if MAREMBA_SIMD
+        if constexpr (Lanes && Length == 4 && Size >= 8) {
+            // Two spans a pass: their even pairs side by side in one vector,
+            // their odd pairs in another, so each lane is one butterfly of
+            // the loop below.
+            const float* const twiddleRe = mStageTwiddle.re.data() + 1;
+            const float* const twiddleIm = (Inverse ? mInverseTwiddleIm.data() : mStageTwiddle.im.data()) + 1;
+            const Float4 rotateRe{twiddleRe[0], twiddleRe[1], twiddleRe[0], twiddleRe[1]};
+            const Float4 rotateIm{twiddleIm[0], twiddleIm[1], twiddleIm[0], twiddleIm[1]};
+            float* const re = data.re.data();
+            float* const im = data.im.data();
+            for (int first = 0; first < Size; first += 8) {
+                const Float4 re0 = LoadFloat4(re+first), re1 = LoadFloat4(re+first+4);
+                const Float4 im0 = LoadFloat4(im+first), im1 = LoadFloat4(im+first+4);
+                const Float4 valueRe = HighPairs(re0, re1), valueIm = HighPairs(im0, im1);
+                const Float4 oddRe = valueRe*rotateRe-valueIm*rotateIm;
+                const Float4 oddIm = valueRe*rotateIm+valueIm*rotateRe;
+                const Float4 evenRe = LowPairs(re0, re1), evenIm = LowPairs(im0, im1);
+                const Float4 lowRe = evenRe+oddRe, lowIm = evenIm+oddIm;
+                const Float4 highRe = evenRe-oddRe, highIm = evenIm-oddIm;
+                StoreFloat4(re+first, LowPairs(lowRe, highRe));
+                StoreFloat4(re+first+4, HighPairs(lowRe, highRe));
+                StoreFloat4(im+first, LowPairs(lowIm, highIm));
+                StoreFloat4(im+first+4, HighPairs(lowIm, highIm));
+            }
+            SplitStage<Size, 8, Inverse>(data);
+            return;
+        }
         if constexpr (Lanes && half >= 4) {
             // Four butterflies a vector, each lane evaluating the expressions
             // of the loops below. The vectors are loaded before any store, so
@@ -651,7 +680,7 @@ private:
         }
         for (int active = 0; active < mActiveCount; ++active) {
             const int id = mActiveSources[static_cast<std::size_t>(active)];
-            if (id % mGroupCount != group) continue;
+            if ((id & (mGroupCount-1)) != group) continue;
             auto& source = mSources[static_cast<std::size_t>(id)];
             if (!source.configured || source.remaining == 0) continue;
             DelayBlock(id, source);
