@@ -2,6 +2,7 @@
 
 #include "DspMath.h"
 #include "MarimbaModel.h"
+#include "SimdLanes.h"
 #include "Tunings.h"
 #include <algorithm>
 #include <array>
@@ -201,35 +202,77 @@ public:
     int ReceiverNote(int index) const { return index >= 0 && index < mCount ? mNote[index] : -1; }
 
 private:
-    template<bool Read>
+    friend struct SympatheticMeshTestAccess;
+    template<bool Read, bool Pairs = MAREMBA_SIMD != 0>
     inline void DispatchAdvance(float amount, float* receiverPressure) {
-        if (mTine) AdvanceReceivers<true, true, Read>(amount, receiverPressure);
-        else if (mAllPresent) AdvanceReceivers<false, true, Read>(amount, receiverPressure);
-        else AdvanceReceivers<false, false, Read>(amount, receiverPressure);
+        if (mTine) AdvanceReceivers<true, true, Read, Pairs>(amount, receiverPressure);
+        else if (mAllPresent) AdvanceReceivers<false, true, Read, Pairs>(amount, receiverPressure);
+        else AdvanceReceivers<false, false, Read, Pairs>(amount, receiverPressure);
+    }
+
+    // The receiver's recurrence, written once for one receiver and for two.
+    template<class Value>
+    static Value Resonate(Value c, Value y1, Value s, Value y2, Value b, Value drive) {
+        return c * y1 - s * y2 + b * drive;
     }
 
     template<bool Tine, bool AllPresent, bool Read>
+    inline void AdvanceReceiver(int i, float amount, float* receiverPressure) {
+        if constexpr (!AllPresent) {
+            if (!mPresent[i]) {
+                if constexpr (Read) receiverPressure[i] = 0.0f;
+                return;
+            }
+        }
+        const double input = Tine ? mDrive[i] : mSharedDrive;
+        const bool sounding = mSounding[i] != 0;
+        const double drive = sounding ? 0.0 : input - mInput2[i];
+        mInput2[i] = mInput1[i];
+        mInput1[i] = sounding ? 0.0 : input;
+        const double y = Resonate(mC[i], mY1[i], mS[i], mY2[i], mB[i], drive);
+        mY2[i] = mY1[i];
+        mY1[i] = y;
+        if (sounding) --mSounding[i];
+        if constexpr (Read)
+            receiverPressure[i] = static_cast<float>(y * amount * (Tine ? kTineGain : kBarGain));
+    }
+
+    template<bool Tine, bool AllPresent, bool Read, bool Pairs>
     inline void AdvanceReceivers(float amount, float* receiverPressure) {
         constexpr int count = Tine ? kTines : kNumResonators;
-        for (int i = 0; i < count; ++i) {
-            if constexpr (!AllPresent) {
-                if (!mPresent[i]) {
-                    if constexpr (Read) receiverPressure[i] = 0.0f;
+        int i = 0;
+#if MAREMBA_SIMD
+        if constexpr (Pairs) {
+            // Two receivers a vector while both are plain receivers: present
+            // and not sounding as voices, which is all but the held keys.
+            const Double2 gain = SplatDouble2(Tine ? kTineGain : kBarGain);
+            const Double2 level = SplatDouble2(amount);
+            for (; i + 1 < count; i += 2) {
+                const bool plain = (mSounding[i] | mSounding[i + 1]) == 0
+                    && (AllPresent || (mPresent[i] && mPresent[i + 1]));
+                if (!plain) {
+                    AdvanceReceiver<Tine, AllPresent, Read>(i, amount, receiverPressure);
+                    AdvanceReceiver<Tine, AllPresent, Read>(i + 1, amount, receiverPressure);
                     continue;
                 }
+                const Double2 input = Tine ? LoadDouble2(&mDrive[i]) : SplatDouble2(mSharedDrive);
+                const Double2 drive = input - LoadDouble2(&mInput2[i]);
+                StoreDouble2(&mInput2[i], LoadDouble2(&mInput1[i]));
+                StoreDouble2(&mInput1[i], input);
+                const Double2 y1 = LoadDouble2(&mY1[i]);
+                const Double2 y = Resonate<Double2>(LoadDouble2(&mC[i]), y1, LoadDouble2(&mS[i]),
+                                                    LoadDouble2(&mY2[i]), LoadDouble2(&mB[i]), drive);
+                StoreDouble2(&mY2[i], y1);
+                StoreDouble2(&mY1[i], y);
+                if constexpr (Read) {
+                    const Double2 pressure = y * level * gain;
+                    receiverPressure[i] = static_cast<float>(pressure[0]);
+                    receiverPressure[i + 1] = static_cast<float>(pressure[1]);
+                }
             }
-            const double input = Tine ? mDrive[i] : mSharedDrive;
-            const bool sounding = mSounding[i] != 0;
-            const double drive = sounding ? 0.0 : input - mInput2[i];
-            mInput2[i] = mInput1[i];
-            mInput1[i] = sounding ? 0.0 : input;
-            const double y = mC[i] * mY1[i] - mS[i] * mY2[i] + mB[i] * drive;
-            mY2[i] = mY1[i];
-            mY1[i] = y;
-            if (sounding) --mSounding[i];
-            if constexpr (Read)
-                receiverPressure[i] = static_cast<float>(y * amount * (Tine ? kTineGain : kBarGain));
         }
+#endif
+        for (; i < count; ++i) AdvanceReceiver<Tine, AllPresent, Read>(i, amount, receiverPressure);
     }
 
     static constexpr double kMaxState = 1.0e3;
