@@ -409,8 +409,10 @@ if(BUILD_TESTING)
         add_test(NAME Maremba.AudioDemos
                  COMMAND RenderMarembaPresetDemos --check "${CMAKE_CURRENT_SOURCE_DIR}/Docs/audio/midi")
         set_tests_properties(Maremba.AudioDemos PROPERTIES LABELS audio TIMEOUT 3600)
-        # U7: the preset demos timed on one thread against the budget in
-        # Tools/RenderPresetDemos.cpp. Timing means nothing instrumented.
+        # U7, U12: the preset demos, and the shared stress phrase through each
+        # demo's preset, timed on one thread: fails above the budget in
+        # Tools/RenderPresetDemos.cpp and warns, never fails, on a worst
+        # block above 10% of one core. Timing means nothing instrumented.
         if(CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT MAREMBA_ENABLE_SANITIZERS AND NOT MAREMBA_BUILD_FUZZER)
             add_test(NAME Maremba.CpuBudget
                      COMMAND RenderMarembaPresetDemos --cpu --json "${CMAKE_BINARY_DIR}/cpu.json"
