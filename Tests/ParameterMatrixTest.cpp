@@ -4,10 +4,12 @@
 //
 //   MarembaParameterMatrix [--jobs N] [--rotation] [--shard K/N] [--case LABEL]
 //                          [--count] [--list] [--quality-only]
+//   MarembaParameterMatrix --reach [--jobs N] [--case PARAMETER]
 //
 // The shared command line (U9): --rotation runs each case at one rate and
 // block size, for a quick pass; --shard K/N runs the cases whose index modulo
-// N is K, numbered from 0, for splitting the matrix across jobs.
+// N is K, numbered from 0, for splitting the matrix across jobs. --reach runs
+// the U11 parameter-reach test (Maremba.ParameterReach) over the same device.
 
 #include "DSP/MarembaPlayer.h"
 #include "FactoryPresets.h"
@@ -113,7 +115,132 @@ public:
         return limits;
     }
 
+    // U11. Quality, the one parameter the plug-in's editor changes and a host
+    // cannot automate, is in Parameters() with the rest: the plug-in hands
+    // the player every parameter the same way, whoever moved it
+    // (MarembaAudioProcessor::processBlock calls SetControls each block), so
+    // here the editor's path and the host's are both SetParameter.
+    //
+    // The design, Docs/validation/physical-parameter-audit.md: "Strike
+    // properties are captured at note-on/restrike: model, striker, hardness,
+    // position, cavity settings, decay, artifacts, variance, detune and
+    // velocity depths. Their automation is expected to affect subsequent
+    // strokes. Buzz, shared acoustic levels, mixer, tone/dynamics, volume and
+    // global tuning operate on ringing sound." MarembaEngine::TriggerNote
+    // hands the strike properties to the voice it strikes; SetParameters
+    // carries the others to every sounding voice and shared stage. The
+    // strike properties are NewNotes below; the rest reach held notes.
+    protocodus::matrix::ReachRule ReachFor(std::size_t index, float value) const override {
+        using protocodus::matrix::Reach;
+        const auto strike = [](const char* reason) { return protocodus::matrix::ReachRule { Reach::NewNotes, reason }; };
+        switch (exposed[index]) {
+        // TriggerNote: "A bar struck with another model cannot be carried
+        // into the new strike": it rings on as it was struck until a stroke
+        // on the new model fades it. The shared body follows the model at
+        // once (ConfigureModel), which the held chord hears from Balafon
+        // (2.7 dB) but hardly from Padauk or Kalimba (0.2 dB).
+        case kModel: return strike("a ringing bar keeps the model it was struck on (TriggerNote)");
+        case kMalletType:
+        case kMalletHardness:
+        case kStrikePosition: return strike("the mallet and where it lands, taken at each strike");
+        // Drawn from the strike's own random draws (GenerateStrikeCharacter,
+        // GenerateStrikeArtifacts in MarembaVoice::Trigger).
+        case kStrikeJitter:
+        case kArtifacts: return strike("drawn for each strike from its own random draws");
+        // The air mode under each bar is tuned and coupled when it is struck
+        // (the audit's "cavity settings"; Resonator Tune "remains active on
+        // new strikes"). Only the kalimba's shared box follows them live.
+        case kResonatorTune:
+        case kResonatorCoupling: return strike("the tube or gourd under each bar, tuned and coupled at its strike");
+        case kDecay: return strike("each bar's sustain, set at its strike");
+        // Detune and Scale both enter the key's own offset TriggerNote
+        // passes to the voice ("a repeated key retains its tuning"); Master
+        // Tune and pitch bend are the global tuning that retunes ringing
+        // bars (ApplyGlobalTuning) and the ringing-along keys.
+        case kDetune: return strike("each key's own tuning, set at its strike; Master Tune and bend retune ringing bars");
+        // Sambla keeps C, E and G where equal temperament has them (0, 400
+        // and 700 cents: TuningOffsetCents is 0 on G3, E4 and C5), and those
+        // are the probes' keys, so only the long play's other keys hear it.
+        // Round5ResponseTest strikes Sambla's D sharp and F as plain retunes.
+        case kTuningScale:
+            if (std::lround(value * 6.0f) == static_cast<long>(ETuningScale::Sambla)) {
+                auto rule = protocodus::matrix::ReachRule { Reach::Exempt, "Sambla tunes the probes' keys, G3 E4 C5, as Equal does "
+                                                                           "(Round5ResponseTest retunes its other keys)" };
+                rule.history = "the long play's other keys, which Sambla retunes";
+                return rule;
+            }
+            return strike("each key's own tuning, set at its strike; Master Tune and bend retune ringing bars");
+        // Docs/research/physical-models-review-2026-10-14.md: a geometry
+        // change on a ringing key "warrant[s] a separate transition design";
+        // until it has one, Carving is read at each strike and restrike.
+        case kCarving: return strike("the bars' carved geometry, read at each strike and restrike");
+        case kVelocityCurve: return strike("how a key's velocity drives its strike");
+        case kVelocityToHardness:
+        case kVelocityToPosition:
+        case kVelocityToDecay:
+        case kVelocityToCoupling:
+        case kVelocityToBloom:
+        case kVelocityToSympathetic:
+        case kVelocityToBuzz:
+        case kVelocityToTension:
+        case kVelocityToArtifacts:
+        case kVelocityToVariance: return strike("a velocity route, applied to each strike by its velocity");
+        // The route adds to Carving up to the keys as built (1), where the
+        // default and all 20 factory presets sit, so it is heard below them.
+        case kVelocityToCarving: {
+            auto rule = strike("a velocity route, applied to each strike by its velocity");
+            rule.with = { { Index(kCarving), 0.5f } };
+            return rule;
+        }
+        // Damp stops the keys released after it, the held chord among them;
+        // Dead is a kind of stroke, the mallet held on the key it strikes
+        // (StrikeOptions::deadStroke), so keys already ringing release as
+        // they were struck.
+        case kNoteOffMode:
+            if (std::lround(value * 2.0f) == 2) return strike("a dead stroke holds the mallet on the keys struck after it");
+            return {};
+        // A voice count, heard only once more keys ring than it allows. On
+        // the default patch R and T sound alike at probe 1 (0.04 dB apart for
+        // 8 voices, 0.03 dB for 24). At the longest Bar Decay, where more
+        // keys ring than any limit, the probes' keys still ring from the
+        // probe before, and a restrike keeps its voice (TriggerNote): probes
+        // 2 and 3 then sound the same at either limit. test_dsp covers the
+        // limit itself (TestPolyphonyReduction, TestStealVictim,
+        // TestChordBurstFadesVictims).
+        case kPolyphony:
+            return { Reach::Exempt, "a voice count; the probes restrike their own ringing keys and need no more voices "
+                                    "(test_dsp's polyphony and steal tests)" };
+        // The limiter's timing acts only while it limits. Attack is how fast
+        // it clamps a level rising past its threshold (AnalogLimiter::Process
+        // charges at the attack rate only while the demand rises), which the
+        // onsets of new strikes are and a held chord's decay is not: driven
+        // to full Drive and Volume as well, the held chord moves 0.04 dB.
+        case kCompAttack: {
+            auto rule = strike("how fast the limiter clamps a rising level: the onsets of the notes after it");
+            rule.with = { { Index(kCompAmount), 1.0f } };
+            return rule;
+        }
+        case kCompRelease: return { Reach::Held, "", { { Index(kCompAmount), 1.0f } } };
+        // MarembaEngine::SetParameters: a Quality change fades every voice
+        // and tail out and restarts the engine at the new rate
+        // (ApplyFactorSwitch); notes from then on play at it. It is an alias
+        // policy, not a tone control, so on the default patch 2x sounds as
+        // 1x does, and the test meets it on the first preset where it does
+        // not.
+        case kQuality: {
+            auto rule = strike("a Quality change fades out what sounds and restarts the engine at the new rate");
+            rule.history = "the switch clears the tails the long play and the held chord leave in R and T";
+            return rule;
+        }
+        default: return {};
+        }
+    }
+
 private:
+    std::size_t Index(EControl control) const {
+        return static_cast<std::size_t>(std::find(exposed.begin(), exposed.end(), control) - exposed.begin());
+    }
+
     static float Normalised(std::size_t control, double value) {
         const int steps = Steps(control);
         return static_cast<float>(steps ? value / (steps - 1) : value);
