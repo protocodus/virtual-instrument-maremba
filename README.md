@@ -288,6 +288,13 @@ higher modes provide additional alias suppression for the physical sources.
 
 ## Known gaps
 
+- Maremba is over the portfolio's CPU ceiling. At its default settings (1x)
+  the worst 256-frame block of the README demos takes 12.1-15.3% of one core on
+  the CI runner and the stress phrase 21.1-27.2% (Linux CI, 2026-11-15), against
+  the 10% ceiling of standard U12; whole renders run at 0.09-0.14x real time.
+  `Maremba.CpuBudget` warns and does not fail
+  ([plan](Docs/plans/cpu-ceiling-plan-2026-11-16.md)). Development-machine
+  figures, not Reason's.
 - The plug-in has no sustain pedal and no MPE; the engine has neither.
 - Close's head is a sphere: it has no pinnae, neck or torso, so it gives no
   elevation or front/back cues beyond the head's own shadow.
