@@ -98,6 +98,8 @@ maremba::ControlValues MarembaAudioProcessor::currentControls() const {
 void MarembaAudioProcessor::prepareToPlay(double sampleRate, int) {
     fPlayer.Prepare(sampleRate);
     fPlayer.SetControls(currentControls());
+    setLatencySamples(maremba::MarembaPlayer::SupportsSampleRate(sampleRate)
+                          ? maremba::OutputHeadroom::LatencyFrames(sampleRate) : 0);
 }
 
 bool MarembaAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const {

@@ -25,7 +25,7 @@ endif()
 
 # The DSP version is the product version (Rack devices take X.Y.Z from it).
 # C is required too: JUCE's macOS AU and Standalone wrappers compile C sources.
-project(Maremba VERSION 1.6.5 LANGUAGES C CXX)
+project(Maremba VERSION 1.6.6 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -365,11 +365,12 @@ if(BUILD_TESTING)
             RESULT_VARIABLE MAREMBA_PYTHON_NUMERIC_RESULT
             OUTPUT_QUIET ERROR_QUIET)
         if(MAREMBA_PYTHON_NUMERIC_RESULT EQUAL 0)
-            # generate_bar_modes.py, generate_kalimba_modes.py and
-            # generate_kalimba_shapes.py are not registered: their checks fail
-            # on unchanged source (see README, Known gaps).
             foreach(check IN ITEMS
+                    "BarModeTable|generate_bar_modes.py|--check"
+                    "BarMeasuredSpecimen|generate_bar_modes.py|--bork"
+                    "KalimbaModesTable|generate_kalimba_modes.py"
                     "KalimbaMountTable|generate_kalimba_mount.py"
+                    "KalimbaMountShapeTable|generate_kalimba_shapes.py"
                     "RoomTemporalQualityTool|test_room_temporal_quality.py"
                     "CalibrationTools|test_calibration_tools.py")
                 string(REPLACE "|" ";" check "${check}")
@@ -379,6 +380,9 @@ if(BUILD_TESTING)
                          WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
                 set_tests_properties(Maremba.${name} PROPERTIES LABELS unit TIMEOUT 1800)
             endforeach()
+            # Each modal solve works on one small beam at a time.
+            set_tests_properties(Maremba.BarModeTable Maremba.BarMeasuredSpecimen PROPERTIES
+                ENVIRONMENT "OPENBLAS_NUM_THREADS=1;OMP_NUM_THREADS=1;VECLIB_MAXIMUM_THREADS=1")
 
             # Both measurements compile their own probe from Source/DSP and
             # refuse a non-empty output directory, so each run starts empty.

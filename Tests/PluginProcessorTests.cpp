@@ -265,6 +265,35 @@ void TestUnsupportedRate() {
     Expect(Peak(out) == 0.0, "an unsupported sample rate renders silence");
 }
 
+void TestHostLatency() {
+    MarembaAudioProcessor processor;
+    for (const auto& [rate, expected] : { std::pair{44100.0, 89}, {48000.0, 96},
+                                         {192000.0, 384}, {384000.0, 0}, {22050.0, 45} }) {
+        processor.prepareToPlay(rate, 256);
+        Expect(processor.getLatencySamples() == expected,
+               "the host sees the output protector's lookahead after each rate change");
+    }
+}
+
+void TestHostReset() {
+    MarembaAudioProcessor processor;
+    juce::AudioBuffer<float> buffer(2, 2048);
+    juce::MidiBuffer midi;
+    processor.prepareToPlay(48000.0, buffer.getNumSamples());
+    midi.addEvent(juce::MidiMessage::noteOn(1, 60, 0.8f), 0);
+    processor.processBlock(buffer, midi);
+    Expect(buffer.getMagnitude(0, buffer.getNumSamples()) > 0.0f, "a key is sounding before host reset");
+
+    processor.reset();
+    midi.clear();
+    processor.processBlock(buffer, midi);
+    Expect(buffer.getMagnitude(0, buffer.getNumSamples()) == 0.0f,
+           "a host reset clears the held key, room and lookahead before the next block");
+    midi.addEvent(juce::MidiMessage::noteOn(1, 60, 0.8f), 0);
+    processor.processBlock(buffer, midi);
+    Expect(buffer.getMagnitude(0, buffer.getNumSamples()) > 0.0f, "the same key plays again after host reset");
+}
+
 } // namespace
 
 int main() {
@@ -278,6 +307,8 @@ int main() {
     TestBlockPartitionInvariance();
     TestDirectOutputs();
     TestUnsupportedRate();
+    TestHostLatency();
+    TestHostReset();
     if (gFailures != 0) {
         std::fprintf(stderr, "PluginProcessorTests: %d failure(s)\n", gFailures);
         return 1;
