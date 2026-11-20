@@ -89,9 +89,9 @@ class Material:
 
 
 # Honduran rosewood: density ~1.05, E ~19 GPa (specific stiffness ~18 GPa cm3/g).
-# Shear moduli are calibrated on Bork et al.'s C3 bar (--bork): E/G = 8.5 puts its
-# untuned bending modes V4..V7 within about 14 % of the measurements, and the
-# effective torsional E/G = 5.8 reproduces its first torsional mode, T1 = 2.48 f1.
+# The beam's effective shear ratios were calibrated on Bork et al.'s C3 bar:
+# E/G = 8.5 for bending and E/G = 5.8 for torsion. --bork checks those ratios
+# using the measured specimen dimensions, density, mass and longitudinal modulus.
 # The same ratios are assumed for the other woods (no measurements found).
 ROSEWOOD = Material("rosewood", 1050.0, 19.0e9, 8.5, 5.8)
 # Hormigo (Platymiscium): supplier sheet 12.3 GPa, air-dry density ~0.78.
@@ -531,28 +531,36 @@ def generate_model(spec, carvings, verbose=False):
 # ---------------------------------------------------------------------------
 
 def bork_validation():
-    measured = {"f1": 130.0, "V2": 4.0, "V3": 10.7, "V4": 19.4, "V5": 24.6, "V6": 38.7, "V7": 48.2,
-                "T1": 2.48, "T2": 11.1, "L1": 7.0}
-    length, width, h0 = 0.46, 0.06, 0.0235
+    # Bork et al., Acustica 85 (1999) 258–266, section 2 and tables I–II:
+    # https://www.dropbox.com/s/8wxzly02x81u7aq/marimba99AA.pdf
+    # Their specimen is Brazilian rosewood. Use its measured density and their
+    # longitudinal modulus with the effective shear ratios of our 1D model.
+    specimen = Material("Bork C3", 1080.0, 23e9, ROSEWOOD.E / ROSEWOOD.G, ROSEWOOD.E / ROSEWOOD.Gt)
+    length, width, edge, centre, scoop, mass = 0.46, 0.06, 0.0235, 0.0068, 0.28, 0.4578
 
-    def residual(p):
-        f = Bar(length, width, h0, ROSEWOOD, p[0], p[1], p[2]).frequencies(3, 160)
-        return [math.log(f[0] / 130.0) * 4, math.log(f[1] / f[0] / 4.0), math.log(f[2] / f[0] / 10.7)]
-    sol = least_squares(residual, (0.7, 0.52, 0.7), bounds=([0.05, 0.3, 0.15], [0.92, 0.99, 6.0]))
-    bar = Bar(length, width, h0, ROSEWOOD, *sol.x)
-    data = modal_data(bar)
-    r = data["ratio"]
-    model = {"f1": data["f1"], "V2": r[1], "V3": r[2], "V4": r[3], "V5": r[4], "V6": r[5], "V7": r[6],
-             "T1": data["torsion"][0], "T2": data["torsion"][1], "L1": data["lateral"]}
-    print(f"Bork C3 bar, carving depth {sol.x[0]:.3f} h0, arch {sol.x[1]:.3f} L, power {sol.x[2]:.2f}")
-    worst = 0.0
-    for key, value in measured.items():
-        err = model[key] / value - 1.0
-        if key not in ("f1", "V2", "V3"):
-            worst = max(worst, abs(err))
-        print(f"  {key:3s} measured {value:7.2f}  model {model[key]:7.2f}  ({err * 100:+5.1f} %)")
-    print(f"  worst untuned deviation {worst * 100:.1f} %")
-    return worst
+    def carved(power):
+        return Bar(length, width, edge, specimen, 1 - centre / edge, scoop / length, power)
+
+    # The measured mass determines the remaining scoop-curvature parameter.
+    # No measured frequency participates in constructing the test geometry.
+    power = brentq(lambda p: carved(p).mass() - mass, 0.15, 6.0)
+    data = modal_data(carved(power))
+    measured = {"f1": 130, "V2": 524, "V3": 1391, "V4": 2520, "V5": 3196, "V6": 5037,
+                "V7": 6264, "T1": 323, "T2": 1441, "L1": 912}
+    ratios = {"f1": 1.0, **{f"V{i+1}": data["ratio"][i] for i in range(1, 7)},
+              "T1": data["torsion"][0], "T2": data["torsion"][1], "L1": data["lateral"]}
+    print(f"Bork C3 specimen: {mass * 1000:.1f} g, scoop {scoop * 100:.0f} cm, power {power:.5f}")
+    worst_hz = worst_ratio = 0.0
+    for key, hz in measured.items():
+        predicted = data["f1"] * ratios[key]
+        hz_error = predicted / hz - 1
+        ratio_error = ratios[key] / (hz / measured["f1"]) - 1
+        worst_hz = max(worst_hz, abs(hz_error))
+        worst_ratio = max(worst_ratio, abs(ratio_error))
+        print(f"  {key:3s} measured {hz:4d} Hz  model {predicted:7.2f} Hz  "
+              f"({hz_error * 100:+5.1f} %, ratio {ratio_error * 100:+5.1f} %)")
+    print(f"  worst frequency error {worst_hz:.2%}, worst ratio error {worst_ratio:.2%}")
+    return max(worst_hz, worst_ratio)
 
 
 # ---------------------------------------------------------------------------

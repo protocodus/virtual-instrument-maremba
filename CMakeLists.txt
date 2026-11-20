@@ -367,6 +367,7 @@ if(BUILD_TESTING)
         if(MAREMBA_PYTHON_NUMERIC_RESULT EQUAL 0)
             foreach(check IN ITEMS
                     "BarModeTable|generate_bar_modes.py|--check"
+                    "BarMeasuredSpecimen|generate_bar_modes.py|--bork"
                     "KalimbaModesTable|generate_kalimba_modes.py"
                     "KalimbaMountTable|generate_kalimba_mount.py"
                     "KalimbaMountShapeTable|generate_kalimba_shapes.py"
@@ -380,7 +381,7 @@ if(BUILD_TESTING)
                 set_tests_properties(Maremba.${name} PROPERTIES LABELS unit TIMEOUT 1800)
             endforeach()
             # Each modal solve works on one small beam at a time.
-            set_tests_properties(Maremba.BarModeTable PROPERTIES
+            set_tests_properties(Maremba.BarModeTable Maremba.BarMeasuredSpecimen PROPERTIES
                 ENVIRONMENT "OPENBLAS_NUM_THREADS=1;OMP_NUM_THREADS=1;VECLIB_MAXIMUM_THREADS=1")
 
             # Both measurements compile their own probe from Source/DSP and

@@ -317,6 +317,10 @@ higher modes provide additional alias suppression for the physical sources.
 - The render tier checks the screenshot's size and that it is not blank, not
   pixel identity with the committed image: the image is rendered on macOS, and
   fonts differ between platforms.
+- On Bork et al.'s measured C3 bar the one-dimensional model predicts the fifth
+  bending mode 13.8% high. The other nine tested modes are within 8.2% of their
+  measured frequencies. The specimen test uses the published mass and scoop
+  dimensions. [Bork et al., Tables I and II](https://www.dropbox.com/s/8wxzly02x81u7aq/marimba99AA.pdf)
 
 ## Build
 
