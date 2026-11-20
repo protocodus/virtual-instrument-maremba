@@ -32,6 +32,13 @@ shipping engine.
 
 ## Version history
 
+### 1.6.6 — Unreleased — Plug-in host timing and reset
+
+The plug-in reports its output protector's 2 ms lookahead to the host
+(89 samples at 44.1 kHz, 96 at 48 kHz). A host reset clears held notes,
+room tails and buffered audio. The Rack Extension pins its engine version
+independently.
+
 ### 1.6.5 — 2026-11-10 — The same sound for less CPU, most of it in Reason
 
 Reason's toolchain does not vectorize loops by itself, so the Close and Room
@@ -310,17 +317,6 @@ higher modes provide additional alias suppression for the physical sources.
 - The render tier checks the screenshot's size and that it is not blank, not
   pixel identity with the committed image: the image is rendered on macOS, and
   fonts differ between platforms.
-- Three table generators no longer reproduce the shipped tables, exactly as in
-  the Rack repository before the move, so their checks are not registered in
-  CTest. `generate_bar_modes.py` writes overtone ratios up to about 5% away
-  from `BarModes.h`; `generate_kalimba_modes.py` looks for the 32-node
-  radiation cache that `ModalRadiation.h` replaced with 64 nodes; and
-  `generate_kalimba_shapes.py` differs from `KalimbaMountShapes.h` in the tenth
-  significant digit. The shipped tables are what the contracts test; each
-  check is registered again once its generator matches them.
-- The modelling research, references and validation reports for this engine are
-  still in the Rack repository's device documentation, which is private.
-  Comments in `Source/DSP` that cite `docs/...` refer to those documents.
 
 ## Build
 
@@ -329,6 +325,9 @@ the generator and measurement checks. The plug-in build fetches JUCE 8.0.14 and
 clap-juce-extensions at pinned commits (`MAREMBA_JUCE_PATH` and
 `MAREMBA_CLAP_JUCE_EXTENSIONS_PATH` point at local checkouts instead); on Linux
 it needs JUCE's usual ALSA, FreeType, fontconfig and X11 development packages.
+
+The engine's [modelling research](Docs/research/) and [validation reports](Docs/validation/)
+are included in this repository.
 
 ```sh
 cmake -S . -B build-dsp -DCMAKE_BUILD_TYPE=Release -DMAREMBA_BUILD_PLUGIN=OFF -DBUILD_TESTING=ON

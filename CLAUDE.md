@@ -32,12 +32,13 @@ Protocodus portfolio standard kept in the project, not in this repository.
 
 ## Generated tables
 
-`BarModes.h`, `KalimbaModes.h`, `KalimbaMountShapes.h`, `ModalRadiation.h`'s
-kalimba cache, `OutputPeakKernel.h` and `CloseHrtf.h` are generated.
+`BarModes.h`, `KalimbaModes.h`, `KalimbaMountShapes.h`, `OutputPeakKernel.h`
+and `CloseHrtf.h` are generated. The kalimba mode check also verifies the
+64-point radiation quadrature in `ModalRadiation.h`.
 Change them only through their `Tests/generate_*.py` script, and keep each
-registered check passing. Three generators no longer match their shipped
-tables (README, Known gaps): bring a generator back to its table before using
-it to change one. `CloseHrtf.h` is synthesized from a rigid spherical head
+registered check passing. The bar generator solves the calibrated geometries in
+`Tests/bar_carvings.csv`. Use its `--refit` option when changing the carving
+design. `CloseHrtf.h` is synthesized from a rigid spherical head
 in the scene's geometry, never from measured responses; its receipt,
 `Tests/close-hrtf-generation.json`, must stay consistent. Every sound is
 synthesized: no recording, sample or measured impulse response ships.

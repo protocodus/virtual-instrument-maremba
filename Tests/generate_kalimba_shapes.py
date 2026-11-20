@@ -12,7 +12,7 @@ import numpy as np
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import eigsh
 
-from generate_kalimba_mount import (GRID, REFERENCE_A, REFERENCE_HZ, REAR_B,
+from generate_kalimba_mount import (GRID, NUMBER, REFERENCE_A, REFERENCE_HZ, REAR_B,
                                    KAPPA_AT_REFERENCE, mount)
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -174,7 +174,17 @@ def main():
             source = pattern.sub(lambda _: block, source)
         else:
             current = pattern.search(source)
-            assert current and current.group(0) == block, 'Mounted '+name+' table is stale'
+            assert current, 'Missing mounted '+name+' table'
+            stored = current.group(0)
+            assert NUMBER.sub('#', stored) == NUMBER.sub('#', block), 'Mounted '+name+' layout differs'
+            # The same 240-element eigenproblem on x86 and arm64 differs by
+            # up to 3.6e-8 in its shape coefficients, or one 6e-8 step in
+            # the emitted radiation values. This bound is tighter than both
+            # the compressed shape fit and the float32 radiation error budget.
+            error = max(abs(float(a) - float(b)) for a, b in
+                        zip(NUMBER.findall(stored), NUMBER.findall(block)))
+            assert error <= 1.e-7, f'Mounted {name} table differs by {error:.9g}'
+            print(f'Mounted {name} maximum coefficient difference: {error:.9g}')
     if args.write: path.write_text(source)
     print('wrote' if args.write else 'table matches',path)
 

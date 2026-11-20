@@ -2,8 +2,8 @@
 """Generate/check the fixed clamped-supported-free tine modes, independently FEM-check.
 
 Development-only dependencies: mpmath, numpy, scipy. No dependency enters DSP.
-Run with --write to replace the generated array in Source/DSP/KalimbaModes.h and the
-tine-only radiation cache; without it, check their agreement. --skip-fem only
+Run with --write to replace the generated array in Source/DSP/KalimbaModes.h.
+Also verify the runtime radiation quadrature. --skip-fem only
 skips the independent Hermite beam discretization, never the analytical solve.
 """
 import argparse
@@ -91,18 +91,18 @@ def fem_roots(elements_per_free_span):
     return eigenvalues**.25
 
 
-def check_radiation_cache(rows, write):
+def check_radiation_quadrature():
     """Verify the 64-point Gauss-Legendre quadrature rule in ModalRadiation.h."""
     path = ROOT/'Source/DSP/ModalRadiation.h'
     text = path.read_text()
     begin = text.index('static constexpr ModalRadiationNode kModalRadiationNodes[kRadiationNodes] = {')
     end = text.index('\n};', begin)
     lines = text[begin:end].splitlines()
-    nodes, weights = np.polynomial.legendre.leggauss(64)
-    expected_x = 0.5 * (nodes + 1.0)
-    expected_w = 0.5 * weights
+    # High-precision reference on [0, 1]. Double-precision leggauss changed
+    # its endpoint weights between NumPy releases by more than the tolerance.
+    expected_x, expected_w = mp.gauss_quadrature(64, 'legendre01')
     count = 0
-    for index, line in enumerate(lines):
+    for line in lines:
         if not line.startswith('    {'):
             continue
         x_str, w_str = line.split('{', 1)[1].split('}', 1)[0].split(',')[:2]
@@ -137,7 +137,7 @@ def main():
         path.write_text(updated)
     else:
         assert original == updated, 'Generated table differs; investigate before using --write'
-    check_radiation_cache(rows, args.write)
+    check_radiation_quadrature()
     expected = np.array([float(row[0]) for row in rows])
     print('analytic beta:', ', '.join(fmt(x) for x in expected))
     print('frequency ratios:', ', '.join(fmt(row[1]) for row in rows))

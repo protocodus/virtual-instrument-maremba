@@ -3,16 +3,17 @@
 
 Every Maremba wooden bar (concert rosewood marimba, Guatemalan hormigo marimba,
 West African vene balafon) is a free-free beam with a symmetric thickness
-profile. This script designs that profile per key the way a maker does - by
-removing wood until the tuning targets are met - and solves the resulting beam:
+profile. The beam calculation uses the calibrated carving for each key in
+Tests/bar_carvings.csv. The separate --refit step designs these profiles by
+removing wood until the tuning targets are met. The model solves:
 
 * vertical bending (Timoshenko: shear deformation and rotary inertia matter for
   the short, thick treble bars), first 16 elastic modes;
 * lateral (in-plane) bending, first mode;
 * St-Venant torsion, first two modes.
 
-Tuning targets follow measurements (see docs/PHYSICAL_MODEL_ROUND5_REFERENCES.md
-and docs/PHYSICAL_MODEL_ROUND6_REFERENCES.md): rosewood 1:4:10 up to G#3, 1:4
+Tuning targets follow measurements (see Docs/research/physical-model-round5-bar-references.md
+and Docs/research/physical-model-round6-references.md): rosewood 1:4:10 up to G#3, 1:4
 up to F#5 and the fundamental alone above (Yoo/Rossing/Larkin, La Favre); the
 Guatemalan hormigo bars are tuned in their fundamental only, as traditional
 builders do (Moreno Vazquez 2016; overtone tuning marks the concert-style
@@ -32,12 +33,14 @@ lateral ratios, and the bar's geometry and mass. Usage:
     python3 Tests/generate_bar_modes.py            # rewrite Source/DSP/BarModes.h
     python3 Tests/generate_bar_modes.py --check    # compare with Source/DSP/BarModes.h
     python3 Tests/generate_bar_modes.py --bork     # validation against Bork et al. 1999
+    python3 Tests/generate_bar_modes.py --refit    # redesign the carved bars and save their geometry
 """
 
 import argparse
+import csv
 import hashlib
+import io
 import math
-import re
 import sys
 from pathlib import Path
 
@@ -45,12 +48,14 @@ import numpy as np
 import scipy.sparse as sp
 from scipy.optimize import least_squares, brentq
 from scipy.linalg import eigh
+from generate_kalimba_mount import NUMBER
 
 # NumPy 2.0 renamed trapz to trapezoid and later releases drop the old name.
 trapezoid = getattr(np, "trapezoid", None) or np.trapz
 
 PROJECT = Path(__file__).resolve().parent.parent
 HEADER = PROJECT / "Source" / "DSP" / "BarModes.h"
+CARVINGS = PROJECT / "Tests" / "bar_carvings.csv"
 
 N_BEND = 16          # stored bending modes
 N_SHAPED = 6         # modes whose sampled shapes are stored
@@ -466,12 +471,45 @@ def uncarved_bar(spec, midi, carved):
                spec.material, 0.0, 0.5, 1.0)
 
 
-def generate_model(spec, verbose=False):
+def refit_carvings():
+    # The tuning problem admits several physical carvings for the same few
+    # target frequencies. Keep the selected geometry as an input to the FEM.
+    output = io.StringIO()
+    writer = csv.writer(output, lineterminator="\n")
+    writer.writerow(("model", "midi", "length_scale", "depth", "arch", "power", "end_depth", "end_span"))
+    for key, spec in MODELS.items():
+        previous = None
+        for midi in range(ANCHOR_FIRST, ANCHOR_LAST + 1, ANCHOR_STEP):
+            bar, previous = tune_bar(spec, midi, previous)
+            length, _, _ = spec.geometry(midi)
+            writer.writerow((key, midi, bar.length / length, bar.depth, bar.arch,
+                             bar.power, bar.end_depth, bar.end_span))
+    CARVINGS.write_text(output.getvalue())
+
+
+def read_carvings():
+    bars = {}
+    with CARVINGS.open(newline="") as source:
+        for row in csv.DictReader(source):
+            key, midi = row["model"], int(row["midi"])
+            spec = MODELS[key]
+            length, width, h0 = spec.geometry(midi)
+            if (key, midi) in bars:
+                raise ValueError(f"duplicate carving for {key} MIDI {midi}")
+            bars[key, midi] = Bar(length * float(row["length_scale"]), width, h0, spec.material,
+                                  float(row["depth"]), float(row["arch"]), float(row["power"]),
+                                  float(row["end_depth"]), float(row["end_span"]))
+    expected = {(k, n) for k in MODELS for n in range(ANCHOR_FIRST, ANCHOR_LAST + 1, ANCHOR_STEP)}
+    if bars.keys() != expected:
+        raise ValueError(f"unexpected carving anchors: {bars.keys() ^ expected}")
+    return bars
+
+
+def generate_model(spec, carvings, verbose=False):
     """Carved keys and their uncarved counterparts, anchor by anchor."""
     anchors, blanks = [], []
-    previous = None
     for midi in range(ANCHOR_FIRST, ANCHOR_LAST + 1, ANCHOR_STEP):
-        bar, previous = tune_bar(spec, midi, previous)
+        bar = carvings[spec.key, midi]
         data = modal_data(bar, pickup_patch=PICKUP_PATCHES[spec.key])
         data["midi"] = midi
         anchors.append(data)
@@ -590,11 +628,29 @@ def render_header(models):
     return "\n".join(lines)
 
 
+def matches_table(stored, generated):
+    if NUMBER.sub("#", stored) != NUMBER.sub("#", generated):
+        return False
+    for old, new in zip(NUMBER.finditer(stored), NUMBER.finditer(generated)):
+        a, b = float(old.group()), float(new.group())
+        # Shapes are serialized to five decimal places. The other FEM results
+        # use seven significant digits. Dense LAPACK backends can round the
+        # last digit differently even with identical physical geometry.
+        shape = stored[old.end():old.end() + 1] == "f"
+        if not math.isclose(a, b, rel_tol=0 if shape else 1e-6, abs_tol=1.00001e-5 if shape else 0):
+            line = stored.count("\n", 0, old.start()) + 1
+            print(f"BarModes.h line {line}: stored {a}, generated {b}", file=sys.stderr)
+            return False
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--check", action="store_true", help="fail if Source/DSP/BarModes.h differs from a fresh run")
-    parser.add_argument("--bork", action="store_true", help="validate against Bork et al.'s C3 bar and exit")
-    parser.add_argument("--validate-pickup", action="store_true", help="validate strain integration against analytical fields and exit")
+    action = parser.add_mutually_exclusive_group()
+    action.add_argument("--check", action="store_true", help="fail if Source/DSP/BarModes.h differs from a fresh run")
+    action.add_argument("--refit", action="store_true", help="fit new carving geometries, write Tests/bar_carvings.csv and exit")
+    action.add_argument("--bork", action="store_true", help="validate against Bork et al.'s C3 bar and exit")
+    action.add_argument("--validate-pickup", action="store_true", help="validate strain integration against analytical fields and exit")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
     validate_pickup_integral()
@@ -603,17 +659,21 @@ def main():
     if args.bork:
         worst = bork_validation()
         sys.exit(0 if worst < 0.15 else 1)
-    generated = {key: generate_model(spec, args.verbose) for key, spec in MODELS.items()}
+    if args.refit:
+        refit_carvings()
+        print(f"wrote {CARVINGS.relative_to(PROJECT)}")
+        return
+    carvings = read_carvings()
+    generated = {key: generate_model(spec, carvings, args.verbose) for key, spec in MODELS.items()}
     models = {key: pair[0] for key, pair in generated.items()}
     models.update({key + "-uncarved": pair[1] for key, pair in generated.items()})
     text = render_header(models)
-    if args.check:
-        current = HEADER.read_text() if HEADER.exists() else ""
-        if current != text:
-            print("Source/DSP/BarModes.h is stale: run Tests/generate_bar_modes.py", file=sys.stderr)
-            sys.exit(1)
+    current = HEADER.read_text() if HEADER.exists() else ""
+    if matches_table(current, text):
         print("PASS: Source/DSP/BarModes.h matches the generator")
         return
+    if args.check:
+        sys.exit("Source/DSP/BarModes.h is stale: run Tests/generate_bar_modes.py")
     HEADER.write_text(text)
     print(f"wrote {HEADER.relative_to(PROJECT)} ({len(text) // 1024} KB)")
 

@@ -18,8 +18,7 @@ concurrency:
 
 env:
   BUILD_NUMBER: ${{ github.run_number }}
-  # The table checks compare generated text exactly, so these are the versions
-  # that reproduce the committed tables.
+  # Keep numerical generator and measurement dependencies consistent across builds.
   PYTHON_PACKAGES: numpy==2.5.3 scipy==1.18.1 mpmath==1.4.1
 
 jobs:
