@@ -1,12 +1,12 @@
-Septum — JUCE dependency notices
-=================================
+Maremba — JUCE dependency notices
+==================================
 
 Pinned JUCE version: 8.0.14
 Pinned JUCE commit: 2cdfca8feb300fb424002ba2c2751569e5bacb64
 
-This file is intended to accompany distributed Septum plug-ins and
+This file is intended to accompany distributed Maremba plug-ins and
 standalone applications. It contains the JUCE licence notice and the
-licence texts for bundled third-party components used by Septum's
+licence texts for bundled third-party components used by Maremba's
 configured JUCE targets.
 
 The licence payload between each BEGIN/END pair is copied byte-for-byte
@@ -23,7 +23,7 @@ any JUCE commercial licence or other commercial distribution right.
 ===== JUCE Framework =====
 Version: 8.0.14
 Licence: JUCE Framework licence (AGPLv3/commercial dual licence notice)
-Scope: All JUCE modules linked by Septum
+Scope: All JUCE modules linked by Maremba
 Source (JUCE-relative): LICENSE.md
 Pinned JUCE version: 8.0.14
 Pinned JUCE commit: 2cdfca8feb300fb424002ba2c2751569e5bacb64
